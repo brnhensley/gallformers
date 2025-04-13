@@ -79,17 +79,17 @@ export function handleError(e: unknown): Error {
 }
 
 /**
- * If the given text is longer than the passed in len then truncate the text and add ... and return.
+ * If the given text is longer than the passed in number of words, then truncate the text and add ... and return.
  * @param words the number of words at which to truncate and add ...
  */
 export const truncateAtWord =
     (words: number) =>
     (s: string): string => {
-        if (s.length > words) {
-            return s.split(' ').splice(0, 40).join(' ') + '...';
-        } else {
-            return s;
+        const wordCount = s.trim().split(/\s+/).length;
+        if (wordCount > words) {
+            return s.split(/\s+/).slice(0, words).join(' ') + '...';
         }
+        return s;
     };
 
 const doToFirstLetter = (s: string | undefined, capitalize: boolean): string => {
@@ -194,8 +194,16 @@ export const SPECIES_NAME_REGEX = /(^[A-Z][a-z]+ (x|X)?\s?[a-z-]+\s?(\(.+\)\s*)*
 const speciesRegEx = new RegExp(SPECIES_NAME_REGEX);
 
 /**
- *
- * @param s Convenience function to test for a valid species name.
+ * Tests if a string is a valid species name.
+ * The name must follow these rules:
+ * 1. Start with a capital letter followed by lowercase letters
+ * 2. Have a space
+ * 3. Optionally have 'x' or 'X' followed by a space
+ * 4. Have a lowercase word that may contain hyphens (but not at start/end)
+ * 5. Zero or more groups of parentheses with any content inside, followed by optional whitespace
+
+* @param s Convenience function to test for a valid species name.
  * @returns
+ 
  */
 export const isValidSpeciesName = (s: string): boolean => speciesRegEx.test(s);

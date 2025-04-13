@@ -64,7 +64,6 @@ export const addImages = (images: ImageApi[]): TaskEither<Error, ImageApi[]> => 
             where: { id: { in: images.map((i) => i.id) } },
         });
 
-    // eslint-disable-next-line prettier/prettier
     return pipe(
         TE.tryCatch(add, handleError),
         TE.map(createOtherSizes),

@@ -11,6 +11,48 @@ type Props = {
     onChange: (images: ImageApi[]) => void;
 };
 
+const UPLOAD_CONFIG = {
+    MAX_FILES: 4,
+    UPLOAD_MAX_PERCENT: 0.6,
+    CDN_WAIT_STEPS: 100,
+} as const;
+
+const createImageObject = (path: string, uploader: string, speciesId: number): ImageApi => ({
+    id: -1,
+    attribution: '',
+    creator: '',
+    license: ImageLicenseValues.NONE,
+    licenselink: '',
+    path,
+    sourcelink: '',
+    source: null,
+    uploader,
+    lastchangedby: uploader,
+    speciesid: speciesId,
+    default: false,
+    caption: '',
+    small: '',
+    medium: '',
+    large: '',
+    xlarge: '',
+    original: '',
+    source_id: null,
+});
+
+// Define a type for the error response
+type ErrorResponse = {
+    message?: string;
+};
+
+const handleUploadError = (error: unknown) => {
+    if (axios.isAxiosError(error)) {
+        const responseData = error.response?.data as ErrorResponse | undefined;
+        const errorMessage = responseData?.message || (typeof error.message === 'string' ? error.message : 'Unknown error');
+        return new Error(`Upload failed: ${errorMessage}`);
+    }
+    return new Error('An unexpected error occurred during upload');
+};
+
 const AddImage = ({ id, onChange }: Props): JSX.Element => {
     const [uploading, setUploading] = useState(false);
     const [progress, setProgress] = useState(0);
@@ -26,7 +68,7 @@ const AddImage = ({ id, onChange }: Props): JSX.Element => {
             const target = e.target as HTMLInputElement;
             if (target.files == null) return;
 
-            if (target.files.length > 4) {
+            if (target.files.length > UPLOAD_CONFIG.MAX_FILES) {
                 toast.error('You can currently only upload 4 or fewer images at one time.');
                 return;
             }
@@ -38,7 +80,7 @@ const AddImage = ({ id, onChange }: Props): JSX.Element => {
             const images = new Array<ImageApi>();
 
             let filesRemaining = files.length;
-            const uploadMaxPercent = 0.6;
+            const uploadMaxPercent = UPLOAD_CONFIG.UPLOAD_MAX_PERCENT;
 
             for (const file of files) {
                 // get presigned URL from server so that we can upload without needing secrets
@@ -82,7 +124,7 @@ const AddImage = ({ id, onChange }: Props): JSX.Element => {
                         } else {
                             console.error(`Image upload failed with non Axios error: ${JSON.stringify(e, null, ' ')}`);
                         }
-                        setError(e as Error);
+                        setError(handleUploadError(e));
                         return undefined;
                     });
 
@@ -93,27 +135,7 @@ const AddImage = ({ id, onChange }: Props): JSX.Element => {
                 filesRemaining -= 1;
 
                 if (resp) {
-                    images.push({
-                        id: -1,
-                        attribution: '',
-                        creator: '',
-                        license: ImageLicenseValues.NONE,
-                        licenselink: '',
-                        path: path,
-                        sourcelink: '',
-                        source: null,
-                        uploader: sessionUserOrUnknown(session?.user?.name),
-                        lastchangedby: sessionUserOrUnknown(session?.user?.name),
-                        speciesid: id,
-                        default: false,
-                        caption: '',
-                        small: '',
-                        medium: '',
-                        large: '',
-                        xlarge: '',
-                        original: '',
-                        source_id: null,
-                    });
+                    images.push(createImageObject(path, sessionUserOrUnknown(session?.user?.name), id));
                 }
             }
 
@@ -130,7 +152,7 @@ const AddImage = ({ id, onChange }: Props): JSX.Element => {
                 const newImages = (await dbResponse.json()) as ImageApi[];
 
                 //hack: add a delay here to hopefully give a chance for the image to be picked up by the CDN
-                const steps = 100;
+                const steps = UPLOAD_CONFIG.CDN_WAIT_STEPS;
                 const waitPercent = 100 - uploadMaxPercent * 100;
                 for (let i = 1; i <= steps; ++i) {
                     await new Promise((r) => setTimeout(r, 100));

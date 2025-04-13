@@ -9,6 +9,17 @@ export type AliasTableProps = {
     disabled?: boolean;
 };
 
+/**
+ * A component that renders an editable table of aliases
+ *
+ * This component allows users to view, add, edit, and delete aliases.
+ * Changes are not saved until the parent form is submitted.
+ *
+ * @param data - Array of alias data to display
+ * @param setData - Callback function to update the alias data
+ * @param disabled - Optional flag to disable editing of the table
+ * @returns JSX.Element
+ */
 const AliasTable = ({ data, setData, disabled }: AliasTableProps): JSX.Element => {
     const columns: EditableTableColumn<AliasApi>[] = [
         {
@@ -42,8 +53,8 @@ const AliasTable = ({ data, setData, disabled }: AliasTableProps): JSX.Element =
     ];
 
     return (
-        <>
-            Aliases:
+        <div aria-label="Aliases table">
+            <h3>Aliases:</h3>
             <EditableDataTable
                 keyField={'id'}
                 data={data}
@@ -56,13 +67,13 @@ const AliasTable = ({ data, setData, disabled }: AliasTableProps): JSX.Element =
                 update={setData}
                 disabled={disabled}
             />
-            <p className="small">
+            <p className="small" aria-live="polite">
                 <em>
                     Changes to the aliases will not be saved until you save the whole form by clicking &lsquo;Save Changes&rsquo;
                     below.
                 </em>
             </p>
-        </>
+        </div>
     );
 };
 

@@ -51,7 +51,7 @@ import {
     detachableFromId,
     taxonCodeAsStringToValue,
 } from '../api/apitypes';
-import { SMALL, deleteImagesBySpeciesId, makePath } from '../images/images';
+import { ORIGINAL, SMALL, deleteImagesBySpeciesId, makePath } from '../images/images';
 import { defaultSource } from '../pages/renderhelpers';
 import { logger } from '../utils/logger.ts';
 import { ExtractTFromPromise } from '../utils/types';
@@ -250,7 +250,6 @@ export const getGalls = (
             return newg;
         });
 
-    // eslint-disable-next-line prettier/prettier
     return pipe(
         TE.tryCatch(galls, handleError),
         TE.map(
@@ -548,7 +547,6 @@ export const randomGall = (): TaskEither<Error, RandomGall[]> => {
         licenselink: string;
     };
 
-    // eslint-disable-next-line prettier/prettier
     return pipe(
         TE.tryCatch(gall, handleError),
         TE.map((g: GallRet[]) => [
@@ -556,7 +554,7 @@ export const randomGall = (): TaskEither<Error, RandomGall[]> => {
                 id: g[0].species_id,
                 name: g[0].name,
                 undescribed: g[0].undescribed,
-                imagePath: makePath(g[0].path, SMALL),
+                imagePath: makePath(g[0].path, ORIGINAL),
                 creator: g[0].creator,
                 license: g[0].license,
                 sourceLink: g[0].sourcelink,
@@ -730,7 +728,6 @@ export const upsertGall = (gall: GallUpsertFields): TaskEither<Error, GallApi> =
         return gallByName(gall.name);
     };
 
-    // eslint-disable-next-line prettier/prettier
     return pipe(
         gall.id < 0 ? createGallTx : updateGallTx,
         TE.chain(getGall),

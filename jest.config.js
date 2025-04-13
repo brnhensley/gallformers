@@ -8,11 +8,13 @@ const customJestConfig = {
     // The directory where Jest should output its coverage files
     coverageDirectory: '.coverage',
     // A list of paths to modules that run some code to configure or set up the testing framework before each test
-    setupFilesAfterEnv: ['./jest.setup.js'],
+    setupFilesAfterEnv: ['./jest.setup.ts'],
     moduleNameMapper: {
         '\\.(scss|sass|css)$': 'identity-obj-proxy',
+        '^@/(.*)$': '<rootDir>/$1',
     },
     moduleDirectories: ['node_modules', '<rootDir>/'],
     testEnvironment: 'jest-environment-jsdom',
+    setupFiles: ['<rootDir>/jest.polyfills.js'],
 };
 export default createJestConfig(customJestConfig);

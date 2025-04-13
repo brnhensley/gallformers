@@ -114,9 +114,9 @@ const sizes = new Map([
     [XLARGE, 2000],
 ]);
 
-export const createOtherSizes = async (images: image[]): Promise<image[]> => {
+export const createOtherSizes = (images: image[]): image[] => {
     try {
-        await Promise.all(
+        Promise.all(
             images.map(async (image) => {
                 const path = `${EDGE}/${image.path}`;
                 const img = await tryBackoff(3, () => Jimp.read(path)).catch((reason: Error) =>
@@ -136,7 +136,7 @@ export const createOtherSizes = async (images: image[]): Promise<image[]> => {
                     }),
                 );
             }),
-        );
+        ).catch((e) => logger.error('Error processing images: ' + String(e)));
 
         return images;
     } catch (e) {

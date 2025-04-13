@@ -11,7 +11,9 @@
     "strict": true,
     "forceConsistentCasingInFileNames": true,
     "noEmit": true,
-    "types": ["node"],
+    "types": [
+      "node"
+    ],
     "allowSyntheticDefaultImports": true,
     "allowArbitraryExtensions": true,
     "allowImportingTsExtensions": true,
@@ -31,12 +33,19 @@
     "strictNullChecks": true,
     "alwaysStrict": true,
     "sourceMap": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "./*"
+      ]
+    }
   },
   "include": [
     "next-env.d.ts",
     "**/*.ts",
-    "**/*.tsx"
-, "jest.config.js"  ],
+    "**/*.tsx",
+    "jest.config.js"
+  ],
   "exclude": [
     "node_modules"
   ]

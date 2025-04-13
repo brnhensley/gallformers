@@ -252,3 +252,16 @@ blockquote {
         height: unset !important;
     }
 }
+
+.modal-fit-viewport {
+    max-width: calc(100vw - 40px) !important;
+    max-height: calc(100vh - 40px) !important;
+    margin: 20px auto !important;
+    width: auto !important;
+
+    .modal-content {
+        max-height: calc(100vh - 40px);
+        overflow-y: auto;
+    }
+}
+
