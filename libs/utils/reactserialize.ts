@@ -1,6 +1,6 @@
 import React, { ReactNode } from 'react';
 import * as ReactIs from 'react-is';
-import { hasProp } from './util.js';
+import { hasProp } from './util';
 
 // lifted from: https://github.com/Scimonster/React-Serialize/tree/fragments-custom-components
 // got tired of trying to fight broken babel builds to build this simple thing, so copied... so shoot me.

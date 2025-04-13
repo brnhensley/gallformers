@@ -1,6 +1,6 @@
 import { GetStaticProps } from 'next';
 import Head from 'next/head';
-import Image from 'next/image.js';
+import Image from 'next/image';
 import React from 'react';
 import { Accordion, Card, Col, Row } from 'react-bootstrap';
 import { getCurrentStats, Stat } from '../libs/db/stats.ts';
@@ -164,6 +164,34 @@ const About = ({ stats, genTime }: Props): JSX.Element => {
             </Row>
             <Row>
                 <Col>
+                    <h4>Funding</h4>
+                    <div className="d-flex align-items-center">
+                        <div className="me-1">
+                            <a href="https://www.nsf.gov" target="_blank" rel="noreferrer">
+                                <Image
+                                    src="/images/nsf-logo.svg"
+                                    alt="National Science Foundation Logo"
+                                    width={200}
+                                    height={200}
+                                />
+                            </a>
+                        </div>
+                        <p className="mb-0">
+                            This site is supported in part by the National Science Foundation under{' '}
+                            <a
+                                href="https://www.nsf.gov/awardsearch/showAward?AWD_ID=2418250&HistoricalAwards=false"
+                                target="_blank"
+                                rel="noreferrer"
+                            >
+                                Grant No. 2418250
+                            </a>
+                            .
+                        </p>
+                    </div>
+                </Col>
+            </Row>
+            <Row>
+                <Col>
                     <h4>Citing Gallformers</h4>
                     <p>
                         All of our original content is released under a{' '}
@@ -190,10 +218,10 @@ const About = ({ stats, genTime }: Props): JSX.Element => {
                     <h5>Citation</h5>
                     <span>
                         <div className="citation">
-                            “Gallformers Contributors.” Www.gallformers.org, www.gallformers.org. Accessed [date]‌
+                            "Gallformers Contributors." Www.gallformers.org, www.gallformers.org. Accessed [date]‌
                         </div>
                         <div className="citation">
-                            “Gallformers Contributors.” &ldquo;[<i>Species name</i>]&rdquo; Notes on ID and Taxonomy,
+                            "Gallformers Contributors." &ldquo;[<i>Species name</i>]&rdquo; Notes on ID and Taxonomy,
                             Www.gallformers.org/[url to specific species], www.gallformers.org. Accessed [date]‌
                         </div>
                     </span>

@@ -1,8 +1,7 @@
 import { useSession } from 'next-auth/react';
-import Image from 'next/image.js';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import Carousel from 'nuka-carousel';
 import { useState } from 'react';
 import { Button, ButtonGroup, ButtonToolbar, Col, Modal, OverlayTrigger, Popover, Row } from 'react-bootstrap';
 import useIsMounted from '../hooks/useIsMounted';
@@ -11,6 +10,7 @@ import { ImageApi, ImageLicenseValues, ImageNoSourceApi, SpeciesApi, TaxonCodeVa
 import { hasProp } from '../libs/utils/util';
 import NoImage from '../public/images/noimage.jpg';
 import NoImageHost from '../public/images/noimagehost.jpg';
+import ImageCarousel, { CarouselImage } from './ImageCarousel';
 
 // type guard for dealing with possible Images without Source data. If this happens there is an upstream
 // programming error so we will fail fast and hard.
@@ -31,21 +31,107 @@ type Props = {
 const Images = ({ sp }: Props): JSX.Element => {
     const species = {
         ...sp,
-        // move the default image so it is 1st (never know what the caller is handing us)
+        // move the default image so it is 1st (never know what the caller is handing us).
+        // also group the images by source.
         // also do the type conversion to make sure we were not handed Sources with no Images
-        images: sp.images.sort((a) => (a.default ? -1 : 0)).map((i) => checkSource(i)),
+        images: sp.images
+            .sort((a, b) => {
+                // First, prioritize default images
+                if (a.default && !b.default) return -1;
+                if (!a.default && b.default) return 1;
+
+                // Then group by source title, handling null sources
+                const sourceA = a.source?.title ?? '';
+                const sourceB = b.source?.title ?? '';
+
+                if (sourceA < sourceB) return -1;
+                if (sourceA > sourceB) return 1;
+
+                // If same source, maintain original order
+                return 0;
+            })
+            .map((i) => checkSource(i)),
     };
-    const [showModal, setShowModal] = useState(false);
-    const [currentImage, setCurrentImage] = useState(species.images.length > 0 ? species.images[0] : undefined);
-    const [imgIndex, setImgIndex] = useState(0);
     const [showInfo, setShowInfo] = useState(false);
-    const { width } = useWindowDimensions();
+    const [currentImage, setCurrentImage] = useState(species.images.length > 0 ? species.images[0] : undefined);
+    const { width, height } = useWindowDimensions();
     const mounted = useIsMounted();
     const router = useRouter();
     const session = useSession();
 
     const pad = 25;
-    const hwRatio = 2 / 3;
+
+    // Convert species images to the format expected by ImageCarousel
+    const carouselImages: CarouselImage[] = species.images.map(
+        (image) =>
+            ({
+                id: image.id,
+                src: image.original,
+                alt: `image of ${species.name}`,
+                original: image.original,
+                caption: image.caption,
+                sourcelink: image.sourcelink,
+                creator: image.creator,
+                license: image.license,
+                licenselink: image.licenselink,
+            }) as CarouselImage,
+    );
+
+    // Handle image click in the carousel
+    const handleImageClick = (_index: number, image: CarouselImage) => {
+        setCurrentImage(image);
+    };
+
+    // Handle slide change in the carousel
+    const handleSlideChange = (_index: number, image: CarouselImage) => {
+        setCurrentImage(image);
+    };
+
+    // Render content for the carousel
+    const renderImageForCarousel = (image: CarouselImage, isModal = false, handleImageClick?: (index: number) => void) => {
+        return (
+            <div className="p-1">
+                <Image
+                    src={image.original}
+                    alt={`image of ${species.name}`}
+                    unoptimized
+                    width={width - 2 * pad}
+                    height={height - 2 * pad}
+                    style={{
+                        objectFit: 'contain',
+                        maxHeight: '70vh',
+                        maxWidth: '100%',
+                        width: 'auto',
+                        height: 'auto',
+                    }}
+                    className="d-block"
+                    onClick={
+                        !isModal && handleImageClick
+                            ? () => handleImageClick(carouselImages.findIndex((img) => img.id === image.id))
+                            : undefined
+                    }
+                />
+                <p>{image.caption}</p>
+
+                {image.sourcelink != undefined && image.sourcelink !== '' && (
+                    <span>
+                        <a href={image.sourcelink} target="_blank" rel="noreferrer">
+                            Image
+                        </a>{' '}
+                        by {image.creator}
+                        {' © '}
+                        {image.license === ImageLicenseValues.ALL_RIGHTS ? (
+                            image.license
+                        ) : (
+                            <a href={image.licenselink} target="_blank" rel="noreferrer">
+                                {image.license}
+                            </a>
+                        )}
+                    </span>
+                )}
+            </div>
+        );
+    };
 
     return species.images.length < 1 ? (
         <div className="p-2">
@@ -53,6 +139,8 @@ const Images = ({ sp }: Props): JSX.Element => {
                 src={species.taxoncode === TaxonCodeValues.GALL ? NoImage : NoImageHost}
                 alt={`missing image of ${species.name}`}
                 className="img-fluid d-block"
+                width={300}
+                height={200}
             />
             {session && (
                 <ButtonToolbar className="row d-flex justify-content-center">
@@ -77,68 +165,17 @@ const Images = ({ sp }: Props): JSX.Element => {
         </div>
     ) : (
         <>
-            <Modal show={showModal} onHide={() => setShowModal(false)} centered dialogClassName="modal-90w">
-                <Modal.Header closeButton />
-                <Modal.Body>
-                    <Carousel
-                        renderCenterLeftControls={({ previousSlide }) => (
-                            <Button variant="secondary" size="sm" onClick={previousSlide} className="m-1">
-                                {'<'}
-                            </Button>
-                        )}
-                        renderCenterRightControls={({ nextSlide }) => (
-                            <Button variant="secondary" size="sm" onClick={nextSlide} className="m-1">
-                                {'>'}
-                            </Button>
-                        )}
-                        className="p-1"
-                        adaptiveHeight={false}
-                        cellAlign="center"
-                        slideIndex={imgIndex}
-                        wrapAround={true}
-                        animation="zoom"
-                        enableKeyboardControls={true}
-                    >
-                        {species.images.map((image) => (
-                            <div key={image.id}>
-                                <Image
-                                    //TODO when all images have XL versions show those here rather than the original
-                                    src={image.original}
-                                    alt={`image of ${species.name}`}
-                                    unoptimized
-                                    width={width - 2 * pad}
-                                    height={(width - 2 * pad) * hwRatio}
-                                    objectFit={'contain'}
-                                    className="d-block"
-                                />
-                                <p>{image.caption}</p>
-                                {image.sourcelink != undefined && image.sourcelink !== '' && (
-                                    <span>
-                                        <a href={image.sourcelink} target="_blank" rel="noreferrer">
-                                            Image
-                                        </a>{' '}
-                                        by {image.creator}
-                                        {' © '}
-                                        {image.license === ImageLicenseValues.ALL_RIGHTS ? (
-                                            image.license
-                                        ) : (
-                                            <a href={image.licenselink} target="_blank" rel="noreferrer">
-                                                {image.license}
-                                            </a>
-                                        )}
-                                    </span>
-                                )}
-                            </div>
-                        ))}
-                    </Carousel>
-                </Modal.Body>
-            </Modal>
-
-            <Modal show={showInfo} onHide={() => setShowInfo(false)} size="xl">
+            <Modal
+                show={showInfo}
+                onHide={() => setShowInfo(false)}
+                size="xl"
+                dialogClassName="modal-fit-viewport"
+                style={{ padding: '20px' }}
+            >
                 <Modal.Header closeButton>
                     <Modal.Title>Image Details</Modal.Title>
                 </Modal.Header>
-                <Modal.Body>
+                <Modal.Body style={{ padding: '20px' }}>
                     <Row>
                         <Col className="p-0 m-0 border" xs={4}>
                             <div className="image-container">
@@ -207,46 +244,12 @@ const Images = ({ sp }: Props): JSX.Element => {
                 </Modal.Body>
             </Modal>
             <div className="border rounded pb-1">
-                <Carousel
-                    renderCenterLeftControls={({ previousSlide }) => (
-                        <Button variant="secondary" size="sm" onClick={previousSlide} className="ms-1">
-                            {'<'}
-                        </Button>
-                    )}
-                    renderCenterRightControls={({ nextSlide }) => (
-                        <Button variant="secondary" size="sm" onClick={nextSlide} className="me-1">
-                            {'>'}
-                        </Button>
-                    )}
-                    className="p-1"
-                    adaptiveHeight={false}
-                    afterSlide={(c) => {
-                        setCurrentImage(species.images[c]);
-                        setImgIndex(c);
-                    }}
-                    wrapAround={true}
-                    animation="zoom"
-                    enableKeyboardControls={true}
-                >
-                    {species.images.map((image) => (
-                        <div
-                            key={image.id}
-                            style={{ display: 'flex', alignItems: 'center', height: '100%' }}
-                            className="align-items-center p-1"
-                        >
-                            {/* the Carousel and next.js Image do not play well together and layout becomes an issue */}
-                            {}
-                            <img
-                                src={image.medium}
-                                alt={`image of ${species.name}`}
-                                className="img-fluid d-block"
-                                onClick={() => {
-                                    setShowModal(true);
-                                }}
-                            />
-                        </div>
-                    ))}
-                </Carousel>
+                <ImageCarousel
+                    images={carouselImages}
+                    onImageClick={handleImageClick}
+                    onSlideChange={handleSlideChange}
+                    renderContent={renderImageForCarousel}
+                />
                 <ButtonToolbar className="pt-1 d-flex justify-content-center">
                     <ButtonGroup size="sm">
                         <OverlayTrigger
