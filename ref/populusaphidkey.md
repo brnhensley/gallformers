@@ -2,7 +2,8 @@
 title: 'Populus Aphid Gall Key'
 date: '2022-02-20'
 description: 'A key to the aphid galls on Populus in North America'
-author: Adam Kranz
+author: 
+    name: Adam Kranz
 ---
 
 *This key is a synthesis of gall descriptions given in the literature. There is reason to believe that these gall descriptions may not map perfectly onto monophyletic aphid taxa; cases where this is known to be true will be noted but the full extent of variation for all species is likely not known, and cryptic species likely await description.*
