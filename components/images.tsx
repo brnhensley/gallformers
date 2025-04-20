@@ -181,7 +181,7 @@ const Images = ({ sp }: Props): JSX.Element => {
                             <div className="image-container">
                                 {}
                                 <img
-                                    src={currentImage ? currentImage.small : ''}
+                                    src={currentImage ? currentImage.original : ''}
                                     alt={`image of ${species.name}`}
                                     width={250}
                                     className={'image'}

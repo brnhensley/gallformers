@@ -189,14 +189,6 @@ const Admin = <T extends AdminType, V extends FieldValues>(props: AdminProps<T, 
                 {props.form && (
                     <>
                         {/* <DevTool control={props.form.control} placement="top-right" /> */}
-                        <ul>
-                            <li>
-                                <code>{`IsValid: ${props.form.formState.isValid} -- isDirty: ${props.form.formState.isDirty}`}</code>
-                            </li>
-                            <li>
-                                <code>{`Err: ${debugDumpValidation(props.form.formState.errors)}`}</code>
-                            </li>
-                        </ul>
                         {props.formSubmit ? (
                             // eslint-disable-next-line @typescript-eslint/no-misused-promises
                             <form onSubmit={props.form.handleSubmit(props.formSubmit)} className="m-4 pe-4">
