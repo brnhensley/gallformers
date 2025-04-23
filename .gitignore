@@ -5,6 +5,7 @@ gallformers.sqlite-wal
 gallformers.sqlite-shm
 .vscode
 .env.local
+prisma/.env
 .vercel
 log.log
 yarn-error.log
@@ -13,6 +14,10 @@ gallformers-docker.tar
 .coverage
 cspell.json
 tsconfig.tsbuildinfo
+
+# Testing and temporary directories
+dirs_for_testing/
+dirs_for_testing/**
 
 # yarn 2 related
 .yarn/**

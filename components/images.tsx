@@ -77,16 +77,6 @@ const Images = ({ sp }: Props): JSX.Element => {
             }) as CarouselImage,
     );
 
-    // Handle image click in the carousel
-    const handleImageClick = (_index: number, image: CarouselImage) => {
-        setCurrentImage(image);
-    };
-
-    // Handle slide change in the carousel
-    const handleSlideChange = (_index: number, image: CarouselImage) => {
-        setCurrentImage(image);
-    };
-
     // Render content for the carousel
     const renderImageForCarousel = (image: CarouselImage, isModal = false, handleImageClick?: (index: number) => void) => {
         return (
@@ -246,8 +236,18 @@ const Images = ({ sp }: Props): JSX.Element => {
             <div className="border rounded pb-1">
                 <ImageCarousel
                     images={carouselImages}
-                    onImageClick={handleImageClick}
-                    onSlideChange={handleSlideChange}
+                    onImageClick={(index, image) => {
+                        // Only update if the image is different
+                        if (currentImage?.id !== image.id) {
+                            setCurrentImage(image);
+                        }
+                    }}
+                    onSlideChange={(index, image) => {
+                        // Only update if the image is different
+                        if (currentImage?.id !== image.id) {
+                            setCurrentImage(image);
+                        }
+                    }}
                     renderContent={renderImageForCarousel}
                 />
                 <ButtonToolbar className="pt-1 d-flex justify-content-center">
