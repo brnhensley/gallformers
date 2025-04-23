@@ -224,7 +224,7 @@ const Images = ({ sp }: Props): JSX.Element => {
             ...img,
             lastchangedby: sessionUserOrUnknown(session?.user?.name),
         };
-
+        console.log('saveImage', body);
         await axios
             .post<ImageApi[]>(`/api/images`, body)
             .then((res) => setImages(res.data))
