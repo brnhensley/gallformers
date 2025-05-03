@@ -20,6 +20,12 @@ jobs:
               with:
                   fetch-depth: 0
 
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: '20'
+                  cache: 'npm'
+
             - name: Debug - Initial Check
               run: |
                   echo "Current directory: $(pwd)"
@@ -27,12 +33,6 @@ jobs:
                   ls -la
                   echo "Yarn directory contents:"
                   ls -la .yarn || echo "No .yarn directory"
-
-            - name: Setup Node.js
-              uses: actions/setup-node@v4
-              with:
-                  node-version: '20'
-                  cache: 'yarn'
 
             - name: Setup Yarn
               run: |
