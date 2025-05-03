@@ -11,10 +11,8 @@ jobs:
                   node-version: '18'
             - name: Install Yarn
               run: |
-                  corepack enable
-                  corepack prepare yarn@4.7.0 --activate
-                  mkdir -p .yarn/releases
-                  cp $(which yarn) .yarn/releases/yarn-4.7.0.cjs
+                  npm install -g yarn@4.7.0
+                  yarn set version 4.7.0
             - name: Install modules
               run: yarn install --immutable
             - name: Gen DB Client
