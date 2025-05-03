@@ -10,9 +10,9 @@ endif
 define setup-env
 	cp $(1) .env
 	cat .env.local >> .env
-	# Create prisma/.env with the appropriate DATABASE_URL
+	# Create prisma/.env with the appropriate DATABASE_URL from .env
 	mkdir -p prisma
-	echo "DATABASE_URL=\"$(shell grep DATABASE_URL .env | cut -d'=' -f2-)\"" > prisma/.env
+	cp .env prisma/.env
 endef
 
 define cleanup-env
