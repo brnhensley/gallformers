@@ -28,6 +28,9 @@ dirs_for_testing/**
 !.yarn/versions
 .pnp.*
 
+# generated tiles for maps
+flyio/tileserver-gl/boundaries.mbtiles
+
 # generated database
 usda_plants/plants.db
 

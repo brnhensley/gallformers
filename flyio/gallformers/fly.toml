@@ -1,12 +1,13 @@
-# fly.toml app configuration file generated for gallformers on 2025-01-19T14:10:38-05:00
+# fly.toml app configuration file generated for gftiles-late-waterfall-1487 on 2025-05-03T13:21:03-04:00
 #
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
 
-app = 'gallformers'
+app = 'gftiles-late-waterfall-1487'
 primary_region = 'iad'
 
 [build]
+  dockerfile = 'tileserver-gl.Dockerfile'
 
 [processes]
   app = 'node ./dbsetup.js yarn start'
