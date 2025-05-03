@@ -8,9 +8,28 @@ echo "Created temporary directory: $TEMP_DIR"
 cp -r . "$TEMP_DIR"
 cd "$TEMP_DIR"
 
-# Build and run the test container
-docker build -t gallformers-test -f .github/workflows/Dockerfile.test .
-docker run --rm gallformers-test
+# Simulate GitHub Actions environment
+echo "Setting up Node.js environment..."
+export NODE_VERSION=20
+export CI=true
+
+# Install Node.js (similar to actions/setup-node)
+curl -fsSL https://fnm.vercel.app/install | bash
+export PATH="/root/.local/share/fnm:$PATH"
+fnm install $NODE_VERSION
+fnm use $NODE_VERSION
+
+# Enable Corepack and prepare Yarn (same as GitHub Actions)
+echo "Setting up Yarn..."
+corepack enable
+corepack prepare yarn@4.7.0 --activate
+
+# Install dependencies and run tests
+echo "Installing dependencies..."
+yarn install --immutable
+
+echo "Running tests..."
+yarn test
 
 # Clean up
 cd -

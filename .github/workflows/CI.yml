@@ -13,10 +13,11 @@ jobs:
                   node-version: '20'
                   cache: 'yarn'
 
-            - name: Install Yarn
-              run: |
-                  npm install -g yarn@4.7.0
-                  yarn set version 4.7.0
+            - name: Enable Corepack
+              run: corepack enable
+
+            - name: Prepare Yarn
+              run: corepack prepare yarn@4.7.0 --activate
 
             - name: Install dependencies
               run: yarn install --immutable
