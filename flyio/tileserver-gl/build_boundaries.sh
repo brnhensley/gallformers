@@ -13,10 +13,9 @@
 #   • tippecanoe            — Mapbox Tippecanoe (BSD)
 #
 # The script downloads Natural Earth Admin‑0 & Admin‑1 shapefiles, trims them
-# to the Western Hemisphere (‑180…+20 lon, ‑60…+85 lat), adds a stable "code"
+# to the Western Hemisphere countries and territories, adds a stable "code"
 # property (ISO‑3166‑1 alpha‑2 for countries, ISO‑3166‑2 for states), and
 # encodes a single boundaries.mbtiles file ready for tileserver‑gl or S3.
-# N.B. This will not include the Alaskan Aleutian Islands or the Hawaiian Islands.
 # -----------------------------------------------------------------------------
 set -euo pipefail
 
@@ -41,7 +40,6 @@ check_tool "tippecanoe" "brew install tippecanoe"
 
 # -------- Parameters ----------------------------------------------------------
 OUT_MB=${1:-"boundaries.mbtiles"}
-BBOX="-180 -60 20 85"       # Western Hemisphere lon/lat rectangle
 TMP=$(mktemp -d)
 SRC_DIR=$TMP/src
 TRIM_DIR=$TMP/trim
@@ -51,6 +49,20 @@ CACHE_PHYSICAL="${CACHE_DIR}/10m_physical.zip"
 # Using AWS Open Data Program mirror
 CULTURAL_URL="https://naturalearth.s3.amazonaws.com/10m_cultural/10m_cultural.zip"
 PHYSICAL_URL="https://naturalearth.s3.amazonaws.com/10m_physical/10m_physical.zip"
+
+# List of Western Hemisphere countries and territories
+# Format: ISO-3166-1 alpha-3 code
+COUNTRIES=(
+    "USA" "CAN" "MEX" "BLZ" "CRI" "SLV" "GTM" "HND" "NIC" "PAN"
+    "ATG" "BHS" "BRB" "CUB" "DMA" "DOM" "GRD" "HTI" "JAM"
+    "ARG" "BOL" "BRA" "CHL" "COL" "ECU" "GUY" "PRY" "PER" "SUR" "URY" "VEN"
+    # Territories
+    "ABW" "BES" "CUW" "GUF" "GRL" "GLP" "MTQ" "BLM" "MAF" "SPM" "SXM"
+    "AIA" "BMU" "VGB" "CYM" "FLK" "MSR" "PRI" "SGS" "TCA" "VIR"
+)
+
+# Countries that should have state/province boundaries
+STATE_COUNTRIES=("USA" "CAN" "MEX" "BRA")
 
 mkdir -p "$SRC_DIR" "$TRIM_DIR" "$CACHE_DIR"
 
@@ -80,7 +92,7 @@ function grab() {
 
 function extract_zip() {
   local zip=$1 dest=$2
-  if ! unzip -q -d "$dest" "$zip"; then
+  if ! unzip -q -o -d "$dest" "$zip"; then
     echo "❌ Error: Failed to extract $(basename "$zip")" >&2
     exit 1
   fi
@@ -110,65 +122,79 @@ echo "==> Extracting required shapefiles..." >&2
 extract_zip "$CACHE_CULTURAL" "$SRC_DIR"
 extract_zip "$CACHE_PHYSICAL" "$SRC_DIR"
 
-# -------- 2. Trim to Western Hemisphere --------------------------------------
-echo "==> Trimming to bbox $BBOX" >&2
+# -------- 2. Process shapefiles ---------------------------------------------
+echo "==> Processing shapefiles..." >&2
 
 # Find the specific shapefiles we need
 ADM0_SHAPE=$(find "$SRC_DIR" -name "ne_10m_admin_0_countries.shp" -print -quit)
 ADM1_SHAPE=$(find "$SRC_DIR" -name "ne_10m_admin_1_states_provinces.shp" -print -quit)
 LAKES_SHAPE=$(find "$SRC_DIR" -name "ne_10m_lakes.shp" -print -quit)
-RIVERS_SHAPE=$(find "$SRC_DIR" -name "ne_10m_rivers_lake_centerlines.shp" -print -quit)
 
 # Verify we found the required shapefiles
-if [ -z "$ADM0_SHAPE" ] || [ -z "$ADM1_SHAPE" ] || [ -z "$LAKES_SHAPE" ] || [ -z "$RIVERS_SHAPE" ]; then
+if [ -z "$ADM0_SHAPE" ] || [ -z "$ADM1_SHAPE" ] || [ -z "$LAKES_SHAPE" ]; then
   echo "❌ Error: Could not find required shapefiles in $SRC_DIR" >&2
   echo "💡 Please check if the zip files were extracted correctly." >&2
   exit 1
 fi
 
-# Process each shapefile individually
-for shp in "$ADM0_SHAPE" "$ADM1_SHAPE" "$LAKES_SHAPE" "$RIVERS_SHAPE"; do
-  fname=$(basename "$shp")
-  echo "Processing $fname..." >&2
-  # Suppress encoding warnings and ensure UTF-8 output
-  if ! ogr2ogr -spat $BBOX -lco ENCODING=UTF-8 "$TRIM_DIR/$fname" "$shp" 2>/dev/null; then
-    echo "❌ Error: Failed to process $fname" >&2
-    exit 1
-  fi
-done
-
-# -------- 3. Add stable codes and filter states/provinces --------------------
-echo "==> Adding stable codes and filtering states/provinces" >&2
-ADM1_SHAPE=$(find "$TRIM_DIR" -name "ne_10m_admin_1_states_provinces.shp" -print -quit)
-
-# Verify we found the trimmed shapefile
-if [ -z "$ADM1_SHAPE" ]; then
-  echo "❌ Error: Could not find trimmed states/provinces shapefile" >&2
+# First, create a temporary shapefile with our countries
+echo "Creating temporary country boundaries..." >&2
+COUNTRY_CODES=$(printf "'%s'," "${COUNTRIES[@]}" | sed 's/,$//')
+if ! ogr2ogr -f "ESRI Shapefile" \
+    -lco ENCODING=UTF-8 \
+    "$TRIM_DIR/countries_temp.shp" "$ADM0_SHAPE" \
+    -sql "SELECT * FROM \"$(basename "${ADM0_SHAPE%.shp}")\" WHERE adm0_a3 IN ($COUNTRY_CODES)" \
+    -dialect SQLITE 2>/dev/null; then
+  echo "❌ Error: Failed to create temporary country boundaries" >&2
   exit 1
 fi
 
-# Create a temporary shapefile for the update
-TEMP_SHAPE="${ADM1_SHAPE%.shp}_temp.shp"
-
-# For states/provinces, copy existing fields and add code field, filtering to only US, CA, MX, and BR
-echo "Creating new shapefile with code field and filtered countries..." >&2
-TABLE_NAME=$(basename "${ADM1_SHAPE%.shp}")
-if ! ogr2ogr -f "ESRI Shapefile" "$TEMP_SHAPE" "$ADM1_SHAPE" \
-  -sql "SELECT *, COALESCE(iso_3166_2, adm1_code) AS code FROM \"$TABLE_NAME\" WHERE adm0_a3 IN ('USA', 'CAN', 'MEX', 'BRA')" \
-  -dialect SQLITE; then
-  echo "❌ Error: Failed to update state/province codes" >&2
+# Process countries and territories
+echo "Processing countries and territories..." >&2
+if ! ogr2ogr -f "ESRI Shapefile" \
+    -lco ENCODING=UTF-8 \
+    "$TRIM_DIR/ne_10m_admin_0_countries.shp" "$TRIM_DIR/countries_temp.shp" 2>/dev/null; then
+  echo "❌ Error: Failed to process countries" >&2
   exit 1
 fi
 
-# Replace the original with the updated version
-echo "Updating original shapefile..." >&2
-for ext in shp dbf shx prj; do
-  if [ -f "${TEMP_SHAPE%.*}.$ext" ]; then
-    mv "${TEMP_SHAPE%.*}.$ext" "${ADM1_SHAPE%.*}.$ext"
-  fi
-done
+# Process states/provinces for selected countries
+echo "Processing states/provinces..." >&2
+STATE_CODES=$(printf "'%s'," "${STATE_COUNTRIES[@]}" | sed 's/,$//')
+if ! ogr2ogr -f "ESRI Shapefile" \
+    -lco ENCODING=UTF-8 \
+    "$TRIM_DIR/ne_10m_admin_1_states_provinces.shp" "$ADM1_SHAPE" \
+    -sql "SELECT *, COALESCE(iso_3166_2, adm1_code) AS code FROM \"$(basename "${ADM1_SHAPE%.shp}")\" WHERE adm0_a3 IN ($STATE_CODES)" \
+    -dialect SQLITE 2>/dev/null; then
+  echo "❌ Error: Failed to filter states/provinces" >&2
+  exit 1
+fi
 
-# -------- 4. Encode vector tiles with Tippecanoe -----------------------------
+# Process lakes (only large ones within our countries)
+echo "Processing lakes..." >&2
+# First, filter lakes by scalerank
+if ! ogr2ogr -f "ESRI Shapefile" \
+    -lco ENCODING=UTF-8 \
+    "$TRIM_DIR/lakes_temp.shp" "$LAKES_SHAPE" \
+    -sql "SELECT * FROM \"$(basename "${LAKES_SHAPE%.shp}")\" WHERE scalerank < 2" \
+    -dialect SQLITE 2>/dev/null; then
+  echo "❌ Error: Failed to filter lakes by scalerank" >&2
+  exit 1
+fi
+
+# Then, filter lakes that intersect with our countries
+if ! ogr2ogr -f "ESRI Shapefile" \
+    -lco ENCODING=UTF-8 \
+    "$TRIM_DIR/ne_10m_lakes.shp" "$TRIM_DIR/lakes_temp.shp" \
+    -clipsrc "$TRIM_DIR/countries_temp.shp" 2>/dev/null; then
+  echo "❌ Error: Failed to filter lakes by spatial intersection" >&2
+  exit 1
+fi
+
+# Clean up temporary files
+rm -f "$TRIM_DIR/countries_temp."* "$TRIM_DIR/lakes_temp."*
+
+# -------- 3. Encode vector tiles with Tippecanoe -----------------------------
 echo "==> Encoding vector tiles ($OUT_MB)…" >&2
 
 # Create a temporary directory for GeoJSON files
@@ -182,18 +208,19 @@ for shp in "$TRIM_DIR"/*.shp; do
   temp_json="$GEOJSON_DIR/${base}_temp.geojson"
   final_json="$GEOJSON_DIR/$base.geojson"
   
-  # Convert to GeoJSON
+  # Convert to GeoJSON with proper encoding handling
   if ! ogr2ogr -f GeoJSON \
        -preserve_fid \
+       -lco ENCODING=UTF-8 \
        "$temp_json" \
-       "$shp"; then
+       "$shp" 2>/dev/null; then
     echo "❌ Error: Failed to convert $base to GeoJSON" >&2
     exit 1
   fi
   
-  # Ensure UTF-8 encoding
-  if ! iconv -f ISO-8859-1 -t UTF-8 "$temp_json" > "$final_json"; then
-    echo "❌ Error: Failed to convert encoding for $base" >&2
+  # Clean up any problematic characters and ensure UTF-8
+  if ! iconv -f UTF-8 -t UTF-8//IGNORE "$temp_json" > "$final_json" 2>/dev/null; then
+    echo "❌ Error: Failed to process encoding for $base" >&2
     exit 1
   fi
   rm "$temp_json"
