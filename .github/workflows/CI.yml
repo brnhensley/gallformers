@@ -20,6 +20,14 @@ jobs:
               with:
                   fetch-depth: 0
 
+            - name: Debug - Initial Check
+              run: |
+                  echo "Current directory: $(pwd)"
+                  echo "Directory contents:"
+                  ls -la
+                  echo "Yarn directory contents:"
+                  ls -la .yarn || echo "No .yarn directory"
+
             - name: Setup Node.js
               uses: actions/setup-node@v4
               with:
@@ -28,14 +36,34 @@ jobs:
 
             - name: Setup Yarn
               run: |
+                  echo "Creating .yarn/releases directory..."
                   mkdir -p .yarn/releases
-                  curl -o .yarn/releases/yarn-4.7.0.cjs https://repo.yarnpkg.com/4.7.0/packages/yarnpkg-cli/bin/yarn.js
+                  echo "Downloading Yarn binary..."
+                  curl -v -o .yarn/releases/yarn-4.7.0.cjs https://repo.yarnpkg.com/4.7.0/packages/yarnpkg-cli/bin/yarn.js
+                  echo "Setting permissions..."
                   chmod +x .yarn/releases/yarn-4.7.0.cjs
+                  echo "Verifying file exists and is executable..."
+                  ls -la .yarn/releases/yarn-4.7.0.cjs
+                  echo "Testing Yarn version..."
                   node .yarn/releases/yarn-4.7.0.cjs --version
+
+            - name: Debug - Post Yarn Setup
+              run: |
+                  echo "Current directory: $(pwd)"
+                  echo "Yarn directory contents:"
+                  ls -la .yarn
+                  echo "Yarn releases contents:"
+                  ls -la .yarn/releases
+                  echo "File contents (first few lines):"
+                  head -n 5 .yarn/releases/yarn-4.7.0.cjs
 
             - name: Get yarn cache directory path
               id: yarn-cache-dir-path
-              run: echo "dir=$(node .yarn/releases/yarn-4.7.0.cjs config get cacheFolder)" >> $GITHUB_OUTPUT
+              run: |
+                  echo "Testing Yarn binary before getting cache path..."
+                  node .yarn/releases/yarn-4.7.0.cjs --version
+                  echo "Getting cache path..."
+                  echo "dir=$(node .yarn/releases/yarn-4.7.0.cjs config get cacheFolder)" >> $GITHUB_OUTPUT
 
             - name: Cache Yarn dependencies
               uses: actions/cache@v4
@@ -49,27 +77,57 @@ jobs:
                   restore-keys: |
                       ${{ runner.os }}-yarn-
 
+            - name: Debug - Pre Install
+              run: |
+                  echo "Current directory: $(pwd)"
+                  echo "Yarn releases contents:"
+                  ls -la .yarn/releases
+                  echo "Testing Yarn binary before install..."
+                  node .yarn/releases/yarn-4.7.0.cjs --version
+
             - name: Install dependencies
               run: node .yarn/releases/yarn-4.7.0.cjs install --immutable
 
+            - name: Debug - Post Install
+              run: |
+                  echo "Current directory: $(pwd)"
+                  echo "Yarn releases contents:"
+                  ls -la .yarn/releases
+                  echo "Testing Yarn binary after install..."
+                  node .yarn/releases/yarn-4.7.0.cjs --version
+
             - name: Type check
               run: |
+                  echo "Testing Yarn binary before type check..."
+                  node .yarn/releases/yarn-4.7.0.cjs --version
                   node .yarn/releases/yarn-4.7.0.cjs check-types
                   node .yarn/releases/yarn-4.7.0.cjs type-coverage
 
             - name: Lint
-              run: node .yarn/releases/yarn-4.7.0.cjs lint
+              run: |
+                  echo "Testing Yarn binary before lint..."
+                  node .yarn/releases/yarn-4.7.0.cjs --version
+                  node .yarn/releases/yarn-4.7.0.cjs lint
 
             - name: Generate Prisma Client
-              run: node .yarn/releases/yarn-4.7.0.cjs generate
+              run: |
+                  echo "Testing Yarn binary before generate..."
+                  node .yarn/releases/yarn-4.7.0.cjs --version
+                  node .yarn/releases/yarn-4.7.0.cjs generate
 
             - name: Run database migrations
-              run: node .yarn/releases/yarn-4.7.0.cjs migrate
+              run: |
+                  echo "Testing Yarn binary before migrate..."
+                  node .yarn/releases/yarn-4.7.0.cjs --version
+                  node .yarn/releases/yarn-4.7.0.cjs migrate
               env:
                   DATABASE_URL: 'file:./test.db'
 
             - name: Run tests
-              run: node .yarn/releases/yarn-4.7.0.cjs test --coverage
+              run: |
+                  echo "Testing Yarn binary before test..."
+                  node .yarn/releases/yarn-4.7.0.cjs --version
+                  node .yarn/releases/yarn-4.7.0.cjs test --coverage
               env:
                   CI: true
                   DATABASE_URL: 'file:./test.db'
