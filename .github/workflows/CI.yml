@@ -1,11 +1,24 @@
 name: CI
-on: [push, pull_request]
+
+on:
+    push:
+        branches: [main]
+    pull_request:
+        branches: ['**']
+
+env:
+    YARN_ENABLE_IMMUTABLE_INSTALLS: false
+    YARN_NODE_LINKER: node-modules
+
 jobs:
     test:
         name: Test
         runs-on: ubuntu-latest
+
         steps:
             - uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
 
             - name: Setup Node.js
               uses: actions/setup-node@v4
@@ -13,25 +26,53 @@ jobs:
                   node-version: '20'
                   cache: 'yarn'
 
-            - name: Enable Corepack
-              run: corepack enable
+            - name: Setup Yarn
+              run: |
+                  mkdir -p .yarn/releases
+                  curl -o .yarn/releases/yarn-4.7.0.cjs https://repo.yarnpkg.com/4.7.0/packages/yarnpkg-cli/bin/yarn.js
+                  chmod +x .yarn/releases/yarn-4.7.0.cjs
+                  node .yarn/releases/yarn-4.7.0.cjs --version
 
-            - name: Prepare Yarn
-              run: corepack prepare yarn@4.7.0 --activate
+            - name: Get yarn cache directory path
+              id: yarn-cache-dir-path
+              run: echo "dir=$(node .yarn/releases/yarn-4.7.0.cjs config get cacheFolder)" >> $GITHUB_OUTPUT
+
+            - name: Cache Yarn dependencies
+              uses: actions/cache@v4
+              with:
+                  path: |
+                      ${{ steps.yarn-cache-dir-path.outputs.dir }}
+                      node_modules
+                      .yarn/cache
+                      .yarn/unplugged
+                  key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+                  restore-keys: |
+                      ${{ runner.os }}-yarn-
 
             - name: Install dependencies
-              run: yarn install --immutable
+              run: node .yarn/releases/yarn-4.7.0.cjs install --immutable
+
+            - name: Type check
+              run: |
+                  node .yarn/releases/yarn-4.7.0.cjs check-types
+                  node .yarn/releases/yarn-4.7.0.cjs type-coverage
+
+            - name: Lint
+              run: node .yarn/releases/yarn-4.7.0.cjs lint
 
             - name: Generate Prisma Client
-              run: yarn generate
+              run: node .yarn/releases/yarn-4.7.0.cjs generate
 
             - name: Run database migrations
-              run: yarn migrate
+              run: node .yarn/releases/yarn-4.7.0.cjs migrate
+              env:
+                  DATABASE_URL: 'file:./test.db'
 
             - name: Run tests
-              run: yarn test
+              run: node .yarn/releases/yarn-4.7.0.cjs test --coverage
               env:
                   CI: true
+                  DATABASE_URL: 'file:./test.db'
 
             - name: Upload test coverage
               uses: actions/upload-artifact@v4
@@ -40,6 +81,3 @@ jobs:
                   name: coverage
                   path: .coverage/
                   retention-days: 7
-
-            - name: Type Coverage
-              run: yarn type-coverage
