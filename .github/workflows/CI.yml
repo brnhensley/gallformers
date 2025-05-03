@@ -13,6 +13,8 @@ jobs:
               run: |
                   corepack enable
                   corepack prepare yarn@4.7.0 --activate
+                  mkdir -p .yarn/releases
+                  cp $(which yarn) .yarn/releases/yarn-4.7.0.cjs
             - name: Install modules
               run: yarn install --immutable
             - name: Gen DB Client
