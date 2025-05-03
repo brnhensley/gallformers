@@ -11,7 +11,7 @@ import { Controller } from 'react-hook-form';
 import UndescribedFlow, { UndescribedData } from '../../components/UndescribedFlow';
 import AliasTable from '../../components/aliastable';
 import useSpecies, { SpeciesFormFields, SpeciesNamingHelp, SpeciesProps } from '../../hooks/useSpecies';
-import useAdmin from '../../hooks/useadmin';
+import useAdmin from '../../hooks/useAdmin';
 import { extractQueryParam } from '../../libs/api/apipage';
 import {
     AbundanceApi,
@@ -45,6 +45,7 @@ import { getAbundances } from '../../libs/db/species';
 import { allFamilies, allGenera } from '../../libs/db/taxonomy';
 import Admin from '../../libs/pages/admin';
 import { mightFailWithArray } from '../../libs/utils/util';
+import { useRouter } from 'next/router';
 
 type Props = SpeciesProps & {
     gall: GallApi[];
@@ -59,7 +60,10 @@ type Props = SpeciesProps & {
     forms: FilterField[];
 };
 
-export type FormFields = SpeciesFormFields<GallApi> & GallPropertiesType;
+export type FormFields = SpeciesFormFields<GallApi> &
+    GallPropertiesType & {
+        gall_id: number;
+    };
 
 const keyFieldName = 'name';
 
@@ -85,6 +89,7 @@ const Gall = ({
     );
     const [hosts, setHosts] = useState<HostSimple[]>([]);
     const [isLoading, setIsLoading] = useState(false);
+    const router = useRouter();
 
     const toUpsertFields = (fields: FormFields, name: string, id: number): GallUpsertFields => {
         if (!selected) {
@@ -111,40 +116,42 @@ const Gall = ({
     };
 
     const updatedFormFields = (s: GallApi | undefined): Promise<FormFields> => {
-        const speciesFields = updatedSpeciesFormFields(s);
-
-        if (s != undefined) {
+        if (!s) {
+            const speciesFields = updatedSpeciesFormFields(undefined);
             return Promise.resolve({
                 ...speciesFields,
-                alignment: s.alignment,
-                cells: s.cells,
-                color: s.color,
-                detachable: s.detachable,
-                hosts: s.hosts,
-                location: s.location,
-                season: s.season,
-                shape: s.shape,
-                texture: s.texture,
-                undescribed: s.undescribed,
-                walls: s.walls,
-                form: s.form,
+                gall_id: -1,
+                alignment: [],
+                cells: [],
+                color: [],
+                detachable: DetachableNone,
+                hosts: [],
+                location: [],
+                season: [],
+                shape: [],
+                texture: [],
+                undescribed: false,
+                walls: [],
+                form: [],
             });
         }
 
+        const speciesFields = updatedSpeciesFormFields(s);
         return Promise.resolve({
             ...speciesFields,
-            alignment: [],
-            cells: [],
-            color: [],
-            detachable: DetachableNone,
-            hosts: [],
-            location: [],
-            season: [],
-            shape: [],
-            texture: [],
-            undescribed: false,
-            walls: [],
-            form: [],
+            gall_id: s.gall_id,
+            alignment: s.alignment,
+            cells: s.cells,
+            color: s.color,
+            detachable: s.detachable,
+            hosts: s.hosts,
+            location: s.location,
+            season: s.season,
+            shape: s.shape,
+            texture: s.texture,
+            undescribed: s.undescribed,
+            walls: s.walls,
+            form: s.form,
         });
     };
 

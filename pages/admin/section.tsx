@@ -7,7 +7,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Button, Col, Row } from 'react-bootstrap';
 import { Controller, Path } from 'react-hook-form';
 import { RenameEvent } from '../../components/editname';
-import useAdmin, { AdminFormFields } from '../../hooks/useadmin';
+import useAdmin, { AdminFormFields } from '../../hooks/useAdmin';
 import { extractQueryParam } from '../../libs/api/apipage';
 import {
     SimpleSpecies,

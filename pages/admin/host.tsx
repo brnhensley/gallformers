@@ -12,7 +12,7 @@ import { ComposableMap, Geographies, Geography, ProjectionConfig, ZoomableGroup 
 import { Tooltip } from 'react-tooltip';
 import AliasTable from '../../components/aliastable';
 import useSpecies, { SpeciesFormFields, SpeciesNamingHelp, SpeciesProps } from '../../hooks/useSpecies';
-import useAdmin from '../../hooks/useadmin';
+import useAdmin from '../../hooks/useAdmin';
 import { extractQueryParam } from '../../libs/api/apipage';
 import {
     AbundanceApi,

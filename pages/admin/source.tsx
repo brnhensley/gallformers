@@ -4,7 +4,7 @@ import { GetServerSideProps } from 'next';
 import { ParsedUrlQuery } from 'querystring';
 import { Button, Col, Row } from 'react-bootstrap';
 import { RenameEvent } from '../../components/editname';
-import useAdmin, { AdminFormFields } from '../../hooks/useadmin';
+import useAdmin, { AdminFormFields } from '../../hooks/useAdmin';
 import { extractQueryParam } from '../../libs/api/apipage';
 import { ImageLicenseValues, SourceApi, SourceUpsertFields } from '../../libs/api/apitypes';
 import { allSources } from '../../libs/db/source';

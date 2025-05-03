@@ -13,7 +13,7 @@ import { Tooltip } from 'react-tooltip';
 import Auth from '../../components/auth';
 import { RenameEvent } from '../../components/editname';
 import InfoTip from '../../components/infotip';
-import useAdmin, { AdminFormFields } from '../../hooks/useadmin';
+import useAdmin, { AdminFormFields } from '../../hooks/useAdmin';
 import { extractQueryParam } from '../../libs/api/apipage';
 import {
     GallApi,

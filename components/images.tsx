@@ -5,7 +5,7 @@ import { useRouter } from 'next/router';
 import { useState } from 'react';
 import { Button, ButtonGroup, ButtonToolbar, Col, Modal, OverlayTrigger, Popover, Row } from 'react-bootstrap';
 import useIsMounted from '../hooks/useIsMounted';
-import useWindowDimensions from '../hooks/usewindowdimension';
+import useWindowDimensions from '../hooks/useWindowDimensions';
 import { ImageApi, ImageLicenseValues, ImageNoSourceApi, SpeciesApi, TaxonCodeValues } from '../libs/api/apitypes';
 import { hasProp } from '../libs/utils/util';
 import NoImage from '../public/images/noimage.jpg';
