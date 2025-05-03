@@ -5,6 +5,7 @@ on:
             - main
         paths:
             - 'flyio/tileserver-gl/**'
+            - '.github/workflows/tileserver-deploy.yml'
 
 jobs:
     deploy:
