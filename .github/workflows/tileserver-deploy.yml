@@ -17,6 +17,27 @@ jobs:
             - name: Set up Docker Buildx
               uses: docker/setup-buildx-action@v3
 
+            - name: Install system dependencies
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install -y \
+                      curl \
+                      unzip \
+                      gdal-bin \
+                      libgdal-dev \
+                      build-essential \
+                      cmake \
+                      libsqlite3-dev \
+                      zlib1g-dev
+
+            - name: Install Tippecanoe
+              run: |
+                  git clone https://github.com/mapbox/tippecanoe.git
+                  cd tippecanoe
+                  make -j
+                  sudo make install
+                  cd ..
+
             - name: Build boundaries.mbtiles
               working-directory: flyio/tileserver-gl
               run: |
