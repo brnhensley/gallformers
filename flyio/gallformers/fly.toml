@@ -1,33 +1,33 @@
-# fly.toml app configuration file generated for gftiles-late-waterfall-1487 on 2025-05-03T13:21:03-04:00
+# fly.toml app configuration file generated for gallformers on 2025-05-03T13:21:03-04:00
 #
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
 
-app = 'gftiles-late-waterfall-1487'
+app = 'gallformers'
 primary_region = 'iad'
 
 [build]
-  dockerfile = 'tileserver-gl.Dockerfile'
+dockerfile = 'gallformers.Dockerfile'
 
 [processes]
-  app = 'node ./dbsetup.js yarn start'
+app = 'node ./dbsetup.js yarn start'
 
 [[mounts]]
-  source = 'data'
-  destination = '/data'
-  auto_extend_size_threshold = 80
-  auto_extend_size_increment = '1GB'
-  auto_extend_size_limit = '10GB'
+source = 'data'
+destination = '/data'
+auto_extend_size_threshold = 80
+auto_extend_size_increment = '1GB'
+auto_extend_size_limit = '10GB'
 
 [http_service]
-  internal_port = 3000
-  force_https = true
-  auto_stop_machines = 'stop'
-  auto_start_machines = true
-  min_machines_running = 0
-  processes = ['app']
+internal_port = 3000
+force_https = true
+auto_stop_machines = 'stop'
+auto_start_machines = true
+min_machines_running = 0
+processes = ['app']
 
 [[vm]]
-  memory = '1gb'
-  cpu_kind = 'shared'
-  cpus = 1
+memory = '1gb'
+cpu_kind = 'shared'
+cpus = 1
