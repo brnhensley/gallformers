@@ -191,3 +191,76 @@ bootstrap:
 	# gets the certs and installs them changing the nginx configuration
 	certbot --nginx
 	
+# Fly.io deployment commands
+.PHONY: fly-launch
+fly-launch:
+	@echo "Launching app on fly.io..."
+	fly launch --name gallformers --region iad --no-deploy
+
+.PHONY: fly-volume-create
+fly-volume-create:
+	@echo "Creating persistent volume for SQLite database..."
+	fly volumes create gfdata --size 1 --region iad
+
+.PHONY: fly-secrets
+fly-secrets: env-check
+ifeq (,$(wildcard .env.production))
+	$(error You must have an .env.production file!)
+endif
+	$(call setup-env,.env.production)
+	@echo "Setting secrets from .env.production..."
+	@while IFS='=' read -r key value; do \
+		if [ -n "$$key" ] && [ -n "$$value" ] && [ "$$key" != "#" ]; then \
+			fly secrets set "$$key=$$value"; \
+		fi \
+	done < .env
+	$(call cleanup-env)
+
+.PHONY: fly-deploy
+fly-deploy:
+	@echo "Deploying to fly.io..."
+	fly deploy
+
+.PHONY: fly-setup
+fly-setup: fly-launch fly-volume-create fly-secrets fly-deploy
+
+# Fly.io local testing commands
+.PHONY: fly-local-build
+fly-local-build: env-check
+ifeq (,$(wildcard .env.local-docker))
+	$(error You must have an .env.local-docker file!)
+endif
+	$(call setup-env,.env.local-docker)
+	# Remove prisma/.env to avoid conflicts
+	rm -f prisma/.env
+	docker build -f Dockerfile.fly -t $(SERVICE_NAME):fly-local .
+	$(call cleanup-env)
+
+.PHONY: fly-local-run
+fly-local-run: env-check
+	$(call setup-env,.env.local-docker)
+	docker stop $(SERVICE_NAME)-fly || true
+	docker rm $(SERVICE_NAME)-fly || true
+	docker run \
+		-v ${PWD}/prisma:/usr/src/app/prisma \
+		-v ${PWD}/ref:/usr/src/app/ref \
+		-v ${PWD}/data:/data \
+		--env-file .env \
+		--name $(SERVICE_NAME)-fly \
+		-p 3000:3000 \
+		-d $(SERVICE_NAME):fly-local
+	docker start $(SERVICE_NAME)-fly
+	$(call cleanup-env)
+
+.PHONY: fly-local
+fly-local: fly-local-build fly-local-run
+
+.PHONY: fly-local-stop
+fly-local-stop:
+	docker stop $(SERVICE_NAME)-fly || true
+	docker rm $(SERVICE_NAME)-fly || true
+
+.PHONY: fly-local-logs
+fly-local-logs:
+	docker logs -f $(SERVICE_NAME)-fly
+	
