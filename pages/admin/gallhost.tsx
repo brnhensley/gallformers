@@ -210,12 +210,12 @@ const GallHostMapper = ({ sp, id, hosts }: Props): JSX.Element => {
                                         clearButton
                                         disabled={!selected}
                                         {...adminForm.form.register('hosts', {
-                                            validate: (gh) => {
+                                            validate: (gh: GallHost[]) => {
                                                 return gh.length > 0 || 'You must map at least one host to this gall.';
                                             },
                                         })}
                                         selected={gallHosts ? gallHosts : []}
-                                        onChange={(s) => {
+                                        onChange={(s: SpeciesWithPlaces[]) => {
                                             setGallHosts([...s] as SpeciesWithPlaces[]);
                                         }}
                                     />

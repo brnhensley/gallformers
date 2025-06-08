@@ -200,7 +200,7 @@ const Source = ({ id, sources }: Props): JSX.Element => {
                         License Link:
                         <input
                             {...adminForm.form.register('licenselink', {
-                                validate: (v) =>
+                                validate: (v: string) =>
                                     !(
                                         (adminForm.form.getValues('license') as ImageLicenseValues) ===
                                             ImageLicenseValues.CC_BY &&

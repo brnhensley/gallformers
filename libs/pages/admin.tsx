@@ -1,6 +1,6 @@
 import Head from 'next/head';
 import { Alert, Col, Nav, Navbar, Row } from 'react-bootstrap';
-import { FieldErrors, FieldValues, UseFormReturn } from 'react-hook-form';
+import { FieldValues, UseFormReturn } from 'react-hook-form';
 import { Toaster } from 'react-hot-toast';
 import Auth from '../../components/auth';
 import EditName, { RenameEvent } from '../../components/editname';
@@ -110,16 +110,6 @@ const Admin = <T extends AdminType, V extends FieldValues>(props: AdminProps<T, 
             case 'Place':
                 return `/place/${props.selected?.id}`;
         }
-    };
-
-    const debugDumpValidation = (errors: FieldErrors): string => {
-        let s: string = '';
-        let key: keyof typeof errors;
-        for (key in errors) {
-            // eslint-disable-next-line @typescript-eslint/no-base-to-string, @typescript-eslint/restrict-template-expressions
-            s = `${s}\n${String(key)} -- ${errors[key]?.message}`;
-        }
-        return s;
     };
 
     return (
