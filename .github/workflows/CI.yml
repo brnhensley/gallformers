@@ -71,7 +71,36 @@ jobs:
               run: |
                   echo "Testing Yarn binary before type check..."
                   node .yarn/releases/yarn-4.7.0.cjs --version
-                  tsc --project tsconfig.build.json --noEmit
+                  # Create a temporary tsconfig for CI that uses relative paths
+                  cat > tsconfig.ci.json << EOF
+                  {
+                    "extends": "./tsconfig.json",
+                    "compilerOptions": {
+                      "baseUrl": ".",
+                      "paths": {
+                        "@/*": ["./*"]
+                      },
+                      "moduleResolution": "node",
+                      "esModuleInterop": true,
+                      "skipLibCheck": true,
+                      "forceConsistentCasingInFileNames": true
+                    },
+                    "include": [
+                      "**/*.ts",
+                      "**/*.tsx",
+                      "next-env.d.ts"
+                    ],
+                    "exclude": [
+                      "node_modules",
+                      "**/*.test.ts",
+                      "**/*.test.tsx",
+                      "**/*.spec.ts",
+                      "**/*.spec.tsx"
+                    ]
+                  }
+                  EOF
+                  # Run type checking with the temporary config
+                  tsc --project tsconfig.ci.json --noEmit
                   node .yarn/releases/yarn-4.7.0.cjs type-coverage
 
             - name: Lint
