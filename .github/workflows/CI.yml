@@ -71,7 +71,7 @@ jobs:
               run: |
                   echo "Testing Yarn binary before type check..."
                   node .yarn/releases/yarn-4.7.0.cjs --version
-                  node .yarn/releases/yarn-4.7.0.cjs check-types
+                  tsc --project tsconfig.build.json --noEmit
                   node .yarn/releases/yarn-4.7.0.cjs type-coverage
 
             - name: Lint
