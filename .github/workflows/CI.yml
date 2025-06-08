@@ -39,13 +39,18 @@ jobs:
                   echo "Creating .yarn/releases directory..."
                   mkdir -p .yarn/releases
                   echo "Downloading Yarn binary..."
-                  curl -v -o .yarn/releases/yarn-4.7.0.cjs https://repo.yarnpkg.com/4.7.0/packages/yarnpkg-cli/bin/yarn.js
+                  curl -L -o .yarn/releases/yarn-4.7.0.cjs https://repo.yarnpkg.com/4.7.0/packages/yarnpkg-cli/bin/yarn.js
                   echo "Setting permissions..."
                   chmod +x .yarn/releases/yarn-4.7.0.cjs
                   echo "Verifying file exists and is executable..."
                   ls -la .yarn/releases/yarn-4.7.0.cjs
                   echo "Testing Yarn version..."
                   node .yarn/releases/yarn-4.7.0.cjs --version
+                  echo "Verifying Yarn binary integrity..."
+                  if [ ! -s .yarn/releases/yarn-4.7.0.cjs ]; then
+                    echo "Error: Yarn binary is empty or not downloaded properly"
+                    exit 1
+                  fi
 
             - name: Debug - Post Yarn Setup
               run: |
