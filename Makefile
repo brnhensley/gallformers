@@ -10,9 +10,9 @@ endif
 define setup-env
 	cp $(1) .env
 	cat .env.local >> .env
-	# Create prisma/.env with the appropriate DATABASE_URL from .env
+	# Create prisma/.env with only the DATABASE_URL from .env
 	mkdir -p prisma
-	cp .env prisma/.env
+	grep "^DATABASE_URL=" .env > prisma/.env
 endef
 
 define cleanup-env
@@ -190,7 +190,7 @@ bootstrap:
 	
 	# gets the certs and installs them changing the nginx configuration
 	certbot --nginx
-	
+
 # Fly.io deployment commands
 .PHONY: fly-launch
 fly-launch:
