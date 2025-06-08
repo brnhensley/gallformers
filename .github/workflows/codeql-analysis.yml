@@ -14,6 +14,10 @@ on:
     schedule:
         - cron: '0 15 * * 5'
 
+env:
+    YARN_ENABLE_IMMUTABLE_INSTALLS: false
+    YARN_NODE_LINKER: node-modules
+
 jobs:
     analyze:
         name: Analyze
@@ -46,18 +50,30 @@ jobs:
             - name: Setup Node.js
               uses: actions/setup-node@v4
               with:
-                  node-version: '20'
-                  cache: 'yarn'
+                  node-version: '21'
+                  cache: 'npm'
+
+            # Setup Yarn 4 (same approach as CI.yml)
+            - name: Setup Yarn
+              run: |
+                  echo "Creating .yarn/releases directory..."
+                  mkdir -p .yarn/releases
+                  echo "Downloading Yarn binary..."
+                  curl -L --fail -o .yarn/releases/yarn-4.7.0.cjs https://repo.yarnpkg.com/4.7.0/packages/yarnpkg-cli/bin/yarn.js
+                  echo "Setting permissions..."
+                  chmod +x .yarn/releases/yarn-4.7.0.cjs
+                  echo "Verifying file exists and is executable..."
+                  ls -la .yarn/releases/yarn-4.7.0.cjs
+                  echo "Testing Yarn version..."
+                  node .yarn/releases/yarn-4.7.0.cjs --version
 
             # Install dependencies to help CodeQL understand the project structure
             - name: Install dependencies
-              run: |
-                  yarn install --immutable
+              run: node .yarn/releases/yarn-4.7.0.cjs install --immutable
 
             # Generate Prisma client for proper analysis
             - name: Generate Prisma client
-              run: |
-                  yarn generate
+              run: node .yarn/releases/yarn-4.7.0.cjs generate
 
             # Autobuild attempts to build any compiled languages  (C/C++, C#, or Java).
             # For JavaScript/TypeScript, this step analyzes the code without building
