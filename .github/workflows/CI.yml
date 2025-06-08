@@ -26,14 +26,6 @@ jobs:
                   node-version: '20'
                   cache: 'npm'
 
-            - name: Debug - Initial Check
-              run: |
-                  echo "Current directory: $(pwd)"
-                  echo "Directory contents:"
-                  ls -la
-                  echo "Yarn directory contents:"
-                  ls -la .yarn || echo "No .yarn directory"
-
             - name: Setup Yarn
               run: |
                   echo "Creating .yarn/releases directory..."
@@ -51,16 +43,6 @@ jobs:
                     echo "Error: Yarn binary is empty or not downloaded properly"
                     exit 1
                   fi
-
-            - name: Debug - Post Yarn Setup
-              run: |
-                  echo "Current directory: $(pwd)"
-                  echo "Yarn directory contents:"
-                  ls -la .yarn
-                  echo "Yarn releases contents:"
-                  ls -la .yarn/releases
-                  echo "File contents (first few lines):"
-                  head -n 5 .yarn/releases/yarn-4.7.0.cjs
 
             - name: Get yarn cache directory path
               id: yarn-cache-dir-path
@@ -82,24 +64,8 @@ jobs:
                   restore-keys: |
                       ${{ runner.os }}-yarn-
 
-            - name: Debug - Pre Install
-              run: |
-                  echo "Current directory: $(pwd)"
-                  echo "Yarn releases contents:"
-                  ls -la .yarn/releases
-                  echo "Testing Yarn binary before install..."
-                  node .yarn/releases/yarn-4.7.0.cjs --version
-
             - name: Install dependencies
               run: node .yarn/releases/yarn-4.7.0.cjs install --immutable
-
-            - name: Debug - Post Install
-              run: |
-                  echo "Current directory: $(pwd)"
-                  echo "Yarn releases contents:"
-                  ls -la .yarn/releases
-                  echo "Testing Yarn binary after install..."
-                  node .yarn/releases/yarn-4.7.0.cjs --version
 
             - name: Type check
               run: |

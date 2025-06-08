@@ -257,31 +257,34 @@ const Gall = ({
             });
     };
 
-    const createGallPropertyField = (name: keyof FormFields, items: FilterField[], multiple = true) => (
+    type FilterFieldProperty = Extract<
+        keyof GallPropertiesType,
+        'alignment' | 'cells' | 'color' | 'form' | 'season' | 'shape' | 'walls' | 'texture' | 'location'
+    >;
+
+    const createGallPropertyField = (name: FilterFieldProperty, items: FilterField[], multiple = true) => (
         <Controller
             control={adminForm.form.control}
             name={name}
             render={() => (
                 <Typeahead
                     id={name}
+                    placeholder={name}
                     options={items}
-                    labelKey="field"
+                    labelKey="name"
                     multiple={multiple}
+                    disabled={!selected}
                     clearButton
                     {...adminForm.form.register(name, {
                         disabled: areRequiredFieldsFilled(),
                     })}
                     onChange={(x) => {
                         if (selected) {
-                            // @ts-expect-error breaking type safety here as it is non-trivial (and not seemingly worth it)
-                            // to pass the property name in a type safe manner
-                            selected[name] = x as FilterField[];
-                            adminForm.setSelected({ ...selected });
+                            const updatedSelected = { ...selected };
+                            updatedSelected[name] = x as FilterField[];
+                            adminForm.setSelected(updatedSelected);
                         }
                     }}
-                    // @ts-expect-error breaking type safety here as it is non-trivial (and not seemingly worth it)
-                    // to pass the property name in a type safe manner
-                    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
                     selected={selected ? selected[name] : []}
                 />
             )}

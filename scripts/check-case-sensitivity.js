@@ -1,5 +1,5 @@
 import { readFileSync, readdirSync, statSync } from 'fs';
-import { join, relative } from 'path';
+import { join, relative, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -25,32 +25,63 @@ function findFiles(dir, fileList = []) {
     return fileList;
 }
 
+function resolveImportPath(importPath, filePath) {
+    if (importPath.startsWith('@/')) {
+        // Handle @/ alias imports
+        return join(process.cwd(), importPath.slice(2));
+    } else if (importPath.startsWith('.')) {
+        // Handle relative imports
+        return join(dirname(filePath), importPath);
+    }
+    return null;
+}
+
+function checkPathCaseSensitivity(path) {
+    const parts = path.split('/');
+    let currentPath = process.cwd();
+    
+    for (const part of parts) {
+        if (!part) continue;
+        
+        try {
+            const entries = readdirSync(currentPath);
+            const matchingEntry = entries.find(entry => entry.toLowerCase() === part.toLowerCase());
+            
+            if (matchingEntry && matchingEntry !== part) {
+                return {
+                    expected: part,
+                    actual: matchingEntry
+                };
+            }
+            
+            currentPath = join(currentPath, matchingEntry || part);
+        } catch (error) {
+            // If we can't read the directory, the path doesn't exist
+            return null;
+        }
+    }
+    
+    return null;
+}
+
 function checkImports(filePath) {
     const content = readFileSync(filePath, 'utf8');
     const imports = [...content.matchAll(IMPORT_REGEX)].map(match => match[1]);
     const errors = [];
 
     imports.forEach(importPath => {
-        if (importPath.startsWith('.')) {
-            const absolutePath = join(filePath, '..', importPath);
-            try {
-                // Try to resolve the import path
-                require.resolve(absolutePath);
-            } catch (error) {
-                // If the import fails, check if it's a case sensitivity issue
-                const dir = join(filePath, '..');
-                const files = readdirSync(dir);
-                const matchingFile = files.find(f => 
-                    f.toLowerCase() === importPath.split('/').pop().toLowerCase()
-                );
-
-                if (matchingFile && matchingFile !== importPath.split('/').pop()) {
-                    errors.push({
-                        file: relative(process.cwd(), filePath),
-                        import: importPath,
-                        suggested: importPath.replace(importPath.split('/').pop(), matchingFile)
-                    });
-                }
+        const resolvedPath = resolveImportPath(importPath, filePath);
+        if (resolvedPath) {
+            const caseError = checkPathCaseSensitivity(resolvedPath);
+            if (caseError) {
+                const relativeImportPath = relative(process.cwd(), resolvedPath);
+                errors.push({
+                    file: relative(process.cwd(), filePath),
+                    import: importPath,
+                    path: relativeImportPath,
+                    expected: caseError.expected,
+                    actual: caseError.actual
+                });
             }
         }
     });
@@ -72,7 +103,9 @@ function main() {
             console.error(`\nCase sensitivity issues found in ${file}:`);
             errors.forEach(error => {
                 console.error(`  Import: ${error.import}`);
-                console.error(`  Suggested: ${error.suggested}`);
+                console.error(`  Path: ${error.path}`);
+                console.error(`  Expected case: ${error.expected}`);
+                console.error(`  Actual case: ${error.actual}`);
             });
         }
     });
