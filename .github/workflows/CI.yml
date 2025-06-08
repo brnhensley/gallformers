@@ -31,7 +31,7 @@ jobs:
                   echo "Creating .yarn/releases directory..."
                   mkdir -p .yarn/releases
                   echo "Downloading Yarn binary..."
-                  curl -L -o .yarn/releases/yarn-4.7.0.cjs https://repo.yarnpkg.com/4.7.0/packages/yarnpkg-cli/bin/yarn.js
+                  curl -L --fail -o .yarn/releases/yarn-4.7.0.cjs https://repo.yarnpkg.com/4.7.0/packages/yarnpkg-cli/bin/yarn.js
                   echo "Setting permissions..."
                   chmod +x .yarn/releases/yarn-4.7.0.cjs
                   echo "Verifying file exists and is executable..."
