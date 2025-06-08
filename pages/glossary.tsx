@@ -85,9 +85,7 @@ const Glossary = ({ es }: Props): JSX.Element => {
         [],
     );
 
-    if (es == undefined || es == null) {
-        throw new Error('Invalid props passed to Glossary.');
-    }
+    // Props validation is guaranteed by TypeScript; no need for defensive checks.
     return (
         <Container className="pt-2" fluid>
             <Head>
