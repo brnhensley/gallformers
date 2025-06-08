@@ -70,7 +70,7 @@ type Element = {
 };
 
 function deserializeElement(element: object | [] | Element, key: string | number | undefined): ReactNode {
-    if (typeof element !== 'object' || element == null || element == undefined) {
+    if (typeof element !== 'object' || element == null) {
         return element;
     }
 
