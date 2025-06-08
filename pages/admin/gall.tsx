@@ -481,9 +481,9 @@ const Gall = ({
                                     options={Detachables}
                                     labelKey="value"
                                     disabled={areRequiredFieldsFilled()}
-                                    onChange={(d) => {
+                                    onChange={(d: DetachableApi[]) => {
                                         if (selected?.detachable) {
-                                            selected.detachable = d[0] as DetachableApi;
+                                            selected.detachable = d[0];
                                             adminForm.setSelected({ ...selected });
                                         }
                                     }}
@@ -536,9 +536,9 @@ const Gall = ({
                                     options={abundances}
                                     labelKey="abundance"
                                     disabled={areRequiredFieldsFilled()}
-                                    onChange={(a) => {
+                                    onChange={(a: AbundanceApi[]) => {
                                         if (selected) {
-                                            selected.abundance = O.fromNullable(a[0] as AbundanceApi);
+                                            selected.abundance = O.fromNullable(a[0]);
                                             adminForm.setSelected({ ...selected });
                                         }
                                     }}
@@ -628,7 +628,7 @@ export const getServerSideProps: GetServerSideProps = async (context: { query: P
         id,
         O.map(parseInt),
         O.map((id) => mightFailWithArray<GallApi>()(gallById(id))),
-        O.getOrElse(constant(Promise.resolve(Array<GallApi>()))),
+        O.getOrElse(constant(Promise.resolve([] as GallApi[]))),
     );
     return {
         props: {
