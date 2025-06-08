@@ -68,8 +68,7 @@ jobs:
               run: node .yarn/releases/yarn-4.7.0.cjs install --immutable
 
             - name: Type check
-              run: |
-                  yarn tsc --noEmit
+              run: yarn tsc --project tsconfig.ci.json --noEmit
 
             - name: Lint
               run: |
