@@ -9,6 +9,8 @@ on:
 env:
     YARN_ENABLE_IMMUTABLE_INSTALLS: false
     YARN_NODE_LINKER: node-modules
+    YARN_VERSION: '4.9.2'
+    YARN_BINARY_PATH: '.yarn/releases/yarn-4.9.2.cjs'
 
 jobs:
     test:
@@ -31,15 +33,15 @@ jobs:
                   echo "Creating .yarn/releases directory..."
                   mkdir -p .yarn/releases
                   echo "Downloading Yarn binary..."
-                  curl -L --fail -o .yarn/releases/yarn-4.7.0.cjs https://repo.yarnpkg.com/4.7.0/packages/yarnpkg-cli/bin/yarn.js
+                  curl -L --fail -o ${{ env.YARN_BINARY_PATH }} https://repo.yarnpkg.com/${{ env.YARN_VERSION }}/packages/yarnpkg-cli/bin/yarn.js
                   echo "Setting permissions..."
-                  chmod +x .yarn/releases/yarn-4.7.0.cjs
+                  chmod +x ${{ env.YARN_BINARY_PATH }}
                   echo "Verifying file exists and is executable..."
-                  ls -la .yarn/releases/yarn-4.7.0.cjs
+                  ls -la ${{ env.YARN_BINARY_PATH }}
                   echo "Testing Yarn version..."
-                  node .yarn/releases/yarn-4.7.0.cjs --version
+                  node ${{ env.YARN_BINARY_PATH }} --version
                   echo "Verifying Yarn binary integrity..."
-                  if [ ! -s .yarn/releases/yarn-4.7.0.cjs ]; then
+                  if [ ! -s ${{ env.YARN_BINARY_PATH }} ]; then
                     echo "Error: Yarn binary is empty or not downloaded properly"
                     exit 1
                   fi
@@ -48,9 +50,9 @@ jobs:
               id: yarn-cache-dir-path
               run: |
                   echo "Testing Yarn binary before getting cache path..."
-                  node .yarn/releases/yarn-4.7.0.cjs --version
+                  node ${{ env.YARN_BINARY_PATH }} --version
                   echo "Getting cache path..."
-                  echo "dir=$(node .yarn/releases/yarn-4.7.0.cjs config get cacheFolder)" >> $GITHUB_OUTPUT
+                  echo "dir=$(node ${{ env.YARN_BINARY_PATH }} config get cacheFolder)" >> $GITHUB_OUTPUT
 
             - name: Cache Yarn dependencies
               uses: actions/cache@v4
@@ -65,7 +67,7 @@ jobs:
                       ${{ runner.os }}-yarn-
 
             - name: Install dependencies
-              run: node .yarn/releases/yarn-4.7.0.cjs install --immutable
+              run: node ${{ env.YARN_BINARY_PATH }} install --immutable
 
             - name: Type check
               run: yarn tsc --project tsconfig.ci.json --noEmit
@@ -73,28 +75,28 @@ jobs:
             - name: Lint
               run: |
                   echo "Testing Yarn binary before lint..."
-                  node .yarn/releases/yarn-4.7.0.cjs --version
-                  node .yarn/releases/yarn-4.7.0.cjs lint
+                  node ${{ env.YARN_BINARY_PATH }} --version
+                  node ${{ env.YARN_BINARY_PATH }} lint
 
             - name: Generate Prisma Client
               run: |
                   echo "Testing Yarn binary before generate..."
-                  node .yarn/releases/yarn-4.7.0.cjs --version
-                  node .yarn/releases/yarn-4.7.0.cjs generate
+                  node ${{ env.YARN_BINARY_PATH }} --version
+                  node ${{ env.YARN_BINARY_PATH }} generate
 
             - name: Run database migrations
               run: |
                   echo "Testing Yarn binary before migrate..."
-                  node .yarn/releases/yarn-4.7.0.cjs --version
-                  node .yarn/releases/yarn-4.7.0.cjs migrate
+                  node ${{ env.YARN_BINARY_PATH }} --version
+                  node ${{ env.YARN_BINARY_PATH }} migrate
               env:
                   DATABASE_URL: 'file:./test.db'
 
             - name: Run tests
               run: |
                   echo "Testing Yarn binary before test..."
-                  node .yarn/releases/yarn-4.7.0.cjs --version
-                  node .yarn/releases/yarn-4.7.0.cjs test --coverage
+                  node ${{ env.YARN_BINARY_PATH }} --version
+                  node ${{ env.YARN_BINARY_PATH }} test --coverage
               env:
                   CI: true
                   DATABASE_URL: 'file:./test.db'
