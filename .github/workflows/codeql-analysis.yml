@@ -59,21 +59,21 @@ jobs:
                   echo "Creating .yarn/releases directory..."
                   mkdir -p .yarn/releases
                   echo "Downloading Yarn binary..."
-                  curl -L --fail -o .yarn/releases/yarn-4.7.0.cjs https://repo.yarnpkg.com/4.7.0/packages/yarnpkg-cli/bin/yarn.js
+                  curl -L --fail -o .yarn/releases/yarn-4.9.2.cjs https://repo.yarnpkg.com/4.9.2/packages/yarnpkg-cli/bin/yarn.js
                   echo "Setting permissions..."
-                  chmod +x .yarn/releases/yarn-4.7.0.cjs
+                  chmod +x .yarn/releases/yarn-4.9.2.cjs
                   echo "Verifying file exists and is executable..."
-                  ls -la .yarn/releases/yarn-4.7.0.cjs
+                  ls -la .yarn/releases/yarn-4.9.2.cjs
                   echo "Testing Yarn version..."
-                  node .yarn/releases/yarn-4.7.0.cjs --version
+                  node .yarn/releases/yarn-4.9.2.cjs --version
 
             # Install dependencies to help CodeQL understand the project structure
             - name: Install dependencies
-              run: node .yarn/releases/yarn-4.7.0.cjs install --immutable
+              run: yarn install --immutable
 
             # Generate Prisma client for proper analysis
             - name: Generate Prisma client
-              run: node .yarn/releases/yarn-4.7.0.cjs generate
+              run: yarn generate
 
             # Autobuild attempts to build any compiled languages  (C/C++, C#, or Java).
             # For JavaScript/TypeScript, this step analyzes the code without building
