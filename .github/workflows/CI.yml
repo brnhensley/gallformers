@@ -9,6 +9,7 @@ on:
 env:
     YARN_ENABLE_IMMUTABLE_INSTALLS: false
     YARN_NODE_LINKER: node-modules
+    YARN_VERSION: '4.9.2'
 
 jobs:
     test:
@@ -31,32 +32,24 @@ jobs:
                   echo "Creating .yarn/releases directory..."
                   mkdir -p .yarn/releases
                   echo "Downloading Yarn binary..."
-                  curl -L --fail -o .yarn/releases/yarn-4.7.0.cjs https://repo.yarnpkg.com/4.7.0/packages/yarnpkg-cli/bin/yarn.js
+                  curl -L --fail -o .yarn/releases/yarn-4.9.2.cjs https://repo.yarnpkg.com/${{ env.YARN_VERSION }}/packages/yarnpkg-cli/bin/yarn.js
                   echo "Setting permissions..."
-                  chmod +x .yarn/releases/yarn-4.7.0.cjs
+                  chmod +x .yarn/releases/yarn-4.9.2.cjs
                   echo "Verifying file exists and is executable..."
-                  ls -la .yarn/releases/yarn-4.7.0.cjs
+                  ls -la .yarn/releases/yarn-4.9.2.cjs
                   echo "Testing Yarn version..."
-                  node .yarn/releases/yarn-4.7.0.cjs --version
+                  node .yarn/releases/yarn-4.9.2.cjs --version
                   echo "Verifying Yarn binary integrity..."
-                  if [ ! -s .yarn/releases/yarn-4.7.0.cjs ]; then
+                  if [ ! -s .yarn/releases/yarn-4.9.2.cjs ]; then
                     echo "Error: Yarn binary is empty or not downloaded properly"
                     exit 1
                   fi
-
-            - name: Get yarn cache directory path
-              id: yarn-cache-dir-path
-              run: |
-                  echo "Testing Yarn binary before getting cache path..."
-                  node .yarn/releases/yarn-4.7.0.cjs --version
-                  echo "Getting cache path..."
-                  echo "dir=$(node .yarn/releases/yarn-4.7.0.cjs config get cacheFolder)" >> $GITHUB_OUTPUT
 
             - name: Cache Yarn dependencies
               uses: actions/cache@v4
               with:
                   path: |
-                      ${{ steps.yarn-cache-dir-path.outputs.dir }}
+                      ~/.cache/yarn
                       node_modules
                       .yarn/cache
                       .yarn/unplugged
@@ -65,36 +58,34 @@ jobs:
                       ${{ runner.os }}-yarn-
 
             - name: Install dependencies
-              run: node .yarn/releases/yarn-4.7.0.cjs install --immutable
+              run: |
+                  echo "Installing dependencies..."
+                  yarn install --immutable
 
             - name: Type check
               run: yarn tsc --project tsconfig.ci.json --noEmit
 
             - name: Lint
               run: |
-                  echo "Testing Yarn binary before lint..."
-                  node .yarn/releases/yarn-4.7.0.cjs --version
-                  node .yarn/releases/yarn-4.7.0.cjs lint
+                  echo "Running lint..."
+                  yarn lint
 
             - name: Generate Prisma Client
               run: |
-                  echo "Testing Yarn binary before generate..."
-                  node .yarn/releases/yarn-4.7.0.cjs --version
-                  node .yarn/releases/yarn-4.7.0.cjs generate
+                  echo "Generating Prisma client..."
+                  yarn generate
 
             - name: Run database migrations
               run: |
-                  echo "Testing Yarn binary before migrate..."
-                  node .yarn/releases/yarn-4.7.0.cjs --version
-                  node .yarn/releases/yarn-4.7.0.cjs migrate
+                  echo "Running database migrations..."
+                  yarn migrate
               env:
                   DATABASE_URL: 'file:./test.db'
 
             - name: Run tests
               run: |
-                  echo "Testing Yarn binary before test..."
-                  node .yarn/releases/yarn-4.7.0.cjs --version
-                  node .yarn/releases/yarn-4.7.0.cjs test --coverage
+                  echo "Running tests..."
+                  yarn test --coverage
               env:
                   CI: true
                   DATABASE_URL: 'file:./test.db'
