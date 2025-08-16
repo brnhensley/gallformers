@@ -45,6 +45,9 @@ jobs:
                     echo "Error: Yarn binary is empty or not downloaded properly"
                     exit 1
                   fi
+                  echo "Setting up Yarn configuration..."
+                  node ${{ env.YARN_BINARY_PATH }} config set enableGlobalCache false
+                  node ${{ env.YARN_BINARY_PATH }} config set nodeLinker node-modules
 
             - name: Cache Yarn dependencies
               uses: actions/cache@v4
@@ -59,7 +62,9 @@ jobs:
                       ${{ runner.os }}-yarn-
 
             - name: Install dependencies
-              run: node ${{ env.YARN_BINARY_PATH }} install --immutable
+              run: |
+                  echo "Installing dependencies with explicit environment variables..."
+                  YARN_ENABLE_IMMUTABLE_INSTALLS=false YARN_NODE_LINKER=node-modules node ${{ env.YARN_BINARY_PATH }} install --immutable
 
             - name: Type check
               run: yarn tsc --project tsconfig.ci.json --noEmit
