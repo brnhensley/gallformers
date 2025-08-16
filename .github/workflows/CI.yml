@@ -46,19 +46,11 @@ jobs:
                     exit 1
                   fi
 
-            - name: Get yarn cache directory path
-              id: yarn-cache-dir-path
-              run: |
-                  echo "Testing Yarn binary before getting cache path..."
-                  node ${{ env.YARN_BINARY_PATH }} --version
-                  echo "Getting cache path..."
-                  echo "dir=$(node ${{ env.YARN_BINARY_PATH }} config get cacheFolder)" >> $GITHUB_OUTPUT
-
             - name: Cache Yarn dependencies
               uses: actions/cache@v4
               with:
                   path: |
-                      ${{ steps.yarn-cache-dir-path.outputs.dir }}
+                      ~/.cache/yarn
                       node_modules
                       .yarn/cache
                       .yarn/unplugged
