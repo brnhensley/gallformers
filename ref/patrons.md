@@ -27,6 +27,7 @@ Thank you to all our Patrons!
 
 # Eriophyid tier:
 
+- Mark Apgar
 - Lisa Appelbaum
 - Deborah Barber
 - Bird Bird
@@ -40,9 +41,12 @@ Thank you to all our Patrons!
 - G Froelich
 - Chris Friesen
 - Michael Gates
+- Bert Harris
 - Sara Ruth Harrison
 - Noriko Ito
 - Henrik Kibak
+- Joseph L
+- Karlyn Lewis
 - Moe Morelock
 - Maureen Murphy
 - Robert Riedl
