@@ -266,7 +266,7 @@ const Images = ({ sp }: Props): JSX.Element => {
                             caption: copySource.caption,
                         }))
                         .map((i) => {
-                            void saveImage(i);
+                            return saveImage(i);
                         }),
                 ).catch((e: Error) => setError(`Failed to save changes. ${e}.`));
             })

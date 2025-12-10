@@ -110,7 +110,7 @@ const Images = ({ sp }: Props): JSX.Element => {
                         </a>{' '}
                         by {image.creator}
                         {' © '}
-                        {image.license === ImageLicenseValues.ALL_RIGHTS ? (
+                        {(image.license as ImageLicenseValues) === ImageLicenseValues.ALL_RIGHTS ? (
                             image.license
                         ) : (
                             <a href={image.licenselink} target="_blank" rel="noreferrer">
