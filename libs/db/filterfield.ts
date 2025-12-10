@@ -245,7 +245,7 @@ export const upsertFilterField = (field: FilterFieldWithType): TaskEither<Error,
     // the type of the Filter Field but could not figure out the magic incantation of type voodoo to make it work. One
     // of the real downsides of Prisma. So hold your hat as we go on the copy and paste ride.
     const upsert = (): Promise<FilterField> => {
-        switch (field.fieldType) {
+        switch (field.fieldType as FilterFieldTypeValue) {
             case FilterFieldTypeValue.ALIGNMENTS:
                 return db.alignment
                     .upsert({

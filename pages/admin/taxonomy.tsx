@@ -20,7 +20,7 @@ import {
     Genus,
     TaxonomyTypeValues,
 } from '../../libs/api/apitypes';
-import { familyById } from '../../libs/db/taxonomy';
+import { allFamiliesWithGenera } from '../../libs/db/taxonomy';
 import Admin from '../../libs/pages/admin';
 import { TABLE_CUSTOM_STYLES } from '../../libs/utils/DataTableConstants';
 import { genOptions } from '../../libs/utils/forms';
@@ -93,6 +93,7 @@ const FamilyAdmin = ({ id, fs }: Props): JSX.Element => {
     const [genera, setGenera] = useState<Genus[]>([]);
     const [showMoveFamily, setShowMoveFamily] = useState(false);
     const [generaToMove, setGeneraToMove] = useState<Genus[]>([]);
+    const [allFamilies, setAllFamilies] = useState<FamilyAPI[]>(fs);
 
     const toUpsertFields = (fields: FormFields, name: string, id: number): FamilyUpsertFields => {
         return {
@@ -151,15 +152,11 @@ const FamilyAdmin = ({ id, fs }: Props): JSX.Element => {
         };
 
         await axios
-            .post<FamilyAPI[]>('/api/taxonomy/genus/move', {
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(data),
-            })
+            .post<FamilyAPI[]>('/api/taxonomy/genus/move', data)
             .then((res) => {
                 const families = res.data;
                 setFamilies(families);
+                setAllFamilies(families);
                 adminForm.setSelected(families.find((f) => f.id === selected.id));
                 setGeneraToMove([]);
             })
@@ -197,7 +194,7 @@ const FamilyAdmin = ({ id, fs }: Props): JSX.Element => {
             {showMoveFamily && selected && (
                 <MoveFamily
                     genera={generaToMove}
-                    families={families}
+                    families={allFamilies}
                     showModal={showMoveFamily}
                     setShowModal={setShowMoveFamily}
                     moveCallback={move}
@@ -279,13 +276,7 @@ const FamilyAdmin = ({ id, fs }: Props): JSX.Element => {
 };
 
 export const getServerSideProps: GetServerSideProps = async (context: { query: ParsedUrlQuery }) => {
-    const id = extractQueryParam(context.query, 'id');
-    const fs = pipe(
-        id,
-        O.map(parseInt),
-        O.map((id) => mightFailWithArray<FamilyAPI>()(familyById(id))),
-        O.getOrElse(constant(Promise.resolve(Array<FamilyAPI>()))),
-    );
+    const fs = mightFailWithArray<FamilyAPI>()(allFamiliesWithGenera());
 
     return {
         props: {

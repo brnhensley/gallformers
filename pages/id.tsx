@@ -222,7 +222,7 @@ const IDGall = (props: Props): JSX.Element => {
             try {
                 let queryString = '';
                 if (isTaxonomy(hostOrTaxon)) {
-                    if (hostOrTaxon.type === TaxonomyTypeValues.SECTION) {
+                    if ((hostOrTaxon.type as TaxonomyTypeValues) === TaxonomyTypeValues.SECTION) {
                         queryString = `?section=${hostOrTaxon.name}`;
                     } else {
                         queryString = `?genus=${hostOrTaxon.name}`;
