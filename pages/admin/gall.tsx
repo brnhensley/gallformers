@@ -271,7 +271,7 @@ const Gall = ({
                     id={name}
                     placeholder={name}
                     options={items}
-                    labelKey="name"
+                    labelKey="field"
                     multiple={multiple}
                     disabled={!selected}
                     clearButton
