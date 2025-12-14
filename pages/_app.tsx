@@ -7,6 +7,7 @@ import { Col, Container, Row } from 'react-bootstrap';
 import 'react-bootstrap-typeahead/css/Typeahead.css';
 import 'react-bootstrap-typeahead/css/Typeahead.bs5.css';
 import { ConfirmationServiceProvider } from '@/hooks/useConfirmation';
+import ErrorBoundary from '@/components/ErrorBoundary';
 import Footer from '../layouts/footer';
 import Header from '../layouts/header';
 import './style.scss';
@@ -25,38 +26,40 @@ function shouldForwardProp(propName: string, target: unknown) {
 
 function Gallformers({ Component, pageProps }: AppProps): JSX.Element {
     return (
-        <StyleSheetManager shouldForwardProp={shouldForwardProp}>
-            {/* eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access */}
-            <SessionProvider session={pageProps.session}>
-                <Container fluid className="p-0 m-0">
-                    <Head>
-                        <title>Gallformers</title>
-                        <link rel="icon" href="/favicon.ico" />
-                        <meta
-                            name="description"
-                            content="The place to ID and learn about galls on plants in the US and Canada."
-                        />
-                    </Head>
-                    <Row>
-                        <Col className="m-0 p-0">
-                            <Header />
-                        </Col>
-                    </Row>
-                    <Row>
-                        <Col className="m-3 mb-5 p-2">
-                            <ConfirmationServiceProvider>
-                                <Component {...pageProps} />
-                            </ConfirmationServiceProvider>
-                        </Col>
-                    </Row>
-                    <Row>
-                        <Col className="m-0 p-0">
-                            <Footer />
-                        </Col>
-                    </Row>
-                </Container>
-            </SessionProvider>
-        </StyleSheetManager>
+        <ErrorBoundary>
+            <StyleSheetManager shouldForwardProp={shouldForwardProp}>
+                {/* eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access */}
+                <SessionProvider session={pageProps.session}>
+                    <Container fluid className="p-0 m-0">
+                        <Head>
+                            <title>Gallformers</title>
+                            <link rel="icon" href="/favicon.ico" />
+                            <meta
+                                name="description"
+                                content="The place to ID and learn about galls on plants in the US and Canada."
+                            />
+                        </Head>
+                        <Row>
+                            <Col className="m-0 p-0">
+                                <Header />
+                            </Col>
+                        </Row>
+                        <Row>
+                            <Col className="m-3 mb-5 p-2">
+                                <ConfirmationServiceProvider>
+                                    <Component {...pageProps} />
+                                </ConfirmationServiceProvider>
+                            </Col>
+                        </Row>
+                        <Row>
+                            <Col className="m-0 p-0">
+                                <Footer />
+                            </Col>
+                        </Row>
+                    </Container>
+                </SessionProvider>
+            </StyleSheetManager>
+        </ErrorBoundary>
     );
 }
 

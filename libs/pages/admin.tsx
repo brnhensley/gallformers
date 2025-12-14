@@ -137,7 +137,26 @@ const Admin = <T extends AdminType, V extends FieldValues>(props: AdminProps<T, 
                     <Alert variant="danger" onClose={() => props.setError('')} dismissible>
                         <Alert.Heading>Uh-oh</Alert.Heading>
                         <p>{props.error}</p>
-                        <p>
+                        {process.env.NODE_ENV === 'development' && (
+                            <details className="mt-3">
+                                <summary style={{ cursor: 'pointer' }}>
+                                    <strong>Debug Information (Development Only)</strong>
+                                </summary>
+                                <div className="mt-2 p-3 bg-light border rounded">
+                                    <p>
+                                        <strong>URL:</strong> {typeof window !== 'undefined' ? window.location.href : 'N/A'}
+                                    </p>
+                                    <p>
+                                        <strong>Timestamp:</strong> {new Date().toISOString()}
+                                    </p>
+                                    <p>
+                                        <strong>Error Details:</strong> Open browser console (F12) for full stack trace and
+                                        additional details.
+                                    </p>
+                                </div>
+                            </details>
+                        )}
+                        <p className="mt-3">
                             If you need to create an issue please do so in{' '}
                             <a href="https://github.com/jeffdc/gallformers/issues/new" target="_blank" rel="noreferrer">
                                 Github

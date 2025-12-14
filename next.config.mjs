@@ -28,11 +28,17 @@ export default (phase) => {
             forceSwcTransforms: true,
             esmExternals: false,
         },
-        webpack: (config) => {
+        webpack: (config, { dev, isServer }) => {
             config.resolve.alias = {
                 ...config.resolve.alias,
                 '@': '.',
             };
+
+            // Better source maps for development
+            if (dev && !isServer) {
+                config.devtool = 'eval-source-map';
+            }
+
             return config;
         },
         // strictMode: true,
