@@ -9,6 +9,7 @@ import 'react-simple-tree-menu/dist/main.css';
 import EditableDataTable, { EditableTableColumn } from '../../components/EditableDataTable';
 import { RenameEvent } from '../../components/editname';
 import MoveFamily, { MoveEvent } from '../../components/movefamily';
+import RenameGenus, { RenameGenusEvent } from '../../components/renamegenus';
 import useAdmin, { AdminFormFields } from '../../hooks/useAdmin';
 import { extractQueryParam } from '../../libs/api/apipage';
 import {
@@ -93,6 +94,8 @@ const FamilyAdmin = ({ id, fs }: Props): JSX.Element => {
     const [genera, setGenera] = useState<Genus[]>([]);
     const [showMoveFamily, setShowMoveFamily] = useState(false);
     const [generaToMove, setGeneraToMove] = useState<Genus[]>([]);
+    const [showRenameGenus, setShowRenameGenus] = useState(false);
+    const [genusToRename, setGenusToRename] = useState<Genus | undefined>(undefined);
     const [allFamilies, setAllFamilies] = useState<FamilyAPI[]>(fs);
 
     const toUpsertFields = (fields: FormFields, name: string, id: number): FamilyUpsertFields => {
@@ -169,6 +172,29 @@ const FamilyAdmin = ({ id, fs }: Props): JSX.Element => {
             });
     };
 
+    const renameSelected = (selectedGenera: Genus[]) => {
+        if (selectedGenera.length !== 1) {
+            adminForm.setError('Please select exactly one genus to rename.');
+            return;
+        }
+        setGenusToRename(selectedGenera[0]);
+        setShowRenameGenus(true);
+    };
+
+    const genusNameExists = async (name: string): Promise<boolean> => {
+        // Search for genera matching the name and check for exact match
+        const response = await axios.get<Genus[]>(`/api/taxonomy/genus?q=${encodeURIComponent(name)}`);
+        return response.data.some((g) => g.name.toLowerCase() === name.toLowerCase());
+    };
+
+    const renameGenusCallback = (e: RenameGenusEvent): Promise<void> => {
+        // Update the genus name in the local genera array
+        const updatedGenera = genera.map((g) => (g.id === e.old.id ? { ...g, name: e.newName } : g));
+        setGenera(updatedGenera);
+        setGenusToRename(undefined);
+        return Promise.resolve();
+    };
+
     // Handle when selected or data changes. Need to update the genera list. This is
     useEffect(() => {
         const updateGenera = async () => {
@@ -198,6 +224,16 @@ const FamilyAdmin = ({ id, fs }: Props): JSX.Element => {
                     showModal={showMoveFamily}
                     setShowModal={setShowMoveFamily}
                     moveCallback={move}
+                />
+            )}
+
+            {showRenameGenus && (
+                <RenameGenus
+                    genus={genusToRename}
+                    showModal={showRenameGenus}
+                    setShowModal={setShowRenameGenus}
+                    nameExistsCallback={genusNameExists}
+                    renameCallback={renameGenusCallback}
                 />
             )}
 
@@ -263,7 +299,10 @@ const FamilyAdmin = ({ id, fs }: Props): JSX.Element => {
                             customStyles={TABLE_CUSTOM_STYLES}
                             createEmpty={() => EMPTY_GENUS}
                             update={updateGeneraFromTable}
-                            customActions={[{ name: 'Move', onUpdate: moveSelected }]}
+                            customActions={[
+                                { name: 'Rename', onUpdate: renameSelected },
+                                { name: 'Move', onUpdate: moveSelected },
+                            ]}
                             disabled={!selected}
                             deleteConfirmation={DELETE_CONFIRMATION_MSG}
                         />
