@@ -6,7 +6,7 @@ import { ParsedUrlQuery } from 'querystring';
 import { useEffect, useState } from 'react';
 import { Button, Col, Form, FormGroup, Row } from 'react-bootstrap';
 import 'react-simple-tree-menu/dist/main.css';
-import EditableDataTable, { EditableTableColumn } from '../../components/EditableDataTable';
+import EditableDataTable, { EditableTableColumn, ValidationResult } from '../../components/EditableDataTable';
 import { RenameEvent } from '../../components/editname';
 import MoveFamily, { MoveEvent } from '../../components/movefamily';
 import RenameGenus, { RenameGenusEvent } from '../../components/renamegenus';
@@ -181,10 +181,30 @@ const FamilyAdmin = ({ id, fs }: Props): JSX.Element => {
         setShowRenameGenus(true);
     };
 
-    const genusNameExists = async (name: string): Promise<boolean> => {
-        // Search for genera matching the name and check for exact match
+    const genusNameExists = async (name: string, excludeId?: number): Promise<boolean> => {
+        // Search for genera matching the name and check for exact match, excluding the genus being renamed
         const response = await axios.get<Genus[]>(`/api/taxonomy/genus?q=${encodeURIComponent(name)}`);
-        return response.data.some((g) => g.name.toLowerCase() === name.toLowerCase());
+        return response.data.some((g) => g.name.toLowerCase() === name.toLowerCase() && g.id !== excludeId);
+    };
+
+    const validateGenus = async (row: Genus, field: keyof Genus, value: string): Promise<ValidationResult> => {
+        // Only validate the name field
+        if (field !== 'name') {
+            return { valid: true };
+        }
+
+        // Check for empty name
+        if (!value || value.trim() === '') {
+            return { valid: false, error: 'Genus name cannot be empty.' };
+        }
+
+        // Check for duplicate name (excluding this genus)
+        const isDuplicate = await genusNameExists(value, row.id);
+        if (isDuplicate) {
+            return { valid: false, error: 'That name is already in use by another genus.' };
+        }
+
+        return { valid: true };
     };
 
     const renameGenusCallback = (e: RenameGenusEvent): Promise<void> => {
@@ -299,6 +319,7 @@ const FamilyAdmin = ({ id, fs }: Props): JSX.Element => {
                             customStyles={TABLE_CUSTOM_STYLES}
                             createEmpty={() => EMPTY_GENUS}
                             update={updateGeneraFromTable}
+                            validate={validateGenus}
                             customActions={[
                                 { name: 'Rename', onUpdate: renameSelected },
                                 { name: 'Move', onUpdate: moveSelected },

@@ -12,7 +12,7 @@ type Props = {
     genus: Genus | undefined;
     showModal: boolean;
     setShowModal: (showModal: boolean) => void;
-    nameExistsCallback: (name: string) => Promise<boolean>;
+    nameExistsCallback: (name: string, excludeId?: number) => Promise<boolean>;
     renameCallback: (e: RenameGenusEvent) => Promise<void>;
 };
 
@@ -76,7 +76,7 @@ const RenameGenus = ({ genus, showModal, setShowModal, renameCallback, nameExist
                                 toast.error('The new name is the same as the current name.');
                                 return;
                             }
-                            nameExistsCallback(value)
+                            nameExistsCallback(value, genus.id)
                                 .then((exists) => {
                                     if (exists) {
                                         toast.error('That name is already in use by another genus.');
