@@ -33,8 +33,8 @@ export const SpeciesNamingHelp = (): JSX.Element => (
                         <mark>
                             <i>Genus species</i>
                         </mark>
-                        . You can indicate hybrids by placing an &lsquo;x&rsquo; between the genus and the specific name. The
-                        specific name can contain zero or more dashes &lsquo;-&rsquo;.
+                        . You can indicate hybrids by placing an &lsquo;x&rsquo; between the genus and the specific name. Both the
+                        genus and specific name can contain zero or more dashes &lsquo;-&rsquo;.
                     </p>
                     <p>
                         Optionally you can also differeniate between forms of the species by adding one or two additional elements

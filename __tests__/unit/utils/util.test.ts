@@ -237,6 +237,9 @@ describe('isValidSpeciesName tests', () => {
         'Foo x bar-baz',
         'Foo x bar-baz (boo)',
         'Foo x bar-baz (boo) (boo)',
+        'Foo-bar baz', // hyphenated genus
+        'Pseudo-foo bar', // hyphenated genus
+        'Foo-bar x baz', // hyphenated genus with hybrid
     ];
 
     const invalidNames = [

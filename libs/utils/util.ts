@@ -180,6 +180,7 @@ export const sessionUserOrUnknown = (user: string | null | undefined): string =>
  * Foo x bar-baz
  * Foo x bar-baz (boo)
  * Foo x bar-baz (boo) (boo)
+ * Foo-bar baz (hyphenated genus)
  *
  * These are not:
  * Foo s bar
@@ -189,7 +190,7 @@ export const sessionUserOrUnknown = (user: string | null | undefined): string =>
  *  Foo bar <-- note leading space on this one
  *
  */
-export const SPECIES_NAME_REGEX = /(^[A-Z][a-z]+ (x|X)?\s?[a-z-]+\s?(\(.+\)\s*)*$)/;
+export const SPECIES_NAME_REGEX = /(^[A-Z][a-z-]+ (x|X)?\s?[a-z-]+\s?(\(.+\)\s*)*$)/;
 
 const speciesRegEx = new RegExp(SPECIES_NAME_REGEX);
 
