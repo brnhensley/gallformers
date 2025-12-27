@@ -10,14 +10,10 @@ endif
 define setup-env
 	cp $(1) .env
 	cat .env.local >> .env
-	# Create prisma/.env with only the DATABASE_URL from .env
-	mkdir -p prisma
-	grep "^DATABASE_URL=" .env > prisma/.env
 endef
 
 define cleanup-env
 	rm -f .env
-	rm -f prisma/.env
 endef
 
 # Development environment - runs directly with yarn
@@ -231,8 +227,6 @@ ifeq (,$(wildcard .env.local-docker))
 	$(error You must have an .env.local-docker file!)
 endif
 	$(call setup-env,.env.local-docker)
-	# Remove prisma/.env to avoid conflicts
-	rm -f prisma/.env
 	docker build -f Dockerfile.fly -t $(SERVICE_NAME):fly-local .
 	$(call cleanup-env)
 

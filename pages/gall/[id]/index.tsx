@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useState } from 'react';
 import { Button, Col, Container, OverlayTrigger, Row, Tooltip } from 'react-bootstrap';
+import toast, { Toaster } from 'react-hot-toast';
 import Edit from '../../../components/edit';
 import Images from '../../../components/images';
 import InfoTip from '../../../components/infotip';
@@ -57,8 +58,19 @@ const Gall = ({ species, taxonomy, relatedGalls }: Props): JSX.Element => {
     species.hosts.sort((a, b) => a.name.localeCompare(b.name));
     const hostLinker = hostAsLink(species.hosts.length);
 
+    const copyGallformersCode = () => {
+        const code = species.name
+            .replace(taxonomy.genus.name, '')
+            .trim()
+            .replace(/ \([^)]+\)$/, ''); // Remove trailing parenthetical like " (agamic)"
+        void navigator.clipboard.writeText(code).then(() => {
+            toast.success('Code copied to clipboard');
+        });
+    };
+
     return (
-        <Container className="pt-2 fluid">
+        <Container key={species.id} className="pt-2 fluid">
+            <Toaster />
             <Head>
                 <title>{species.name}</title>
                 <meta name="description" content={`${species.name} - ${createSummaryGall(species)}`} />
@@ -125,6 +137,9 @@ const Gall = ({ species, taxonomy, relatedGalls }: Props): JSX.Element => {
                             <Row hidden={!species.undescribed}>
                                 <Col>
                                     <span className="text-danger">The inducer of this gall is unknown or undescribed.</span>
+                                    <Button variant="outline-secondary" size="sm" className="ms-2" onClick={copyGallformersCode}>
+                                        Copy gallformers code
+                                    </Button>
                                 </Col>
                             </Row>
                             <Row>
@@ -300,8 +315,6 @@ export const getStaticProps: GetStaticProps = async (context) => {
 
         return {
             props: {
-                // must add a key so that a navigation from the same route will re-render properly
-                key: gall.id,
                 species: gall ? { ...gall, speciessource: sources } : null,
                 taxonomy: fgs,
                 relatedGalls: relatedGalls,
