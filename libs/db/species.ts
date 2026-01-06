@@ -9,15 +9,11 @@ import { connectIfNotNull } from './utils';
 
 export const updateAbundance = (id: number, abundance: string | undefined | null): PrismaPromise<number> => {
     if (abundance == undefined) {
-        const sql = `UPDATE species
-            SET abundance_id = NULL
-            WHERE id = ${id}`;
-        return db.$executeRaw(Prisma.sql([sql]));
+        return db.$executeRaw`UPDATE species SET abundance_id = NULL WHERE id = ${id}`;
     } else {
-        const sql = `UPDATE species 
-            SET abundance_id = (SELECT id FROM abundance WHERE abundance = '${abundance}')
+        return db.$executeRaw`UPDATE species
+            SET abundance_id = (SELECT id FROM abundance WHERE abundance = ${abundance})
             WHERE id = ${id}`;
-        return db.$executeRaw(Prisma.sql([sql]));
     }
 };
 

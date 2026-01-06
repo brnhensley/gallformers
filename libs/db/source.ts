@@ -1,4 +1,4 @@
-import { Prisma, source } from '@prisma/client';
+import { source } from '@prisma/client';
 import * as TE from 'fp-ts/lib/TaskEither';
 import { TaskEither } from 'fp-ts/lib/TaskEither';
 import { pipe } from 'fp-ts/lib/function';
@@ -122,8 +122,7 @@ export const sourcesWithSpeciesSourceBySpeciesId = (speciesId: number): TaskEith
 
 export const deleteSource = (id: number): TaskEither<Error, DeleteResult> => {
     // have to make raw call since Prisma does not handle cascade delete:  https://github.com/prisma/prisma/issues/2057
-    const sql = `DELETE FROM source WHERE id = ${id}`;
-    const doDelete = () => db.$executeRaw(Prisma.sql([sql]));
+    const doDelete = () => db.$executeRaw`DELETE FROM source WHERE id = ${id}`;
 
     const toDeleteResult = (count: number): DeleteResult => {
         return {
