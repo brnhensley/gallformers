@@ -531,7 +531,8 @@ export const sectionByName = (name: string): TE.TaskEither<Error, SectionApi[]> 
 export const deleteTaxonomyEntry = (id: number): TE.TaskEither<Error, DeleteResult> => {
     const doDelete = () => {
         // have to do raw calls since Prisma does not support cascade deletion.
-        const delSpeciesSql = `
+        return db.$transaction([
+            db.$executeRaw`
                 DELETE FROM species
                     WHERE id IN (
                     SELECT s.id
@@ -543,10 +544,9 @@ export const deleteTaxonomyEntry = (id: number): TE.TaskEither<Error, DeleteResu
                         INNER JOIN
                         species AS s ON s.id = st.species_id
                     WHERE f.id = ${id}
-                );
-            `;
-        const delTaxSql = `DELETE FROM taxonomy WHERE id = ${id}`;
-        return db.$transaction([db.$executeRaw(Prisma.sql([delSpeciesSql])), db.$executeRaw(Prisma.sql([delTaxSql]))]);
+                )`,
+            db.$executeRaw`DELETE FROM taxonomy WHERE id = ${id}`,
+        ]);
     };
 
     const toDeleteResult = (t: number[]): DeleteResult => {
@@ -628,16 +628,15 @@ const updateExistingGenera = (fam: FamilyUpsertFields) => {
 const updateExistingSpecies = (fam: FamilyUpsertFields) => {
     // I tried to do this with prisma but could not figure it out...
     return fam.genera.map((g) => {
-        const sql = `UPDATE species
-                SET name = [REPLACE](name, SUBSTRING(name, 1, INSTR(name, ' ') - 1), '${g.name}') 
+        return db.$executeRaw`UPDATE species
+                SET name = REPLACE(name, SUBSTRING(name, 1, INSTR(name, ' ') - 1), ${g.name})
             WHERE id IN (
                 SELECT st.species_id
                     FROM taxonomy AS t
                         INNER JOIN
                         speciestaxonomy AS st ON t.id = st.taxonomy_id
-                    WHERE t.id = ${g.id} 
-            );`;
-        return db.$executeRaw(Prisma.sql([sql]));
+                    WHERE t.id = ${g.id}
+            )`;
     });
 };
 
@@ -683,24 +682,22 @@ const createGenera = (fam: FamilyUpsertFields) => {
 };
 
 const familyUpdateSteps = (fam: FamilyUpsertFields): PrismaPromise<unknown>[] => {
-    const deltax = `DELETE FROM taxonomy
-        WHERE parent_id = ${fam.id} AND 
-            id NOT IN (${fam.genera.map((g) => g.id).join(',')});`;
-
-    const delsp = `DELETE FROM species
-        WHERE id IN (
-        SELECT species_id
-        FROM speciestaxonomy AS st
-            INNER JOIN
-            taxonomy AS t ON t.id = st.taxonomy_id
-        WHERE t.parent_id = ${fam.id} AND 
-            id NOT IN (${fam.genera.map((g) => g.id).join(',')}) 
-    );`;
+    const generaIds = fam.genera.map((g) => g.id);
 
     return [
         // delete any genera that are not part of the update
-        db.$executeRaw(Prisma.sql([delsp])),
-        db.$executeRaw(Prisma.sql([deltax])),
+        db.$executeRaw`DELETE FROM species
+            WHERE id IN (
+            SELECT species_id
+            FROM speciestaxonomy AS st
+                INNER JOIN
+                taxonomy AS t ON t.id = st.taxonomy_id
+            WHERE t.parent_id = ${fam.id} AND
+                id NOT IN (${Prisma.join(generaIds)})
+        )`,
+        db.$executeRaw`DELETE FROM taxonomy
+            WHERE parent_id = ${fam.id} AND
+                id NOT IN (${Prisma.join(generaIds)})`,
 
         // update any species names that are part of the updated genera
         ...updateExistingSpecies(fam),

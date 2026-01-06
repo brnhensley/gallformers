@@ -25,6 +25,7 @@ export async function apiIdEndpoint<T>(
     const session = await getServerSession(req, res, authOptions as AuthOptions);
     if (!session) {
         res.status(401).end();
+        return;
     }
 
     const invalidQueryErr: Err = {
@@ -66,6 +67,7 @@ export async function apiUpsertEndpoint<T, R>(
     const session = await getServerSession(req, res, authOptions as AuthOptions);
     if (!session) {
         res.status(401).end();
+        return;
     }
 
     const invalidQueryErr: Err = {

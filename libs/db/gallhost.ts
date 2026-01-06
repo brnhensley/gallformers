@@ -7,30 +7,24 @@ import { handleError } from '../utils/util';
 import db from './db';
 import { gallByIdAsO } from './gall';
 
-const toValues = (gallid: number, hostids: number[]) => hostids.map((h) => `(NULL, ${gallid}, ${h})`).join(',');
-
 const toInsertStatement = (gallid: number, hostids: number[]): PrismaPromise<number> => {
-    const sql = `INSERT INTO host (id, gall_species_id, host_species_id) VALUES ${toValues(gallid, hostids)};`;
-    return db.$executeRaw(Prisma.sql([sql]));
+    // Build parameterized VALUES for batch insert using Prisma.join
+    const values = hostids.map((h) => Prisma.sql`(NULL, ${gallid}, ${h})`);
+    return db.$executeRaw`INSERT INTO host (id, gall_species_id, host_species_id) VALUES ${Prisma.join(values)}`;
 };
 
 export const updateGallHosts = (gallhost: GallHostUpdateFields): TE.TaskEither<Error, GallApi> => {
     const doTx = () => () => {
-        const sql = `DELETE FROM host WHERE gall_species_id = ${gallhost.gall};`;
-        const deletes = db.$executeRaw(Prisma.sql([sql]));
+        const deletes = db.$executeRaw`DELETE FROM host WHERE gall_species_id = ${gallhost.gall}`;
         const hosts = [...new Set([...gallhost.hosts])];
 
-        const steps = [deletes];
+        const steps: PrismaPromise<number>[] = [deletes];
         if (hosts.length > 0) steps.push(toInsertStatement(gallhost.gall, hosts));
 
         // handle the gall range - for now hack using the existing table
-        steps.push(db.$executeRaw(Prisma.sql([`DELETE FROM speciesplace WHERE species_id = ${gallhost.gall}`])));
+        steps.push(db.$executeRaw`DELETE FROM speciesplace WHERE species_id = ${gallhost.gall}`);
         gallhost.rangeExclusions.forEach((place) =>
-            steps.push(
-                db.$executeRaw(
-                    Prisma.sql([`INSERT INTO speciesplace (species_id, place_id) VALUES (${gallhost.gall}, ${place.id})`]),
-                ),
-            ),
+            steps.push(db.$executeRaw`INSERT INTO speciesplace (species_id, place_id) VALUES (${gallhost.gall}, ${place.id})`),
         );
 
         return db.$transaction(steps);
