@@ -31,7 +31,6 @@ The gallformers codebase is a functioning production system with solid domain mo
 |-------|----------|--------|
 | **Auth bypass bug** | CRITICAL | All "protected" endpoints are unprotected due to missing `return` after `res.status(401).end()` in `libs/api/apipage.ts` |
 | **SQL injection** | CRITICAL | 6+ files with string interpolation in raw SQL (`gallhost.ts`, `species.ts`, `taxonomy.ts`, `place.ts`, `source.ts`) |
-| **Credentials in git** | CRITICAL | AWS keys and Auth0 secrets in `.env.local` |
 | **N+1 queries** | HIGH | `getGalls`/`getHosts` trigger 1000+ queries for 1000 records (taxonomy lookup per species) |
 | **Missing DB indexes** | HIGH | No indexes on foreign key columns, causing table scans |
 | **~8% test coverage** | HIGH | Only 9 test files; 0 API tests, 0 DB tests, 2/27 components tested |
@@ -253,7 +252,6 @@ Given:
 1. **Phase 0: Fix critical security issues** (do regardless of rewrite)
    - Add `return` after 401 responses
    - Parameterize SQL queries
-   - Rotate exposed credentials
 
 2. **Phase 1: Build Go API**
    - Same SQLite database, new API layer
@@ -284,7 +282,6 @@ If rewrite isn't feasible, prioritize:
 ### Immediate (Security)
 - [ ] Fix auth bypass: add `return` after `res.status(401).end()` in `libs/api/apipage.ts`
 - [ ] Parameterize all SQL queries in `gallhost.ts`, `species.ts`, `taxonomy.ts`, `place.ts`, `source.ts`
-- [ ] Rotate credentials, remove `.env.local` from git, add to `.gitignore`
 
 ### Before Major Changes (Testing)
 - [ ] Add integration tests for gall/host/taxonomy CRUD
