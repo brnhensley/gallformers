@@ -1,3 +1,22 @@
+<!-- OPENSPEC:START -->
+# OpenSpec Instructions
+
+These instructions are for AI assistants working in this project.
+
+Always open `@/openspec/AGENTS.md` when the request:
+- Mentions planning or proposals (words like proposal, spec, change, plan)
+- Introduces new capabilities, breaking changes, architecture shifts, or big performance/security work
+- Sounds ambiguous and you need the authoritative spec before coding
+
+Use `@/openspec/AGENTS.md` to learn:
+- How to create and apply change proposals
+- Spec format and conventions
+- Project structure and guidelines
+
+Keep this managed block so 'openspec update' can refresh the instructions.
+
+<!-- OPENSPEC:END -->
+
 # Gallformers Project Overview
 
 **Note**: This project uses [bd (beads)](https://github.com/steveyegge/beads) for issue tracking. Use `bd` commands instead of markdown TODOs. See AGENTS.md for workflow details.
@@ -251,6 +270,50 @@ Key points:
 - Use `bd create` to create new issues (NOT TodoWrite)
 - Run `bd sync` before ending sessions
 - Follow the session close protocol for git commits
+
+## Git Workflow
+
+**IMPORTANT: Never checkout `main` directly.** The beads daemon uses a sparse worktree on `main` for auto-sync. Attempting to checkout `main` will fail.
+
+**Push approval rules:**
+| Change Type | Approval Required | Notes |
+|-------------|-------------------|-------|
+| Beads (`.beads/`) | No | Daemon auto-syncs to main |
+| Specs (`/openspec/`) | No | But must be manually pushed to main |
+| Everything else | **Yes** | Always ask user before pushing to main |
+
+**Workflow for small work (bugs, specs, small features):**
+```bash
+# Start from origin/main
+git fetch origin
+git checkout -b fix/descriptive-name origin/main
+
+# Do work, commit
+git add <files>
+git commit -m "Description"
+
+# For specs: push to main immediately
+git push origin fix/descriptive-name:main
+git checkout --detach origin/main
+git branch -d fix/descriptive-name
+
+# For code: ASK USER FIRST, then push if approved
+```
+
+**Workflow for large features:**
+```bash
+# Create a worktree for the feature
+git worktree add ../gallformers-feature-name -b feature-name origin/main
+
+# Work in that directory until complete
+# When ready to merge: ASK USER FOR APPROVAL
+```
+
+**Specs rule:** When specs in `/openspec/` are modified (even while on a feature branch), ensure they get pushed to main. Create a separate branch from `origin/main` if needed.
+
+**Beads:** The daemon (auto-commit, auto-push, auto-pull) handles all beads sync automatically.
+
+**Commit messages:** Present tense, imperative mood.
 
 ## Project Philosophy
 
