@@ -16,13 +16,11 @@ The Gallformers platform SHALL consist of a Go API server and Svelte frontend, b
 - **WHEN** the API server handles a request
 - **THEN** it SHALL provide REST endpoints for all data operations
 - **AND** it SHALL validate Auth0 JWT tokens for protected routes
-- **AND** it SHALL log all mutations to the audit table
 
 #### Scenario: Frontend responsibilities
 
 - **WHEN** the frontend serves content
-- **THEN** public pages SHALL be statically generated
-- **AND** admin pages SHALL operate as a single-page application
+- **THEN** the application SHALL operate as a single-page application
 - **AND** all data operations SHALL use the Go API
 
 ### Requirement: Database Continuity
@@ -35,13 +33,6 @@ The platform SHALL preserve the existing SQLite database schema and data integri
 - **THEN** all existing tables SHALL retain their structure
 - **AND** all foreign key relationships SHALL be preserved
 - **AND** all existing data SHALL be migrated without loss
-
-#### Scenario: Audit table addition
-
-- **WHEN** the new platform is deployed
-- **THEN** an `audit_log` table SHALL exist
-- **AND** the audit table SHALL capture all mutation operations
-- **AND** the audit table SHALL record user, timestamp, operation type, and affected data
 
 ### Requirement: Authentication
 
@@ -59,7 +50,6 @@ The platform SHALL use Auth0 for authentication of admin users.
 - **WHEN** an admin user authenticates via Auth0
 - **THEN** the Go API SHALL validate the JWT token
 - **AND** the API SHALL authorize based on user roles
-- **AND** the Svelte admin SHALL store the token securely
 
 ### Requirement: URL Preservation
 
@@ -78,26 +68,6 @@ The platform SHALL preserve all public URLs to maintain SEO and external links.
 - **WHEN** migrating reference articles
 - **THEN** `/ref/[slug]` routes SHALL resolve to the same content
 - **AND** markdown rendering SHALL produce equivalent HTML
-
-### Requirement: Audit Trail
-
-The platform SHALL provide complete audit trails for all data mutations.
-
-#### Scenario: Mutation logging
-
-- **WHEN** any data mutation occurs (create, update, delete)
-- **THEN** the audit middleware SHALL log the operation
-- **AND** the log SHALL include the authenticated user
-- **AND** the log SHALL include a timestamp
-- **AND** the log SHALL include the operation type
-- **AND** the log SHALL include the affected entity and ID
-- **AND** the log SHALL include the before/after state for updates
-
-#### Scenario: Audit query
-
-- **WHEN** an admin queries the audit log
-- **THEN** they SHALL be able to filter by user, entity type, operation, and date range
-- **AND** they SHALL be able to view the full change history for any entity
 
 ### Requirement: API Documentation
 

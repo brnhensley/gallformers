@@ -2,11 +2,11 @@
 
 ## Context
 
-The gallformers codebase has been in production since ~2020, serving the gall identification community. A January 2026 technical audit revealed:
+The gallformers codebase has been in production since ~2020, serving the gall identification community. The [January 2026 technical audit](../../../TECHNICAL_AUDIT_2026.md) revealed:
 
 - **Critical security issues**: Auth bypass, SQL injection, credentials in git
 - **Architectural debt**: Prisma workarounds, N+1 queries, 654-line admin forms
-- **Blocked features**: Audit trails, undo, admin simplification all fight the current architecture
+- **Blocked improvements**: Admin simplification and deployment modernization fight the current architecture
 
 The audit recommended parallel rebuild rather than incremental fixes based on:
 - Scope of planned features
@@ -18,7 +18,6 @@ The audit recommended parallel rebuild rather than incremental fixes based on:
 - Preserve all current functionality
 - Preserve all data (zero data loss)
 - Preserve public URLs (SEO, external links)
-- Enable audit trails from day one
 - Simplify admin page implementation by 50%+
 - Reduce deployment complexity (single binary + static files)
 - Fix all critical security issues
@@ -37,7 +36,7 @@ The audit recommended parallel rebuild rather than incremental fixes based on:
 │                     Svelte SPA                              │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
 │  │ Public Site │  │ Admin Pages │  │ Static Assets       │  │
-│  │ (SSG)       │  │ (SPA)       │  │ (CSS, Images, etc)  │  │
+│  │ (SPA)       │  │ (SPA)       │  │ (CSS, Images, etc)  │  │
 │  └──────┬──────┘  └──────┬──────┘  └─────────────────────┘  │
 └─────────┼────────────────┼──────────────────────────────────┘
           │                │
@@ -45,18 +44,12 @@ The audit recommended parallel rebuild rather than incremental fixes based on:
 ┌─────────────────────────────────────────────────────────────┐
 │                      Go API Server                          │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
-│  │ REST API    │  │ Auth        │  │ Audit Middleware    │  │
-│  │ (OpenAPI)   │  │ (Auth0 JWT) │  │ (all mutations)     │  │
+│  │ REST API    │  │ Auth        │  │ Data Layer          │  │
+│  │ (OpenAPI)   │  │ (Auth0 JWT) │  │ (sqlc)              │  │
 │  └──────┬──────┘  └─────────────┘  └──────────┬──────────┘  │
-│         │                                     │             │
-│         ▼                                     ▼             │
-│  ┌─────────────┐                    ┌─────────────────────┐ │
-│  │ Data Layer  │                    │ Audit Table         │ │
-│  │ (sqlc)      │                    │ (event sourcing)    │ │
-│  └──────┬──────┘                    └─────────────────────┘ │
-└─────────┼───────────────────────────────────────────────────┘
-          │
-          ▼
+└─────────┼─────────────────────────────────────┼─────────────┘
+          │                                     │
+          ▼                                     ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                      SQLite Database                        │
 │        (Same schema, same data, proven structure)           │
@@ -83,7 +76,7 @@ The audit recommended parallel rebuild rather than incremental fixes based on:
 
 ### Decision 2: Svelte for Frontend
 
-**Choice**: SvelteKit with static adapter
+**Choice**: SvelteKit as SPA
 
 **Alternatives considered**:
 - **React**: Same complexity issues, already know its pain points
@@ -93,18 +86,17 @@ The audit recommended parallel rebuild rather than incremental fixes based on:
 **Rationale**:
 - Two-way binding eliminates form library complexity
 - Compiled output is small and fast
-- Static adapter generates truly static HTML for public pages
-- SPA mode for admin provides smooth editing experience
+- SPA provides smooth navigation and editing experience
+- No SSG build complexity or stale static files
 
 ### Decision 3: Keep SQLite Schema
 
-**Choice**: Same database schema, add audit table only
+**Choice**: Same database schema, no changes
 
 **Rationale**:
 - Schema is well-designed and normalized
 - Data is the asset, not the code
 - Simplifies migration (same structure = simpler data copy)
-- Only addition: `audit_log` table for event sourcing
 
 ### Decision 4: sqlc Instead of ORM
 
@@ -156,7 +148,7 @@ Apply immediately regardless of rewrite:
 2. Implement sqlc schemas matching current Prisma schema
 3. Build read-only endpoints first (species, galls, hosts, taxonomy)
 4. Add authentication middleware
-5. Build mutation endpoints with audit middleware
+5. Build mutation endpoints
 6. OpenAPI documentation
 
 ### Phase 2: Svelte Admin
@@ -171,11 +163,10 @@ Apply immediately regardless of rewrite:
 
 ### Phase 3: Svelte Public Site
 
-1. Static page generation for species/gall/host pages
+1. Species/gall/host pages (SPA routes)
 2. Search functionality
-3. Maps integration (modern library)
-4. Reference article rendering
-5. Image gallery handling
+3. Reference article rendering (see deferred proposal)
+4. Image gallery handling (see deferred proposal)
 
 ### Phase 4: Cutover
 
@@ -186,7 +177,7 @@ Apply immediately regardless of rewrite:
 
 ## Open Questions
 
-1. **Image processing**: Keep Sharp/Jimp in separate service or use Go image libraries?
-2. **Search**: Keep simple SQL search or add full-text search (SQLite FTS5)?
+1. ~~**Image processing**: Keep Sharp/Jimp in separate service or use Go image libraries?~~ **DEFERRED**: Separate proposal (follow oaks pattern)
+2. ~~**Search**: Keep simple SQL search or add full-text search (SQLite FTS5)?~~ **DEFERRED**: To `add-go-api` proposal
 3. **Caching**: Add Redis/memcached or rely on SQLite query cache?
-4. **Hosting**: Stay on DO Droplet or move to fly.io / railway?
+4. ~~**Hosting**: Stay on DO Droplet or move to fly.io / railway?~~ **RESOLVED**: Fly.io (see `define-v2-foundation`)

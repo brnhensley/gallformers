@@ -271,6 +271,23 @@ Key points:
 - Run `bd sync` before ending sessions
 - Follow the session close protocol for git commits
 
+## Time Tracking with Watchmen
+
+This project uses **watchmen** for time tracking. A hook automatically starts the timer when a Claude Code session begins.
+
+**Session start:**
+- When you start a new session, remind the user: "Time tracking has started for this session (watchmen project: iowa)."
+
+**Session end (when user says they're done for the day):**
+1. Check for git commits made since the session started
+2. If commits exist: Generate a concise summary of work done based on the commit messages, then run `watchmen stop -n "<summary>"` to stop the timer with the summary as a note
+3. If no commits: Ask the user what they accomplished, then use their response as the note when stopping
+
+**Commands:**
+- `watchmen status` - Check if timer is running
+- `watchmen stop` - Stop the current timer
+- `watchmen stop -n "note"` - Stop with a note
+
 ## Git Workflow
 
 **IMPORTANT: Never checkout `main` directly.** The beads daemon uses a sparse worktree on `main` for auto-sync. Attempting to checkout `main` will fail.

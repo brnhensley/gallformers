@@ -4,7 +4,7 @@
 
 - [x] 1.1 Add `return` after `res.status(401).end()` in `apiIdEndpoint` (`libs/api/apipage.ts:27`)
 - [x] 1.2 Add `return` after `res.status(401).end()` in `apiUpsertEndpoint` (`libs/api/apipage.ts:68`)
-- [ ] 1.3 Test that protected endpoints return 401 for unauthenticated requests
+- [x] 1.3 Test that protected endpoints return 401 for unauthenticated requests
 
 ## 2. SQL Injection Fixes
 
@@ -30,6 +30,6 @@
 
 ## 4. Deployment
 
-- [ ] 4.1 Test all admin CRUD operations locally
-- [ ] 4.2 Deploy to production
-- [ ] 4.3 Verify admin functionality in production
+- [x] 4.1 Test all admin CRUD operations locally
+- [x] 4.2 Deploy to production
+- [x] 4.3 Verify admin functionality in production
