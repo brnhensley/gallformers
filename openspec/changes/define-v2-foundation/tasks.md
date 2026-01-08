@@ -38,7 +38,7 @@
 
 - [x] 4.1 Create Fly.io app named `gallformers`
 - [x] 4.2 Create Fly.io volume for database
-- [ ] 4.3 Configure initial secrets (`fly secrets set DATABASE_PATH=...`)
+- [x] 4.3 Configure initial secrets (`fly secrets set DATABASE_PATH=...`)
 
 ## 5. Create V2 Directory Structure
 
@@ -52,38 +52,38 @@
 
 ## 6. Scaffold Go API
 
-- [ ] 6.1 Create `v2/api/` directory structure
+- [x] 6.1 Create `v2/api/` directory structure
   - `cmd/server/main.go` with `/health` endpoint
   - `internal/handlers/` (empty for now)
   - `go.mod`
   - `Makefile`
-- [ ] 6.2 Implement health endpoint: `GET /health` returns `{"status": "ok"}`
-- [ ] 6.3 Implement static file serving from embedded filesystem
-- [ ] 6.4 Verify `go build` works
-- [ ] 6.5 Verify `make run` starts server on :8080
-- [ ] 6.6 Verify `curl localhost:8080/health` returns 200
+- [x] 6.2 Implement health endpoint: `GET /health` returns `{"status": "ok"}`
+- [x] 6.3 Implement static file serving from embedded filesystem
+- [x] 6.4 Verify `go build` works
+- [x] 6.5 Verify `make run` starts server on :8080
+- [x] 6.6 Verify `curl localhost:8080/health` returns 200
 
 ## 7. Scaffold Svelte Web
 
-- [ ] 7.1 Create `v2/web/` with SvelteKit
+- [x] 7.1 Create `v2/web/` with SvelteKit
   - `npm create svelte@latest` or equivalent
   - Configure for static adapter
-- [ ] 7.2 Create placeholder index page: "Gallformers v2 - Coming Soon"
-- [ ] 7.3 Create `v2/web/Makefile`
-- [ ] 7.4 Verify `npm run dev` works on :5173
-- [ ] 7.5 Verify `npm run build` produces static files
+- [x] 7.2 Create placeholder index page: "Gallformers v2 - Coming Soon"
+- [x] 7.3 Create `v2/web/Makefile`
+- [x] 7.4 Verify `npm run dev` works on :5173
+- [x] 7.5 Verify `npm run build` produces static files
 
 ## 8. Verify Local Development
 
-- [ ] 8.1 Test `make dev` from `v2/` starts both servers
-- [ ] 8.2 Test `curl localhost:8080/health` returns 200
-- [ ] 8.3 Test `curl localhost:5173` returns 200
-- [ ] 8.4 Test `make download-db` copies database (requires PROD_HOST env var)
+- [x] 8.1 Test `make dev` from `v2/` starts both servers
+- [x] 8.2 Test `curl localhost:8080/health` returns 200
+- [x] 8.3 Test `curl localhost:5173` returns 200
+- [x] 8.4 Test `make download-db` copies database (requires PROD_HOST env var)
 
 ## 9. Setup CI/CD
 
-- [ ] 9.1 Create `.github/workflows/ci-v2.yml` for tests/build on PRs
-- [ ] 9.2 Create `.github/workflows/deploy-v2.yml` for deployment
+- [x] 9.1 Create `.github/workflows/ci-v2.yml` for tests/build on PRs
+- [x] 9.2 Create `.github/workflows/deploy-v2.yml` for deployment
   - Trigger on push to main with changes in `v2/`
   - Run tests before deploy
   - Build and deploy to Fly.io
@@ -119,11 +119,11 @@
 
 ## 13. Backup System Setup
 
-- [ ] 13.1 Create S3 bucket for backups
+- [x] 13.1 Create S3 bucket for backups
   - Create `gallformers-backups` bucket in us-east-1
   - Enable versioning
   - Configure public read policy for `public/` prefix
-- [ ] 13.2 Create IAM user for Litestream
+- [x] 13.2 Create IAM user for Litestream
   - Create user with S3 read/write access to backup bucket
   - Generate access key credentials
 - [ ] 13.3 Add Litestream to Docker image
