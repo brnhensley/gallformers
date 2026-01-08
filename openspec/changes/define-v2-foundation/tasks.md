@@ -105,13 +105,16 @@
 
 ## 12. Status Page Setup
 
-- [ ] 12.1 Set up Upptime in separate repo or branch
+- [x] 12.1 Set up Upptime in separate repo or branch
   - Configure `.upptimerc.yml` for v2 endpoints
   - Enable GitHub Pages
   - Configure health check intervals
-- [ ] 12.2 Configure monitoring endpoints
-  - `https://gallformers-v2.fly.dev/health`
-  - Main site availability
+  - Status page: https://jeffdc.github.io/gallformers-status/
+  - Repository: https://github.com/jeffdc/gallformers-status
+- [x] 12.2 Configure monitoring endpoints
+  - `https://gallformers.fly.dev/health`
+  - `https://gallformers.fly.dev` (main v2 site)
+  - `https://gallformers.org` (production site)
 - [ ] 12.3 Document status page usage in runbooks
   - How to manually add incidents
   - How to acknowledge/resolve incidents
