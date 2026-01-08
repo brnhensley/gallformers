@@ -24,13 +24,13 @@
 
 ## 3. Core Middleware
 
-- [ ] 3.1 Implement logging middleware (slog, request_id, duration)
-- [ ] 3.2 Implement CORS middleware (read origins from CORS_ORIGINS env var)
-- [ ] 3.3 Implement Auth0 JWT validation middleware (extract from httpOnly cookie)
-- [ ] 3.4 Implement RequireSuperAdmin middleware (check roles claim)
-- [ ] 3.5 Implement MaxBodySize middleware (1MB limit)
-- [ ] 3.6 Create response helpers (RespondJSON, RespondError)
-- [ ] 3.7 Add middleware unit tests
+- [x] 3.1 Implement logging middleware (slog, request_id, duration)
+- [x] 3.2 Implement CORS middleware (read origins from CORS_ORIGINS env var)
+- [x] 3.3 Implement Auth0 JWT validation middleware (extract from httpOnly cookie)
+- [x] 3.4 Implement RequireSuperAdmin middleware (check roles claim)
+- [x] 3.5 Implement MaxBodySize middleware (1MB limit)
+- [x] 3.6 Create response helpers (RespondJSON, RespondError)
+- [x] 3.7 Add middleware unit tests
 
 ## 3a. Auth0 Configuration
 
