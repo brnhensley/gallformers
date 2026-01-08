@@ -88,8 +88,21 @@ gallformers/
 ├── ref/                # Reference articles (markdown)
 ├── __tests__/          # Test files
 ├── scripts/            # Build and utility scripts
-└── .beads/             # Beads issue tracking data
+├── .beads/             # Beads issue tracking data
+└── v2/                  # V2 rewrite (Go + Svelte) - see below
 ```
+
+## V2 Rewrite
+
+The `v2/` directory contains a complete rewrite of Gallformers using Go and Svelte. **This directory has its own `v2/CLAUDE.md` with specific instructions.**
+
+Key points:
+- **Isolation**: V2 work must stay within `v2/` - do not modify v1 code when working on v2
+- **Separate stack**: Go API + SvelteKit frontend (not Next.js/Prisma)
+- **Hosting**: V2 deploys to Fly.io (v1 stays on Digital Ocean until cutover)
+- **Instructions**: Follow `v2/CLAUDE.md` for all v2 development
+
+When working on v2 features, always read `v2/CLAUDE.md` first for the isolation rules and development workflow.
 
 ## Key Domain Concepts
 
