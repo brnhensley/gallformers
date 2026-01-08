@@ -5,8 +5,8 @@ on:
     branches: [main]
     paths: ['v2/**']
   pull_request:
-    branches: ['**']
     paths: ['v2/**']
+  workflow_dispatch:
 
 concurrency:
   group: ci-v2-${{ github.ref }}
