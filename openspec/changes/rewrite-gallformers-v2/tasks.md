@@ -4,7 +4,7 @@ This is an **umbrella proposal**. Most tasks are creating and completing sub-pro
 
 ## 0. Pre-Work
 
-- [ ] 0.1 Review and approve this umbrella proposal
+- [x] 0.1 Review and approve this umbrella proposal
 - [x] 0.2 Create `fix-security-critical` sub-proposal (archived)
 - [x] 0.3 Create `define-v2-foundation` sub-proposal
 - [x] 0.4 Create `add-go-api` sub-proposal
@@ -24,12 +24,12 @@ This is an **umbrella proposal**. Most tasks are creating and completing sub-pro
 
 ## 1.5. Phase 0.5: Technical Foundation
 
-- [ ] 1.5.1 Complete `define-v2-foundation` proposal implementation
+- [x] 1.5.1 Complete `define-v2-foundation` proposal implementation
   - Create `v2/` directory structure with isolation
   - Create `v2/CLAUDE.md` with agent rules
   - Setup Fly.io deployment + CI/CD
   - Scaffold Go API and Svelte web placeholders
-- [ ] 1.5.2 Verify local dev and Fly.io deployment work
+- [x] 1.5.2 Verify local dev and Fly.io deployment work
 
 ## 2. Phase 1: Go API Server
 
