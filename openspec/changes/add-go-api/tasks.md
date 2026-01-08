@@ -1,17 +1,17 @@
 # Tasks: Add Go API Server
 
 ## Prerequisites
-- [ ] Verify `define-v2-foundation` is complete (v2/ directory exists, Fly.io deployment works)
+- [x] Verify `define-v2-foundation` is complete (v2/ directory exists, Fly.io deployment works)
 
 ## 1. Project Scaffolding
 
-- [ ] 1.1 Initialize Go module (`v2/api/go.mod`)
-- [ ] 1.2 Create directory structure (`cmd/server/`, `internal/handlers/`, `internal/middleware/`, `internal/db/`)
-- [ ] 1.3 Add Makefile with build, run, test, lint targets
-- [ ] 1.4 Create `cmd/server/main.go` with minimal chi router
-- [ ] 1.5 Add health check endpoint (`GET /health`) with DB check (200 ok / 503 degraded)
-- [ ] 1.6 Implement graceful shutdown (30s timeout on SIGTERM/SIGINT)
-- [ ] 1.7 Verify `make run` starts server on :8080
+- [x] 1.1 Initialize Go module (`v2/api/go.mod`)
+- [x] 1.2 Create directory structure (`cmd/server/`, `internal/handlers/`, `internal/middleware/`, `internal/db/`)
+- [x] 1.3 Add Makefile with build, run, test, lint targets
+- [x] 1.4 Create `cmd/server/main.go` with minimal chi router
+- [x] 1.5 Add health check endpoint (`GET /health`) with DB check (200 ok / 503 degraded)
+- [x] 1.6 Implement graceful shutdown (30s timeout on SIGTERM/SIGINT)
+- [x] 1.7 Verify `make run` starts server on :8080
 
 ## 2. Database Layer (sqlc)
 
