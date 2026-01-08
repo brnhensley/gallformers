@@ -3,7 +3,11 @@ name: Deploy V2
 on:
   push:
     branches: [main]
-    paths: ['v2/**']
+    paths:
+      - 'v2/**'
+      - '!v2/**/*.md'
+      - '!v2/docs/**'
+      - '!v2/runbooks/**'
 
 concurrency:
   group: deploy-v2
