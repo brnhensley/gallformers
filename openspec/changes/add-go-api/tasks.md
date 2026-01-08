@@ -47,10 +47,10 @@
 
 ## 4. OpenAPI Documentation
 
-- [ ] 4.1 Create `api/openapi.yaml` skeleton with info, servers, security schemes
-- [ ] 4.2 Add Swagger UI static files (embed in binary or use CDN)
-- [ ] 4.3 Serve OpenAPI spec at `/api/docs`
-- [ ] 4.4 Verify Swagger UI loads and displays spec
+- [x] 4.1 Create `api/openapi.yaml` skeleton with info, servers, security schemes
+- [x] 4.2 Add Swagger UI static files (embed in binary or use CDN)
+- [x] 4.3 Serve OpenAPI spec at `/api/docs`
+- [x] 4.4 Verify Swagger UI loads and displays spec
 
 ## 5. Domain: Gall
 
