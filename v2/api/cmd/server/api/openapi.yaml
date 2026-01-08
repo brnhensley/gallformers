@@ -114,6 +114,401 @@ components:
           type: integer
           description: Number of results skipped
 
+    Species:
+      type: object
+      description: A species record (gall-forming organism or host plant)
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Unique identifier
+          example: 1234
+        name:
+          type: string
+          description: Scientific name
+          example: "Andricus quercuscalifornicus"
+        taxoncode:
+          type: string
+          nullable: true
+          description: Type of taxon (gall, plant, etc.)
+          example: "gall"
+        datacomplete:
+          type: boolean
+          description: Whether data for this species is considered complete
+          example: false
+        abundance_id:
+          type: integer
+          format: int64
+          nullable: true
+          description: Reference to abundance level
+          example: 2
+        abundance:
+          type: string
+          nullable: true
+          description: Abundance level name
+          example: "common"
+      required:
+        - id
+        - name
+        - datacomplete
+
+    SpeciesListResponse:
+      type: object
+      description: Paginated list of species
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Species'
+        total:
+          type: integer
+          format: int64
+          description: Total number of species matching query
+        limit:
+          type: integer
+          nullable: true
+          description: Limit applied to results (if any)
+        offset:
+          type: integer
+          description: Offset applied to results
+      required:
+        - data
+        - total
+        - offset
+
+    Alias:
+      type: object
+      description: An alias (alternative name) for a species
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Unique identifier
+        name:
+          type: string
+          description: The alias name
+        type:
+          type: string
+          enum: [common, scientific]
+          description: Type of alias
+        description:
+          type: string
+          description: Optional description of the alias
+      required:
+        - id
+        - name
+        - type
+        - description
+
+    FilterField:
+      type: object
+      description: A filter field value (color, shape, texture, etc.)
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Unique identifier
+        field:
+          type: string
+          description: The field value
+        description:
+          type: string
+          nullable: true
+          description: Optional description
+      required:
+        - id
+        - field
+
+    Host:
+      type: object
+      description: A host plant for a gall
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Species ID of the host
+        name:
+          type: string
+          description: Name of the host species
+      required:
+        - id
+        - name
+
+    Gall:
+      type: object
+      description: A gall species with all associated data
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Species ID
+        name:
+          type: string
+          description: Scientific name
+        gall_id:
+          type: integer
+          format: int64
+          description: Gall table ID
+        datacomplete:
+          type: boolean
+          description: Whether data is complete
+        abundance_id:
+          type: integer
+          format: int64
+          nullable: true
+          description: Abundance level ID
+        detachable:
+          type: integer
+          nullable: true
+          description: Detachability value (0=none, 1=integral, 2=detachable, 3=both)
+        undescribed:
+          type: boolean
+          description: Whether this is an undescribed species
+        aliases:
+          type: array
+          items:
+            $ref: '#/components/schemas/Alias'
+        hosts:
+          type: array
+          items:
+            $ref: '#/components/schemas/Host'
+        colors:
+          type: array
+          items:
+            $ref: '#/components/schemas/FilterField'
+        shapes:
+          type: array
+          items:
+            $ref: '#/components/schemas/FilterField'
+        textures:
+          type: array
+          items:
+            $ref: '#/components/schemas/FilterField'
+        locations:
+          type: array
+          items:
+            $ref: '#/components/schemas/FilterField'
+        alignments:
+          type: array
+          items:
+            $ref: '#/components/schemas/FilterField'
+        walls:
+          type: array
+          items:
+            $ref: '#/components/schemas/FilterField'
+        cells:
+          type: array
+          items:
+            $ref: '#/components/schemas/FilterField'
+        seasons:
+          type: array
+          items:
+            $ref: '#/components/schemas/FilterField'
+        forms:
+          type: array
+          items:
+            $ref: '#/components/schemas/FilterField'
+      required:
+        - id
+        - name
+        - gall_id
+        - datacomplete
+        - undescribed
+        - aliases
+
+    GallListResponse:
+      type: object
+      description: Paginated list of galls
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Gall'
+        total:
+          type: integer
+          format: int64
+          description: Total number of galls matching query
+        limit:
+          type: integer
+          nullable: true
+          description: Limit applied to results (if any)
+        offset:
+          type: integer
+          description: Offset applied to results
+      required:
+        - data
+        - total
+        - offset
+
+    GallCreateRequest:
+      type: object
+      description: Request body for creating a gall
+      properties:
+        name:
+          type: string
+          description: Scientific name (required)
+        datacomplete:
+          type: boolean
+          description: Whether data is complete
+        abundance_id:
+          type: integer
+          format: int64
+          nullable: true
+        detachable:
+          type: integer
+          nullable: true
+          description: Detachability value
+        undescribed:
+          type: boolean
+        aliases:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              type:
+                type: string
+                enum: [common, scientific]
+              description:
+                type: string
+        hosts:
+          type: array
+          items:
+            type: integer
+            format: int64
+          description: Array of host species IDs
+        colors:
+          type: array
+          items:
+            type: integer
+            format: int64
+        shapes:
+          type: array
+          items:
+            type: integer
+            format: int64
+        textures:
+          type: array
+          items:
+            type: integer
+            format: int64
+        locations:
+          type: array
+          items:
+            type: integer
+            format: int64
+        alignments:
+          type: array
+          items:
+            type: integer
+            format: int64
+        walls:
+          type: array
+          items:
+            type: integer
+            format: int64
+        cells:
+          type: array
+          items:
+            type: integer
+            format: int64
+        seasons:
+          type: array
+          items:
+            type: integer
+            format: int64
+        forms:
+          type: array
+          items:
+            type: integer
+            format: int64
+      required:
+        - name
+
+    GallUpdateRequest:
+      type: object
+      description: Request body for updating a gall
+      properties:
+        name:
+          type: string
+          description: Scientific name (required)
+        datacomplete:
+          type: boolean
+        abundance_id:
+          type: integer
+          format: int64
+          nullable: true
+        detachable:
+          type: integer
+          nullable: true
+        undescribed:
+          type: boolean
+        aliases:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              type:
+                type: string
+                enum: [common, scientific]
+              description:
+                type: string
+        hosts:
+          type: array
+          items:
+            type: integer
+            format: int64
+        colors:
+          type: array
+          items:
+            type: integer
+            format: int64
+        shapes:
+          type: array
+          items:
+            type: integer
+            format: int64
+        textures:
+          type: array
+          items:
+            type: integer
+            format: int64
+        locations:
+          type: array
+          items:
+            type: integer
+            format: int64
+        alignments:
+          type: array
+          items:
+            type: integer
+            format: int64
+        walls:
+          type: array
+          items:
+            type: integer
+            format: int64
+        cells:
+          type: array
+          items:
+            type: integer
+            format: int64
+        seasons:
+          type: array
+          items:
+            type: integer
+            format: int64
+        forms:
+          type: array
+          items:
+            type: integer
+            format: int64
+      required:
+        - name
+
   parameters:
     limitParam:
       name: limit
@@ -220,5 +615,218 @@ paths:
                 status: degraded
                 database: unavailable
 
-  # Placeholder paths - domain endpoints will be added as they are implemented
-  # See tasks.md sections 5-15 for planned endpoints
+  /api/v2/species:
+    get:
+      tags:
+        - Species
+      summary: List or search species
+      description: |
+        Returns a list of all species, or searches for species by name if a search term is provided.
+        Results are ordered alphabetically by name.
+      operationId: listSpecies
+      parameters:
+        - $ref: '#/components/parameters/searchParam'
+      responses:
+        '200':
+          description: List of species
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpeciesListResponse'
+              examples:
+                allSpecies:
+                  summary: List all species
+                  value:
+                    data:
+                      - id: 1
+                        name: "Andricus quercuscalifornicus"
+                        taxoncode: "gall"
+                        datacomplete: false
+                        abundance_id: 2
+                        abundance: "common"
+                    total: 3000
+                    offset: 0
+                searchResults:
+                  summary: Search results
+                  value:
+                    data:
+                      - id: 1
+                        name: "Andricus quercuscalifornicus"
+                        taxoncode: "gall"
+                        datacomplete: false
+                    total: 15
+                    offset: 0
+        '500':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /api/v2/species/{id}:
+    get:
+      tags:
+        - Species
+      summary: Get species by ID
+      description: Returns a single species by its unique identifier.
+      operationId: getSpeciesById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Species ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Species details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Species'
+              example:
+                id: 1234
+                name: "Andricus quercuscalifornicus"
+                taxoncode: "gall"
+                datacomplete: false
+                abundance_id: 2
+                abundance: "common"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /api/v2/galls:
+    get:
+      tags:
+        - Galls
+      summary: List or search galls
+      description: |
+        Returns a list of all galls, optionally filtered by search query.
+        Supports pagination via limit and offset parameters.
+      operationId: listGalls
+      parameters:
+        - $ref: '#/components/parameters/searchParam'
+        - $ref: '#/components/parameters/limitParam'
+        - $ref: '#/components/parameters/offsetParam'
+      responses:
+        '200':
+          description: List of galls
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GallListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    post:
+      tags:
+        - Galls
+      summary: Create a new gall
+      description: Creates a new gall species entry. Requires authentication.
+      operationId: createGall
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GallCreateRequest'
+      responses:
+        '201':
+          description: Gall created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Gall'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v2/galls/{id}:
+    get:
+      tags:
+        - Galls
+      summary: Get a gall by ID
+      description: Returns detailed information about a specific gall.
+      operationId: getGallById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The species ID of the gall
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Gall details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Gall'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+        - Galls
+      summary: Update a gall
+      description: Updates an existing gall. Requires authentication.
+      operationId: updateGall
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The species ID of the gall
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GallUpdateRequest'
+      responses:
+        '200':
+          description: Gall updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Gall'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags:
+        - Galls
+      summary: Delete a gall
+      description: Deletes a gall and all associated data. Requires authentication.
+      operationId: deleteGall
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The species ID of the gall
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: Gall deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Placeholder paths - additional domain endpoints will be added as they are implemented
+  # See tasks.md sections 6-15 for planned endpoints

@@ -16,6 +16,8 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	db "github.com/jeffdc/gallformers/v2/api/internal/db/generated"
+	"github.com/jeffdc/gallformers/v2/api/internal/handlers"
+	mw "github.com/jeffdc/gallformers/v2/api/internal/middleware"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -57,6 +59,11 @@ func main() {
 		slog.Warn("database ping failed at startup", "error", err)
 	}
 
+	// Initialize Auth0
+	if err := mw.InitAuth0(); err != nil {
+		slog.Warn("Auth0 initialization failed - auth endpoints will not work", "error", err)
+	}
+
 	r := chi.NewRouter()
 
 	// Middleware
@@ -70,6 +77,29 @@ func main() {
 	// OpenAPI documentation
 	r.Get("/api/docs", swaggerUIHandler)
 	r.Get("/api/docs/openapi.yaml", openapiSpecHandler)
+
+	// API v2 routes
+	r.Route("/api/v2", func(r chi.Router) {
+		// Auth endpoints
+		r.Route("/auth", func(r chi.Router) {
+			r.Get("/callback", handlers.AuthCallbackHandler())
+			r.Post("/refresh", handlers.RefreshHandler())
+			r.Post("/logout", handlers.LogoutHandler())
+		})
+
+		// Current user endpoint (requires auth)
+		r.With(mw.RequireAuth).Get("/me", handlers.MeHandler())
+
+		// Species endpoints
+		r.Route("/species", func(r chi.Router) {
+			r.Get("/", handlers.ListSpecies(queries))
+			r.Get("/{id}", handlers.GetSpecies(queries))
+		})
+
+		// Gall endpoints
+		gallHandler := handlers.NewGallHandler(queries)
+		gallHandler.RegisterRoutes(r)
+	})
 
 	// Static file serving from embedded filesystem
 	staticFS, err := fs.Sub(staticFiles, "static")

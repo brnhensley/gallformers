@@ -37,13 +37,13 @@
 - [ ] 3a.1 Configure Auth0 to include roles in JWT claims (via Rules or Actions)
 - [ ] 3a.2 Define roles in Auth0: `admin`, `superadmin`
 - [ ] 3a.3 Assign existing admin users to appropriate roles
-- [ ] 3a.4 Implement OAuth callback handler (exchange code for tokens)
-- [ ] 3a.5 Implement httpOnly cookie setting on login (Secure, SameSite=Lax, Path=/)
-- [ ] 3a.6 Implement `/api/v2/me` endpoint (return current user from token)
-- [ ] 3a.7 Implement `/api/v2/auth/refresh` endpoint (refresh expired tokens)
-- [ ] 3a.8 Implement `/api/v2/auth/logout` endpoint (clear auth cookie)
+- [x] 3a.4 Implement OAuth callback handler (exchange code for tokens)
+- [x] 3a.5 Implement httpOnly cookie setting on login (Secure, SameSite=Lax, Path=/)
+- [x] 3a.6 Implement `/api/v2/me` endpoint (return current user from token)
+- [x] 3a.7 Implement `/api/v2/auth/refresh` endpoint (refresh expired tokens)
+- [x] 3a.8 Implement `/api/v2/auth/logout` endpoint (clear auth cookie)
 - [ ] 3a.9 Test login/refresh/logout flow end-to-end
-- [ ] 3a.10 Add auth handler unit tests
+- [x] 3a.10 Add auth handler unit tests
 
 ## 4. OpenAPI Documentation
 
@@ -54,30 +54,30 @@
 
 ## 5. Domain: Gall
 
-- [ ] 5.1 Write sqlc queries (`internal/db/queries/gall.sql`)
+- [x] 5.1 Write sqlc queries (`internal/db/queries/gall.sql`)
   - ListGalls, SearchGalls, GetGallByID, GetGallBySpeciesID
   - CreateGall, UpdateGall, DeleteGall
   - Include alias queries (aliases nested in gall payloads)
-- [ ] 5.2 Implement handlers (`internal/handlers/gall.go`)
+- [x] 5.2 Implement handlers (`internal/handlers/gall.go`)
   - GET /api/v2/galls (list, search by q param, optional limit/offset pagination)
   - GET /api/v2/galls/{id}
   - POST /api/v2/galls (auth required, includes aliases)
   - PUT /api/v2/galls/{id} (auth required, includes aliases)
   - DELETE /api/v2/galls/{id} (auth required)
 - [ ] 5.3 Implement audit field handling (created_at/by, updated_at/by)
-- [ ] 5.4 Add OpenAPI spec for gall endpoints
-- [ ] 5.5 Write handler unit tests
-- [ ] 5.6 Write integration tests comparing v1 and v2 responses
+- [x] 5.4 Add OpenAPI spec for gall endpoints
+- [x] 5.5 Write handler unit tests
+- [x] 5.6 Write integration tests comparing v1 and v2 responses
 
 ## 6. Domain: Species
 
-- [ ] 6.1 Write sqlc queries (`internal/db/queries/species.sql`)
+- [x] 6.1 Write sqlc queries (`internal/db/queries/species.sql`)
   - ListSpecies, SearchSpecies, GetSpeciesByID
-- [ ] 6.2 Implement handlers (`internal/handlers/species.go`)
+- [x] 6.2 Implement handlers (`internal/handlers/species.go`)
   - GET /api/v2/species (list, search by q param)
   - GET /api/v2/species/{id}
-- [ ] 6.3 Add OpenAPI spec for species endpoints
-- [ ] 6.4 Write integration tests
+- [x] 6.3 Add OpenAPI spec for species endpoints
+- [x] 6.4 Write integration tests
 
 ## 7. Domain: Host
 
