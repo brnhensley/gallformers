@@ -11,8 +11,8 @@ Restore the SQLite database from backup after corruption or data loss.
 
 ## Prerequisites
 - `flyctl` CLI installed and authenticated
-- Access to Fly.io app `gallformers-v2`
-- Access to backup storage (Litestream destination or manual backups)
+- Access to Fly.io app `gallformers`
+- Access to backup storage (S3 bucket `gallformers-backups`)
 
 ## Important
 Database restoration will cause **data loss** for any changes made after the backup point. Coordinate with stakeholders before proceeding.
@@ -37,14 +37,14 @@ Determine:
 Prevent further writes while restoring:
 
 ```bash
-fly machines list -a gallformers-v2
-fly machines stop <MACHINE_ID> -a gallformers-v2
+fly machines list -a gallformers
+fly machines stop <MACHINE_ID> -a gallformers
 ```
 
 ### 3. Connect to the Machine
 
 ```bash
-fly ssh console -a gallformers-v2
+fly ssh console -a gallformers
 ```
 
 ### 4. Backup Current State
@@ -57,16 +57,31 @@ cp /data/gallformers.sqlite /data/gallformers.sqlite.corrupted.$(date +%Y%m%d%H%
 
 ### 5. Restore from Litestream
 
-If using Litestream for continuous backup:
+Litestream continuously replicates to S3. Restore to latest:
 
 ```bash
-litestream restore -o /data/gallformers.sqlite <REPLICA_URL>
+# Set credentials (or export as env vars)
+export LITESTREAM_ACCESS_KEY_ID=<from fly secrets>
+export LITESTREAM_SECRET_ACCESS_KEY=<from fly secrets>
+
+# Restore latest backup
+litestream restore -o /data/gallformers.sqlite s3://gallformers-backups/litestream
 ```
 
 To restore to a specific point in time:
 
 ```bash
-litestream restore -o /data/gallformers.sqlite -timestamp <TIMESTAMP> <REPLICA_URL>
+# Use ISO 8601 timestamp
+litestream restore -o /data/gallformers.sqlite \
+  -timestamp "2026-01-08T15:30:00Z" \
+  s3://gallformers-backups/litestream
+```
+
+To list available snapshots/generations:
+
+```bash
+litestream snapshots s3://gallformers-backups/litestream
+litestream generations s3://gallformers-backups/litestream
 ```
 
 ### 6. Restore from Manual Backup
@@ -75,7 +90,7 @@ If restoring from a manual backup file:
 
 ```bash
 # Copy backup to the machine (from local)
-fly ssh sftp shell -a gallformers-v2
+fly ssh sftp shell -a gallformers
 put /path/to/backup.sqlite /data/gallformers.sqlite
 
 # Or download from remote storage
@@ -95,13 +110,13 @@ Expected output: `ok`
 Exit SSH session, then:
 
 ```bash
-fly machines start <MACHINE_ID> -a gallformers-v2
+fly machines start <MACHINE_ID> -a gallformers
 ```
 
 ### 9. Verify Application
 
 ```bash
-curl -s -o /dev/null -w "%{http_code}" https://gallformers-v2.fly.dev/health
+curl -s -o /dev/null -w "%{http_code}" https://gallformers.fly.dev/health
 ```
 
 Expected: `200`
@@ -109,7 +124,7 @@ Expected: `200`
 Check logs:
 
 ```bash
-fly logs -a gallformers-v2 --no-tail | head -30
+fly logs -a gallformers --no-tail | head -30
 ```
 
 ## Verification Checklist

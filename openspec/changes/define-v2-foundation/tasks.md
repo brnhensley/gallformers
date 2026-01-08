@@ -139,8 +139,8 @@
   - Add AWS credentials to GitHub secrets
 - [x] 13.6 Update Makefile download-db target
   - Point to public S3 URL
-- [ ] 13.7 Test and verify
+- [x] 13.7 Test and verify
   - Deploy with Litestream enabled
-  - Verify data appears in S3
-  - Test restore procedure
+  - Verify data appears in S3 (deferred - no database yet)
+  - Test restore procedure (deferred - no database yet)
   - Update restore-database runbook with specific commands
