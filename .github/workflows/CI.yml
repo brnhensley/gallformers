@@ -3,8 +3,22 @@ name: CI
 on:
     push:
         branches: [main]
+        paths-ignore:
+            - 'v2/**'
+            - '*.md'
+            - 'docs/**'
+            - 'ref/**'
+            - 'openspec/**'
+            - '.beads/**'
     pull_request:
         branches: ['**']
+        paths-ignore:
+            - 'v2/**'
+            - '*.md'
+            - 'docs/**'
+            - 'ref/**'
+            - 'openspec/**'
+            - '.beads/**'
 
 env:
     YARN_ENABLE_IMMUTABLE_INSTALLS: false
