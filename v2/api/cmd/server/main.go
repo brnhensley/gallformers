@@ -15,13 +15,17 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	db "github.com/jeffdc/gallformers/v2/api/internal/db/generated"
 	_ "github.com/mattn/go-sqlite3"
 )
 
 //go:embed static/*
 var staticFiles embed.FS
 
-var db *sql.DB
+var (
+	sqlDB   *sql.DB
+	queries *db.Queries
+)
 
 func main() {
 	// Initialize logger
@@ -35,15 +39,18 @@ func main() {
 	}
 
 	var err error
-	db, err = sql.Open("sqlite3", dbPath+"?_journal_mode=WAL&_busy_timeout=5000")
+	sqlDB, err = sql.Open("sqlite3", dbPath+"?_journal_mode=WAL&_busy_timeout=5000")
 	if err != nil {
 		slog.Error("failed to open database", "error", err)
 		os.Exit(1)
 	}
-	defer db.Close()
+	defer sqlDB.Close()
+
+	// Initialize sqlc queries
+	queries = db.New(sqlDB)
 
 	// Test the connection
-	if err := db.Ping(); err != nil {
+	if err := sqlDB.Ping(); err != nil {
 		slog.Warn("database ping failed at startup", "error", err)
 	}
 
@@ -107,8 +114,9 @@ func main() {
 func healthHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	// Check database connectivity
-	if err := db.PingContext(r.Context()); err != nil {
+	// Check database connectivity using sqlc-generated query
+	_, err := queries.HealthCheck(r.Context())
+	if err != nil {
 		slog.Warn("health check: database unavailable", "error", err)
 		w.WriteHeader(http.StatusServiceUnavailable)
 		json.NewEncoder(w).Encode(map[string]string{

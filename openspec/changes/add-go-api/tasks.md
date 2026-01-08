@@ -15,12 +15,12 @@
 
 ## 2. Database Layer (sqlc)
 
-- [ ] 2.1 Install sqlc (`go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest`)
-- [ ] 2.2 Export SQLite schema (`sqlite3 ../prisma/gallformers.sqlite .schema > internal/db/schema.sql`)
-- [ ] 2.3 Create `internal/db/sqlc.yaml` configuration
-- [ ] 2.4 Write base queries for health check (verify DB connection)
-- [ ] 2.5 Run `sqlc generate`, verify output in `internal/db/generated/`
-- [ ] 2.6 Wire up database connection in main.go (WAL mode, 5s busy timeout)
+- [x] 2.1 Install sqlc (`go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest`)
+- [x] 2.2 Export SQLite schema (`sqlite3 ../prisma/gallformers.sqlite .schema > internal/db/schema.sql`)
+- [x] 2.3 Create `internal/db/sqlc.yaml` configuration
+- [x] 2.4 Write base queries for health check (verify DB connection)
+- [x] 2.5 Run `sqlc generate`, verify output in `internal/db/generated/`
+- [x] 2.6 Wire up database connection in main.go (WAL mode, 5s busy timeout)
 
 ## 3. Core Middleware
 
