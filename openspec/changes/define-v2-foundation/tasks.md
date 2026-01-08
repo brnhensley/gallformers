@@ -87,7 +87,7 @@
   - Trigger on push to main with changes in `v2/`
   - Run tests before deploy
   - Build and deploy to Fly.io
-- [ ] 9.3 Add `FLY_API_TOKEN` to GitHub secrets
+- [x] 9.3 Add `FLY_API_TOKEN` to GitHub secrets
 - [ ] 9.4 Test CI runs on PR with v2 changes
 - [ ] 9.5 Test deploy pipeline on push to main
 
