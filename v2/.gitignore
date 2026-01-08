@@ -1,0 +1,30 @@
+# Environment files
+.env
+.env.local
+
+# Go build artifacts
+api/gallformers-api
+
+# Node/Svelte
+web/node_modules/
+web/build/
+web/.svelte-kit/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+
+# Testing
+.coverage
+web/playwright-report/
+web/test-results/
+
+# Logs
+*.log
+

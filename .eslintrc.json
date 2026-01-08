@@ -15,7 +15,8 @@
         "import"
     ],
     "ignorePatterns": [
-        "scripts/**/*"
+        "scripts/**/*",
+        "v2/**/*"
     ],
     "rules": {
         "import/no-unresolved": "error",

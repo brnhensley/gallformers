@@ -7,10 +7,12 @@ This is an **umbrella proposal**. Most tasks are creating and completing sub-pro
 - [ ] 0.1 Review and approve this umbrella proposal
 - [x] 0.2 Create `fix-security-critical` sub-proposal (archived)
 - [x] 0.3 Create `define-v2-foundation` sub-proposal
-- [ ] 0.4 Create `add-go-api` sub-proposal
-- [ ] 0.5 Create `add-svelte-admin` sub-proposal
-- [ ] 0.6 Create `add-svelte-public` sub-proposal
-- [ ] 0.7 Create `cutover-v2` sub-proposal
+- [x] 0.4 Create `add-go-api` sub-proposal
+- [x] 0.5 Create `add-svelte-admin` sub-proposal
+- [x] 0.6 Create `add-svelte-public` sub-proposal
+- [x] 0.7 Create `cutover-v2` sub-proposal
+- [x] 0.8 Create `add-articles-system` sub-proposal
+- [x] 0.9 Create `add-svelete-common` sub-proposal
 
 ## 1. Phase 0: Security Fixes (Immediate) - COMPLETE
 
