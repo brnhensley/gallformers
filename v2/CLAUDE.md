@@ -77,3 +77,4 @@ Manual deployment: `fly deploy` from `v2/` directory.
 - The v1 site (Next.js on Digital Ocean) continues running until cutover
 - All v2 work must stay within the `v2/` directory
 - Use the beads workflow for issue tracking (`bd` commands)
+# CI test
