@@ -130,7 +130,7 @@
   - Create `v2/litestream.yml` config
   - Update Dockerfile to install Litestream
   - Update CMD to use Litestream wrapper
-- [ ] 13.4 Configure Fly.io secrets
+- [x] 13.4 Configure Fly.io secrets
   - Add LITESTREAM_ACCESS_KEY_ID
   - Add LITESTREAM_SECRET_ACCESS_KEY
 - [ ] 13.5 Create daily snapshot workflow
