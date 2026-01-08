@@ -2,6 +2,20 @@
 
 Step-by-step guide to set up AWS infrastructure for Litestream backups.
 
+**Status: COMPLETED** - All resources created 2026-01-08.
+
+## Current Configuration
+
+| Resource | Value |
+|----------|-------|
+| Bucket | `gallformers-backups` |
+| Region | `us-east-1` |
+| Litestream path | `s3://gallformers-backups/litestream` |
+| Public snapshot | `s3://gallformers-backups/public/gallformers.sqlite` |
+| Public URL | `https://gallformers-backups.s3.amazonaws.com/public/gallformers.sqlite` |
+| IAM user | `litestream-gallformers` |
+| IAM policy | `LitestreamGallformersBackup` |
+
 ## Prerequisites
 
 - AWS CLI installed and configured (`aws configure`)
@@ -198,20 +212,8 @@ aws s3api put-bucket-lifecycle-configuration \
   --lifecycle-configuration file:///tmp/lifecycle.json
 ```
 
-## Summary
-
-| Resource | Value |
-|----------|-------|
-| Bucket | `gallformers-backups` |
-| Region | `us-east-1` |
-| Litestream path | `s3://gallformers-backups/litestream` |
-| Public snapshot | `s3://gallformers-backups/public/gallformers.sqlite` |
-| Public URL | `https://gallformers-backups.s3.amazonaws.com/public/gallformers.sqlite` |
-| IAM user | `litestream-gallformers` |
-
 ## Next Steps
 
-After completing this setup:
 1. Add Litestream to Docker image (task 13.3)
-2. Configure Fly.io secrets (task 13.4)
+2. Configure Fly.io secrets (task 13.4) - credentials generated, need to run `fly secrets set`
 3. Create daily snapshot workflow (task 13.5)
