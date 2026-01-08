@@ -88,8 +88,8 @@
   - Run tests before deploy
   - Build and deploy to Fly.io
 - [x] 9.3 Add `FLY_API_TOKEN` to GitHub secrets
-- [ ] 9.4 Test CI runs on PR with v2 changes
-- [ ] 9.5 Test deploy pipeline on push to main
+- [x] 9.4 Test CI runs on PR with v2 changes
+- [x] 9.5 Test deploy pipeline on push to main
 
 ## 10. Verify Fly.io Deployment
 
