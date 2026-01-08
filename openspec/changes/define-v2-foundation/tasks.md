@@ -93,10 +93,10 @@
 
 ## 10. Verify Fly.io Deployment
 
-- [ ] 10.1 Test `fly deploy` from `v2/` directory (manual, one-time)
-- [ ] 10.2 Verify `curl https://gallformers.fly.dev/health` returns 200
-- [ ] 10.3 Verify placeholder page loads at `https://gallformers.fly.dev`
-- [ ] 10.4 Test CI/CD auto-deploys on push to main
+- [x] 10.1 Test `fly deploy` from `v2/` directory (manual, one-time)
+- [x] 10.2 Verify `curl https://gallformers.fly.dev/health` returns 200
+- [x] 10.3 Verify placeholder page loads at `https://gallformers.fly.dev`
+- [x] 10.4 Test CI/CD auto-deploys on push to main
 
 ## 11. Documentation Updates
 
