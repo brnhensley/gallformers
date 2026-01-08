@@ -133,7 +133,7 @@
 - [x] 13.4 Configure Fly.io secrets
   - Add LITESTREAM_ACCESS_KEY_ID
   - Add LITESTREAM_SECRET_ACCESS_KEY
-- [ ] 13.5 Create daily snapshot workflow
+- [x] 13.5 Create daily snapshot workflow
   - Create `.github/workflows/db-snapshot.yml`
   - Configure scheduled run (daily)
   - Add AWS credentials to GitHub secrets

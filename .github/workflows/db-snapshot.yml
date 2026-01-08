@@ -1,0 +1,32 @@
+name: Database Snapshot
+
+on:
+  schedule:
+    - cron: '0 6 * * *'  # Daily at 6 AM UTC
+  workflow_dispatch:      # Manual trigger
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Litestream
+        run: |
+          wget -q https://github.com/benbjohnson/litestream/releases/download/v0.3.13/litestream-v0.3.13-linux-amd64.tar.gz
+          tar -xzf litestream-v0.3.13-linux-amd64.tar.gz
+          sudo mv litestream /usr/local/bin/
+
+      - name: Restore latest backup
+        env:
+          LITESTREAM_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          LITESTREAM_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: |
+          litestream restore -o gallformers.sqlite \
+            s3://gallformers-backups/litestream
+
+      - name: Upload public snapshot
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: us-east-1
+        run: |
+          aws s3 cp gallformers.sqlite s3://gallformers-backups/public/gallformers.sqlite
