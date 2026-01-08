@@ -20,10 +20,11 @@
   - PR checks for v2 code
   - Deploy pipeline on push to main
   - See `v2/docs/ci-cd-strategy.md`
-- [ ] 2.4 Document rollback strategy/procedure
+- [x] 2.4 Document rollback strategy/procedure
   - How to identify bad deployment
   - Step-by-step rollback commands
   - Database considerations
+  - See `v2/runbooks/`
 
 ## 3. Cleanup Existing Fly.io Attempt
 
@@ -99,3 +100,17 @@
 
 - [ ] 11.1 Update root `CLAUDE.md` to mention v2 isolation
 - [ ] 11.2 Update `rewrite-gallformers-v2` to mark hosting question resolved
+
+## 12. Status Page Setup
+
+- [ ] 12.1 Set up Upptime in separate repo or branch
+  - Configure `.upptimerc.yml` for v2 endpoints
+  - Enable GitHub Pages
+  - Configure health check intervals
+- [ ] 12.2 Configure monitoring endpoints
+  - `https://gallformers-v2.fly.dev/health`
+  - Main site availability
+- [ ] 12.3 Document status page usage in runbooks
+  - How to manually add incidents
+  - How to acknowledge/resolve incidents
+- [ ] 12.4 Update `v2/runbooks/incident-response.md` with status page procedures
