@@ -137,7 +137,7 @@
   - Create `.github/workflows/db-snapshot.yml`
   - Configure scheduled run (daily)
   - Add AWS credentials to GitHub secrets
-- [ ] 13.6 Update Makefile download-db target
+- [x] 13.6 Update Makefile download-db target
   - Point to public S3 URL
 - [ ] 13.7 Test and verify
   - Deploy with Litestream enabled

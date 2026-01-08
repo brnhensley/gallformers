@@ -42,17 +42,14 @@ clean:
 	cd web && rm -rf build .svelte-kit node_modules
 
 # Download production database for local dev
-# Requires PROD_HOST env var (e.g., user@server) for current DO setup
-# After Fly.io migration, will use: fly ssh sftp get /data/gallformers.sqlite
+# Uses public S3 snapshot (updated daily by GitHub Actions)
+DB_URL ?= https://gallformers-backups.s3.amazonaws.com/public/gallformers.sqlite
+
 download-db:
-	@echo "Downloading database from production..."
-	@if [ -z "$$PROD_HOST" ]; then \
-		echo "Error: PROD_HOST env var not set"; \
-		echo "Set PROD_HOST to user@server for scp access"; \
-		exit 1; \
-	fi
-	scp $${PROD_HOST}:/mnt/gallformers_data/prisma/gallformers.sqlite ../prisma/
-	@echo "Database downloaded to ../prisma/gallformers.sqlite"
+	@echo "Downloading database from S3..."
+	@mkdir -p data
+	curl -L -o data/gallformers.sqlite $(DB_URL)
+	@echo "Database downloaded to data/gallformers.sqlite"
 
 # Show help
 help:
@@ -70,7 +67,7 @@ help:
 	@echo "  make test       Run all tests"
 	@echo ""
 	@echo "Database:"
-	@echo "  make download-db  Download database from production (requires PROD_HOST)"
+	@echo "  make download-db  Download database snapshot from S3"
 	@echo ""
 	@echo "Other:"
 	@echo "  make clean      Clean build artifacts"
