@@ -29,8 +29,10 @@ type Claims struct {
 
 // Auth0Config holds the Auth0 configuration.
 type Auth0Config struct {
-	Domain   string
-	Audience string
+	Domain       string
+	Audience     string
+	ClientID     string
+	ClientSecret string
 }
 
 var (
@@ -45,6 +47,8 @@ var (
 func InitAuth0() error {
 	domain := os.Getenv("AUTH0_DOMAIN")
 	audience := os.Getenv("AUTH0_AUDIENCE")
+	clientID := os.Getenv("AUTH0_CLIENT_ID")
+	clientSecret := os.Getenv("AUTH0_CLIENT_SECRET")
 
 	if domain == "" {
 		return errors.New("AUTH0_DOMAIN environment variable is required")
@@ -52,10 +56,18 @@ func InitAuth0() error {
 	if audience == "" {
 		return errors.New("AUTH0_AUDIENCE environment variable is required")
 	}
+	if clientID == "" {
+		return errors.New("AUTH0_CLIENT_ID environment variable is required")
+	}
+	if clientSecret == "" {
+		return errors.New("AUTH0_CLIENT_SECRET environment variable is required")
+	}
 
 	auth0Config = &Auth0Config{
-		Domain:   domain,
-		Audience: audience,
+		Domain:       domain,
+		Audience:     audience,
+		ClientID:     clientID,
+		ClientSecret: clientSecret,
 	}
 
 	// Initialize JWKS for RS256 validation
@@ -182,4 +194,44 @@ func RequireAdmin(next http.Handler) http.Handler {
 
 		next.ServeHTTP(w, r)
 	})
+}
+
+// GetAuth0Config returns the Auth0 configuration. Returns nil if not initialized.
+func GetAuth0Config() *Auth0Config {
+	return auth0Config
+}
+
+// SetAuthCookie sets the auth token as an httpOnly cookie.
+func SetAuthCookie(w http.ResponseWriter, token string, maxAge int) {
+	env := os.Getenv("ENVIRONMENT")
+	secure := env != "development"
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     AuthCookieName,
+		Value:    token,
+		HttpOnly: true,
+		Secure:   secure,
+		SameSite: http.SameSiteLaxMode,
+		Path:     "/",
+		MaxAge:   maxAge,
+	})
+}
+
+// ClearAuthCookie removes the auth token cookie.
+func ClearAuthCookie(w http.ResponseWriter) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     AuthCookieName,
+		Value:    "",
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteLaxMode,
+		Path:     "/",
+		MaxAge:   -1, // Immediately expire
+	})
+}
+
+// ValidateToken validates a JWT token and returns the claims.
+// Exported for use by auth handlers.
+func ValidateToken(tokenString string) (*Claims, error) {
+	return validateToken(tokenString)
 }
