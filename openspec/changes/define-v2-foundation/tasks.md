@@ -100,8 +100,8 @@
 
 ## 11. Documentation Updates
 
-- [ ] 11.1 Update root `CLAUDE.md` to mention v2 isolation
-- [ ] 11.2 Update `rewrite-gallformers-v2` to mark hosting question resolved
+- [X] 11.1 Update root `CLAUDE.md` to mention v2 isolation
+- [x] 11.2 Update `rewrite-gallformers-v2` to mark hosting question resolved
 
 ## 12. Status Page Setup
 
