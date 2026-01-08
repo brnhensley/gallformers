@@ -115,10 +115,10 @@
   - `https://gallformers.fly.dev/health`
   - `https://gallformers.fly.dev` (main v2 site)
   - `https://gallformers.org` (production site)
-- [ ] 12.3 Document status page usage in runbooks
+- [x] 12.3 Document status page usage in runbooks
   - How to manually add incidents
   - How to acknowledge/resolve incidents
-- [ ] 12.4 Update `v2/runbooks/incident-response.md` with status page procedures
+- [x] 12.4 Update `v2/runbooks/incident-response.md` with status page procedures
 
 ## 13. Backup System Setup
 

@@ -30,8 +30,21 @@ Record:
 ### 2. Communicate Status
 
 If public-facing impact:
-- Update status page (TODO: Upptime setup pending - see define-v2-foundation task 12)
-- Acknowledge user reports
+
+**Create incident on status page:**
+
+1. Go to [gallformers-status issues](https://github.com/jeffdc/gallformers-status/issues)
+2. Create new issue with title: `🛑 [Service Name]: Brief description`
+   - Example: `🛑 Gallformers V2 API: Service unavailable`
+3. Add label: `incident`
+4. In the issue body, describe:
+   - What is affected
+   - When it started
+   - Current status (investigating/identified/monitoring)
+
+The incident will appear on the [status page](https://jeffdc.github.io/gallformers-status/) automatically.
+
+**Acknowledge user reports** if any have been received.
 
 ### 3. Diagnose
 
@@ -41,13 +54,13 @@ Quick checks:
 
 ```bash
 # Health
-curl -s -o /dev/null -w "%{http_code}" https://gallformers-v2.fly.dev/health
+curl -s -o /dev/null -w "%{http_code}" https://gallformers.fly.dev/health
 
 # Status
-fly status -a gallformers-v2
+fly status -a gallformers
 
 # Recent logs
-fly logs -a gallformers-v2 --no-tail | head -100
+fly logs -a gallformers --no-tail | head -100
 ```
 
 ### 4. Mitigate
@@ -76,8 +89,16 @@ If not resolved within 15 minutes:
 
 ### 7. Communicate Resolution
 
-- Update status page (when available)
-- Respond to user reports
+**Update status page:**
+
+1. Add a comment to the incident issue with resolution details:
+   - What was the cause
+   - How it was resolved
+   - Any follow-up actions planned
+2. Close the incident issue - this marks the incident as resolved on the status page
+
+**Respond to user reports** with resolution summary.
+
 - Note time of resolution: `____:____`
 
 ## Post-Incident
@@ -111,16 +132,22 @@ Document:
 
 ```bash
 # Health check
-curl https://gallformers-v2.fly.dev/health
+curl https://gallformers.fly.dev/health
 
 # App status
-fly status -a gallformers-v2
+fly status -a gallformers
 
 # Recent logs
-fly logs -a gallformers-v2 --no-tail
+fly logs -a gallformers --no-tail
 
 # List releases (for rollback)
-fly releases -a gallformers-v2
+fly releases -a gallformers
+
+# Status page
+open https://jeffdc.github.io/gallformers-status/
+
+# Create incident (opens GitHub issues)
+open https://github.com/jeffdc/gallformers-status/issues/new
 
 # Fly.io status page
 open https://status.fly.io
