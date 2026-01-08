@@ -2,23 +2,24 @@
 
 ## 1. Review and Confirm Decisions
 
-- [ ] 1.1 Review design.md analysis
-- [ ] 1.2 Confirm `v2/` subdirectory structure (strict isolation)
-- [ ] 1.3 Confirm Fly.io hosting with single-app architecture
-- [ ] 1.4 Confirm Makefile-coordinated local dev (oaks pattern)
-- [ ] 1.5 Confirm trunk-based git workflow
+- [x] 1.1 Review design.md analysis
+- [x] 1.2 Confirm `v2/` subdirectory structure (strict isolation)
+- [x] 1.3 Confirm Fly.io hosting with single-app architecture
+- [x] 1.4 Confirm Makefile-coordinated local dev (oaks pattern)
+- [x] 1.5 Confirm trunk-based git workflow
 
 ## 2. Research and Document Open Items
 
 - [ ] 2.1 Research backup strategy (Litestream vs manual `fly ssh sftp get` vs other)
-- [ ] 2.2 Define environment variables and secrets strategy
+- [x] 2.2 Define environment variables and secrets strategy
   - Required env vars for v2 (DATABASE_PATH, PROD_HOST, etc.)
   - Local dev setup (`.env` file pattern, `.env.example` template)
   - Fly.io secrets (`fly secrets set`)
-- [ ] 2.3 Define CI/CD strategy for v2
+- [x] 2.3 Define CI/CD strategy for v2
   - Test pipeline (Go tests, Svelte build, type checking)
   - PR checks for v2 code
   - Deploy pipeline on push to main
+  - See `v2/docs/ci-cd-strategy.md`
 - [ ] 2.4 Document rollback strategy/procedure
   - How to identify bad deployment
   - Step-by-step rollback commands
@@ -26,25 +27,25 @@
 
 ## 3. Cleanup Existing Fly.io Attempt
 
-- [ ] 3.1 Destroy existing `gallformers` Fly.io app if present
-- [ ] 3.2 Remove `fly.toml` from repo root
-- [ ] 3.3 Remove `Dockerfile.fly` from repo root
+- [x] 3.1 Destroy existing `gallformers` Fly.io app if present
+- [x] 3.2 Remove `fly.toml` from repo root
+- [x] 3.3 Remove `Dockerfile.fly` from repo root
 
 ## 4. Create Fly.io App
 
-- [ ] 4.1 Create Fly.io app named `gallformers`
-- [ ] 4.2 Create Fly.io volume for database
+- [x] 4.1 Create Fly.io app named `gallformers`
+- [x] 4.2 Create Fly.io volume for database
 - [ ] 4.3 Configure initial secrets (`fly secrets set DATABASE_PATH=...`)
 
 ## 5. Create V2 Directory Structure
 
-- [ ] 5.1 Create `v2/` directory
-- [ ] 5.2 Create `v2/CLAUDE.md` with agent isolation rules
-- [ ] 5.3 Create `v2/Makefile` (based on oaks pattern)
-- [ ] 5.4 Create `v2/fly.toml` for Fly.io deployment
-- [ ] 5.5 Create `v2/Dockerfile` (single container for Go + static files)
-- [ ] 5.6 Create `v2/.env.example` with required env vars
-- [ ] 5.7 Create `v2/.gitignore`
+- [x] 5.1 Create `v2/` directory
+- [x] 5.2 Create `v2/CLAUDE.md` with agent isolation rules
+- [x] 5.3 Create `v2/Makefile` (based on oaks pattern)
+- [x] 5.4 Create `v2/fly.toml` for Fly.io deployment
+- [x] 5.5 Create `v2/Dockerfile` (single container for Go + static files)
+- [x] 5.6 Create `v2/.env.example` with required env vars
+- [x] 5.7 Create `v2/.gitignore`
 
 ## 6. Scaffold Go API
 
