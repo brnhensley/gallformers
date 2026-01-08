@@ -1,5 +1,5 @@
 module github.com/jeffdc/gallformers/v2/api
 
-go 1.24.0
+go 1.23
 
 require github.com/go-chi/chi/v5 v5.2.3
