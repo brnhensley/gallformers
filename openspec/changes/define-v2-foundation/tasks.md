@@ -126,7 +126,7 @@
 - [x] 13.2 Create IAM user for Litestream
   - Create user with S3 read/write access to backup bucket
   - Generate access key credentials
-- [ ] 13.3 Add Litestream to Docker image
+- [x] 13.3 Add Litestream to Docker image
   - Create `v2/litestream.yml` config
   - Update Dockerfile to install Litestream
   - Update CMD to use Litestream wrapper

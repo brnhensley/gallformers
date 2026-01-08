@@ -36,8 +36,13 @@ RUN CGO_ENABLED=1 go build \
 FROM alpine:3.19
 RUN apk add --no-cache ca-certificates sqlite
 
+# Install Litestream for continuous SQLite replication
+ADD https://github.com/benbjohnson/litestream/releases/download/v0.3.13/litestream-v0.3.13-linux-amd64.tar.gz /tmp/litestream.tar.gz
+RUN tar -C /usr/local/bin -xzf /tmp/litestream.tar.gz && rm /tmp/litestream.tar.gz
+
 WORKDIR /app
 COPY --from=api-builder /app/gallformers-api /app/gallformers-api
+COPY litestream.yml /etc/litestream.yml
 
 EXPOSE 8080
-CMD ["/app/gallformers-api"]
+CMD ["litestream", "replicate", "-exec", "/app/gallformers-api"]
