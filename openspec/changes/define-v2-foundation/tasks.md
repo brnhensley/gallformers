@@ -10,7 +10,9 @@
 
 ## 2. Research and Document Open Items
 
-- [ ] 2.1 Research backup strategy (Litestream vs manual `fly ssh sftp get` vs other)
+- [x] 2.1 Research backup strategy (Litestream vs manual `fly ssh sftp get` vs other)
+  - Decision: Litestream for continuous backup + daily public snapshot
+  - See `v2/docs/backup-strategy.md`
 - [x] 2.2 Define environment variables and secrets strategy
   - Required env vars for v2 (DATABASE_PATH, PROD_HOST, etc.)
   - Local dev setup (`.env` file pattern, `.env.example` template)
@@ -114,3 +116,31 @@
   - How to manually add incidents
   - How to acknowledge/resolve incidents
 - [ ] 12.4 Update `v2/runbooks/incident-response.md` with status page procedures
+
+## 13. Backup System Setup
+
+- [ ] 13.1 Create S3 bucket for backups
+  - Create `gallformers-backups` bucket in us-east-1
+  - Enable versioning
+  - Configure public read policy for `public/` prefix
+- [ ] 13.2 Create IAM user for Litestream
+  - Create user with S3 read/write access to backup bucket
+  - Generate access key credentials
+- [ ] 13.3 Add Litestream to Docker image
+  - Create `v2/litestream.yml` config
+  - Update Dockerfile to install Litestream
+  - Update CMD to use Litestream wrapper
+- [ ] 13.4 Configure Fly.io secrets
+  - Add LITESTREAM_ACCESS_KEY_ID
+  - Add LITESTREAM_SECRET_ACCESS_KEY
+- [ ] 13.5 Create daily snapshot workflow
+  - Create `.github/workflows/db-snapshot.yml`
+  - Configure scheduled run (daily)
+  - Add AWS credentials to GitHub secrets
+- [ ] 13.6 Update Makefile download-db target
+  - Point to public S3 URL
+- [ ] 13.7 Test and verify
+  - Deploy with Litestream enabled
+  - Verify data appears in S3
+  - Test restore procedure
+  - Update restore-database runbook with specific commands
