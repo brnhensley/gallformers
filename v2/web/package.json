@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "check": "svelte-check --tsconfig ./.svelte-kit/tsconfig.json"
   },
   "devDependencies": {
     "@sveltejs/adapter-static": "^3.0.0",
@@ -24,6 +25,8 @@
     "@types/topojson-client": "^3.1.5",
     "jsdom": "^27.4.0",
     "svelte": "^5.0.0",
+    "svelte-check": "^4.3.5",
+    "typescript": "^5.9.3",
     "vite": "^7.3.1",
     "vitest": "^4.0.16"
   },

@@ -30,6 +30,10 @@
 		}
 		return String(opt);
 	}
+
+	// Extra props to work around incomplete svelte-select types
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const extraProps: Record<string, any> = $derived({ creatable });
 </script>
 
 <div class="block">
@@ -41,7 +45,7 @@
 			bind:value={selected}
 			loadOptions={searchFn}
 			{multiple}
-			{creatable}
+			{...extraProps}
 			{getOptionLabel}
 			placeholder="Type to search..."
 			--border-radius="0.375rem"

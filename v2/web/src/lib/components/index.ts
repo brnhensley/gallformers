@@ -20,5 +20,5 @@ export { default as Table } from './data/Table.svelte';
 export { default as RangeMap } from './data/RangeMap.svelte';
 
 // Feedback
-// export { default as ToastContainer } from './feedback/ToastContainer.svelte';
+export { default as ToastContainer } from './feedback/ToastContainer.svelte';
 export { toast, toasts } from './feedback/toast';

@@ -9,7 +9,7 @@
 		onclick,
 		children
 	}: {
-		variant?: 'primary' | 'secondary' | 'danger' | 'ghost';
+		variant?: 'primary' | 'secondary' | 'danger' | 'warning' | 'ghost';
 		type?: 'button' | 'submit' | 'reset';
 		disabled?: boolean;
 		autofocus?: boolean;
@@ -22,7 +22,7 @@
 	// Focus on mount when autofocus is true
 	$effect(() => {
 		if (autofocus && buttonEl) {
-			setTimeout(() => buttonEl.focus(), 0);
+			setTimeout(() => buttonEl?.focus(), 0);
 		}
 	});
 
@@ -30,6 +30,7 @@
 		primary: 'bg-gf-maroon text-white hover:bg-gf-maroon-dark',
 		secondary: 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50',
 		danger: 'bg-red-600 text-white hover:bg-red-700',
+		warning: 'bg-yellow-500 text-white hover:bg-yellow-600',
 		ghost: 'text-gf-maroon hover:bg-gf-maroon/10'
 	};
 </script>
