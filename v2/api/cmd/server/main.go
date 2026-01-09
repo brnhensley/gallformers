@@ -101,6 +101,10 @@ func main() {
 		gallHandler := handlers.NewGallHandler(queries)
 		gallHandler.RegisterRoutes(r)
 
+		// Host endpoints
+		hostHandler := handlers.NewHostHandler(queries)
+		hostHandler.RegisterRoutes(r)
+
 		// Source endpoints
 		sourceHandler := handlers.NewSourceHandler(queries)
 		sourceHandler.RegisterRoutes(r)
@@ -108,6 +112,18 @@ func main() {
 		// Taxonomy endpoints
 		taxonomyHandler := handlers.NewTaxonomyHandler(queries)
 		taxonomyHandler.RegisterRoutes(r)
+
+		// Glossary endpoints
+		glossaryHandler := handlers.NewGlossaryHandler(queries)
+		glossaryHandler.RegisterRoutes(r)
+
+		// Place endpoints
+		placeHandler := handlers.NewPlaceHandler(queries)
+		placeHandler.RegisterRoutes(r)
+
+		// Filter field endpoints
+		filterFieldHandler := handlers.NewFilterFieldHandler(queries)
+		filterFieldHandler.RegisterRoutes(r)
 	})
 
 	// Static file serving from embedded filesystem

@@ -81,20 +81,20 @@
 
 ## 7. Domain: Host
 
-- [ ] 7.1 Write sqlc queries (`internal/db/queries/host.sql`)
+- [x] 7.1 Write sqlc queries (`internal/db/queries/host.sql`)
   - ListHosts, SearchHosts, GetHostByID
   - CreateHost, UpdateHost, DeleteHost
   - Include alias queries (aliases nested in host payloads)
-- [ ] 7.2 Implement handlers (`internal/handlers/host.go`)
+- [x] 7.2 Implement handlers (`internal/handlers/host.go`)
   - GET /api/v2/hosts (list, search by q param, simple flag, optional pagination)
   - GET /api/v2/hosts/{id}
   - POST /api/v2/hosts (auth required, includes aliases)
   - PUT /api/v2/hosts/{id} (auth required, includes aliases)
   - DELETE /api/v2/hosts/{id} (auth required)
 - [ ] 7.3 Implement audit field handling
-- [ ] 7.4 Add OpenAPI spec for host endpoints
-- [ ] 7.5 Write handler unit tests
-- [ ] 7.6 Write integration tests
+- [x] 7.4 Add OpenAPI spec for host endpoints
+- [x] 7.5 Write handler unit tests
+- [x] 7.6 Write integration tests
 
 ## 8. Domain: Taxonomy
 
@@ -137,33 +137,33 @@
 
 ## 10. Domain: Glossary
 
-- [ ] 10.1 Write sqlc queries (`internal/db/queries/glossary.sql`)
+- [x] 10.1 Write sqlc queries (`internal/db/queries/glossary.sql`)
   - ListGlossary, SearchGlossary, GetGlossaryByID, GetGlossaryByWord
   - CreateGlossary, UpdateGlossary, DeleteGlossary
-- [ ] 10.2 Implement handlers (`internal/handlers/glossary.go`)
+- [x] 10.2 Implement handlers (`internal/handlers/glossary.go`)
   - GET /api/v2/glossary (list, search by q param)
   - GET /api/v2/glossary/{id}
   - GET /api/v2/glossary/by-word/{word}
   - POST /api/v2/glossary (auth required)
   - PUT /api/v2/glossary/{id} (auth required)
   - DELETE /api/v2/glossary/{id} (auth required)
-- [ ] 10.3 Add OpenAPI spec for glossary endpoints
-- [ ] 10.4 Write integration tests
+- [x] 10.3 Add OpenAPI spec for glossary endpoints
+- [x] 10.4 Write integration tests
 
 ## 11. Domain: Place
 
-- [ ] 11.1 Write sqlc queries (`internal/db/queries/place.sql`)
+- [x] 11.1 Write sqlc queries (`internal/db/queries/place.sql`)
   - ListPlaces, SearchPlaces, GetPlaceByID, GetPlaceByName
   - CreatePlace, UpdatePlace, DeletePlace
-- [ ] 11.2 Implement handlers (`internal/handlers/place.go`)
+- [x] 11.2 Implement handlers (`internal/handlers/place.go`)
   - GET /api/v2/places (list, search by q param)
   - GET /api/v2/places/{id}
   - GET /api/v2/places/by-name/{name}
   - POST /api/v2/places (auth required)
   - PUT /api/v2/places/{id} (auth required)
   - DELETE /api/v2/places/{id} (auth required)
-- [ ] 11.3 Add OpenAPI spec for place endpoints
-- [ ] 11.4 Write integration tests
+- [x] 11.3 Add OpenAPI spec for place endpoints
+- [x] 11.4 Write integration tests
 
 ## 12. Domain: GallHost (Relationship)
 
@@ -192,18 +192,18 @@
 
 ## 14. Domain: FilterField
 
-- [ ] 14.1 Write sqlc queries (`internal/db/queries/filterfield.sql`)
+- [x] 14.1 Write sqlc queries (`internal/db/queries/filterfield.sql`)
   - ListFilterFieldTypes, ListFilterFieldsByType, GetFilterFieldByID
   - CreateFilterField, UpdateFilterField, DeleteFilterField
-- [ ] 14.2 Implement handlers (`internal/handlers/filterfield.go`)
+- [x] 14.2 Implement handlers (`internal/handlers/filterfield.go`)
   - GET /api/v2/filter-fields (list field types)
   - GET /api/v2/filter-fields/{type} (list values by type)
   - GET /api/v2/filter-fields/{type}/{id}
   - POST /api/v2/filter-fields (auth required)
   - PUT /api/v2/filter-fields/{type}/{id} (auth required)
   - DELETE /api/v2/filter-fields/{type}/{id} (auth required)
-- [ ] 14.3 Add OpenAPI spec for filter-field endpoints
-- [ ] 14.4 Write integration tests
+- [x] 14.3 Add OpenAPI spec for filter-field endpoints
+- [x] 14.4 Write integration tests
 
 ## 15. Domain: Global Search
 

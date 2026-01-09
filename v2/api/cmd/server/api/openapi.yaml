@@ -50,6 +50,8 @@ tags:
     description: Global search functionality
   - name: Auth
     description: Authentication endpoints
+  - name: FilterFields
+    description: Filter field value management (colors, shapes, textures, etc.)
 
 components:
   securitySchemes:
@@ -509,6 +511,194 @@ components:
       required:
         - name
 
+    HostResponse:
+      type: object
+      description: A host plant species with all associated data
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Species ID
+        name:
+          type: string
+          description: Scientific name
+        datacomplete:
+          type: boolean
+          description: Whether data is complete
+        abundance_id:
+          type: integer
+          format: int64
+          nullable: true
+          description: Abundance level ID
+        abundance:
+          type: string
+          nullable: true
+          description: Abundance level name
+        aliases:
+          type: array
+          items:
+            $ref: '#/components/schemas/Alias'
+        places:
+          type: array
+          items:
+            $ref: '#/components/schemas/Place'
+        galls:
+          type: array
+          items:
+            $ref: '#/components/schemas/Host'
+          description: Galls associated with this host
+      required:
+        - id
+        - name
+        - datacomplete
+        - aliases
+
+    HostSimpleResponse:
+      type: object
+      description: A simplified host response for list views
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Species ID
+        name:
+          type: string
+          description: Scientific name
+        datacomplete:
+          type: boolean
+          description: Whether data is complete
+        aliases:
+          type: array
+          items:
+            $ref: '#/components/schemas/Alias'
+        places:
+          type: array
+          items:
+            $ref: '#/components/schemas/Place'
+      required:
+        - id
+        - name
+        - datacomplete
+        - aliases
+        - places
+
+    HostListResponse:
+      type: object
+      description: Paginated list of hosts
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/HostResponse'
+        total:
+          type: integer
+          format: int64
+          description: Total number of hosts matching query
+        limit:
+          type: integer
+          nullable: true
+          description: Limit applied to results (if any)
+        offset:
+          type: integer
+          description: Offset applied to results
+      required:
+        - data
+        - total
+        - offset
+
+    HostSimpleListResponse:
+      type: object
+      description: Paginated list of simplified hosts
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/HostSimpleResponse'
+        total:
+          type: integer
+          format: int64
+          description: Total number of hosts matching query
+        limit:
+          type: integer
+          nullable: true
+          description: Limit applied to results (if any)
+        offset:
+          type: integer
+          description: Offset applied to results
+      required:
+        - data
+        - total
+        - offset
+
+    HostCreateRequest:
+      type: object
+      description: Request body for creating a host
+      properties:
+        name:
+          type: string
+          description: Scientific name (required)
+        datacomplete:
+          type: boolean
+          description: Whether data is complete
+        abundance_id:
+          type: integer
+          format: int64
+          nullable: true
+        aliases:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              type:
+                type: string
+                enum: [common, scientific]
+              description:
+                type: string
+        places:
+          type: array
+          items:
+            type: integer
+            format: int64
+          description: Array of place IDs
+      required:
+        - name
+
+    HostUpdateRequest:
+      type: object
+      description: Request body for updating a host
+      properties:
+        name:
+          type: string
+          description: Scientific name (required)
+        datacomplete:
+          type: boolean
+        abundance_id:
+          type: integer
+          format: int64
+          nullable: true
+        aliases:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              type:
+                type: string
+                enum: [common, scientific]
+              description:
+                type: string
+        places:
+          type: array
+          items:
+            type: integer
+            format: int64
+          description: Array of place IDs
+      required:
+        - name
+
     Source:
       type: object
       description: A reference source (book, paper, website, etc.)
@@ -886,6 +1076,252 @@ components:
         - oldFamilyId
         - newFamilyId
 
+    Glossary:
+      type: object
+      description: A glossary entry (term definition)
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Unique identifier
+        word:
+          type: string
+          description: The term being defined
+        definition:
+          type: string
+          description: The definition of the term
+        urls:
+          type: string
+          description: Tab-separated list of reference URLs
+      required:
+        - id
+        - word
+        - definition
+        - urls
+
+    GlossaryListResponse:
+      type: object
+      description: Paginated list of glossary entries
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Glossary'
+        total:
+          type: integer
+          format: int64
+          description: Total number of glossary entries matching query
+        limit:
+          type: integer
+          nullable: true
+          description: Limit applied to results (if any)
+        offset:
+          type: integer
+          description: Offset applied to results
+      required:
+        - data
+        - total
+        - offset
+
+    GlossaryCreateRequest:
+      type: object
+      description: Request body for creating a glossary entry
+      properties:
+        word:
+          type: string
+          description: The term being defined (required)
+        definition:
+          type: string
+          description: The definition of the term (required)
+        urls:
+          type: string
+          description: Tab-separated list of reference URLs
+      required:
+        - word
+        - definition
+
+    GlossaryUpdateRequest:
+      type: object
+      description: Request body for updating a glossary entry
+      properties:
+        word:
+          type: string
+          description: The term being defined (required)
+        definition:
+          type: string
+          description: The definition of the term (required)
+        urls:
+          type: string
+          description: Tab-separated list of reference URLs
+      required:
+        - word
+        - definition
+
+    Place:
+      type: object
+      description: A geographic location (continent, country, state, etc.)
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Unique identifier
+        name:
+          type: string
+          description: Name of the place
+        code:
+          type: string
+          description: Code/abbreviation for the place
+        type:
+          type: string
+          enum: [continent, country, region, state, province, county, city]
+          description: Type of place
+      required:
+        - id
+        - name
+        - code
+        - type
+
+    PlaceListResponse:
+      type: object
+      description: Paginated list of places
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Place'
+        total:
+          type: integer
+          format: int64
+          description: Total number of places matching query
+        limit:
+          type: integer
+          nullable: true
+          description: Limit applied to results (if any)
+        offset:
+          type: integer
+          description: Offset applied to results
+      required:
+        - data
+        - total
+        - offset
+
+    PlaceCreateRequest:
+      type: object
+      description: Request body for creating a place
+      properties:
+        name:
+          type: string
+          description: Name of the place (required)
+        code:
+          type: string
+          description: Code/abbreviation for the place (required)
+        type:
+          type: string
+          enum: [continent, country, region, state, province, county, city]
+          description: Type of place (required)
+      required:
+        - name
+        - code
+        - type
+
+    PlaceUpdateRequest:
+      type: object
+      description: Request body for updating a place
+      properties:
+        name:
+          type: string
+          description: Name of the place (required)
+        code:
+          type: string
+          description: Code/abbreviation for the place (required)
+        type:
+          type: string
+          enum: [continent, country, region, state, province, county, city]
+          description: Type of place (required)
+      required:
+        - name
+        - code
+        - type
+
+    FilterFieldTypeInfo:
+      type: object
+      description: Information about a filter field type
+      properties:
+        type:
+          type: string
+          description: The type name (e.g., color, shape, location)
+          example: "color"
+        hasDescription:
+          type: boolean
+          description: Whether this type supports a description field
+        hasReference:
+          type: boolean
+          description: Whether this type supports a reference field (only abundance)
+      required:
+        - type
+        - hasDescription
+        - hasReference
+
+    FilterFieldValue:
+      type: object
+      description: A filter field value (color, shape, texture, etc.)
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Unique identifier
+        field:
+          type: string
+          description: The field value
+        description:
+          type: string
+          nullable: true
+          description: Optional description (not all types support this)
+        reference:
+          type: string
+          nullable: true
+          description: Optional reference (only for abundance type)
+      required:
+        - id
+        - field
+
+    FilterFieldCreateRequest:
+      type: object
+      description: Request body for creating a filter field value
+      properties:
+        type:
+          type: string
+          description: The filter field type (required)
+          enum: [color, shape, location, texture, walls, cells, alignment, season, form, abundance]
+        field:
+          type: string
+          description: The field value (required)
+        description:
+          type: string
+          description: Optional description (ignored for types without description)
+        reference:
+          type: string
+          description: Optional reference (only for abundance type)
+      required:
+        - type
+        - field
+
+    FilterFieldUpdateRequest:
+      type: object
+      description: Request body for updating a filter field value
+      properties:
+        field:
+          type: string
+          description: The field value (required)
+        description:
+          type: string
+          description: Optional description (ignored for types without description)
+        reference:
+          type: string
+          description: Optional reference (only for abundance type)
+      required:
+        - field
+
   parameters:
     limitParam:
       name: limit
@@ -1200,6 +1636,149 @@ paths:
       responses:
         '204':
           description: Gall deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Host endpoints
+
+  /api/v2/hosts:
+    get:
+      tags:
+        - Hosts
+      summary: List or search hosts
+      description: |
+        Returns a list of all host plants, optionally filtered by search query.
+        Supports pagination via limit and offset parameters.
+        Use the `simple` query parameter for a simplified response format.
+      operationId: listHosts
+      parameters:
+        - $ref: '#/components/parameters/searchParam'
+        - $ref: '#/components/parameters/limitParam'
+        - $ref: '#/components/parameters/offsetParam'
+        - name: simple
+          in: query
+          description: If present, returns simplified host data (id, name, aliases, places)
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: List of hosts
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/HostListResponse'
+                  - $ref: '#/components/schemas/HostSimpleListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    post:
+      tags:
+        - Hosts
+      summary: Create a new host
+      description: Creates a new host plant species entry. Requires authentication.
+      operationId: createHost
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HostCreateRequest'
+      responses:
+        '201':
+          description: Host created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HostResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v2/hosts/{id}:
+    get:
+      tags:
+        - Hosts
+      summary: Get a host by ID
+      description: Returns detailed information about a specific host plant.
+      operationId: getHostById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The species ID of the host
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Host details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HostResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+        - Hosts
+      summary: Update a host
+      description: Updates an existing host plant. Requires authentication.
+      operationId: updateHost
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The species ID of the host
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HostUpdateRequest'
+      responses:
+        '200':
+          description: Host updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HostResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags:
+        - Hosts
+      summary: Delete a host
+      description: Deletes a host plant and all associated data. Requires authentication.
+      operationId: deleteHost
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The species ID of the host
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: Host deleted successfully
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
@@ -1759,5 +2338,515 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  # Glossary endpoints
+
+  /api/v2/glossary:
+    get:
+      tags:
+        - Glossary
+      summary: List or search glossary entries
+      description: |
+        Returns a list of all glossary entries, optionally filtered by search query.
+        Supports pagination via limit and offset parameters.
+        Results are ordered alphabetically by word (case-insensitive).
+      operationId: listGlossary
+      parameters:
+        - $ref: '#/components/parameters/searchParam'
+        - $ref: '#/components/parameters/limitParam'
+        - $ref: '#/components/parameters/offsetParam'
+      responses:
+        '200':
+          description: List of glossary entries
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GlossaryListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    post:
+      tags:
+        - Glossary
+      summary: Create a new glossary entry
+      description: Creates a new glossary entry. Requires authentication.
+      operationId: createGlossary
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GlossaryCreateRequest'
+      responses:
+        '201':
+          description: Glossary entry created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Glossary'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v2/glossary/{id}:
+    get:
+      tags:
+        - Glossary
+      summary: Get a glossary entry by ID
+      description: Returns detailed information about a specific glossary entry.
+      operationId: getGlossaryById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The glossary entry ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Glossary entry details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Glossary'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+        - Glossary
+      summary: Update a glossary entry
+      description: Updates an existing glossary entry. Requires authentication.
+      operationId: updateGlossary
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The glossary entry ID
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GlossaryUpdateRequest'
+      responses:
+        '200':
+          description: Glossary entry updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Glossary'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags:
+        - Glossary
+      summary: Delete a glossary entry
+      description: Deletes a glossary entry. Requires authentication.
+      operationId: deleteGlossary
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The glossary entry ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: Glossary entry deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v2/glossary/by-word/{word}:
+    get:
+      tags:
+        - Glossary
+      summary: Get a glossary entry by word
+      description: Returns a glossary entry by its exact word.
+      operationId: getGlossaryByWord
+      parameters:
+        - name: word
+          in: path
+          required: true
+          description: The exact word of the glossary entry
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Glossary entry details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Glossary'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Place endpoints
+  /api/v2/places:
+    get:
+      tags:
+        - Places
+      summary: List or search places
+      description: |
+        Returns a list of all places, optionally filtered by search query.
+        Supports pagination via limit and offset parameters.
+      operationId: listPlaces
+      parameters:
+        - $ref: '#/components/parameters/searchParam'
+        - $ref: '#/components/parameters/limitParam'
+        - $ref: '#/components/parameters/offsetParam'
+      responses:
+        '200':
+          description: List of places
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaceListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    post:
+      tags:
+        - Places
+      summary: Create a new place
+      description: Creates a new place entry. Requires authentication.
+      operationId: createPlace
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlaceCreateRequest'
+      responses:
+        '201':
+          description: Place created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Place'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v2/places/{id}:
+    get:
+      tags:
+        - Places
+      summary: Get a place by ID
+      description: Returns detailed information about a specific place.
+      operationId: getPlaceById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The place ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Place details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Place'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+        - Places
+      summary: Update a place
+      description: Updates an existing place. Requires authentication.
+      operationId: updatePlace
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The place ID
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlaceUpdateRequest'
+      responses:
+        '200':
+          description: Place updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Place'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags:
+        - Places
+      summary: Delete a place
+      description: Deletes a place. Requires authentication.
+      operationId: deletePlace
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The place ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: Place deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v2/places/by-name/{name}:
+    get:
+      tags:
+        - Places
+      summary: Get a place by name
+      description: Returns a place by its exact name.
+      operationId: getPlaceByName
+      parameters:
+        - name: name
+          in: path
+          required: true
+          description: The exact name of the place
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Place details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Place'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Filter field endpoints
+  /api/v2/filter-fields:
+    get:
+      tags:
+        - FilterFields
+      summary: List filter field types
+      description: |
+        Returns a list of all available filter field types with metadata about
+        which fields each type supports (description, reference).
+      operationId: listFilterFieldTypes
+      responses:
+        '200':
+          description: List of filter field types
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FilterFieldTypeInfo'
+              example:
+                - type: "color"
+                  hasDescription: false
+                  hasReference: false
+                - type: "shape"
+                  hasDescription: true
+                  hasReference: false
+                - type: "abundance"
+                  hasDescription: true
+                  hasReference: true
+    post:
+      tags:
+        - FilterFields
+      summary: Create a new filter field value
+      description: Creates a new filter field value for the specified type. Requires authentication.
+      operationId: createFilterField
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FilterFieldCreateRequest'
+      responses:
+        '201':
+          description: Filter field value created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FilterFieldValue'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v2/filter-fields/{type}:
+    get:
+      tags:
+        - FilterFields
+      summary: List values for a filter field type
+      description: Returns all values for the specified filter field type.
+      operationId: listFilterFieldsByType
+      parameters:
+        - name: type
+          in: path
+          required: true
+          description: The filter field type
+          schema:
+            type: string
+            enum: [color, shape, location, texture, walls, cells, alignment, season, form, abundance]
+      responses:
+        '200':
+          description: List of filter field values
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FilterFieldValue'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v2/filter-fields/{type}/{id}:
+    get:
+      tags:
+        - FilterFields
+      summary: Get a filter field value by type and ID
+      description: Returns a single filter field value.
+      operationId: getFilterFieldById
+      parameters:
+        - name: type
+          in: path
+          required: true
+          description: The filter field type
+          schema:
+            type: string
+            enum: [color, shape, location, texture, walls, cells, alignment, season, form, abundance]
+        - name: id
+          in: path
+          required: true
+          description: The filter field value ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Filter field value details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FilterFieldValue'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+        - FilterFields
+      summary: Update a filter field value
+      description: Updates an existing filter field value. Requires authentication.
+      operationId: updateFilterField
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: type
+          in: path
+          required: true
+          description: The filter field type
+          schema:
+            type: string
+            enum: [color, shape, location, texture, walls, cells, alignment, season, form, abundance]
+        - name: id
+          in: path
+          required: true
+          description: The filter field value ID
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FilterFieldUpdateRequest'
+      responses:
+        '200':
+          description: Filter field value updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FilterFieldValue'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags:
+        - FilterFields
+      summary: Delete a filter field value
+      description: Deletes a filter field value. Requires authentication.
+      operationId: deleteFilterField
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: type
+          in: path
+          required: true
+          description: The filter field type
+          schema:
+            type: string
+            enum: [color, shape, location, texture, walls, cells, alignment, season, form, abundance]
+        - name: id
+          in: path
+          required: true
+          description: The filter field value ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: Filter field value deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   # Placeholder paths - additional domain endpoints will be added as they are implemented
-  # See tasks.md sections 7, 10-15 for planned endpoints
+  # See tasks.md sections 7, 12-15 for planned endpoints
