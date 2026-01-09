@@ -16,10 +16,11 @@ This is a **high-level umbrella proposal**. Each phase will have its own detaile
 |-------|-------------|--------------|
 | 0 | Critical security fixes | `fix-security-critical` (archived) |
 | 0.5 | Technical foundation | `define-v2-foundation` |
-| 1 | Go API server | `add-go-api` |
-| 2 | Svelte admin interface | `add-svelte-admin` |
+| 1 | Go API server | `add-go-api` (archived) |
+| 2 | Svelte common components | `add-svelte-common` |
 | 3 | Svelte public site | `add-svelte-public` |
-| 4 | Cutover and deprecation | `cutover-v2` |
+| 4 | Svelte admin interface | `add-svelte-admin` |
+| 5 | Cutover and deprecation | `cutover-v2` |
 
 ### What We Keep
 
@@ -65,8 +66,9 @@ This is a **high-level umbrella proposal**. Each phase will have its own detaile
 
 ## Dependencies
 
-- Phase 1 (Go API) provides endpoints needed by Phases 2 and 3, but some frontend scaffolding can begin in parallel
-- Phase 2 (Svelte Admin) and Phase 3 (Svelte Public) can overlap where practical
+- Phase 1 (Go API) provides endpoints needed by Phases 3-4, but some frontend scaffolding can begin in parallel
+- Phase 2 (Svelte Common) provides shared components used by both public and admin UIs
+- Phase 3 (Svelte Public) and Phase 4 (Svelte Admin) can overlap where practical
 - Phase 0 (Security) is independent and should happen immediately
 
 ## Open Questions

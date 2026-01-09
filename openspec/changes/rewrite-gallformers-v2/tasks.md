@@ -12,7 +12,7 @@ This is an **umbrella proposal**. Most tasks are creating and completing sub-pro
 - [x] 0.6 Create `add-svelte-public` sub-proposal
 - [x] 0.7 Create `cutover-v2` sub-proposal
 - [x] 0.8 Create `add-articles-system` sub-proposal
-- [x] 0.9 Create `add-svelete-common` sub-proposal
+- [x] 0.9 Create `add-svelte-common` sub-proposal
 
 ## 1. Phase 0: Security Fixes (Immediate) - COMPLETE
 
@@ -31,27 +31,25 @@ This is an **umbrella proposal**. Most tasks are creating and completing sub-pro
   - Scaffold Go API and Svelte web placeholders
 - [x] 1.5.2 Verify local dev and Fly.io deployment work
 
-## 2. Phase 1: Go API Server
+## 2. Phase 1: Go API Server - COMPLETE
 
-- [ ] 2.1 Complete `add-go-api` proposal implementation
+- [x] 2.1 Complete `add-go-api` proposal implementation (archived)
   - Set up Go project with chi router
   - Implement sqlc schemas
   - Build read endpoints (species, galls, hosts, taxonomy, search)
   - Build auth middleware (Auth0 JWT)
   - Build mutation endpoints
   - Generate OpenAPI documentation
-- [ ] 2.2 API parity testing against current endpoints
+- [x] 2.2 API parity testing against current endpoints
 
-## 3. Phase 2: Svelte Admin
+## 3. Phase 2: Svelte Common Components
 
-- [ ] 3.1 Complete `add-svelte-admin` proposal implementation
-  - Set up SvelteKit project
-  - Build auth flow
-  - Rebuild gall admin page
-  - Rebuild host admin page
-  - Rebuild taxonomy admin
-  - Rebuild all other admin pages
-- [ ] 3.2 Admin feature parity testing
+- [ ] 3.1 Complete `add-svelte-common` proposal implementation
+  - Set up shared component library
+  - Build common UI components (buttons, forms, modals, etc.)
+  - Build API client utilities
+  - Build shared types and stores
+- [ ] 3.2 Component documentation and testing
 
 ## 4. Phase 3: Svelte Public Site
 
@@ -63,18 +61,28 @@ This is an **umbrella proposal**. Most tasks are creating and completing sub-pro
 - [ ] 4.2 Public site feature parity testing
 - [ ] 4.3 URL preservation verification
 
-## 5. Phase 4: Cutover
+## 5. Phase 4: Svelte Admin
 
-- [ ] 5.1 Complete `cutover-v2` proposal implementation
+- [ ] 5.1 Complete `add-svelte-admin` proposal implementation
+  - Build auth flow
+  - Rebuild gall admin page
+  - Rebuild host admin page
+  - Rebuild taxonomy admin
+  - Rebuild all other admin pages
+- [ ] 5.2 Admin feature parity testing
+
+## 6. Phase 5: Cutover
+
+- [ ] 6.1 Complete `cutover-v2` proposal implementation
   - Final data sync procedure
   - DNS switch plan
   - Rollback procedure
-- [ ] 5.2 Execute cutover
-- [ ] 5.3 Post-cutover monitoring
-- [ ] 5.4 Archive old codebase
+- [ ] 6.2 Execute cutover
+- [ ] 6.3 Post-cutover monitoring
+- [ ] 6.4 Archive old codebase
 
-## 6. Completion
+## 7. Completion
 
-- [ ] 6.1 Archive all sub-proposals
-- [ ] 6.2 Archive this umbrella proposal
-- [ ] 6.3 Update `openspec/project.md` with new tech stack
+- [ ] 7.1 Archive all sub-proposals
+- [ ] 7.2 Archive this umbrella proposal
+- [ ] 7.3 Update `openspec/project.md` with new tech stack
