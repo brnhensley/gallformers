@@ -52,6 +52,10 @@ tags:
     description: Authentication endpoints
   - name: FilterFields
     description: Filter field value management (colors, shapes, textures, etc.)
+  - name: SpeciesSources
+    description: Species-source relationship management
+  - name: GallHosts
+    description: Gall-host relationship management
 
 components:
   securitySchemes:
@@ -1321,6 +1325,310 @@ components:
           description: Optional reference (only for abundance type)
       required:
         - field
+
+    GallHost:
+      type: object
+      description: A gall-host relationship (which host plants a gall is found on)
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Unique identifier for the relationship
+        gall_species_id:
+          type: integer
+          format: int64
+          description: Species ID of the gall
+        host_species_id:
+          type: integer
+          format: int64
+          description: Species ID of the host plant
+        host_name:
+          type: string
+          description: Name of the host plant species
+      required:
+        - id
+        - gall_species_id
+        - host_species_id
+
+    GallHostListResponse:
+      type: object
+      description: List of gall-host relationships
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/GallHost'
+        total:
+          type: integer
+          format: int64
+          description: Total number of host relationships for the gall
+      required:
+        - data
+        - total
+
+    GallHostCreateRequest:
+      type: object
+      description: Request body for creating a gall-host relationship
+      properties:
+        gall_species_id:
+          type: integer
+          format: int64
+          description: Species ID of the gall (required)
+        host_species_id:
+          type: integer
+          format: int64
+          description: Species ID of the host plant (required)
+      required:
+        - gall_species_id
+        - host_species_id
+
+    GallHostDeleteRequest:
+      type: object
+      description: Request body for deleting a gall-host relationship
+      properties:
+        gall_species_id:
+          type: integer
+          format: int64
+          description: Species ID of the gall (required)
+        host_species_id:
+          type: integer
+          format: int64
+          description: Species ID of the host plant (required)
+      required:
+        - gall_species_id
+        - host_species_id
+
+    SpeciesSourceResponse:
+      type: object
+      description: A species-source relationship with full source details
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Unique identifier for the relationship
+        species_id:
+          type: integer
+          format: int64
+          description: Species ID
+        source_id:
+          type: integer
+          format: int64
+          description: Source ID
+        description:
+          type: string
+          description: Description of how this source relates to the species
+        useasdefault:
+          type: integer
+          description: Whether to use this as the default source (0 or 1)
+        externallink:
+          type: string
+          description: External link related to this species-source relationship
+        alias_id:
+          type: integer
+          format: int64
+          nullable: true
+          description: Optional alias ID associated with this relationship
+        source:
+          $ref: '#/components/schemas/Source'
+      required:
+        - id
+        - species_id
+        - source_id
+        - description
+        - useasdefault
+        - externallink
+
+    SpeciesSourceCreateRequest:
+      type: object
+      description: Request body for creating a species-source relationship
+      properties:
+        species_id:
+          type: integer
+          format: int64
+          description: Species ID (required)
+        source_id:
+          type: integer
+          format: int64
+          description: Source ID (required)
+        description:
+          type: string
+          description: Description of how this source relates to the species
+        useasdefault:
+          type: boolean
+          description: Whether to use this as the default source
+        externallink:
+          type: string
+          description: External link related to this species-source relationship
+        alias_id:
+          type: integer
+          format: int64
+          nullable: true
+          description: Optional alias ID to associate
+      required:
+        - species_id
+        - source_id
+
+    SpeciesSourceUpdateRequest:
+      type: object
+      description: Request body for updating a species-source relationship
+      properties:
+        description:
+          type: string
+          description: Description of how this source relates to the species
+        useasdefault:
+          type: boolean
+          description: Whether to use this as the default source
+        externallink:
+          type: string
+          description: External link related to this species-source relationship
+        alias_id:
+          type: integer
+          format: int64
+          nullable: true
+          description: Optional alias ID to associate
+
+    # Global Search schemas
+    SearchTinySpecies:
+      type: object
+      description: A minimal species record for search results
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Species ID
+        name:
+          type: string
+          description: Species name
+        taxoncode:
+          type: string
+          description: Type of taxon (gall, plant, etc.)
+        aliases:
+          type: array
+          items:
+            type: string
+          description: List of alias names for this species
+      required:
+        - id
+        - name
+        - taxoncode
+        - aliases
+
+    SearchTinySource:
+      type: object
+      description: A minimal source record for search results
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Source ID
+        source:
+          type: string
+          description: Formatted source display string (author, year. title)
+      required:
+        - id
+        - source
+
+    SearchGlossaryEntry:
+      type: object
+      description: A glossary entry in search results
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Glossary entry ID
+        word:
+          type: string
+          description: The glossary term
+        definition:
+          type: string
+          description: The definition
+      required:
+        - id
+        - word
+        - definition
+
+    SearchTaxonomyEntry:
+      type: object
+      description: A taxonomy entry in search results
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Taxonomy ID
+        name:
+          type: string
+          description: Taxonomy name
+        description:
+          type: string
+          description: Taxonomy description
+        type:
+          type: string
+          enum: [family, genus, section]
+          description: Type of taxonomy entry
+      required:
+        - id
+        - name
+        - description
+        - type
+
+    SearchPlaceEntry:
+      type: object
+      description: A place in search results
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Place ID
+        name:
+          type: string
+          description: Place name
+        code:
+          type: string
+          description: Place code/abbreviation
+        type:
+          type: string
+          description: Place type
+      required:
+        - id
+        - name
+        - code
+        - type
+
+    GlobalSearchResponse:
+      type: object
+      description: Results from global search across all entity types
+      properties:
+        species:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchTinySpecies'
+          description: Matching species (by name or alias)
+        glossary:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchGlossaryEntry'
+          description: Matching glossary entries
+        sources:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchTinySource'
+          description: Matching sources (by title or author)
+        taxa:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchTaxonomyEntry'
+          description: Matching taxonomy entries (genus, section, family)
+        places:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchPlaceEntry'
+          description: Matching places
+      required:
+        - species
+        - glossary
+        - sources
+        - taxa
+        - places
 
   parameters:
     limitParam:
@@ -2848,5 +3156,270 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  # Placeholder paths - additional domain endpoints will be added as they are implemented
-  # See tasks.md sections 7, 12-15 for planned endpoints
+  # Gall-Host relationship endpoints
+
+  /api/v2/gall-hosts:
+    get:
+      tags:
+        - GallHosts
+      summary: List hosts for a gall
+      description: |
+        Returns a list of host plants associated with a specific gall.
+        The gallid query parameter is required.
+      operationId: listGallHosts
+      parameters:
+        - name: gallid
+          in: query
+          required: true
+          description: The species ID of the gall
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: List of gall-host relationships
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GallHostListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    post:
+      tags:
+        - GallHosts
+      summary: Create a gall-host relationship
+      description: Creates a new association between a gall and a host plant. Requires authentication.
+      operationId: createGallHost
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GallHostCreateRequest'
+      responses:
+        '201':
+          description: Gall-host relationship created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GallHost'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    delete:
+      tags:
+        - GallHosts
+      summary: Delete a gall-host relationship
+      description: Deletes an association between a gall and a host plant. Requires authentication.
+      operationId: deleteGallHost
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GallHostDeleteRequest'
+      responses:
+        '204':
+          description: Gall-host relationship deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Species-Source relationship endpoints
+
+  /api/v2/species-sources:
+    get:
+      tags:
+        - SpeciesSources
+      summary: List species-source relationships
+      description: |
+        Returns species-source relationships for a given species.
+        - `speciesid` is required and returns all source mappings for that species.
+        - If `sourceid` is also provided, returns the specific mapping.
+      operationId: listSpeciesSources
+      parameters:
+        - name: speciesid
+          in: query
+          required: true
+          description: Species ID to get sources for
+          schema:
+            type: integer
+            format: int64
+        - name: sourceid
+          in: query
+          description: Optional source ID to get a specific mapping
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: List of species-source relationships or single relationship
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: array
+                    items:
+                      $ref: '#/components/schemas/SpeciesSourceResponse'
+                  - $ref: '#/components/schemas/SpeciesSourceResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags:
+        - SpeciesSources
+      summary: Create a species-source relationship
+      description: Creates a new species-source relationship. Requires authentication.
+      operationId: createSpeciesSource
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SpeciesSourceCreateRequest'
+      responses:
+        '201':
+          description: Species-source relationship created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpeciesSourceResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    delete:
+      tags:
+        - SpeciesSources
+      summary: Delete a species-source relationship
+      description: Deletes a species-source relationship. Requires authentication.
+      operationId: deleteSpeciesSource
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: speciesid
+          in: query
+          required: true
+          description: Species ID
+          schema:
+            type: integer
+            format: int64
+        - name: sourceid
+          in: query
+          required: true
+          description: Source ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: Species-source relationship deleted successfully
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v2/species-sources/{id}:
+    put:
+      tags:
+        - SpeciesSources
+      summary: Update a species-source relationship
+      description: Updates an existing species-source relationship. Requires authentication.
+      operationId: updateSpeciesSource
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Species-source relationship ID
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SpeciesSourceUpdateRequest'
+      responses:
+        '200':
+          description: Species-source relationship updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpeciesSourceResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Global Search endpoint
+
+  /api/v2/search:
+    get:
+      tags:
+        - Search
+      summary: Global search across all entity types
+      description: |
+        Searches across species (including aliases), glossary entries, sources,
+        taxonomy (genus, section, family), and places. Returns grouped results
+        for each entity type.
+
+        Species results include their aliases. Glossary matches on exact word or
+        definition containing the search term. Sources match on title or author.
+        Taxa match on name or description. Places match on name or code.
+      operationId: globalSearch
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: Search term (spaces are converted to wildcards)
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        '200':
+          description: Search results grouped by entity type
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GlobalSearchResponse'
+              example:
+                species:
+                  - id: 123
+                    name: "Andricus quercuscalifornicus"
+                    taxoncode: "gall"
+                    aliases: ["California gall wasp"]
+                glossary:
+                  - id: 45
+                    word: "gall"
+                    definition: "An abnormal plant growth induced by an organism"
+                sources:
+                  - id: 67
+                    source: "Smith, 2020. Gall Biology"
+                taxa:
+                  - id: 89
+                    name: "Quercus"
+                    description: "Oak genus"
+                    type: "genus"
+                places:
+                  - id: 12
+                    name: "California"
+                    code: "CA"
+                    type: "state"
+        '400':
+          $ref: '#/components/responses/BadRequest'

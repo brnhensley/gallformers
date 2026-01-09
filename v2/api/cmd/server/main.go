@@ -124,6 +124,18 @@ func main() {
 		// Filter field endpoints
 		filterFieldHandler := handlers.NewFilterFieldHandler(queries)
 		filterFieldHandler.RegisterRoutes(r)
+
+		// GallHost relationship endpoints
+		gallHostHandler := handlers.NewGallHostHandler(queries)
+		gallHostHandler.RegisterRoutes(r)
+
+		// SpeciesSource relationship endpoints
+		speciesSourceHandler := handlers.NewSpeciesSourceHandler(queries, sqlDB)
+		speciesSourceHandler.RegisterRoutes(r)
+
+		// Global search endpoint
+		searchHandler := handlers.NewSearchHandler(queries)
+		searchHandler.RegisterRoutes(r)
 	})
 
 	// Static file serving from embedded filesystem

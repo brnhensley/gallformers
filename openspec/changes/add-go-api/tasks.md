@@ -91,7 +91,6 @@
   - POST /api/v2/hosts (auth required, includes aliases)
   - PUT /api/v2/hosts/{id} (auth required, includes aliases)
   - DELETE /api/v2/hosts/{id} (auth required)
-- [ ] 7.3 Implement audit field handling
 - [x] 7.4 Add OpenAPI spec for host endpoints
 - [x] 7.5 Write handler unit tests
 - [x] 7.6 Write integration tests
@@ -167,28 +166,28 @@
 
 ## 12. Domain: GallHost (Relationship)
 
-- [ ] 12.1 Write sqlc queries (`internal/db/queries/gallhost.sql`)
+- [x] 12.1 Write sqlc queries (`internal/db/queries/gallhost.sql`)
   - ListHostsByGallID, CreateGallHost, DeleteGallHost
-- [ ] 12.2 Implement handlers (`internal/handlers/gallhost.go`)
+- [x] 12.2 Implement handlers (`internal/handlers/gallhost.go`)
   - GET /api/v2/gall-hosts (by gallid param)
   - POST /api/v2/gall-hosts (auth required)
   - DELETE /api/v2/gall-hosts (auth required)
-- [ ] 12.3 Add OpenAPI spec for gall-host endpoints
-- [ ] 12.4 Write handler unit tests
-- [ ] 12.5 Write integration tests
+- [x] 12.3 Add OpenAPI spec for gall-host endpoints
+- [x] 12.4 Write handler unit tests
+- [x] 12.5 Write integration tests
 
 ## 13. Domain: SpeciesSource (Relationship)
 
-- [ ] 13.1 Write sqlc queries (`internal/db/queries/speciessource.sql`)
+- [x] 13.1 Write sqlc queries (`internal/db/queries/speciessource.sql`)
   - ListSpeciesSources, GetSpeciesSource, UpsertSpeciesSource, DeleteSpeciesSource
-- [ ] 13.2 Implement handlers (`internal/handlers/speciessource.go`)
+- [x] 13.2 Implement handlers (`internal/handlers/speciessource.go`)
   - GET /api/v2/species-sources (by speciesid, or speciesid+sourceid)
   - POST /api/v2/species-sources (auth required)
   - PUT /api/v2/species-sources (auth required)
   - DELETE /api/v2/species-sources (auth required)
-- [ ] 13.3 Add OpenAPI spec for species-source endpoints
-- [ ] 13.4 Write handler unit tests
-- [ ] 13.5 Write integration tests
+- [x] 13.3 Add OpenAPI spec for species-source endpoints
+- [x] 13.4 Write handler unit tests
+- [x] 13.5 Write integration tests
 
 ## 14. Domain: FilterField
 
