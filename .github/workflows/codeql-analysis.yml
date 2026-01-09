@@ -8,9 +8,22 @@ name: 'CodeQL'
 on:
     push:
         branches: [main]
+        paths:
+            - 'pages/**'
+            - 'components/**'
+            - 'libs/**'
+            - 'hooks/**'
+            - 'layouts/**'
+            - '__tests__/**'
     pull_request:
-        # The branches below must be a subset of the branches above
         branches: [main]
+        paths:
+            - 'pages/**'
+            - 'components/**'
+            - 'libs/**'
+            - 'hooks/**'
+            - 'layouts/**'
+            - '__tests__/**'
     schedule:
         - cron: '0 15 * * 5'
 
@@ -40,7 +53,7 @@ jobs:
 
             # Initializes the CodeQL tools for scanning.
             - name: Initialize CodeQL
-              uses: github/codeql-action/init@v3
+              uses: github/codeql-action/init@v4
               with:
                   languages: ${{ matrix.language }}
                   # Enable additional queries for better security analysis
@@ -78,9 +91,9 @@ jobs:
             # Autobuild attempts to build any compiled languages  (C/C++, C#, or Java).
             # For JavaScript/TypeScript, this step analyzes the code without building
             - name: Autobuild
-              uses: github/codeql-action/autobuild@v3
+              uses: github/codeql-action/autobuild@v4
 
             - name: Perform CodeQL Analysis
-              uses: github/codeql-action/analyze@v3
+              uses: github/codeql-action/analyze@v4
               with:
                   category: '/language:${{matrix.language}}'

@@ -1,9 +1,14 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 :root {
 	--color-primary: #2d5016;
 	--color-primary-light: #4a7c23;
 	--color-bg: #fafafa;
 	--color-text: #333;
 	--color-text-muted: #666;
+	--gf-maroon: #800000;
 }
 
 *,
