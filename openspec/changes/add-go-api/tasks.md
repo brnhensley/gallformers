@@ -246,10 +246,10 @@ Unit tests are implemented per-domain (tasks above) and include:
 
 ## 19. Documentation
 
-- [ ] 19.1 Complete OpenAPI spec for all endpoints
-- [ ] 19.2 Add README.md in v2/api/ with development instructions
-- [ ] 19.3 Document environment variables in .env.example
-- [ ] 19.4 Update v2/CLAUDE.md with API-specific guidance
+- [x] 19.1 Complete OpenAPI spec for all endpoints
+- [x] 19.2 Add README.md in v2/api/ with development instructions
+- [x] 19.3 Document environment variables in .env.example
+- [x] 19.4 Update v2/CLAUDE.md with API-specific guidance
 
 ## Parallelizable Work
 
