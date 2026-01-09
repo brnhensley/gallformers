@@ -22,12 +22,12 @@ info:
     url: https://opensource.org/licenses/MIT
 
 servers:
-  - url: http://localhost:8080
-    description: Local development server
   - url: https://gallformers.fly.dev
     description: Staging server (Fly.io)
   - url: https://gallformers.org
     description: Production server
+  - url: http://localhost:8080
+    description: Local development server
 
 tags:
   - name: Health
