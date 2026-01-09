@@ -68,10 +68,10 @@
 - **Verify**: Tests pass, all variants render correctly, autofocus works
 
 ### 2.7 Typeahead component
-- [ ] Implement `Typeahead.svelte` wrapping svelte-select
-- [ ] Props: selected, label, searchFn, labelKey, multiple, creatable, required, error
-- [ ] Configure svelte-select styling via CSS variables
-- [ ] Write `Typeahead.test.ts` (mock searchFn)
+- [x] Implement `Typeahead.svelte` wrapping svelte-select
+- [x] Props: selected, label, searchFn, labelKey, multiple, creatable, required, error
+- [x] Configure svelte-select styling via CSS variables
+- [x] Write `Typeahead.test.ts` (mock searchFn)
 - **Verify**: Tests pass, async search works
 
 ---
@@ -79,11 +79,11 @@
 ## Phase 3: Layout Components
 
 ### 3.1 Modal component
-- [ ] Implement `Modal.svelte` using native `<dialog>` element
-- [ ] Props: open, title, children
-- [ ] Escape key closes modal
-- [ ] Click outside closes modal
-- [ ] Write `Modal.test.ts`
+- [x] Implement `Modal.svelte` using native `<dialog>` element
+- [x] Props: open, title, children
+- [x] Escape key closes modal
+- [x] Click outside closes modal
+- [x] Write `Modal.test.ts`
 - **Verify**: Tests pass, modal opens/closes correctly
 
 ### 3.2 ConfirmModal component
@@ -95,22 +95,22 @@
 - **Verify**: Tests pass, Cancel is focused on open
 
 ### 3.3 Card component
-- [ ] Implement `Card.svelte` with props: title, children
-- [ ] Optional title rendering
-- [ ] Write `Card.test.ts`
+- [x] Implement `Card.svelte` with props: title, children
+- [x] Optional title rendering
+- [x] Write `Card.test.ts`
 - **Verify**: Tests pass
 
 ### 3.4 Alert component
-- [ ] Implement `Alert.svelte` with props: variant, children
-- [ ] Four variants: info, warning, error, success
-- [ ] Write `Alert.test.ts`
+- [x] Implement `Alert.svelte` with props: variant, children
+- [x] Four variants: info, warning, error, success
+- [x] Write `Alert.test.ts`
 - **Verify**: Tests pass, all variants render correctly
 
 ### 3.5 Spinner component
-- [ ] Implement `Spinner.svelte` with props: size
-- [ ] Three sizes: sm, md, lg
-- [ ] Animate with Tailwind `animate-spin`
-- [ ] (No test needed - purely visual)
+- [x] Implement `Spinner.svelte` with props: size
+- [x] Three sizes: sm, md, lg
+- [x] Animate with Tailwind `animate-spin`
+- [x] (No test needed - purely visual)
 - **Verify**: Renders at all sizes
 
 ---
@@ -129,13 +129,13 @@
 - **Verify**: Tests pass, sorting and pagination work
 
 ### 4.2 RangeMap component
-- [ ] Implement `RangeMap.svelte` with props: inRange, excludedRange, editable, onToggle
-- [ ] Use d3-geo `geoAlbers()` projection configured for North America (USA + Canada)
-- [ ] Fine-tune projection parameters (center, rotate, parallels, scale, translate) for proper display
-- [ ] Load TopoJSON features (US states + Canadian provinces)
-- [ ] Three-state fill logic (in-range, excluded, neither)
-- [ ] Click handler for editable mode
-- [ ] Write `RangeMap.test.ts` (test fill logic)
+- [x] Implement `RangeMap.svelte` with props: inRange, excludedRange, editable, onToggle
+- [x] Use d3-geo `geoAlbers()` projection configured for North America (USA + Canada)
+- [x] Fine-tune projection parameters (center, rotate, parallels, scale, translate) for proper display
+- [x] Load TopoJSON features (US states + Canadian provinces)
+- [x] Three-state fill logic (in-range, excluded, neither)
+- [x] Click handler for editable mode
+- [x] Write `RangeMap.test.ts` (test fill logic)
 - **Verify**: Tests pass, map renders US states and Canadian provinces correctly
 
 ---
