@@ -47,24 +47,24 @@ type Host struct {
 
 // GallResponse represents a gall in API responses.
 type GallResponse struct {
-	ID           int64          `json:"id"`
-	Name         string         `json:"name"`
-	GallID       int64          `json:"gall_id"`
-	Datacomplete bool           `json:"datacomplete"`
-	AbundanceID  *int64         `json:"abundance_id,omitempty"`
-	Detachable   *int64         `json:"detachable,omitempty"`
-	Undescribed  bool           `json:"undescribed"`
-	Aliases      []Alias        `json:"aliases"`
-	Hosts        []Host         `json:"hosts,omitempty"`
-	Colors       []FilterField  `json:"colors,omitempty"`
-	Shapes       []FilterField  `json:"shapes,omitempty"`
-	Textures     []FilterField  `json:"textures,omitempty"`
-	Locations    []FilterField  `json:"locations,omitempty"`
-	Alignments   []FilterField  `json:"alignments,omitempty"`
-	Walls        []FilterField  `json:"walls,omitempty"`
-	Cells        []FilterField  `json:"cells,omitempty"`
-	Seasons      []FilterField  `json:"seasons,omitempty"`
-	Forms        []FilterField  `json:"forms,omitempty"`
+	ID           int64         `json:"id"`
+	Name         string        `json:"name"`
+	GallID       int64         `json:"gall_id"`
+	Datacomplete bool          `json:"datacomplete"`
+	AbundanceID  *int64        `json:"abundance_id,omitempty"`
+	Detachable   *int64        `json:"detachable,omitempty"`
+	Undescribed  bool          `json:"undescribed"`
+	Aliases      []Alias       `json:"aliases"`
+	Hosts        []Host        `json:"hosts,omitempty"`
+	Colors       []FilterField `json:"colors,omitempty"`
+	Shapes       []FilterField `json:"shapes,omitempty"`
+	Textures     []FilterField `json:"textures,omitempty"`
+	Locations    []FilterField `json:"locations,omitempty"`
+	Alignments   []FilterField `json:"alignments,omitempty"`
+	Walls        []FilterField `json:"walls,omitempty"`
+	Cells        []FilterField `json:"cells,omitempty"`
+	Seasons      []FilterField `json:"seasons,omitempty"`
+	Forms        []FilterField `json:"forms,omitempty"`
 }
 
 // GallListResponse represents a paginated list of galls.

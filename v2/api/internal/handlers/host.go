@@ -40,14 +40,14 @@ type Gall struct {
 
 // HostResponse represents a host in API responses.
 type HostResponse struct {
-	ID           int64    `json:"id"`
-	Name         string   `json:"name"`
-	Datacomplete bool     `json:"datacomplete"`
-	AbundanceID  *int64   `json:"abundance_id,omitempty"`
-	Abundance    *string  `json:"abundance,omitempty"`
-	Aliases      []Alias  `json:"aliases"`
-	Places       []Place  `json:"places,omitempty"`
-	Galls        []Gall   `json:"galls,omitempty"`
+	ID           int64   `json:"id"`
+	Name         string  `json:"name"`
+	Datacomplete bool    `json:"datacomplete"`
+	AbundanceID  *int64  `json:"abundance_id,omitempty"`
+	Abundance    *string `json:"abundance,omitempty"`
+	Aliases      []Alias `json:"aliases"`
+	Places       []Place `json:"places,omitempty"`
+	Galls        []Gall  `json:"galls,omitempty"`
 }
 
 // HostSimpleResponse represents a simplified host for API responses.

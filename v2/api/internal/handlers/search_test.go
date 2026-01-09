@@ -145,94 +145,94 @@ func TestGlobalSearch(t *testing.T) {
 	handler := NewSearchHandler(queries)
 
 	tests := []struct {
-		name            string
-		queryString     string
-		expectedStatus  int
-		expectedSpecies int
+		name             string
+		queryString      string
+		expectedStatus   int
+		expectedSpecies  int
 		expectedGlossary int
-		expectedSources int
-		expectedTaxa    int
-		expectedPlaces  int
+		expectedSources  int
+		expectedTaxa     int
+		expectedPlaces   int
 	}{
 		{
-			name:            "search for 'gall' - matches species, glossary, sources",
-			queryString:     "?q=gall",
-			expectedStatus:  http.StatusOK,
-			expectedSpecies: 1, // matches "Andricus quercuscalifornicus" via alias "California gall wasp"
+			name:             "search for 'gall' - matches species, glossary, sources",
+			queryString:      "?q=gall",
+			expectedStatus:   http.StatusOK,
+			expectedSpecies:  1, // matches "Andricus quercuscalifornicus" via alias "California gall wasp"
 			expectedGlossary: 2, // matches "gall" (exact) and "cecidium" (definition contains "gall")
-			expectedSources: 2, // matches "Gall Biology" and "Oak Galls of California"
-			expectedTaxa:    0,
-			expectedPlaces:  0,
+			expectedSources:  2, // matches "Gall Biology" and "Oak Galls of California"
+			expectedTaxa:     0,
+			expectedPlaces:   0,
 		},
 		{
-			name:            "search for 'oak' - matches species, glossary, sources, taxa",
-			queryString:     "?q=oak",
-			expectedStatus:  http.StatusOK,
-			expectedSpecies: 2, // "Valley oak" alias and "Coast live oak" alias
+			name:             "search for 'oak' - matches species, glossary, sources, taxa",
+			queryString:      "?q=oak",
+			expectedStatus:   http.StatusOK,
+			expectedSpecies:  2, // "Valley oak" alias and "Coast live oak" alias
 			expectedGlossary: 1, // matches "oak" (exact)
-			expectedSources: 1, // matches "Oak Galls of California"
-			expectedTaxa:    3, // matches "Oak family", "Oak genus", "Red oaks section" (all have "oak" in description)
-			expectedPlaces:  0,
+			expectedSources:  1, // matches "Oak Galls of California"
+			expectedTaxa:     3, // matches "Oak family", "Oak genus", "Red oaks section" (all have "oak" in description)
+			expectedPlaces:   0,
 		},
 		{
-			name:            "search for 'Quercus' - matches species names and taxonomy",
-			queryString:     "?q=Quercus",
-			expectedStatus:  http.StatusOK,
-			expectedSpecies: 3, // matches via alias search too (California gall wasp alias includes "Quercus" in related species)
+			name:             "search for 'Quercus' - matches species names and taxonomy",
+			queryString:      "?q=Quercus",
+			expectedStatus:   http.StatusOK,
+			expectedSpecies:  3, // matches via alias search too (California gall wasp alias includes "Quercus" in related species)
 			expectedGlossary: 1, // matches "oak" (definition contains "Quercus")
-			expectedSources: 0,
-			expectedTaxa:    1, // matches "Quercus" genus
-			expectedPlaces:  0,
+			expectedSources:  0,
+			expectedTaxa:     1, // matches "Quercus" genus
+			expectedPlaces:   0,
 		},
 		{
-			name:            "search for 'California' - matches species alias and places",
-			queryString:     "?q=California",
-			expectedStatus:  http.StatusOK,
-			expectedSpecies: 1, // "California gall wasp" alias
+			name:             "search for 'California' - matches species alias and places",
+			queryString:      "?q=California",
+			expectedStatus:   http.StatusOK,
+			expectedSpecies:  1, // "California gall wasp" alias
 			expectedGlossary: 0,
-			expectedSources: 1, // "Oak Galls of California"
-			expectedTaxa:    0,
-			expectedPlaces:  1, // "California"
+			expectedSources:  1, // "Oak Galls of California"
+			expectedTaxa:     0,
+			expectedPlaces:   1, // "California"
 		},
 		{
-			name:            "search for 'lobata' - specific species name",
-			queryString:     "?q=lobata",
-			expectedStatus:  http.StatusOK,
-			expectedSpecies: 1, // "Quercus lobata"
+			name:             "search for 'lobata' - specific species name",
+			queryString:      "?q=lobata",
+			expectedStatus:   http.StatusOK,
+			expectedSpecies:  1, // "Quercus lobata"
 			expectedGlossary: 0,
-			expectedSources: 0,
-			expectedTaxa:    1, // "Lobatae" section
-			expectedPlaces:  0,
+			expectedSources:  0,
+			expectedTaxa:     1, // "Lobatae" section
+			expectedPlaces:   0,
 		},
 		{
-			name:            "search for 'Smith' - matches source author",
-			queryString:     "?q=Smith",
-			expectedStatus:  http.StatusOK,
-			expectedSpecies: 0,
+			name:             "search for 'Smith' - matches source author",
+			queryString:      "?q=Smith",
+			expectedStatus:   http.StatusOK,
+			expectedSpecies:  0,
 			expectedGlossary: 0,
-			expectedSources: 1, // "Gall Biology" by Smith
-			expectedTaxa:    0,
-			expectedPlaces:  0,
+			expectedSources:  1, // "Gall Biology" by Smith
+			expectedTaxa:     0,
+			expectedPlaces:   0,
 		},
 		{
-			name:            "search with no results",
-			queryString:     "?q=xyz123nonexistent",
-			expectedStatus:  http.StatusOK,
-			expectedSpecies: 0,
+			name:             "search with no results",
+			queryString:      "?q=xyz123nonexistent",
+			expectedStatus:   http.StatusOK,
+			expectedSpecies:  0,
 			expectedGlossary: 0,
-			expectedSources: 0,
-			expectedTaxa:    0,
-			expectedPlaces:  0,
+			expectedSources:  0,
+			expectedTaxa:     0,
+			expectedPlaces:   0,
 		},
 		{
-			name:            "search with missing query parameter",
-			queryString:     "",
-			expectedStatus:  http.StatusBadRequest,
+			name:           "search with missing query parameter",
+			queryString:    "",
+			expectedStatus: http.StatusBadRequest,
 		},
 		{
-			name:            "search with empty query",
-			queryString:     "?q=",
-			expectedStatus:  http.StatusBadRequest,
+			name:           "search with empty query",
+			queryString:    "?q=",
+			expectedStatus: http.StatusBadRequest,
 		},
 	}
 

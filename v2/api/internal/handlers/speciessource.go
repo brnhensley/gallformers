@@ -26,13 +26,13 @@ func NewSpeciesSourceHandler(queries *db.Queries, database *sql.DB) *SpeciesSour
 
 // SpeciesSourceResponse represents a species-source relationship in API responses.
 type SpeciesSourceResponse struct {
-	ID           int64   `json:"id"`
-	SpeciesID    int64   `json:"species_id"`
-	SourceID     int64   `json:"source_id"`
-	Description  string  `json:"description"`
-	Useasdefault int64   `json:"useasdefault"`
-	Externallink string  `json:"externallink"`
-	AliasID      *int64  `json:"alias_id,omitempty"`
+	ID           int64           `json:"id"`
+	SpeciesID    int64           `json:"species_id"`
+	SourceID     int64           `json:"source_id"`
+	Description  string          `json:"description"`
+	Useasdefault int64           `json:"useasdefault"`
+	Externallink string          `json:"externallink"`
+	AliasID      *int64          `json:"alias_id,omitempty"`
 	Source       *SourceResponse `json:"source,omitempty"`
 }
 

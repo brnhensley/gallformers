@@ -90,10 +90,10 @@ type TaxonomyUpsertRequest struct {
 
 // FamilyUpsertRequest represents the request body for upserting a family.
 type FamilyUpsertRequest struct {
-	ID          int64           `json:"id"`
-	Name        string          `json:"name"`
-	Description string          `json:"description"`
-	Genera      []GenusRequest  `json:"genera,omitempty"`
+	ID          int64          `json:"id"`
+	Name        string         `json:"name"`
+	Description string         `json:"description"`
+	Genera      []GenusRequest `json:"genera,omitempty"`
 }
 
 // GenusRequest represents a genus in create/update requests.
