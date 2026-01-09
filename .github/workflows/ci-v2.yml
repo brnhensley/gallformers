@@ -67,11 +67,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: v2/web/package-lock.json
 
       - name: Install dependencies
-        run: rm -rf node_modules && npm install
+        run: npm install
 
       - name: Test
         run: npm test
