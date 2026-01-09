@@ -42,7 +42,7 @@
 - [x] 3a.6 Implement `/api/v2/me` endpoint (return current user from token)
 - [x] 3a.7 Implement `/api/v2/auth/refresh` endpoint (refresh expired tokens)
 - [x] 3a.8 Implement `/api/v2/auth/logout` endpoint (clear auth cookie)
-- [ ] 3a.9 Test login/refresh/logout flow end-to-end
+- [x] 3a.9 Test login/refresh/logout flow end-to-end
 - [x] 3a.10 Add auth handler unit tests
 
 ## 4. OpenAPI Documentation

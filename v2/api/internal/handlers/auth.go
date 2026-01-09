@@ -14,6 +14,33 @@ import (
 	"github.com/jeffdc/gallformers/v2/api/internal/middleware"
 )
 
+// LoginHandler initiates the OAuth flow by redirecting to Auth0.
+func LoginHandler() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		config := middleware.GetAuth0Config()
+		if config == nil {
+			middleware.RespondError(w, http.StatusInternalServerError, "SERVER_ERROR", "Auth not configured")
+			return
+		}
+
+		// Build the Auth0 authorization URL
+		scheme := "http"
+		if r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https" {
+			scheme = "https"
+		}
+		callbackURL := scheme + "://" + r.Host + "/api/v2/auth/callback"
+
+		authURL := "https://" + config.Domain + "/authorize?" +
+			"response_type=code" +
+			"&client_id=" + url.QueryEscape(config.ClientID) +
+			"&redirect_uri=" + url.QueryEscape(callbackURL) +
+			"&scope=" + url.QueryEscape("openid profile email offline_access") +
+			"&audience=" + url.QueryEscape(config.Audience)
+
+		http.Redirect(w, r, authURL, http.StatusFound)
+	}
+}
+
 // tokenResponse represents the Auth0 token endpoint response.
 type tokenResponse struct {
 	AccessToken  string `json:"access_token"`
@@ -25,8 +52,9 @@ type tokenResponse struct {
 
 // userResponse represents the response for /api/v2/me endpoint.
 type userResponse struct {
-	Email string   `json:"email"`
-	Roles []string `json:"roles"`
+	Email    string   `json:"email"`
+	Username string   `json:"username"`
+	Roles    []string `json:"roles"`
 }
 
 // AuthCallbackHandler handles the OAuth callback from Auth0.
@@ -39,18 +67,19 @@ func AuthCallbackHandler() http.HandlerFunc {
 			return
 		}
 
-		// Get the authorization code and redirect URI from the request
+		// Get the authorization code from the request
 		code := r.URL.Query().Get("code")
 		if code == "" {
 			middleware.RespondError(w, http.StatusBadRequest, "BAD_REQUEST", "Missing authorization code")
 			return
 		}
 
-		redirectURI := r.URL.Query().Get("redirect_uri")
-		if redirectURI == "" {
-			middleware.RespondError(w, http.StatusBadRequest, "BAD_REQUEST", "Missing redirect_uri")
-			return
+		// Construct the redirect URI (must match what was sent in login)
+		scheme := "http"
+		if r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https" {
+			scheme = "https"
 		}
+		redirectURI := scheme + "://" + r.Host + "/api/v2/auth/callback"
 
 		// Exchange code for tokens
 		tokens, err := exchangeCodeForTokens(config, code, redirectURI)
@@ -73,8 +102,9 @@ func AuthCallbackHandler() http.HandlerFunc {
 
 		// Return user info in the response body
 		middleware.RespondJSON(w, http.StatusOK, userResponse{
-			Email: claims.Email,
-			Roles: claims.Roles,
+			Email:    claims.Email,
+			Username: claims.Username,
+			Roles:    claims.Roles,
 		})
 	}
 }
@@ -90,8 +120,9 @@ func MeHandler() http.HandlerFunc {
 		}
 
 		middleware.RespondJSON(w, http.StatusOK, userResponse{
-			Email: claims.Email,
-			Roles: claims.Roles,
+			Email:    claims.Email,
+			Username: claims.Username,
+			Roles:    claims.Roles,
 		})
 	}
 }
@@ -140,8 +171,9 @@ func RefreshHandler() http.HandlerFunc {
 
 		// Return user info
 		middleware.RespondJSON(w, http.StatusOK, userResponse{
-			Email: claims.Email,
-			Roles: claims.Roles,
+			Email:    claims.Email,
+			Username: claims.Username,
+			Roles:    claims.Roles,
 		})
 	}
 }

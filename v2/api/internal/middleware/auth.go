@@ -20,11 +20,12 @@ const UserContextKey contextKey = "user"
 // AuthCookieName is the name of the httpOnly cookie containing the JWT.
 const AuthCookieName = "auth_token"
 
-// Claims represents the JWT claims including Auth0 roles.
+// Claims represents the JWT claims including Auth0 custom claims.
 type Claims struct {
 	jwt.RegisteredClaims
-	Email string   `json:"email"`
-	Roles []string `json:"https://gallformers.org/roles"`
+	Email    string   `json:"https://gallformers.org/email"`
+	Username string   `json:"https://gallformers.org/username"`
+	Roles    []string `json:"https://gallformers.org/roles"`
 }
 
 // Auth0Config holds the Auth0 configuration.
