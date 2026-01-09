@@ -64,7 +64,6 @@
   - POST /api/v2/galls (auth required, includes aliases)
   - PUT /api/v2/galls/{id} (auth required, includes aliases)
   - DELETE /api/v2/galls/{id} (auth required)
-- [ ] 5.3 Implement audit field handling (created_at/by, updated_at/by)
 - [x] 5.4 Add OpenAPI spec for gall endpoints
 - [x] 5.5 Write handler unit tests
 - [x] 5.6 Write integration tests comparing v1 and v2 responses
