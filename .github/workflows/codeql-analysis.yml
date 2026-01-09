@@ -8,22 +8,26 @@ name: 'CodeQL'
 on:
     push:
         branches: [main]
-        paths-ignore:
-            - 'v2/**'
-            - '*.md'
-            - 'docs/**'
-            - 'ref/**'
-            - 'openspec/**'
-            - '.beads/**'
+        paths:
+            - 'pages/**'
+            - 'components/**'
+            - 'libs/**'
+            - 'hooks/**'
+            - 'layouts/**'
+            - '__tests__/**'
+            - '*.js'
+            - '*.ts'
     pull_request:
         branches: [main]
-        paths-ignore:
-            - 'v2/**'
-            - '*.md'
-            - 'docs/**'
-            - 'ref/**'
-            - 'openspec/**'
-            - '.beads/**'
+        paths:
+            - 'pages/**'
+            - 'components/**'
+            - 'libs/**'
+            - 'hooks/**'
+            - 'layouts/**'
+            - '__tests__/**'
+            - '*.js'
+            - '*.ts'
     schedule:
         - cron: '0 15 * * 5'
 
