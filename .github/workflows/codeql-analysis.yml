@@ -15,8 +15,6 @@ on:
             - 'hooks/**'
             - 'layouts/**'
             - '__tests__/**'
-            - '*.js'
-            - '*.ts'
     pull_request:
         branches: [main]
         paths:
@@ -26,8 +24,6 @@ on:
             - 'hooks/**'
             - 'layouts/**'
             - '__tests__/**'
-            - '*.js'
-            - '*.ts'
     schedule:
         - cron: '0 15 * * 5'
 
