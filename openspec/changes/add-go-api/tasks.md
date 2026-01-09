@@ -34,9 +34,9 @@
 
 ## 3a. Auth0 Configuration
 
-- [ ] 3a.1 Configure Auth0 to include roles in JWT claims (via Rules or Actions)
-- [ ] 3a.2 Define roles in Auth0: `admin`, `superadmin`
-- [ ] 3a.3 Assign existing admin users to appropriate roles
+- [x] 3a.1 Configure Auth0 to include roles in JWT claims (via Rules or Actions)
+- [x] 3a.2 Define roles in Auth0: `admin`, `superadmin`
+- [x] 3a.3 Assign existing admin users to appropriate roles
 - [x] 3a.4 Implement OAuth callback handler (exchange code for tokens)
 - [x] 3a.5 Implement httpOnly cookie setting on login (Secure, SameSite=Lax, Path=/)
 - [x] 3a.6 Implement `/api/v2/me` endpoint (return current user from token)
@@ -122,18 +122,18 @@
 
 ## 9. Domain: Source
 
-- [ ] 9.1 Write sqlc queries (`internal/db/queries/source.sql`)
+- [x] 9.1 Write sqlc queries (`internal/db/queries/source.sql`)
   - ListSources, SearchSources, GetSourceByID, GetSourceByTitle
   - CreateSource, UpdateSource, DeleteSource
-- [ ] 9.2 Implement handlers (`internal/handlers/source.go`)
+- [x] 9.2 Implement handlers (`internal/handlers/source.go`)
   - GET /api/v2/sources (list, search by q param, by speciesid)
   - GET /api/v2/sources/{id}
   - GET /api/v2/sources/by-title/{title}
   - POST /api/v2/sources (auth required)
   - PUT /api/v2/sources/{id} (auth required)
   - DELETE /api/v2/sources/{id} (auth required)
-- [ ] 9.3 Add OpenAPI spec for source endpoints
-- [ ] 9.4 Write integration tests
+- [x] 9.3 Add OpenAPI spec for source endpoints
+- [x] 9.4 Write integration tests
 
 ## 10. Domain: Glossary
 

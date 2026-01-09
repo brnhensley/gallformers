@@ -509,6 +509,383 @@ components:
       required:
         - name
 
+    Source:
+      type: object
+      description: A reference source (book, paper, website, etc.)
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Unique identifier
+        title:
+          type: string
+          description: Title of the source
+        author:
+          type: string
+          description: Author(s) of the source
+        pubyear:
+          type: string
+          description: Publication year
+        link:
+          type: string
+          description: URL link to the source
+        citation:
+          type: string
+          description: Full citation text
+        datacomplete:
+          type: boolean
+          description: Whether data for this source is considered complete
+        license:
+          type: string
+          description: License type
+        licenselink:
+          type: string
+          description: URL to license details
+      required:
+        - id
+        - title
+        - author
+        - pubyear
+        - link
+        - citation
+        - datacomplete
+        - license
+        - licenselink
+
+    SpeciesSourceInfo:
+      type: object
+      description: Information about the species-source relationship
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: SpeciesSource record ID
+        description:
+          type: string
+          description: Description of how this source relates to the species
+        useasdefault:
+          type: integer
+          description: Whether to use this as the default source
+        externallink:
+          type: string
+          description: External link related to this species-source relationship
+      required:
+        - id
+        - description
+        - useasdefault
+        - externallink
+
+    SourceWithSpeciesSource:
+      type: object
+      description: A source with its speciessource relationship data
+      allOf:
+        - $ref: '#/components/schemas/Source'
+        - type: object
+          properties:
+            speciessource:
+              $ref: '#/components/schemas/SpeciesSourceInfo'
+
+    SourceListResponse:
+      type: object
+      description: Paginated list of sources
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Source'
+        total:
+          type: integer
+          format: int64
+          description: Total number of sources matching query
+        limit:
+          type: integer
+          nullable: true
+          description: Limit applied to results (if any)
+        offset:
+          type: integer
+          description: Offset applied to results
+      required:
+        - data
+        - total
+        - offset
+
+    SourceCreateRequest:
+      type: object
+      description: Request body for creating a source
+      properties:
+        title:
+          type: string
+          description: Title of the source (required)
+        author:
+          type: string
+          description: Author(s) of the source
+        pubyear:
+          type: string
+          description: Publication year
+        link:
+          type: string
+          description: URL link to the source
+        citation:
+          type: string
+          description: Full citation text
+        datacomplete:
+          type: boolean
+          description: Whether data is complete
+        license:
+          type: string
+          description: License type
+        licenselink:
+          type: string
+          description: URL to license details
+      required:
+        - title
+
+    SourceUpdateRequest:
+      type: object
+      description: Request body for updating a source
+      properties:
+        title:
+          type: string
+          description: Title of the source (required)
+        author:
+          type: string
+          description: Author(s) of the source
+        pubyear:
+          type: string
+          description: Publication year
+        link:
+          type: string
+          description: URL link to the source
+        citation:
+          type: string
+          description: Full citation text
+        datacomplete:
+          type: boolean
+          description: Whether data is complete
+        license:
+          type: string
+          description: License type
+        licenselink:
+          type: string
+          description: URL to license details
+      required:
+        - title
+
+    TaxonomyEntry:
+      type: object
+      description: A taxonomy entry (family, genus, or section)
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Unique identifier
+        name:
+          type: string
+          description: Taxonomy name
+        description:
+          type: string
+          description: Description or notes
+        type:
+          type: string
+          enum: [family, genus, section]
+          description: Type of taxonomy entry
+        parent_id:
+          type: integer
+          format: int64
+          nullable: true
+          description: Parent taxonomy ID (genus -> family)
+        parent_name:
+          type: string
+          nullable: true
+          description: Parent taxonomy name
+        parent_type:
+          type: string
+          nullable: true
+          description: Parent taxonomy type
+      required:
+        - id
+        - name
+        - description
+        - type
+
+    TaxonomyListResponse:
+      type: object
+      description: Paginated list of taxonomy entries
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaxonomyEntry'
+        total:
+          type: integer
+          format: int64
+        offset:
+          type: integer
+      required:
+        - data
+        - total
+        - offset
+
+    FamilyResponse:
+      type: object
+      description: A family with its genera
+      allOf:
+        - $ref: '#/components/schemas/TaxonomyEntry'
+        - type: object
+          properties:
+            genera:
+              type: array
+              items:
+                $ref: '#/components/schemas/TaxonomyEntry'
+              description: List of genera in this family
+
+    SectionResponse:
+      type: object
+      description: A section with species and aliases
+      allOf:
+        - $ref: '#/components/schemas/TaxonomyEntry'
+        - type: object
+          properties:
+            species:
+              type: array
+              items:
+                $ref: '#/components/schemas/SimpleSpecies'
+              description: Species in this section
+            aliases:
+              type: array
+              items:
+                $ref: '#/components/schemas/Alias'
+              description: Aliases for this section
+
+    SimpleSpecies:
+      type: object
+      description: Minimal species info
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        taxoncode:
+          type: string
+          nullable: true
+        datacomplete:
+          type: boolean
+        abundance_id:
+          type: integer
+          format: int64
+          nullable: true
+      required:
+        - id
+        - name
+        - datacomplete
+
+    FGS:
+      type: object
+      description: Family-Genus-Section for a species
+      properties:
+        family:
+          $ref: '#/components/schemas/TaxonomyEntry'
+        genus:
+          $ref: '#/components/schemas/TaxonomyEntry'
+        section:
+          $ref: '#/components/schemas/TaxonomyEntry'
+          nullable: true
+          description: Optional section
+      required:
+        - family
+        - genus
+
+    TaxonomyUpsertRequest:
+      type: object
+      description: Request body for creating/updating taxonomy
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: ID for update (omit or <= 0 for create)
+        name:
+          type: string
+          description: Taxonomy name (required)
+        description:
+          type: string
+          description: Description or notes
+        type:
+          type: string
+          enum: [family, genus, section]
+          description: Type of taxonomy entry (required for create)
+        parent_id:
+          type: integer
+          format: int64
+          nullable: true
+          description: Parent taxonomy ID
+        species:
+          type: array
+          items:
+            type: integer
+            format: int64
+          description: Species IDs to link to this taxonomy
+      required:
+        - name
+
+    FamilyUpsertRequest:
+      type: object
+      description: Request body for creating/updating a family
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: ID for update (omit or <= 0 for create)
+        name:
+          type: string
+          description: Family name (required)
+        description:
+          type: string
+          description: Description (e.g., "Plant", "Insect")
+        genera:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+                format: int64
+                description: ID for update (omit or <= 0 for create)
+              name:
+                type: string
+                description: Genus name
+              description:
+                type: string
+                description: Description or notes
+            required:
+              - name
+          description: Genera to create/update in this family
+      required:
+        - name
+
+    GeneraMoveRequest:
+      type: object
+      description: Request body for moving genera between families
+      properties:
+        genera:
+          type: array
+          items:
+            type: integer
+            format: int64
+          description: IDs of genera to move
+        oldFamilyId:
+          type: integer
+          format: int64
+          description: Current family ID
+        newFamilyId:
+          type: integer
+          format: int64
+          description: Target family ID
+      required:
+        - genera
+        - oldFamilyId
+        - newFamilyId
+
   parameters:
     limitParam:
       name: limit
@@ -828,5 +1205,559 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /api/v2/sources:
+    get:
+      tags:
+        - Sources
+      summary: List or search sources
+      description: |
+        Returns a list of all sources, optionally filtered by search query or species ID.
+        - If `speciesid` is provided, returns sources with their speciessource relationship data.
+        - If `q` is provided, searches sources by title.
+        - Supports pagination via limit and offset parameters.
+      operationId: listSources
+      parameters:
+        - $ref: '#/components/parameters/searchParam'
+        - $ref: '#/components/parameters/limitParam'
+        - $ref: '#/components/parameters/offsetParam'
+        - name: speciesid
+          in: query
+          description: Filter sources by species ID (returns speciessource relationship data)
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: List of sources
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SourceListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    post:
+      tags:
+        - Sources
+      summary: Create a new source
+      description: Creates a new source entry. Requires authentication.
+      operationId: createSource
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SourceCreateRequest'
+      responses:
+        '201':
+          description: Source created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Source'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v2/sources/{id}:
+    get:
+      tags:
+        - Sources
+      summary: Get a source by ID
+      description: Returns detailed information about a specific source.
+      operationId: getSourceById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The source ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Source details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Source'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+        - Sources
+      summary: Update a source
+      description: Updates an existing source. Requires authentication.
+      operationId: updateSource
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The source ID
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SourceUpdateRequest'
+      responses:
+        '200':
+          description: Source updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Source'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags:
+        - Sources
+      summary: Delete a source
+      description: Deletes a source. Requires authentication.
+      operationId: deleteSource
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The source ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: Source deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v2/sources/by-title/{title}:
+    get:
+      tags:
+        - Sources
+      summary: Get a source by title
+      description: Returns a source by its exact title.
+      operationId: getSourceByTitle
+      parameters:
+        - name: title
+          in: path
+          required: true
+          description: The exact title of the source
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Source details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Source'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Taxonomy endpoints
+
+  /api/v2/taxonomy:
+    get:
+      tags:
+        - Taxonomy
+      summary: Get taxonomy for species or by name
+      description: |
+        Returns taxonomy data. Must provide either `id` (species ID to get FGS) or `name` (exact match).
+      operationId: getTaxonomy
+      parameters:
+        - name: id
+          in: query
+          description: Species ID to get Family-Genus-Section (FGS)
+          schema:
+            type: integer
+            format: int64
+        - name: name
+          in: query
+          description: Exact taxonomy name match
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Taxonomy data
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/FGS'
+                  - type: array
+                    items:
+                      $ref: '#/components/schemas/TaxonomyEntry'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    post:
+      tags:
+        - Taxonomy
+      summary: Create or update taxonomy entry
+      description: Creates or updates a taxonomy entry. Requires authentication.
+      operationId: upsertTaxonomy
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaxonomyUpsertRequest'
+      responses:
+        '200':
+          description: Taxonomy updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxonomyEntry'
+        '201':
+          description: Taxonomy created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxonomyEntry'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v2/taxonomy/{id}:
+    get:
+      tags:
+        - Taxonomy
+      summary: Get taxonomy entry by ID
+      description: Returns a single taxonomy entry by its ID.
+      operationId: getTaxonomyById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Taxonomy ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Taxonomy entry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxonomyEntry'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags:
+        - Taxonomy
+      summary: Delete taxonomy entry
+      description: Deletes a taxonomy entry. If family, cascades to genera and species. Requires authentication.
+      operationId: deleteTaxonomy
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Taxonomy ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: Taxonomy deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v2/taxonomy/families:
+    get:
+      tags:
+        - Taxonomy
+      summary: List or search families
+      description: |
+        Returns a list of families. Supports filtering by:
+        - `familyid`: Get family by ID
+        - `name`: Get family by exact name
+        - `q`: Search families by name pattern
+      operationId: listFamilies
+      parameters:
+        - name: familyid
+          in: query
+          description: Family ID
+          schema:
+            type: integer
+            format: int64
+        - name: name
+          in: query
+          description: Exact family name
+          schema:
+            type: string
+        - $ref: '#/components/parameters/searchParam'
+      responses:
+        '200':
+          description: List of families
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/TaxonomyListResponse'
+                  - type: array
+                    items:
+                      $ref: '#/components/schemas/FamilyResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags:
+        - Taxonomy
+      summary: Create or update family
+      description: Creates or updates a family with optional genera. Requires authentication.
+      operationId: upsertFamily
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FamilyUpsertRequest'
+      responses:
+        '200':
+          description: Family updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FamilyResponse'
+        '201':
+          description: Family created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FamilyResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v2/taxonomy/families/{id}:
+    get:
+      tags:
+        - Taxonomy
+      summary: Get family by ID
+      description: Returns a family with its genera.
+      operationId: getFamilyById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Family ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Family with genera
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FamilyResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags:
+        - Taxonomy
+      summary: Delete family
+      description: Deletes a family and all child genera and species. Requires authentication.
+      operationId: deleteFamily
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Family ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: Family deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v2/taxonomy/genera:
+    get:
+      tags:
+        - Taxonomy
+      summary: List or search genera
+      description: |
+        Returns genera. Must provide either:
+        - `famid`: Get genera for a specific family
+        - `q`: Search genera by name pattern
+      operationId: listGenera
+      parameters:
+        - name: famid
+          in: query
+          description: Family ID to get genera for
+          schema:
+            type: integer
+            format: int64
+        - $ref: '#/components/parameters/searchParam'
+      responses:
+        '200':
+          description: List of genera
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TaxonomyEntry'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v2/taxonomy/genera/move:
+    post:
+      tags:
+        - Taxonomy
+      summary: Move genera between families
+      description: Moves one or more genera from one family to another. Requires authentication.
+      operationId: moveGenera
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GeneraMoveRequest'
+      responses:
+        '200':
+          description: Updated list of all families
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FamilyResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v2/taxonomy/sections:
+    get:
+      tags:
+        - Taxonomy
+      summary: List or search sections
+      description: |
+        Returns sections. Supports filtering by:
+        - `sectionid`: Get section by ID
+        - `name`: Get section by exact name
+        - `q`: Search sections by name pattern
+      operationId: listSections
+      parameters:
+        - name: sectionid
+          in: query
+          description: Section ID
+          schema:
+            type: integer
+            format: int64
+        - name: name
+          in: query
+          description: Exact section name
+          schema:
+            type: string
+        - $ref: '#/components/parameters/searchParam'
+      responses:
+        '200':
+          description: List of sections
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/TaxonomyListResponse'
+                  - type: array
+                    items:
+                      $ref: '#/components/schemas/SectionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v2/taxonomy/sections/{id}:
+    get:
+      tags:
+        - Taxonomy
+      summary: Get section by ID
+      description: Returns a section with its species and aliases.
+      operationId: getSectionById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Section ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Section with species and aliases
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SectionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags:
+        - Taxonomy
+      summary: Delete section
+      description: Deletes a section (removes species links, but not species). Requires authentication.
+      operationId: deleteSection
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Section ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: Section deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   # Placeholder paths - additional domain endpoints will be added as they are implemented
-  # See tasks.md sections 6-15 for planned endpoints
+  # See tasks.md sections 7, 10-15 for planned endpoints

@@ -82,6 +82,7 @@ func main() {
 	r.Route("/api/v2", func(r chi.Router) {
 		// Auth endpoints
 		r.Route("/auth", func(r chi.Router) {
+			r.Get("/login", handlers.LoginHandler())
 			r.Get("/callback", handlers.AuthCallbackHandler())
 			r.Post("/refresh", handlers.RefreshHandler())
 			r.Post("/logout", handlers.LogoutHandler())
@@ -99,6 +100,14 @@ func main() {
 		// Gall endpoints
 		gallHandler := handlers.NewGallHandler(queries)
 		gallHandler.RegisterRoutes(r)
+
+		// Source endpoints
+		sourceHandler := handlers.NewSourceHandler(queries)
+		sourceHandler.RegisterRoutes(r)
+
+		// Taxonomy endpoints
+		taxonomyHandler := handlers.NewTaxonomyHandler(queries)
+		taxonomyHandler.RegisterRoutes(r)
 	})
 
 	// Static file serving from embedded filesystem
