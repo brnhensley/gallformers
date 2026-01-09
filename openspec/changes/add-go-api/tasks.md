@@ -206,17 +206,17 @@
 
 ## 15. Domain: Global Search
 
-- [ ] 15.1 Write sqlc queries (`internal/db/queries/search.sql`)
+- [x] 15.1 Write sqlc queries (`internal/db/queries/search.sql`)
   - SearchSpecies (by name, includes aliases)
   - SearchGlossary (by word, definition)
   - SearchSources (by title, author)
   - SearchTaxa (genus, section, family by name)
   - SearchPlaces (by name, code)
-- [ ] 15.2 Implement handlers (`internal/handlers/search.go`)
+- [x] 15.2 Implement handlers (`internal/handlers/search.go`)
   - GET /api/v2/search?q={term}
   - Returns grouped results: `{ species, glossary, sources, taxa, places }`
-- [ ] 15.3 Add OpenAPI spec for search endpoint
-- [ ] 15.4 Write integration tests comparing to v1 globalsearch results
+- [x] 15.3 Add OpenAPI spec for search endpoint
+- [x] 15.4 Write integration tests comparing to v1 globalsearch results
 
 ## 16. Unit Testing
 
