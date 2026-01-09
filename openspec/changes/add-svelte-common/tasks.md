@@ -3,26 +3,26 @@
 ## Phase 1: Project Setup
 
 ### 1.1 Configure component directory structure
-- [ ] Create `v2/web/src/lib/components/` directory structure
-- [ ] Create subdirectories: `forms/`, `layout/`, `data/`, `feedback/`
-- [ ] Add barrel export file `index.ts`
+- [x] Create `v2/web/src/lib/components/` directory structure
+- [x] Create subdirectories: `forms/`, `layout/`, `data/`, `feedback/`
+- [x] Add barrel export file `index.ts`
 - **Verify**: Directory structure matches design.md
 
 ### 1.2 Configure Tailwind with brand colors
-- [ ] Add `gf-maroon` color palette to `tailwind.config.js`
-- [ ] Add CSS custom property `--gf-maroon` for svelte-select
+- [x] Add `gf-maroon` color palette to `tailwind.config.js`
+- [x] Add CSS custom property `--gf-maroon` for svelte-select
 - **Verify**: `yarn build` succeeds, colors available in Tailwind classes
 
 ### 1.3 Install dependencies
-- [ ] Add `svelte-select` for Typeahead component
-- [ ] Add `d3-geo` and `topojson-client` for RangeMap
-- [ ] Copy `usa-can-topo.json` to `$lib/data/`
+- [x] Add `svelte-select` for Typeahead component
+- [x] Add `d3-geo` and `topojson-client` for RangeMap
+- [x] Copy `usa-can-topo.json` to `$lib/data/`
 - **Verify**: Imports resolve, no build errors
 
 ### 1.4 Configure testing infrastructure
-- [ ] Verify Vitest config includes `src/lib/components/**/*.test.ts`
-- [ ] Add `@testing-library/svelte` if not present
-- [ ] Add test script to package.json if needed
+- [x] Verify Vitest config includes `src/lib/components/**/*.test.ts`
+- [x] Add `@testing-library/svelte` if not present
+- [x] Add test script to package.json if needed
 - **Verify**: `yarn test` runs (even with no tests yet)
 
 ---
