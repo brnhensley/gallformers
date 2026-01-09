@@ -1,0 +1,825 @@
+package handlers
+
+import (
+	"context"
+	"database/sql"
+	"encoding/json"
+	"errors"
+	"log/slog"
+	"net/http"
+	"strconv"
+
+	"github.com/go-chi/chi/v5"
+	db "github.com/jeffdc/gallformers/v2/api/internal/db/generated"
+	"github.com/jeffdc/gallformers/v2/api/internal/middleware"
+)
+
+// GallHandler handles gall-related HTTP requests.
+type GallHandler struct {
+	queries *db.Queries
+}
+
+// NewGallHandler creates a new GallHandler.
+func NewGallHandler(queries *db.Queries) *GallHandler {
+	return &GallHandler{queries: queries}
+}
+
+// Alias represents an alias for API responses.
+type Alias struct {
+	ID          int64  `json:"id"`
+	Name        string `json:"name"`
+	Type        string `json:"type"`
+	Description string `json:"description"`
+}
+
+// FilterField represents a filter field value for API responses.
+type FilterField struct {
+	ID          int64   `json:"id"`
+	Field       string  `json:"field"`
+	Description *string `json:"description,omitempty"`
+}
+
+// Host represents a host for API responses.
+type Host struct {
+	ID   int64  `json:"id"`
+	Name string `json:"name"`
+}
+
+// GallResponse represents a gall in API responses.
+type GallResponse struct {
+	ID           int64         `json:"id"`
+	Name         string        `json:"name"`
+	GallID       int64         `json:"gall_id"`
+	Datacomplete bool          `json:"datacomplete"`
+	AbundanceID  *int64        `json:"abundance_id,omitempty"`
+	Detachable   *int64        `json:"detachable,omitempty"`
+	Undescribed  bool          `json:"undescribed"`
+	Aliases      []Alias       `json:"aliases"`
+	Hosts        []Host        `json:"hosts,omitempty"`
+	Colors       []FilterField `json:"colors,omitempty"`
+	Shapes       []FilterField `json:"shapes,omitempty"`
+	Textures     []FilterField `json:"textures,omitempty"`
+	Locations    []FilterField `json:"locations,omitempty"`
+	Alignments   []FilterField `json:"alignments,omitempty"`
+	Walls        []FilterField `json:"walls,omitempty"`
+	Cells        []FilterField `json:"cells,omitempty"`
+	Seasons      []FilterField `json:"seasons,omitempty"`
+	Forms        []FilterField `json:"forms,omitempty"`
+}
+
+// GallListResponse represents a paginated list of galls.
+type GallListResponse struct {
+	Data   []GallResponse `json:"data"`
+	Total  int64          `json:"total"`
+	Limit  *int64         `json:"limit,omitempty"`
+	Offset int64          `json:"offset"`
+}
+
+// GallCreateRequest represents the request body for creating a gall.
+type GallCreateRequest struct {
+	Name         string  `json:"name"`
+	Datacomplete bool    `json:"datacomplete"`
+	AbundanceID  *int64  `json:"abundance_id,omitempty"`
+	Detachable   *int64  `json:"detachable,omitempty"`
+	Undescribed  bool    `json:"undescribed"`
+	Aliases      []Alias `json:"aliases,omitempty"`
+	Hosts        []int64 `json:"hosts,omitempty"`
+	Colors       []int64 `json:"colors,omitempty"`
+	Shapes       []int64 `json:"shapes,omitempty"`
+	Textures     []int64 `json:"textures,omitempty"`
+	Locations    []int64 `json:"locations,omitempty"`
+	Alignments   []int64 `json:"alignments,omitempty"`
+	Walls        []int64 `json:"walls,omitempty"`
+	Cells        []int64 `json:"cells,omitempty"`
+	Seasons      []int64 `json:"seasons,omitempty"`
+	Forms        []int64 `json:"forms,omitempty"`
+}
+
+// GallUpdateRequest represents the request body for updating a gall.
+type GallUpdateRequest struct {
+	Name         string  `json:"name"`
+	Datacomplete bool    `json:"datacomplete"`
+	AbundanceID  *int64  `json:"abundance_id,omitempty"`
+	Detachable   *int64  `json:"detachable,omitempty"`
+	Undescribed  bool    `json:"undescribed"`
+	Aliases      []Alias `json:"aliases,omitempty"`
+	Hosts        []int64 `json:"hosts,omitempty"`
+	Colors       []int64 `json:"colors,omitempty"`
+	Shapes       []int64 `json:"shapes,omitempty"`
+	Textures     []int64 `json:"textures,omitempty"`
+	Locations    []int64 `json:"locations,omitempty"`
+	Alignments   []int64 `json:"alignments,omitempty"`
+	Walls        []int64 `json:"walls,omitempty"`
+	Cells        []int64 `json:"cells,omitempty"`
+	Seasons      []int64 `json:"seasons,omitempty"`
+	Forms        []int64 `json:"forms,omitempty"`
+}
+
+// RegisterRoutes registers gall routes on the router.
+func (h *GallHandler) RegisterRoutes(r chi.Router) {
+	r.Route("/galls", func(r chi.Router) {
+		// Public routes
+		r.Get("/", h.List)
+		r.Get("/{id}", h.GetByID)
+
+		// Protected routes - require authentication
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.RequireAuth)
+			r.Post("/", h.Create)
+			r.Put("/{id}", h.Update)
+			r.Delete("/{id}", h.Delete)
+		})
+	})
+}
+
+// List handles GET /api/v2/galls
+// Supports search via q query param and pagination via limit/offset.
+func (h *GallHandler) List(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	query := r.URL.Query()
+
+	// Parse pagination parameters
+	var limit *int64
+	var offset int64 = 0
+
+	if limitStr := query.Get("limit"); limitStr != "" {
+		l, err := strconv.ParseInt(limitStr, 10, 64)
+		if err != nil || l < 1 {
+			middleware.RespondBadRequest(w, "Invalid limit parameter")
+			return
+		}
+		limit = &l
+	}
+
+	if offsetStr := query.Get("offset"); offsetStr != "" {
+		o, err := strconv.ParseInt(offsetStr, 10, 64)
+		if err != nil || o < 0 {
+			middleware.RespondBadRequest(w, "Invalid offset parameter")
+			return
+		}
+		offset = o
+	}
+
+	searchQuery := query.Get("q")
+
+	var total int64
+	var galls []GallResponse
+	var err error
+
+	if searchQuery != "" {
+		// Search mode
+		total, err = h.queries.CountSearchGalls(ctx, sql.NullString{String: searchQuery, Valid: true})
+		if err != nil {
+			slog.Error("failed to count search galls", "error", err)
+			middleware.RespondInternalError(w, "Failed to count galls")
+			return
+		}
+
+		if limit != nil {
+			rows, err := h.queries.SearchGallsPaginated(ctx, db.SearchGallsPaginatedParams{
+				Column1: sql.NullString{String: searchQuery, Valid: true},
+				Limit:   *limit,
+				Offset:  offset,
+			})
+			if err != nil {
+				slog.Error("failed to search galls paginated", "error", err)
+				middleware.RespondInternalError(w, "Failed to search galls")
+				return
+			}
+			galls = make([]GallResponse, len(rows))
+			for i, row := range rows {
+				galls[i] = h.rowToGallResponse(ctx, row.ID, row.Name, row.Datacomplete,
+					row.AbundanceID, row.GallID, row.Detachable, row.Undescribed, false)
+			}
+		} else {
+			rows, err := h.queries.SearchGalls(ctx, sql.NullString{String: searchQuery, Valid: true})
+			if err != nil {
+				slog.Error("failed to search galls", "error", err)
+				middleware.RespondInternalError(w, "Failed to search galls")
+				return
+			}
+			galls = make([]GallResponse, len(rows))
+			for i, row := range rows {
+				galls[i] = h.rowToGallResponse(ctx, row.ID, row.Name, row.Datacomplete,
+					row.AbundanceID, row.GallID, row.Detachable, row.Undescribed, false)
+			}
+		}
+	} else {
+		// List mode
+		total, err = h.queries.CountGalls(ctx)
+		if err != nil {
+			slog.Error("failed to count galls", "error", err)
+			middleware.RespondInternalError(w, "Failed to count galls")
+			return
+		}
+
+		if limit != nil {
+			rows, err := h.queries.ListGallsPaginated(ctx, db.ListGallsPaginatedParams{
+				Limit:  *limit,
+				Offset: offset,
+			})
+			if err != nil {
+				slog.Error("failed to list galls paginated", "error", err)
+				middleware.RespondInternalError(w, "Failed to list galls")
+				return
+			}
+			galls = make([]GallResponse, len(rows))
+			for i, row := range rows {
+				galls[i] = h.rowToGallResponse(ctx, row.ID, row.Name, row.Datacomplete,
+					row.AbundanceID, row.GallID, row.Detachable, row.Undescribed, false)
+			}
+		} else {
+			rows, err := h.queries.ListGalls(ctx)
+			if err != nil {
+				slog.Error("failed to list galls", "error", err)
+				middleware.RespondInternalError(w, "Failed to list galls")
+				return
+			}
+			galls = make([]GallResponse, len(rows))
+			for i, row := range rows {
+				galls[i] = h.rowToGallResponse(ctx, row.ID, row.Name, row.Datacomplete,
+					row.AbundanceID, row.GallID, row.Detachable, row.Undescribed, false)
+			}
+		}
+	}
+
+	response := GallListResponse{
+		Data:   galls,
+		Total:  total,
+		Limit:  limit,
+		Offset: offset,
+	}
+
+	middleware.RespondOK(w, response)
+}
+
+// GetByID handles GET /api/v2/galls/{id}
+func (h *GallHandler) GetByID(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	idStr := chi.URLParam(r, "id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		middleware.RespondBadRequest(w, "Invalid gall ID")
+		return
+	}
+
+	row, err := h.queries.GetGallByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			middleware.RespondNotFound(w, "Gall not found")
+			return
+		}
+		slog.Error("failed to get gall", "error", err, "id", id)
+		middleware.RespondInternalError(w, "Failed to get gall")
+		return
+	}
+
+	gall := h.rowToGallResponse(ctx, row.ID, row.Name, row.Datacomplete,
+		row.AbundanceID, row.GallID, row.Detachable, row.Undescribed, true)
+
+	middleware.RespondOK(w, gall)
+}
+
+// Create handles POST /api/v2/galls
+func (h *GallHandler) Create(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var req GallCreateRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		middleware.RespondBadRequest(w, "Invalid request body")
+		return
+	}
+
+	if req.Name == "" {
+		middleware.RespondBadRequest(w, "Name is required")
+		return
+	}
+
+	// Create the species record
+	var abundanceID sql.NullInt64
+	if req.AbundanceID != nil {
+		abundanceID = sql.NullInt64{Int64: *req.AbundanceID, Valid: true}
+	}
+
+	speciesID, err := h.queries.CreateSpecies(ctx, db.CreateSpeciesParams{
+		Name:         req.Name,
+		Datacomplete: req.Datacomplete,
+		AbundanceID:  abundanceID,
+	})
+	if err != nil {
+		slog.Error("failed to create species", "error", err)
+		middleware.RespondInternalError(w, "Failed to create gall")
+		return
+	}
+
+	// Create the gall record
+	var detachable sql.NullInt64
+	if req.Detachable != nil {
+		detachable = sql.NullInt64{Int64: *req.Detachable, Valid: true}
+	}
+
+	gallID, err := h.queries.CreateGall(ctx, db.CreateGallParams{
+		Detachable:  detachable,
+		Undescribed: req.Undescribed,
+	})
+	if err != nil {
+		slog.Error("failed to create gall", "error", err)
+		// Clean up species
+		h.queries.DeleteSpeciesByID(ctx, speciesID)
+		middleware.RespondInternalError(w, "Failed to create gall")
+		return
+	}
+
+	// Link species to gall
+	if err := h.queries.CreateGallSpecies(ctx, db.CreateGallSpeciesParams{
+		SpeciesID: speciesID,
+		GallID:    gallID,
+	}); err != nil {
+		slog.Error("failed to link species to gall", "error", err)
+		h.queries.DeleteGallByID(ctx, gallID)
+		h.queries.DeleteSpeciesByID(ctx, speciesID)
+		middleware.RespondInternalError(w, "Failed to create gall")
+		return
+	}
+
+	// Create aliases
+	aliases := make([]Alias, 0, len(req.Aliases))
+	for _, alias := range req.Aliases {
+		aliasID, err := h.queries.CreateAlias(ctx, db.CreateAliasParams{
+			Name:        alias.Name,
+			Type:        alias.Type,
+			Description: alias.Description,
+		})
+		if err != nil {
+			slog.Error("failed to create alias", "error", err)
+			continue
+		}
+		if err := h.queries.CreateAliasSpecies(ctx, db.CreateAliasSpeciesParams{
+			SpeciesID: speciesID,
+			AliasID:   aliasID,
+		}); err != nil {
+			slog.Error("failed to link alias to species", "error", err)
+			continue
+		}
+		aliases = append(aliases, Alias{
+			ID:          aliasID,
+			Name:        alias.Name,
+			Type:        alias.Type,
+			Description: alias.Description,
+		})
+	}
+
+	// Create host associations
+	for _, hostID := range req.Hosts {
+		if err := h.queries.InsertHost(ctx, db.InsertHostParams{
+			HostSpeciesID: sql.NullInt64{Int64: hostID, Valid: true},
+			GallSpeciesID: sql.NullInt64{Int64: speciesID, Valid: true},
+		}); err != nil {
+			slog.Error("failed to create host association", "error", err, "hostID", hostID)
+		}
+	}
+
+	// Create filter field associations
+	h.createFilterAssociations(ctx, gallID, req.Colors, req.Shapes, req.Textures,
+		req.Locations, req.Alignments, req.Walls, req.Cells, req.Seasons, req.Forms)
+
+	response := GallResponse{
+		ID:           speciesID,
+		Name:         req.Name,
+		GallID:       gallID,
+		Datacomplete: req.Datacomplete,
+		AbundanceID:  req.AbundanceID,
+		Detachable:   req.Detachable,
+		Undescribed:  req.Undescribed,
+		Aliases:      aliases,
+	}
+
+	middleware.RespondCreated(w, response)
+}
+
+// Update handles PUT /api/v2/galls/{id}
+func (h *GallHandler) Update(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	idStr := chi.URLParam(r, "id")
+	speciesID, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		middleware.RespondBadRequest(w, "Invalid gall ID")
+		return
+	}
+
+	// Check if gall exists
+	existing, err := h.queries.GetGallByID(ctx, speciesID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			middleware.RespondNotFound(w, "Gall not found")
+			return
+		}
+		slog.Error("failed to get gall", "error", err, "id", speciesID)
+		middleware.RespondInternalError(w, "Failed to get gall")
+		return
+	}
+
+	var req GallUpdateRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		middleware.RespondBadRequest(w, "Invalid request body")
+		return
+	}
+
+	if req.Name == "" {
+		middleware.RespondBadRequest(w, "Name is required")
+		return
+	}
+
+	// Update species
+	var abundanceID sql.NullInt64
+	if req.AbundanceID != nil {
+		abundanceID = sql.NullInt64{Int64: *req.AbundanceID, Valid: true}
+	}
+
+	if err := h.queries.UpdateSpecies(ctx, db.UpdateSpeciesParams{
+		Name:         req.Name,
+		Datacomplete: req.Datacomplete,
+		AbundanceID:  abundanceID,
+		ID:           speciesID,
+	}); err != nil {
+		slog.Error("failed to update species", "error", err)
+		middleware.RespondInternalError(w, "Failed to update gall")
+		return
+	}
+
+	// Update gall
+	var detachable sql.NullInt64
+	if req.Detachable != nil {
+		detachable = sql.NullInt64{Int64: *req.Detachable, Valid: true}
+	}
+
+	if err := h.queries.UpdateGall(ctx, db.UpdateGallParams{
+		Detachable:  detachable,
+		Undescribed: req.Undescribed,
+		ID:          existing.GallID,
+	}); err != nil {
+		slog.Error("failed to update gall", "error", err)
+		middleware.RespondInternalError(w, "Failed to update gall")
+		return
+	}
+
+	// Update aliases - delete existing and recreate
+	h.queries.DeleteAliasSpeciesBySpeciesID(ctx, speciesID)
+	h.queries.DeleteAliasBySpeciesID(ctx, speciesID)
+
+	aliases := make([]Alias, 0, len(req.Aliases))
+	for _, alias := range req.Aliases {
+		aliasID, err := h.queries.CreateAlias(ctx, db.CreateAliasParams{
+			Name:        alias.Name,
+			Type:        alias.Type,
+			Description: alias.Description,
+		})
+		if err != nil {
+			slog.Error("failed to create alias", "error", err)
+			continue
+		}
+		if err := h.queries.CreateAliasSpecies(ctx, db.CreateAliasSpeciesParams{
+			SpeciesID: speciesID,
+			AliasID:   aliasID,
+		}); err != nil {
+			slog.Error("failed to link alias to species", "error", err)
+			continue
+		}
+		aliases = append(aliases, Alias{
+			ID:          aliasID,
+			Name:        alias.Name,
+			Type:        alias.Type,
+			Description: alias.Description,
+		})
+	}
+
+	// Update hosts - delete existing and recreate
+	h.queries.DeleteHostsByGallSpeciesID(ctx, sql.NullInt64{Int64: speciesID, Valid: true})
+	for _, hostID := range req.Hosts {
+		if err := h.queries.InsertHost(ctx, db.InsertHostParams{
+			HostSpeciesID: sql.NullInt64{Int64: hostID, Valid: true},
+			GallSpeciesID: sql.NullInt64{Int64: speciesID, Valid: true},
+		}); err != nil {
+			slog.Error("failed to create host association", "error", err, "hostID", hostID)
+		}
+	}
+
+	// Update filter associations - delete existing and recreate
+	gallID := existing.GallID
+	h.queries.DeleteGallColors(ctx, gallID)
+	h.queries.DeleteGallShapes(ctx, gallID)
+	h.queries.DeleteGallTextures(ctx, gallID)
+	h.queries.DeleteGallLocations(ctx, gallID)
+	h.queries.DeleteGallAlignments(ctx, gallID)
+	h.queries.DeleteGallWalls(ctx, gallID)
+	h.queries.DeleteGallCells(ctx, gallID)
+	h.queries.DeleteGallSeasons(ctx, sql.NullInt64{Int64: gallID, Valid: true})
+	h.queries.DeleteGallForms(ctx, gallID)
+
+	h.createFilterAssociations(ctx, gallID, req.Colors, req.Shapes, req.Textures,
+		req.Locations, req.Alignments, req.Walls, req.Cells, req.Seasons, req.Forms)
+
+	response := GallResponse{
+		ID:           speciesID,
+		Name:         req.Name,
+		GallID:       gallID,
+		Datacomplete: req.Datacomplete,
+		AbundanceID:  req.AbundanceID,
+		Detachable:   req.Detachable,
+		Undescribed:  req.Undescribed,
+		Aliases:      aliases,
+	}
+
+	middleware.RespondOK(w, response)
+}
+
+// Delete handles DELETE /api/v2/galls/{id}
+func (h *GallHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	idStr := chi.URLParam(r, "id")
+	speciesID, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		middleware.RespondBadRequest(w, "Invalid gall ID")
+		return
+	}
+
+	// Check if gall exists and get gall_id
+	existing, err := h.queries.GetGallByID(ctx, speciesID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			middleware.RespondNotFound(w, "Gall not found")
+			return
+		}
+		slog.Error("failed to get gall", "error", err, "id", speciesID)
+		middleware.RespondInternalError(w, "Failed to delete gall")
+		return
+	}
+
+	// Delete in order to respect foreign key constraints
+	gallID := existing.GallID
+
+	// Delete filter associations
+	h.queries.DeleteGallColors(ctx, gallID)
+	h.queries.DeleteGallShapes(ctx, gallID)
+	h.queries.DeleteGallTextures(ctx, gallID)
+	h.queries.DeleteGallLocations(ctx, gallID)
+	h.queries.DeleteGallAlignments(ctx, gallID)
+	h.queries.DeleteGallWalls(ctx, gallID)
+	h.queries.DeleteGallCells(ctx, gallID)
+	h.queries.DeleteGallSeasons(ctx, sql.NullInt64{Int64: gallID, Valid: true})
+	h.queries.DeleteGallForms(ctx, gallID)
+
+	// Delete hosts
+	h.queries.DeleteHostsByGallSpeciesID(ctx, sql.NullInt64{Int64: speciesID, Valid: true})
+
+	// Delete aliases
+	h.queries.DeleteAliasSpeciesBySpeciesID(ctx, speciesID)
+	h.queries.DeleteAliasBySpeciesID(ctx, speciesID)
+
+	// Delete gall-species link
+	h.queries.DeleteGallSpecies(ctx, speciesID)
+
+	// Delete gall
+	h.queries.DeleteGallByID(ctx, gallID)
+
+	// Delete species (this should cascade, but being explicit)
+	if err := h.queries.DeleteSpeciesByID(ctx, speciesID); err != nil {
+		slog.Error("failed to delete species", "error", err, "id", speciesID)
+		middleware.RespondInternalError(w, "Failed to delete gall")
+		return
+	}
+
+	middleware.RespondNoContent(w)
+}
+
+// Helper methods
+
+func (h *GallHandler) rowToGallResponse(ctx context.Context, id int64, name string, datacomplete bool,
+	abundanceID sql.NullInt64, gallID int64, detachable sql.NullInt64, undescribed bool, includeDetails bool) GallResponse {
+
+	response := GallResponse{
+		ID:           id,
+		Name:         name,
+		GallID:       gallID,
+		Datacomplete: datacomplete,
+		Undescribed:  undescribed,
+	}
+
+	if abundanceID.Valid {
+		response.AbundanceID = &abundanceID.Int64
+	}
+	if detachable.Valid {
+		response.Detachable = &detachable.Int64
+	}
+
+	// Always fetch aliases
+	aliases, err := h.queries.GetAliasesBySpeciesID(ctx, id)
+	if err != nil {
+		slog.Error("failed to get aliases", "error", err, "speciesID", id)
+		response.Aliases = []Alias{}
+	} else {
+		response.Aliases = make([]Alias, len(aliases))
+		for i, a := range aliases {
+			response.Aliases[i] = Alias{
+				ID:          a.ID,
+				Name:        a.Name,
+				Type:        a.Type,
+				Description: a.Description,
+			}
+		}
+	}
+
+	// Only fetch detailed data for single-item requests (not lists)
+	if includeDetails {
+		// Fetch hosts
+		hosts, err := h.queries.GetGallHosts(ctx, sql.NullInt64{Int64: id, Valid: true})
+		if err != nil {
+			slog.Error("failed to get hosts", "error", err, "speciesID", id)
+		} else {
+			response.Hosts = make([]Host, len(hosts))
+			for i, h := range hosts {
+				response.Hosts[i] = Host{ID: h.HostSpeciesID, Name: h.HostName}
+			}
+		}
+
+		// Fetch filter fields
+		response.Colors = h.getColors(ctx, gallID)
+		response.Shapes = h.getShapes(ctx, gallID)
+		response.Textures = h.getTextures(ctx, gallID)
+		response.Locations = h.getLocations(ctx, gallID)
+		response.Alignments = h.getAlignments(ctx, gallID)
+		response.Walls = h.getWalls(ctx, gallID)
+		response.Cells = h.getCells(ctx, gallID)
+		response.Seasons = h.getSeasons(ctx, gallID)
+		response.Forms = h.getForms(ctx, gallID)
+	}
+
+	return response
+}
+
+func (h *GallHandler) getColors(ctx context.Context, gallID int64) []FilterField {
+	colors, err := h.queries.GetGallColors(ctx, gallID)
+	if err != nil {
+		return []FilterField{}
+	}
+	result := make([]FilterField, len(colors))
+	for i, c := range colors {
+		result[i] = FilterField{ID: c.ID, Field: c.Color}
+	}
+	return result
+}
+
+func (h *GallHandler) getShapes(ctx context.Context, gallID int64) []FilterField {
+	shapes, err := h.queries.GetGallShapes(ctx, gallID)
+	if err != nil {
+		return []FilterField{}
+	}
+	result := make([]FilterField, len(shapes))
+	for i, s := range shapes {
+		result[i] = FilterField{ID: s.ID, Field: s.Shape}
+		if s.Description.Valid {
+			result[i].Description = &s.Description.String
+		}
+	}
+	return result
+}
+
+func (h *GallHandler) getTextures(ctx context.Context, gallID int64) []FilterField {
+	textures, err := h.queries.GetGallTextures(ctx, gallID)
+	if err != nil {
+		return []FilterField{}
+	}
+	result := make([]FilterField, len(textures))
+	for i, t := range textures {
+		result[i] = FilterField{ID: t.ID, Field: t.Texture}
+		if t.Description.Valid {
+			result[i].Description = &t.Description.String
+		}
+	}
+	return result
+}
+
+func (h *GallHandler) getLocations(ctx context.Context, gallID int64) []FilterField {
+	locations, err := h.queries.GetGallLocations(ctx, gallID)
+	if err != nil {
+		return []FilterField{}
+	}
+	result := make([]FilterField, len(locations))
+	for i, l := range locations {
+		result[i] = FilterField{ID: l.ID, Field: l.Location}
+		if l.Description.Valid {
+			result[i].Description = &l.Description.String
+		}
+	}
+	return result
+}
+
+func (h *GallHandler) getAlignments(ctx context.Context, gallID int64) []FilterField {
+	alignments, err := h.queries.GetGallAlignments(ctx, gallID)
+	if err != nil {
+		return []FilterField{}
+	}
+	result := make([]FilterField, len(alignments))
+	for i, a := range alignments {
+		result[i] = FilterField{ID: a.ID, Field: a.Alignment}
+		if a.Description.Valid {
+			result[i].Description = &a.Description.String
+		}
+	}
+	return result
+}
+
+func (h *GallHandler) getWalls(ctx context.Context, gallID int64) []FilterField {
+	walls, err := h.queries.GetGallWalls(ctx, gallID)
+	if err != nil {
+		return []FilterField{}
+	}
+	result := make([]FilterField, len(walls))
+	for i, w := range walls {
+		result[i] = FilterField{ID: w.ID, Field: w.Walls}
+		if w.Description.Valid {
+			result[i].Description = &w.Description.String
+		}
+	}
+	return result
+}
+
+func (h *GallHandler) getCells(ctx context.Context, gallID int64) []FilterField {
+	cells, err := h.queries.GetGallCells(ctx, gallID)
+	if err != nil {
+		return []FilterField{}
+	}
+	result := make([]FilterField, len(cells))
+	for i, c := range cells {
+		result[i] = FilterField{ID: c.ID, Field: c.Cells}
+		if c.Description.Valid {
+			result[i].Description = &c.Description.String
+		}
+	}
+	return result
+}
+
+func (h *GallHandler) getSeasons(ctx context.Context, gallID int64) []FilterField {
+	seasons, err := h.queries.GetGallSeasons(ctx, sql.NullInt64{Int64: gallID, Valid: true})
+	if err != nil {
+		return []FilterField{}
+	}
+	result := make([]FilterField, len(seasons))
+	for i, s := range seasons {
+		result[i] = FilterField{ID: s.ID, Field: s.Season}
+	}
+	return result
+}
+
+func (h *GallHandler) getForms(ctx context.Context, gallID int64) []FilterField {
+	forms, err := h.queries.GetGallForms(ctx, gallID)
+	if err != nil {
+		return []FilterField{}
+	}
+	result := make([]FilterField, len(forms))
+	for i, f := range forms {
+		result[i] = FilterField{ID: f.ID, Field: f.Form}
+		if f.Description.Valid {
+			result[i].Description = &f.Description.String
+		}
+	}
+	return result
+}
+
+func (h *GallHandler) createFilterAssociations(ctx context.Context, gallID int64,
+	colors, shapes, textures, locations, alignments, walls, cells, seasons, forms []int64) {
+
+	for _, id := range colors {
+		h.queries.InsertGallColor(ctx, db.InsertGallColorParams{GallID: gallID, ColorID: id})
+	}
+	for _, id := range shapes {
+		h.queries.InsertGallShape(ctx, db.InsertGallShapeParams{GallID: gallID, ShapeID: id})
+	}
+	for _, id := range textures {
+		h.queries.InsertGallTexture(ctx, db.InsertGallTextureParams{GallID: gallID, TextureID: id})
+	}
+	for _, id := range locations {
+		h.queries.InsertGallLocation(ctx, db.InsertGallLocationParams{GallID: gallID, LocationID: id})
+	}
+	for _, id := range alignments {
+		h.queries.InsertGallAlignment(ctx, db.InsertGallAlignmentParams{GallID: gallID, AlignmentID: id})
+	}
+	for _, id := range walls {
+		h.queries.InsertGallWalls(ctx, db.InsertGallWallsParams{GallID: gallID, WallsID: id})
+	}
+	for _, id := range cells {
+		h.queries.InsertGallCells(ctx, db.InsertGallCellsParams{GallID: gallID, CellsID: id})
+	}
+	for _, id := range seasons {
+		h.queries.InsertGallSeason(ctx, db.InsertGallSeasonParams{
+			GallID:   sql.NullInt64{Int64: gallID, Valid: true},
+			SeasonID: sql.NullInt64{Int64: id, Valid: true},
+		})
+	}
+	for _, id := range forms {
+		h.queries.InsertGallForm(ctx, db.InsertGallFormParams{GallID: gallID, FormID: id})
+	}
+}

@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "watchmen start iowa"
+            "command": "/Users/jeff/go/bin/watchmen start iowa"
           }
         ]
       }

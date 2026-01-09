@@ -23,8 +23,9 @@ RUN go mod download
 # Copy API source code
 COPY api/ .
 
-# Copy built web static files for embedding
-COPY --from=web-builder /app/web/build ./web/build
+# Copy built web static files to cmd/server/static for Go embedding
+# (main.go uses //go:embed static/* which embeds from cmd/server/static/)
+COPY --from=web-builder /app/web/build ./cmd/server/static
 
 # Build with CGO enabled for SQLite
 ARG VERSION=dev

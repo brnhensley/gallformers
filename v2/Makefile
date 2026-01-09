@@ -13,14 +13,16 @@ dev:
 	@echo "Starting API server on http://localhost:8080"
 	@echo "Starting web dev server on http://localhost:5173"
 	@echo "Press Ctrl+C to stop both..."
-	@trap 'kill 0' INT; \
+	@if [ -f .env ]; then set -a && . ./.env && set +a; fi && \
+		trap 'kill 0' INT && \
 		(cd api && $(MAKE) run) & \
 		(cd web && npm run dev) & \
 		wait
 
-# Start only the API server
+# Start only the API server (loads .env from v2/)
 dev-api:
-	cd api && $(MAKE) run
+	@if [ -f .env ]; then set -a && . ./.env && set +a; fi && \
+		cd api && $(MAKE) run
 
 # Start only the web dev server
 dev-web:

@@ -72,9 +72,44 @@ V2 deploys to Fly.io automatically via CI/CD when changes are pushed to `v2/` on
 
 Manual deployment: `fly deploy` from `v2/` directory.
 
+## API Development
+
+### sqlc Workflow
+
+Database queries use [sqlc](https://sqlc.dev/) for type-safe code generation:
+
+1. Add/modify queries in `api/internal/db/queries/*.sql`
+2. Run `make generate` from `v2/api/` (or `~/go/bin/sqlc generate`)
+3. Generated code appears in `api/internal/db/generated/`
+
+### Handler Patterns
+
+Domain handlers follow a consistent pattern:
+
+```go
+type FooHandler struct {
+    queries *db.Queries
+}
+
+func NewFooHandler(q *db.Queries) *FooHandler {
+    return &FooHandler{queries: q}
+}
+
+func (h *FooHandler) RegisterRoutes(r chi.Router) {
+    r.Route("/foos", func(r chi.Router) {
+        r.Get("/", h.List)
+        r.Get("/{id}", h.GetByID)
+        r.With(mw.RequireAuth).Post("/", h.Create)
+        r.With(mw.RequireAuth).Put("/{id}", h.Update)
+        r.With(mw.RequireAuth).Delete("/{id}", h.Delete)
+    })
+}
+```
+
+Use `middleware.RespondJSON()` and `middleware.RespondError()` for responses.
+
 ## Important Notes
 
 - The v1 site (Next.js on Digital Ocean) continues running until cutover
 - All v2 work must stay within the `v2/` directory
 - Use the beads workflow for issue tracking (`bd` commands)
-# CI test

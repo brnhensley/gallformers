@@ -1,0 +1,3425 @@
+openapi: 3.0.3
+info:
+  title: Gallformers API
+  version: 2.0.0
+  description: |
+    REST API for gallformers.org - a comprehensive database and reference guide for galls,
+    the abnormal plant growths caused by insects, mites, and other organisms.
+
+    ## Authentication
+
+    Most read endpoints are public. Write operations (POST, PUT, DELETE) require authentication
+    via Auth0 JWT token stored in an httpOnly cookie.
+
+    ## Rate Limiting
+
+    No rate limiting is currently implemented.
+  contact:
+    name: Gallformers
+    url: https://gallformers.org
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://gallformers.fly.dev
+    description: Staging server (Fly.io)
+  - url: https://gallformers.org
+    description: Production server
+  - url: http://localhost:8080
+    description: Local development server
+
+tags:
+  - name: Health
+    description: Health check endpoints
+  - name: Galls
+    description: Gall species management
+  - name: Hosts
+    description: Host plant management
+  - name: Species
+    description: Generic species queries
+  - name: Taxonomy
+    description: Taxonomic hierarchy management
+  - name: Sources
+    description: Reference and citation management
+  - name: Glossary
+    description: Glossary term management
+  - name: Places
+    description: Geographic location management
+  - name: Search
+    description: Global search functionality
+  - name: Auth
+    description: Authentication endpoints
+  - name: FilterFields
+    description: Filter field value management (colors, shapes, textures, etc.)
+  - name: SpeciesSources
+    description: Species-source relationship management
+  - name: GallHosts
+    description: Gall-host relationship management
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: auth_token
+      description: |
+        Auth0 JWT token stored in httpOnly cookie. Set after successful login
+        via the /api/v2/auth/callback endpoint.
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              description: Machine-readable error code
+              example: NOT_FOUND
+            message:
+              type: string
+              description: Human-readable error message
+              example: Gall with ID 123 not found
+          required:
+            - code
+            - message
+      required:
+        - error
+
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded]
+          description: Overall health status
+        database:
+          type: string
+          enum: [connected, unavailable]
+          description: Database connection status
+      required:
+        - status
+        - database
+
+    PaginatedResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items: {}
+          description: Array of results
+        total:
+          type: integer
+          description: Total number of results available
+        limit:
+          type: integer
+          description: Maximum results returned
+        offset:
+          type: integer
+          description: Number of results skipped
+
+    Species:
+      type: object
+      description: A species record (gall-forming organism or host plant)
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Unique identifier
+          example: 1234
+        name:
+          type: string
+          description: Scientific name
+          example: "Andricus quercuscalifornicus"
+        taxoncode:
+          type: string
+          nullable: true
+          description: Type of taxon (gall, plant, etc.)
+          example: "gall"
+        datacomplete:
+          type: boolean
+          description: Whether data for this species is considered complete
+          example: false
+        abundance_id:
+          type: integer
+          format: int64
+          nullable: true
+          description: Reference to abundance level
+          example: 2
+        abundance:
+          type: string
+          nullable: true
+          description: Abundance level name
+          example: "common"
+      required:
+        - id
+        - name
+        - datacomplete
+
+    SpeciesListResponse:
+      type: object
+      description: Paginated list of species
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Species'
+        total:
+          type: integer
+          format: int64
+          description: Total number of species matching query
+        limit:
+          type: integer
+          nullable: true
+          description: Limit applied to results (if any)
+        offset:
+          type: integer
+          description: Offset applied to results
+      required:
+        - data
+        - total
+        - offset
+
+    Alias:
+      type: object
+      description: An alias (alternative name) for a species
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Unique identifier
+        name:
+          type: string
+          description: The alias name
+        type:
+          type: string
+          enum: [common, scientific]
+          description: Type of alias
+        description:
+          type: string
+          description: Optional description of the alias
+      required:
+        - id
+        - name
+        - type
+        - description
+
+    FilterField:
+      type: object
+      description: A filter field value (color, shape, texture, etc.)
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Unique identifier
+        field:
+          type: string
+          description: The field value
+        description:
+          type: string
+          nullable: true
+          description: Optional description
+      required:
+        - id
+        - field
+
+    Host:
+      type: object
+      description: A host plant for a gall
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Species ID of the host
+        name:
+          type: string
+          description: Name of the host species
+      required:
+        - id
+        - name
+
+    Gall:
+      type: object
+      description: A gall species with all associated data
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Species ID
+        name:
+          type: string
+          description: Scientific name
+        gall_id:
+          type: integer
+          format: int64
+          description: Gall table ID
+        datacomplete:
+          type: boolean
+          description: Whether data is complete
+        abundance_id:
+          type: integer
+          format: int64
+          nullable: true
+          description: Abundance level ID
+        detachable:
+          type: integer
+          nullable: true
+          description: Detachability value (0=none, 1=integral, 2=detachable, 3=both)
+        undescribed:
+          type: boolean
+          description: Whether this is an undescribed species
+        aliases:
+          type: array
+          items:
+            $ref: '#/components/schemas/Alias'
+        hosts:
+          type: array
+          items:
+            $ref: '#/components/schemas/Host'
+        colors:
+          type: array
+          items:
+            $ref: '#/components/schemas/FilterField'
+        shapes:
+          type: array
+          items:
+            $ref: '#/components/schemas/FilterField'
+        textures:
+          type: array
+          items:
+            $ref: '#/components/schemas/FilterField'
+        locations:
+          type: array
+          items:
+            $ref: '#/components/schemas/FilterField'
+        alignments:
+          type: array
+          items:
+            $ref: '#/components/schemas/FilterField'
+        walls:
+          type: array
+          items:
+            $ref: '#/components/schemas/FilterField'
+        cells:
+          type: array
+          items:
+            $ref: '#/components/schemas/FilterField'
+        seasons:
+          type: array
+          items:
+            $ref: '#/components/schemas/FilterField'
+        forms:
+          type: array
+          items:
+            $ref: '#/components/schemas/FilterField'
+      required:
+        - id
+        - name
+        - gall_id
+        - datacomplete
+        - undescribed
+        - aliases
+
+    GallListResponse:
+      type: object
+      description: Paginated list of galls
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Gall'
+        total:
+          type: integer
+          format: int64
+          description: Total number of galls matching query
+        limit:
+          type: integer
+          nullable: true
+          description: Limit applied to results (if any)
+        offset:
+          type: integer
+          description: Offset applied to results
+      required:
+        - data
+        - total
+        - offset
+
+    GallCreateRequest:
+      type: object
+      description: Request body for creating a gall
+      properties:
+        name:
+          type: string
+          description: Scientific name (required)
+        datacomplete:
+          type: boolean
+          description: Whether data is complete
+        abundance_id:
+          type: integer
+          format: int64
+          nullable: true
+        detachable:
+          type: integer
+          nullable: true
+          description: Detachability value
+        undescribed:
+          type: boolean
+        aliases:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              type:
+                type: string
+                enum: [common, scientific]
+              description:
+                type: string
+        hosts:
+          type: array
+          items:
+            type: integer
+            format: int64
+          description: Array of host species IDs
+        colors:
+          type: array
+          items:
+            type: integer
+            format: int64
+        shapes:
+          type: array
+          items:
+            type: integer
+            format: int64
+        textures:
+          type: array
+          items:
+            type: integer
+            format: int64
+        locations:
+          type: array
+          items:
+            type: integer
+            format: int64
+        alignments:
+          type: array
+          items:
+            type: integer
+            format: int64
+        walls:
+          type: array
+          items:
+            type: integer
+            format: int64
+        cells:
+          type: array
+          items:
+            type: integer
+            format: int64
+        seasons:
+          type: array
+          items:
+            type: integer
+            format: int64
+        forms:
+          type: array
+          items:
+            type: integer
+            format: int64
+      required:
+        - name
+
+    GallUpdateRequest:
+      type: object
+      description: Request body for updating a gall
+      properties:
+        name:
+          type: string
+          description: Scientific name (required)
+        datacomplete:
+          type: boolean
+        abundance_id:
+          type: integer
+          format: int64
+          nullable: true
+        detachable:
+          type: integer
+          nullable: true
+        undescribed:
+          type: boolean
+        aliases:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              type:
+                type: string
+                enum: [common, scientific]
+              description:
+                type: string
+        hosts:
+          type: array
+          items:
+            type: integer
+            format: int64
+        colors:
+          type: array
+          items:
+            type: integer
+            format: int64
+        shapes:
+          type: array
+          items:
+            type: integer
+            format: int64
+        textures:
+          type: array
+          items:
+            type: integer
+            format: int64
+        locations:
+          type: array
+          items:
+            type: integer
+            format: int64
+        alignments:
+          type: array
+          items:
+            type: integer
+            format: int64
+        walls:
+          type: array
+          items:
+            type: integer
+            format: int64
+        cells:
+          type: array
+          items:
+            type: integer
+            format: int64
+        seasons:
+          type: array
+          items:
+            type: integer
+            format: int64
+        forms:
+          type: array
+          items:
+            type: integer
+            format: int64
+      required:
+        - name
+
+    HostResponse:
+      type: object
+      description: A host plant species with all associated data
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Species ID
+        name:
+          type: string
+          description: Scientific name
+        datacomplete:
+          type: boolean
+          description: Whether data is complete
+        abundance_id:
+          type: integer
+          format: int64
+          nullable: true
+          description: Abundance level ID
+        abundance:
+          type: string
+          nullable: true
+          description: Abundance level name
+        aliases:
+          type: array
+          items:
+            $ref: '#/components/schemas/Alias'
+        places:
+          type: array
+          items:
+            $ref: '#/components/schemas/Place'
+        galls:
+          type: array
+          items:
+            $ref: '#/components/schemas/Host'
+          description: Galls associated with this host
+      required:
+        - id
+        - name
+        - datacomplete
+        - aliases
+
+    HostSimpleResponse:
+      type: object
+      description: A simplified host response for list views
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Species ID
+        name:
+          type: string
+          description: Scientific name
+        datacomplete:
+          type: boolean
+          description: Whether data is complete
+        aliases:
+          type: array
+          items:
+            $ref: '#/components/schemas/Alias'
+        places:
+          type: array
+          items:
+            $ref: '#/components/schemas/Place'
+      required:
+        - id
+        - name
+        - datacomplete
+        - aliases
+        - places
+
+    HostListResponse:
+      type: object
+      description: Paginated list of hosts
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/HostResponse'
+        total:
+          type: integer
+          format: int64
+          description: Total number of hosts matching query
+        limit:
+          type: integer
+          nullable: true
+          description: Limit applied to results (if any)
+        offset:
+          type: integer
+          description: Offset applied to results
+      required:
+        - data
+        - total
+        - offset
+
+    HostSimpleListResponse:
+      type: object
+      description: Paginated list of simplified hosts
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/HostSimpleResponse'
+        total:
+          type: integer
+          format: int64
+          description: Total number of hosts matching query
+        limit:
+          type: integer
+          nullable: true
+          description: Limit applied to results (if any)
+        offset:
+          type: integer
+          description: Offset applied to results
+      required:
+        - data
+        - total
+        - offset
+
+    HostCreateRequest:
+      type: object
+      description: Request body for creating a host
+      properties:
+        name:
+          type: string
+          description: Scientific name (required)
+        datacomplete:
+          type: boolean
+          description: Whether data is complete
+        abundance_id:
+          type: integer
+          format: int64
+          nullable: true
+        aliases:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              type:
+                type: string
+                enum: [common, scientific]
+              description:
+                type: string
+        places:
+          type: array
+          items:
+            type: integer
+            format: int64
+          description: Array of place IDs
+      required:
+        - name
+
+    HostUpdateRequest:
+      type: object
+      description: Request body for updating a host
+      properties:
+        name:
+          type: string
+          description: Scientific name (required)
+        datacomplete:
+          type: boolean
+        abundance_id:
+          type: integer
+          format: int64
+          nullable: true
+        aliases:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              type:
+                type: string
+                enum: [common, scientific]
+              description:
+                type: string
+        places:
+          type: array
+          items:
+            type: integer
+            format: int64
+          description: Array of place IDs
+      required:
+        - name
+
+    Source:
+      type: object
+      description: A reference source (book, paper, website, etc.)
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Unique identifier
+        title:
+          type: string
+          description: Title of the source
+        author:
+          type: string
+          description: Author(s) of the source
+        pubyear:
+          type: string
+          description: Publication year
+        link:
+          type: string
+          description: URL link to the source
+        citation:
+          type: string
+          description: Full citation text
+        datacomplete:
+          type: boolean
+          description: Whether data for this source is considered complete
+        license:
+          type: string
+          description: License type
+        licenselink:
+          type: string
+          description: URL to license details
+      required:
+        - id
+        - title
+        - author
+        - pubyear
+        - link
+        - citation
+        - datacomplete
+        - license
+        - licenselink
+
+    SpeciesSourceInfo:
+      type: object
+      description: Information about the species-source relationship
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: SpeciesSource record ID
+        description:
+          type: string
+          description: Description of how this source relates to the species
+        useasdefault:
+          type: integer
+          description: Whether to use this as the default source
+        externallink:
+          type: string
+          description: External link related to this species-source relationship
+      required:
+        - id
+        - description
+        - useasdefault
+        - externallink
+
+    SourceWithSpeciesSource:
+      type: object
+      description: A source with its speciessource relationship data
+      allOf:
+        - $ref: '#/components/schemas/Source'
+        - type: object
+          properties:
+            speciessource:
+              $ref: '#/components/schemas/SpeciesSourceInfo'
+
+    SourceListResponse:
+      type: object
+      description: Paginated list of sources
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Source'
+        total:
+          type: integer
+          format: int64
+          description: Total number of sources matching query
+        limit:
+          type: integer
+          nullable: true
+          description: Limit applied to results (if any)
+        offset:
+          type: integer
+          description: Offset applied to results
+      required:
+        - data
+        - total
+        - offset
+
+    SourceCreateRequest:
+      type: object
+      description: Request body for creating a source
+      properties:
+        title:
+          type: string
+          description: Title of the source (required)
+        author:
+          type: string
+          description: Author(s) of the source
+        pubyear:
+          type: string
+          description: Publication year
+        link:
+          type: string
+          description: URL link to the source
+        citation:
+          type: string
+          description: Full citation text
+        datacomplete:
+          type: boolean
+          description: Whether data is complete
+        license:
+          type: string
+          description: License type
+        licenselink:
+          type: string
+          description: URL to license details
+      required:
+        - title
+
+    SourceUpdateRequest:
+      type: object
+      description: Request body for updating a source
+      properties:
+        title:
+          type: string
+          description: Title of the source (required)
+        author:
+          type: string
+          description: Author(s) of the source
+        pubyear:
+          type: string
+          description: Publication year
+        link:
+          type: string
+          description: URL link to the source
+        citation:
+          type: string
+          description: Full citation text
+        datacomplete:
+          type: boolean
+          description: Whether data is complete
+        license:
+          type: string
+          description: License type
+        licenselink:
+          type: string
+          description: URL to license details
+      required:
+        - title
+
+    TaxonomyEntry:
+      type: object
+      description: A taxonomy entry (family, genus, or section)
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Unique identifier
+        name:
+          type: string
+          description: Taxonomy name
+        description:
+          type: string
+          description: Description or notes
+        type:
+          type: string
+          enum: [family, genus, section]
+          description: Type of taxonomy entry
+        parent_id:
+          type: integer
+          format: int64
+          nullable: true
+          description: Parent taxonomy ID (genus -> family)
+        parent_name:
+          type: string
+          nullable: true
+          description: Parent taxonomy name
+        parent_type:
+          type: string
+          nullable: true
+          description: Parent taxonomy type
+      required:
+        - id
+        - name
+        - description
+        - type
+
+    TaxonomyListResponse:
+      type: object
+      description: Paginated list of taxonomy entries
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaxonomyEntry'
+        total:
+          type: integer
+          format: int64
+        offset:
+          type: integer
+      required:
+        - data
+        - total
+        - offset
+
+    FamilyResponse:
+      type: object
+      description: A family with its genera
+      allOf:
+        - $ref: '#/components/schemas/TaxonomyEntry'
+        - type: object
+          properties:
+            genera:
+              type: array
+              items:
+                $ref: '#/components/schemas/TaxonomyEntry'
+              description: List of genera in this family
+
+    SectionResponse:
+      type: object
+      description: A section with species and aliases
+      allOf:
+        - $ref: '#/components/schemas/TaxonomyEntry'
+        - type: object
+          properties:
+            species:
+              type: array
+              items:
+                $ref: '#/components/schemas/SimpleSpecies'
+              description: Species in this section
+            aliases:
+              type: array
+              items:
+                $ref: '#/components/schemas/Alias'
+              description: Aliases for this section
+
+    SimpleSpecies:
+      type: object
+      description: Minimal species info
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        taxoncode:
+          type: string
+          nullable: true
+        datacomplete:
+          type: boolean
+        abundance_id:
+          type: integer
+          format: int64
+          nullable: true
+      required:
+        - id
+        - name
+        - datacomplete
+
+    FGS:
+      type: object
+      description: Family-Genus-Section for a species
+      properties:
+        family:
+          $ref: '#/components/schemas/TaxonomyEntry'
+        genus:
+          $ref: '#/components/schemas/TaxonomyEntry'
+        section:
+          $ref: '#/components/schemas/TaxonomyEntry'
+          nullable: true
+          description: Optional section
+      required:
+        - family
+        - genus
+
+    TaxonomyUpsertRequest:
+      type: object
+      description: Request body for creating/updating taxonomy
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: ID for update (omit or <= 0 for create)
+        name:
+          type: string
+          description: Taxonomy name (required)
+        description:
+          type: string
+          description: Description or notes
+        type:
+          type: string
+          enum: [family, genus, section]
+          description: Type of taxonomy entry (required for create)
+        parent_id:
+          type: integer
+          format: int64
+          nullable: true
+          description: Parent taxonomy ID
+        species:
+          type: array
+          items:
+            type: integer
+            format: int64
+          description: Species IDs to link to this taxonomy
+      required:
+        - name
+
+    FamilyUpsertRequest:
+      type: object
+      description: Request body for creating/updating a family
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: ID for update (omit or <= 0 for create)
+        name:
+          type: string
+          description: Family name (required)
+        description:
+          type: string
+          description: Description (e.g., "Plant", "Insect")
+        genera:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+                format: int64
+                description: ID for update (omit or <= 0 for create)
+              name:
+                type: string
+                description: Genus name
+              description:
+                type: string
+                description: Description or notes
+            required:
+              - name
+          description: Genera to create/update in this family
+      required:
+        - name
+
+    GeneraMoveRequest:
+      type: object
+      description: Request body for moving genera between families
+      properties:
+        genera:
+          type: array
+          items:
+            type: integer
+            format: int64
+          description: IDs of genera to move
+        oldFamilyId:
+          type: integer
+          format: int64
+          description: Current family ID
+        newFamilyId:
+          type: integer
+          format: int64
+          description: Target family ID
+      required:
+        - genera
+        - oldFamilyId
+        - newFamilyId
+
+    Glossary:
+      type: object
+      description: A glossary entry (term definition)
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Unique identifier
+        word:
+          type: string
+          description: The term being defined
+        definition:
+          type: string
+          description: The definition of the term
+        urls:
+          type: string
+          description: Tab-separated list of reference URLs
+      required:
+        - id
+        - word
+        - definition
+        - urls
+
+    GlossaryListResponse:
+      type: object
+      description: Paginated list of glossary entries
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Glossary'
+        total:
+          type: integer
+          format: int64
+          description: Total number of glossary entries matching query
+        limit:
+          type: integer
+          nullable: true
+          description: Limit applied to results (if any)
+        offset:
+          type: integer
+          description: Offset applied to results
+      required:
+        - data
+        - total
+        - offset
+
+    GlossaryCreateRequest:
+      type: object
+      description: Request body for creating a glossary entry
+      properties:
+        word:
+          type: string
+          description: The term being defined (required)
+        definition:
+          type: string
+          description: The definition of the term (required)
+        urls:
+          type: string
+          description: Tab-separated list of reference URLs
+      required:
+        - word
+        - definition
+
+    GlossaryUpdateRequest:
+      type: object
+      description: Request body for updating a glossary entry
+      properties:
+        word:
+          type: string
+          description: The term being defined (required)
+        definition:
+          type: string
+          description: The definition of the term (required)
+        urls:
+          type: string
+          description: Tab-separated list of reference URLs
+      required:
+        - word
+        - definition
+
+    Place:
+      type: object
+      description: A geographic location (continent, country, state, etc.)
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Unique identifier
+        name:
+          type: string
+          description: Name of the place
+        code:
+          type: string
+          description: Code/abbreviation for the place
+        type:
+          type: string
+          enum: [continent, country, region, state, province, county, city]
+          description: Type of place
+      required:
+        - id
+        - name
+        - code
+        - type
+
+    PlaceListResponse:
+      type: object
+      description: Paginated list of places
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Place'
+        total:
+          type: integer
+          format: int64
+          description: Total number of places matching query
+        limit:
+          type: integer
+          nullable: true
+          description: Limit applied to results (if any)
+        offset:
+          type: integer
+          description: Offset applied to results
+      required:
+        - data
+        - total
+        - offset
+
+    PlaceCreateRequest:
+      type: object
+      description: Request body for creating a place
+      properties:
+        name:
+          type: string
+          description: Name of the place (required)
+        code:
+          type: string
+          description: Code/abbreviation for the place (required)
+        type:
+          type: string
+          enum: [continent, country, region, state, province, county, city]
+          description: Type of place (required)
+      required:
+        - name
+        - code
+        - type
+
+    PlaceUpdateRequest:
+      type: object
+      description: Request body for updating a place
+      properties:
+        name:
+          type: string
+          description: Name of the place (required)
+        code:
+          type: string
+          description: Code/abbreviation for the place (required)
+        type:
+          type: string
+          enum: [continent, country, region, state, province, county, city]
+          description: Type of place (required)
+      required:
+        - name
+        - code
+        - type
+
+    FilterFieldTypeInfo:
+      type: object
+      description: Information about a filter field type
+      properties:
+        type:
+          type: string
+          description: The type name (e.g., color, shape, location)
+          example: "color"
+        hasDescription:
+          type: boolean
+          description: Whether this type supports a description field
+        hasReference:
+          type: boolean
+          description: Whether this type supports a reference field (only abundance)
+      required:
+        - type
+        - hasDescription
+        - hasReference
+
+    FilterFieldValue:
+      type: object
+      description: A filter field value (color, shape, texture, etc.)
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Unique identifier
+        field:
+          type: string
+          description: The field value
+        description:
+          type: string
+          nullable: true
+          description: Optional description (not all types support this)
+        reference:
+          type: string
+          nullable: true
+          description: Optional reference (only for abundance type)
+      required:
+        - id
+        - field
+
+    FilterFieldCreateRequest:
+      type: object
+      description: Request body for creating a filter field value
+      properties:
+        type:
+          type: string
+          description: The filter field type (required)
+          enum: [color, shape, location, texture, walls, cells, alignment, season, form, abundance]
+        field:
+          type: string
+          description: The field value (required)
+        description:
+          type: string
+          description: Optional description (ignored for types without description)
+        reference:
+          type: string
+          description: Optional reference (only for abundance type)
+      required:
+        - type
+        - field
+
+    FilterFieldUpdateRequest:
+      type: object
+      description: Request body for updating a filter field value
+      properties:
+        field:
+          type: string
+          description: The field value (required)
+        description:
+          type: string
+          description: Optional description (ignored for types without description)
+        reference:
+          type: string
+          description: Optional reference (only for abundance type)
+      required:
+        - field
+
+    GallHost:
+      type: object
+      description: A gall-host relationship (which host plants a gall is found on)
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Unique identifier for the relationship
+        gall_species_id:
+          type: integer
+          format: int64
+          description: Species ID of the gall
+        host_species_id:
+          type: integer
+          format: int64
+          description: Species ID of the host plant
+        host_name:
+          type: string
+          description: Name of the host plant species
+      required:
+        - id
+        - gall_species_id
+        - host_species_id
+
+    GallHostListResponse:
+      type: object
+      description: List of gall-host relationships
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/GallHost'
+        total:
+          type: integer
+          format: int64
+          description: Total number of host relationships for the gall
+      required:
+        - data
+        - total
+
+    GallHostCreateRequest:
+      type: object
+      description: Request body for creating a gall-host relationship
+      properties:
+        gall_species_id:
+          type: integer
+          format: int64
+          description: Species ID of the gall (required)
+        host_species_id:
+          type: integer
+          format: int64
+          description: Species ID of the host plant (required)
+      required:
+        - gall_species_id
+        - host_species_id
+
+    GallHostDeleteRequest:
+      type: object
+      description: Request body for deleting a gall-host relationship
+      properties:
+        gall_species_id:
+          type: integer
+          format: int64
+          description: Species ID of the gall (required)
+        host_species_id:
+          type: integer
+          format: int64
+          description: Species ID of the host plant (required)
+      required:
+        - gall_species_id
+        - host_species_id
+
+    SpeciesSourceResponse:
+      type: object
+      description: A species-source relationship with full source details
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Unique identifier for the relationship
+        species_id:
+          type: integer
+          format: int64
+          description: Species ID
+        source_id:
+          type: integer
+          format: int64
+          description: Source ID
+        description:
+          type: string
+          description: Description of how this source relates to the species
+        useasdefault:
+          type: integer
+          description: Whether to use this as the default source (0 or 1)
+        externallink:
+          type: string
+          description: External link related to this species-source relationship
+        alias_id:
+          type: integer
+          format: int64
+          nullable: true
+          description: Optional alias ID associated with this relationship
+        source:
+          $ref: '#/components/schemas/Source'
+      required:
+        - id
+        - species_id
+        - source_id
+        - description
+        - useasdefault
+        - externallink
+
+    SpeciesSourceCreateRequest:
+      type: object
+      description: Request body for creating a species-source relationship
+      properties:
+        species_id:
+          type: integer
+          format: int64
+          description: Species ID (required)
+        source_id:
+          type: integer
+          format: int64
+          description: Source ID (required)
+        description:
+          type: string
+          description: Description of how this source relates to the species
+        useasdefault:
+          type: boolean
+          description: Whether to use this as the default source
+        externallink:
+          type: string
+          description: External link related to this species-source relationship
+        alias_id:
+          type: integer
+          format: int64
+          nullable: true
+          description: Optional alias ID to associate
+      required:
+        - species_id
+        - source_id
+
+    SpeciesSourceUpdateRequest:
+      type: object
+      description: Request body for updating a species-source relationship
+      properties:
+        description:
+          type: string
+          description: Description of how this source relates to the species
+        useasdefault:
+          type: boolean
+          description: Whether to use this as the default source
+        externallink:
+          type: string
+          description: External link related to this species-source relationship
+        alias_id:
+          type: integer
+          format: int64
+          nullable: true
+          description: Optional alias ID to associate
+
+    # Global Search schemas
+    SearchTinySpecies:
+      type: object
+      description: A minimal species record for search results
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Species ID
+        name:
+          type: string
+          description: Species name
+        taxoncode:
+          type: string
+          description: Type of taxon (gall, plant, etc.)
+        aliases:
+          type: array
+          items:
+            type: string
+          description: List of alias names for this species
+      required:
+        - id
+        - name
+        - taxoncode
+        - aliases
+
+    SearchTinySource:
+      type: object
+      description: A minimal source record for search results
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Source ID
+        source:
+          type: string
+          description: Formatted source display string (author, year. title)
+      required:
+        - id
+        - source
+
+    SearchGlossaryEntry:
+      type: object
+      description: A glossary entry in search results
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Glossary entry ID
+        word:
+          type: string
+          description: The glossary term
+        definition:
+          type: string
+          description: The definition
+      required:
+        - id
+        - word
+        - definition
+
+    SearchTaxonomyEntry:
+      type: object
+      description: A taxonomy entry in search results
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Taxonomy ID
+        name:
+          type: string
+          description: Taxonomy name
+        description:
+          type: string
+          description: Taxonomy description
+        type:
+          type: string
+          enum: [family, genus, section]
+          description: Type of taxonomy entry
+      required:
+        - id
+        - name
+        - description
+        - type
+
+    SearchPlaceEntry:
+      type: object
+      description: A place in search results
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Place ID
+        name:
+          type: string
+          description: Place name
+        code:
+          type: string
+          description: Place code/abbreviation
+        type:
+          type: string
+          description: Place type
+      required:
+        - id
+        - name
+        - code
+        - type
+
+    GlobalSearchResponse:
+      type: object
+      description: Results from global search across all entity types
+      properties:
+        species:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchTinySpecies'
+          description: Matching species (by name or alias)
+        glossary:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchGlossaryEntry'
+          description: Matching glossary entries
+        sources:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchTinySource'
+          description: Matching sources (by title or author)
+        taxa:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchTaxonomyEntry'
+          description: Matching taxonomy entries (genus, section, family)
+        places:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchPlaceEntry'
+          description: Matching places
+      required:
+        - species
+        - glossary
+        - sources
+        - taxa
+        - places
+
+  parameters:
+    limitParam:
+      name: limit
+      in: query
+      description: Maximum number of results to return
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 1000
+    offsetParam:
+      name: offset
+      in: query
+      description: Number of results to skip
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+    searchParam:
+      name: q
+      in: query
+      description: Search term
+      schema:
+        type: string
+
+  responses:
+    BadRequest:
+      description: Bad request - validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: BAD_REQUEST
+              message: Invalid request parameters
+    Unauthorized:
+      description: Unauthorized - authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: UNAUTHORIZED
+              message: No auth token
+    Forbidden:
+      description: Forbidden - insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: FORBIDDEN
+              message: Super admin required
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: NOT_FOUND
+              message: Resource not found
+    ServiceUnavailable:
+      description: Service unavailable - database busy
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: SERVICE_UNAVAILABLE
+              message: Database is busy, please retry
+
+paths:
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Health check
+      description: |
+        Returns the health status of the API including database connectivity.
+        Returns 200 if healthy, 503 if database is unavailable.
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              example:
+                status: ok
+                database: connected
+        '503':
+          description: Service is degraded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              example:
+                status: degraded
+                database: unavailable
+
+  /api/v2/species:
+    get:
+      tags:
+        - Species
+      summary: List or search species
+      description: |
+        Returns a list of all species, or searches for species by name if a search term is provided.
+        Results are ordered alphabetically by name.
+      operationId: listSpecies
+      parameters:
+        - $ref: '#/components/parameters/searchParam'
+      responses:
+        '200':
+          description: List of species
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpeciesListResponse'
+              examples:
+                allSpecies:
+                  summary: List all species
+                  value:
+                    data:
+                      - id: 1
+                        name: "Andricus quercuscalifornicus"
+                        taxoncode: "gall"
+                        datacomplete: false
+                        abundance_id: 2
+                        abundance: "common"
+                    total: 3000
+                    offset: 0
+                searchResults:
+                  summary: Search results
+                  value:
+                    data:
+                      - id: 1
+                        name: "Andricus quercuscalifornicus"
+                        taxoncode: "gall"
+                        datacomplete: false
+                    total: 15
+                    offset: 0
+        '500':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /api/v2/species/{id}:
+    get:
+      tags:
+        - Species
+      summary: Get species by ID
+      description: Returns a single species by its unique identifier.
+      operationId: getSpeciesById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Species ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Species details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Species'
+              example:
+                id: 1234
+                name: "Andricus quercuscalifornicus"
+                taxoncode: "gall"
+                datacomplete: false
+                abundance_id: 2
+                abundance: "common"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /api/v2/galls:
+    get:
+      tags:
+        - Galls
+      summary: List or search galls
+      description: |
+        Returns a list of all galls, optionally filtered by search query.
+        Supports pagination via limit and offset parameters.
+      operationId: listGalls
+      parameters:
+        - $ref: '#/components/parameters/searchParam'
+        - $ref: '#/components/parameters/limitParam'
+        - $ref: '#/components/parameters/offsetParam'
+      responses:
+        '200':
+          description: List of galls
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GallListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    post:
+      tags:
+        - Galls
+      summary: Create a new gall
+      description: Creates a new gall species entry. Requires authentication.
+      operationId: createGall
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GallCreateRequest'
+      responses:
+        '201':
+          description: Gall created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Gall'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v2/galls/{id}:
+    get:
+      tags:
+        - Galls
+      summary: Get a gall by ID
+      description: Returns detailed information about a specific gall.
+      operationId: getGallById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The species ID of the gall
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Gall details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Gall'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+        - Galls
+      summary: Update a gall
+      description: Updates an existing gall. Requires authentication.
+      operationId: updateGall
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The species ID of the gall
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GallUpdateRequest'
+      responses:
+        '200':
+          description: Gall updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Gall'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags:
+        - Galls
+      summary: Delete a gall
+      description: Deletes a gall and all associated data. Requires authentication.
+      operationId: deleteGall
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The species ID of the gall
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: Gall deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Host endpoints
+
+  /api/v2/hosts:
+    get:
+      tags:
+        - Hosts
+      summary: List or search hosts
+      description: |
+        Returns a list of all host plants, optionally filtered by search query.
+        Supports pagination via limit and offset parameters.
+        Use the `simple` query parameter for a simplified response format.
+      operationId: listHosts
+      parameters:
+        - $ref: '#/components/parameters/searchParam'
+        - $ref: '#/components/parameters/limitParam'
+        - $ref: '#/components/parameters/offsetParam'
+        - name: simple
+          in: query
+          description: If present, returns simplified host data (id, name, aliases, places)
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: List of hosts
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/HostListResponse'
+                  - $ref: '#/components/schemas/HostSimpleListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    post:
+      tags:
+        - Hosts
+      summary: Create a new host
+      description: Creates a new host plant species entry. Requires authentication.
+      operationId: createHost
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HostCreateRequest'
+      responses:
+        '201':
+          description: Host created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HostResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v2/hosts/{id}:
+    get:
+      tags:
+        - Hosts
+      summary: Get a host by ID
+      description: Returns detailed information about a specific host plant.
+      operationId: getHostById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The species ID of the host
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Host details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HostResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+        - Hosts
+      summary: Update a host
+      description: Updates an existing host plant. Requires authentication.
+      operationId: updateHost
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The species ID of the host
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HostUpdateRequest'
+      responses:
+        '200':
+          description: Host updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HostResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags:
+        - Hosts
+      summary: Delete a host
+      description: Deletes a host plant and all associated data. Requires authentication.
+      operationId: deleteHost
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The species ID of the host
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: Host deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v2/sources:
+    get:
+      tags:
+        - Sources
+      summary: List or search sources
+      description: |
+        Returns a list of all sources, optionally filtered by search query or species ID.
+        - If `speciesid` is provided, returns sources with their speciessource relationship data.
+        - If `q` is provided, searches sources by title.
+        - Supports pagination via limit and offset parameters.
+      operationId: listSources
+      parameters:
+        - $ref: '#/components/parameters/searchParam'
+        - $ref: '#/components/parameters/limitParam'
+        - $ref: '#/components/parameters/offsetParam'
+        - name: speciesid
+          in: query
+          description: Filter sources by species ID (returns speciessource relationship data)
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: List of sources
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SourceListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    post:
+      tags:
+        - Sources
+      summary: Create a new source
+      description: Creates a new source entry. Requires authentication.
+      operationId: createSource
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SourceCreateRequest'
+      responses:
+        '201':
+          description: Source created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Source'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v2/sources/{id}:
+    get:
+      tags:
+        - Sources
+      summary: Get a source by ID
+      description: Returns detailed information about a specific source.
+      operationId: getSourceById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The source ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Source details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Source'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+        - Sources
+      summary: Update a source
+      description: Updates an existing source. Requires authentication.
+      operationId: updateSource
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The source ID
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SourceUpdateRequest'
+      responses:
+        '200':
+          description: Source updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Source'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags:
+        - Sources
+      summary: Delete a source
+      description: Deletes a source. Requires authentication.
+      operationId: deleteSource
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The source ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: Source deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v2/sources/by-title/{title}:
+    get:
+      tags:
+        - Sources
+      summary: Get a source by title
+      description: Returns a source by its exact title.
+      operationId: getSourceByTitle
+      parameters:
+        - name: title
+          in: path
+          required: true
+          description: The exact title of the source
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Source details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Source'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Taxonomy endpoints
+
+  /api/v2/taxonomy:
+    get:
+      tags:
+        - Taxonomy
+      summary: Get taxonomy for species or by name
+      description: |
+        Returns taxonomy data. Must provide either `id` (species ID to get FGS) or `name` (exact match).
+      operationId: getTaxonomy
+      parameters:
+        - name: id
+          in: query
+          description: Species ID to get Family-Genus-Section (FGS)
+          schema:
+            type: integer
+            format: int64
+        - name: name
+          in: query
+          description: Exact taxonomy name match
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Taxonomy data
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/FGS'
+                  - type: array
+                    items:
+                      $ref: '#/components/schemas/TaxonomyEntry'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    post:
+      tags:
+        - Taxonomy
+      summary: Create or update taxonomy entry
+      description: Creates or updates a taxonomy entry. Requires authentication.
+      operationId: upsertTaxonomy
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaxonomyUpsertRequest'
+      responses:
+        '200':
+          description: Taxonomy updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxonomyEntry'
+        '201':
+          description: Taxonomy created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxonomyEntry'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v2/taxonomy/{id}:
+    get:
+      tags:
+        - Taxonomy
+      summary: Get taxonomy entry by ID
+      description: Returns a single taxonomy entry by its ID.
+      operationId: getTaxonomyById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Taxonomy ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Taxonomy entry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxonomyEntry'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags:
+        - Taxonomy
+      summary: Delete taxonomy entry
+      description: Deletes a taxonomy entry. If family, cascades to genera and species. Requires authentication.
+      operationId: deleteTaxonomy
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Taxonomy ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: Taxonomy deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v2/taxonomy/families:
+    get:
+      tags:
+        - Taxonomy
+      summary: List or search families
+      description: |
+        Returns a list of families. Supports filtering by:
+        - `familyid`: Get family by ID
+        - `name`: Get family by exact name
+        - `q`: Search families by name pattern
+      operationId: listFamilies
+      parameters:
+        - name: familyid
+          in: query
+          description: Family ID
+          schema:
+            type: integer
+            format: int64
+        - name: name
+          in: query
+          description: Exact family name
+          schema:
+            type: string
+        - $ref: '#/components/parameters/searchParam'
+      responses:
+        '200':
+          description: List of families
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/TaxonomyListResponse'
+                  - type: array
+                    items:
+                      $ref: '#/components/schemas/FamilyResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags:
+        - Taxonomy
+      summary: Create or update family
+      description: Creates or updates a family with optional genera. Requires authentication.
+      operationId: upsertFamily
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FamilyUpsertRequest'
+      responses:
+        '200':
+          description: Family updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FamilyResponse'
+        '201':
+          description: Family created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FamilyResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v2/taxonomy/families/{id}:
+    get:
+      tags:
+        - Taxonomy
+      summary: Get family by ID
+      description: Returns a family with its genera.
+      operationId: getFamilyById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Family ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Family with genera
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FamilyResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags:
+        - Taxonomy
+      summary: Delete family
+      description: Deletes a family and all child genera and species. Requires authentication.
+      operationId: deleteFamily
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Family ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: Family deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v2/taxonomy/genera:
+    get:
+      tags:
+        - Taxonomy
+      summary: List or search genera
+      description: |
+        Returns genera. Must provide either:
+        - `famid`: Get genera for a specific family
+        - `q`: Search genera by name pattern
+      operationId: listGenera
+      parameters:
+        - name: famid
+          in: query
+          description: Family ID to get genera for
+          schema:
+            type: integer
+            format: int64
+        - $ref: '#/components/parameters/searchParam'
+      responses:
+        '200':
+          description: List of genera
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TaxonomyEntry'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v2/taxonomy/genera/move:
+    post:
+      tags:
+        - Taxonomy
+      summary: Move genera between families
+      description: Moves one or more genera from one family to another. Requires authentication.
+      operationId: moveGenera
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GeneraMoveRequest'
+      responses:
+        '200':
+          description: Updated list of all families
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FamilyResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v2/taxonomy/sections:
+    get:
+      tags:
+        - Taxonomy
+      summary: List or search sections
+      description: |
+        Returns sections. Supports filtering by:
+        - `sectionid`: Get section by ID
+        - `name`: Get section by exact name
+        - `q`: Search sections by name pattern
+      operationId: listSections
+      parameters:
+        - name: sectionid
+          in: query
+          description: Section ID
+          schema:
+            type: integer
+            format: int64
+        - name: name
+          in: query
+          description: Exact section name
+          schema:
+            type: string
+        - $ref: '#/components/parameters/searchParam'
+      responses:
+        '200':
+          description: List of sections
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/TaxonomyListResponse'
+                  - type: array
+                    items:
+                      $ref: '#/components/schemas/SectionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v2/taxonomy/sections/{id}:
+    get:
+      tags:
+        - Taxonomy
+      summary: Get section by ID
+      description: Returns a section with its species and aliases.
+      operationId: getSectionById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Section ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Section with species and aliases
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SectionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags:
+        - Taxonomy
+      summary: Delete section
+      description: Deletes a section (removes species links, but not species). Requires authentication.
+      operationId: deleteSection
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Section ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: Section deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Glossary endpoints
+
+  /api/v2/glossary:
+    get:
+      tags:
+        - Glossary
+      summary: List or search glossary entries
+      description: |
+        Returns a list of all glossary entries, optionally filtered by search query.
+        Supports pagination via limit and offset parameters.
+        Results are ordered alphabetically by word (case-insensitive).
+      operationId: listGlossary
+      parameters:
+        - $ref: '#/components/parameters/searchParam'
+        - $ref: '#/components/parameters/limitParam'
+        - $ref: '#/components/parameters/offsetParam'
+      responses:
+        '200':
+          description: List of glossary entries
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GlossaryListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    post:
+      tags:
+        - Glossary
+      summary: Create a new glossary entry
+      description: Creates a new glossary entry. Requires authentication.
+      operationId: createGlossary
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GlossaryCreateRequest'
+      responses:
+        '201':
+          description: Glossary entry created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Glossary'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v2/glossary/{id}:
+    get:
+      tags:
+        - Glossary
+      summary: Get a glossary entry by ID
+      description: Returns detailed information about a specific glossary entry.
+      operationId: getGlossaryById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The glossary entry ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Glossary entry details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Glossary'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+        - Glossary
+      summary: Update a glossary entry
+      description: Updates an existing glossary entry. Requires authentication.
+      operationId: updateGlossary
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The glossary entry ID
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GlossaryUpdateRequest'
+      responses:
+        '200':
+          description: Glossary entry updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Glossary'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags:
+        - Glossary
+      summary: Delete a glossary entry
+      description: Deletes a glossary entry. Requires authentication.
+      operationId: deleteGlossary
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The glossary entry ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: Glossary entry deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v2/glossary/by-word/{word}:
+    get:
+      tags:
+        - Glossary
+      summary: Get a glossary entry by word
+      description: Returns a glossary entry by its exact word.
+      operationId: getGlossaryByWord
+      parameters:
+        - name: word
+          in: path
+          required: true
+          description: The exact word of the glossary entry
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Glossary entry details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Glossary'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Place endpoints
+  /api/v2/places:
+    get:
+      tags:
+        - Places
+      summary: List or search places
+      description: |
+        Returns a list of all places, optionally filtered by search query.
+        Supports pagination via limit and offset parameters.
+      operationId: listPlaces
+      parameters:
+        - $ref: '#/components/parameters/searchParam'
+        - $ref: '#/components/parameters/limitParam'
+        - $ref: '#/components/parameters/offsetParam'
+      responses:
+        '200':
+          description: List of places
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaceListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    post:
+      tags:
+        - Places
+      summary: Create a new place
+      description: Creates a new place entry. Requires authentication.
+      operationId: createPlace
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlaceCreateRequest'
+      responses:
+        '201':
+          description: Place created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Place'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v2/places/{id}:
+    get:
+      tags:
+        - Places
+      summary: Get a place by ID
+      description: Returns detailed information about a specific place.
+      operationId: getPlaceById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The place ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Place details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Place'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+        - Places
+      summary: Update a place
+      description: Updates an existing place. Requires authentication.
+      operationId: updatePlace
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The place ID
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlaceUpdateRequest'
+      responses:
+        '200':
+          description: Place updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Place'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags:
+        - Places
+      summary: Delete a place
+      description: Deletes a place. Requires authentication.
+      operationId: deletePlace
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The place ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: Place deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v2/places/by-name/{name}:
+    get:
+      tags:
+        - Places
+      summary: Get a place by name
+      description: Returns a place by its exact name.
+      operationId: getPlaceByName
+      parameters:
+        - name: name
+          in: path
+          required: true
+          description: The exact name of the place
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Place details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Place'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Filter field endpoints
+  /api/v2/filter-fields:
+    get:
+      tags:
+        - FilterFields
+      summary: List filter field types
+      description: |
+        Returns a list of all available filter field types with metadata about
+        which fields each type supports (description, reference).
+      operationId: listFilterFieldTypes
+      responses:
+        '200':
+          description: List of filter field types
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FilterFieldTypeInfo'
+              example:
+                - type: "color"
+                  hasDescription: false
+                  hasReference: false
+                - type: "shape"
+                  hasDescription: true
+                  hasReference: false
+                - type: "abundance"
+                  hasDescription: true
+                  hasReference: true
+    post:
+      tags:
+        - FilterFields
+      summary: Create a new filter field value
+      description: Creates a new filter field value for the specified type. Requires authentication.
+      operationId: createFilterField
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FilterFieldCreateRequest'
+      responses:
+        '201':
+          description: Filter field value created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FilterFieldValue'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v2/filter-fields/{type}:
+    get:
+      tags:
+        - FilterFields
+      summary: List values for a filter field type
+      description: Returns all values for the specified filter field type.
+      operationId: listFilterFieldsByType
+      parameters:
+        - name: type
+          in: path
+          required: true
+          description: The filter field type
+          schema:
+            type: string
+            enum: [color, shape, location, texture, walls, cells, alignment, season, form, abundance]
+      responses:
+        '200':
+          description: List of filter field values
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FilterFieldValue'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v2/filter-fields/{type}/{id}:
+    get:
+      tags:
+        - FilterFields
+      summary: Get a filter field value by type and ID
+      description: Returns a single filter field value.
+      operationId: getFilterFieldById
+      parameters:
+        - name: type
+          in: path
+          required: true
+          description: The filter field type
+          schema:
+            type: string
+            enum: [color, shape, location, texture, walls, cells, alignment, season, form, abundance]
+        - name: id
+          in: path
+          required: true
+          description: The filter field value ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Filter field value details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FilterFieldValue'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+        - FilterFields
+      summary: Update a filter field value
+      description: Updates an existing filter field value. Requires authentication.
+      operationId: updateFilterField
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: type
+          in: path
+          required: true
+          description: The filter field type
+          schema:
+            type: string
+            enum: [color, shape, location, texture, walls, cells, alignment, season, form, abundance]
+        - name: id
+          in: path
+          required: true
+          description: The filter field value ID
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FilterFieldUpdateRequest'
+      responses:
+        '200':
+          description: Filter field value updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FilterFieldValue'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags:
+        - FilterFields
+      summary: Delete a filter field value
+      description: Deletes a filter field value. Requires authentication.
+      operationId: deleteFilterField
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: type
+          in: path
+          required: true
+          description: The filter field type
+          schema:
+            type: string
+            enum: [color, shape, location, texture, walls, cells, alignment, season, form, abundance]
+        - name: id
+          in: path
+          required: true
+          description: The filter field value ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: Filter field value deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Gall-Host relationship endpoints
+
+  /api/v2/gall-hosts:
+    get:
+      tags:
+        - GallHosts
+      summary: List hosts for a gall
+      description: |
+        Returns a list of host plants associated with a specific gall.
+        The gallid query parameter is required.
+      operationId: listGallHosts
+      parameters:
+        - name: gallid
+          in: query
+          required: true
+          description: The species ID of the gall
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: List of gall-host relationships
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GallHostListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    post:
+      tags:
+        - GallHosts
+      summary: Create a gall-host relationship
+      description: Creates a new association between a gall and a host plant. Requires authentication.
+      operationId: createGallHost
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GallHostCreateRequest'
+      responses:
+        '201':
+          description: Gall-host relationship created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GallHost'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    delete:
+      tags:
+        - GallHosts
+      summary: Delete a gall-host relationship
+      description: Deletes an association between a gall and a host plant. Requires authentication.
+      operationId: deleteGallHost
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GallHostDeleteRequest'
+      responses:
+        '204':
+          description: Gall-host relationship deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Species-Source relationship endpoints
+
+  /api/v2/species-sources:
+    get:
+      tags:
+        - SpeciesSources
+      summary: List species-source relationships
+      description: |
+        Returns species-source relationships for a given species.
+        - `speciesid` is required and returns all source mappings for that species.
+        - If `sourceid` is also provided, returns the specific mapping.
+      operationId: listSpeciesSources
+      parameters:
+        - name: speciesid
+          in: query
+          required: true
+          description: Species ID to get sources for
+          schema:
+            type: integer
+            format: int64
+        - name: sourceid
+          in: query
+          description: Optional source ID to get a specific mapping
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: List of species-source relationships or single relationship
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: array
+                    items:
+                      $ref: '#/components/schemas/SpeciesSourceResponse'
+                  - $ref: '#/components/schemas/SpeciesSourceResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags:
+        - SpeciesSources
+      summary: Create a species-source relationship
+      description: Creates a new species-source relationship. Requires authentication.
+      operationId: createSpeciesSource
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SpeciesSourceCreateRequest'
+      responses:
+        '201':
+          description: Species-source relationship created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpeciesSourceResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    delete:
+      tags:
+        - SpeciesSources
+      summary: Delete a species-source relationship
+      description: Deletes a species-source relationship. Requires authentication.
+      operationId: deleteSpeciesSource
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: speciesid
+          in: query
+          required: true
+          description: Species ID
+          schema:
+            type: integer
+            format: int64
+        - name: sourceid
+          in: query
+          required: true
+          description: Source ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: Species-source relationship deleted successfully
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v2/species-sources/{id}:
+    put:
+      tags:
+        - SpeciesSources
+      summary: Update a species-source relationship
+      description: Updates an existing species-source relationship. Requires authentication.
+      operationId: updateSpeciesSource
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Species-source relationship ID
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SpeciesSourceUpdateRequest'
+      responses:
+        '200':
+          description: Species-source relationship updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpeciesSourceResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Global Search endpoint
+
+  /api/v2/search:
+    get:
+      tags:
+        - Search
+      summary: Global search across all entity types
+      description: |
+        Searches across species (including aliases), glossary entries, sources,
+        taxonomy (genus, section, family), and places. Returns grouped results
+        for each entity type.
+
+        Species results include their aliases. Glossary matches on exact word or
+        definition containing the search term. Sources match on title or author.
+        Taxa match on name or description. Places match on name or code.
+      operationId: globalSearch
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: Search term (spaces are converted to wildcards)
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        '200':
+          description: Search results grouped by entity type
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GlobalSearchResponse'
+              example:
+                species:
+                  - id: 123
+                    name: "Andricus quercuscalifornicus"
+                    taxoncode: "gall"
+                    aliases: ["California gall wasp"]
+                glossary:
+                  - id: 45
+                    word: "gall"
+                    definition: "An abnormal plant growth induced by an organism"
+                sources:
+                  - id: 67
+                    source: "Smith, 2020. Gall Biology"
+                taxa:
+                  - id: 89
+                    name: "Quercus"
+                    description: "Oak genus"
+                    type: "genus"
+                places:
+                  - id: 12
+                    name: "California"
+                    code: "CA"
+                    type: "state"
+        '400':
+          $ref: '#/components/responses/BadRequest'
