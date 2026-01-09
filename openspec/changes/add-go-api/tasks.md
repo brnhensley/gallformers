@@ -237,12 +237,12 @@ Unit tests are implemented per-domain (tasks above) and include:
 
 ## 18. Deployment
 
-- [ ] 18.1 Update `v2/Dockerfile` to build Go API
-- [ ] 18.2 Add DATABASE_PATH environment variable handling
-- [ ] 18.3 Add Auth0 environment variables (AUTH0_DOMAIN, AUTH0_AUDIENCE)
-- [ ] 18.4 Test `fly deploy` from v2/ directory
-- [ ] 18.5 Verify health endpoint on Fly.io
-- [ ] 18.6 Verify API endpoints work on Fly.io with test database
+- [x] 18.1 Update `v2/Dockerfile` to build Go API
+- [x] 18.2 Add DATABASE_PATH environment variable handling
+- [x] 18.3 Add Auth0 environment variables (AUTH0_DOMAIN, AUTH0_AUDIENCE)
+- [x] 18.4 Test `fly deploy` from v2/ directory
+- [x] 18.5 Verify health endpoint on Fly.io
+- [x] 18.6 Verify API endpoints work on Fly.io with test database
 
 ## 19. Documentation
 

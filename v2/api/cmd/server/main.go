@@ -70,6 +70,7 @@ func main() {
 	r.Use(middleware.RequestID)
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
+	r.Use(mw.CORS)
 
 	// Health endpoint
 	r.Get("/health", healthHandler)

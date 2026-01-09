@@ -10,6 +10,7 @@ primary_region = "iad"
 [env]
   DATABASE_PATH = "/data/gallformers.sqlite"
   ENVIRONMENT = "production"
+  CORS_ORIGINS = "https://gallformers.org,https://www.gallformers.org,https://gallformers.fly.dev"
 
 [http_service]
   internal_port = 8080
