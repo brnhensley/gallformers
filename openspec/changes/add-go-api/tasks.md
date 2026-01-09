@@ -228,12 +228,12 @@ Unit tests are implemented per-domain (tasks above) and include:
 
 ## 17. Integration Testing
 
-- [ ] 17.1 Create test harness that runs queries against both v1 and v2
-- [ ] 17.2 Verify all GET endpoints return equivalent data
-- [ ] 17.3 Verify auth requirements match v1 (which endpoints need auth)
-- [ ] 17.4 Test error responses (404 for missing resources, 401 for unauthorized, 503 for DB unavailable)
-- [ ] 17.5 Test pagination on all list endpoints
-- [ ] 17.6 Document any intentional differences from v1
+- [x] 17.1 Create test harness that runs queries against both v1 and v2
+- [x] 17.2 Verify all GET endpoints return equivalent data
+- [x] 17.3 Verify auth requirements match v1 (which endpoints need auth)
+- [x] 17.4 Test error responses (404 for missing resources, 401 for unauthorized, 503 for DB unavailable)
+- [x] 17.5 Test pagination on all list endpoints
+- [x] 17.6 Document any intentional differences from v1 (see V1_V2_DIFFERENCES.md)
 
 ## 18. Deployment
 
