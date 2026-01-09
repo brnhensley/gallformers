@@ -1,6 +1,4 @@
-<script lang="ts">
-	import type { Snippet } from 'svelte';
-
+<script>
 	let {
 		variant = 'primary',
 		type = 'button',
@@ -8,16 +6,9 @@
 		autofocus = false,
 		onclick,
 		children
-	}: {
-		variant?: 'primary' | 'secondary' | 'danger' | 'warning' | 'ghost';
-		type?: 'button' | 'submit' | 'reset';
-		disabled?: boolean;
-		autofocus?: boolean;
-		onclick?: () => void;
-		children: Snippet;
 	} = $props();
 
-	let buttonEl: HTMLButtonElement;
+	let buttonEl;
 
 	// Focus on mount when autofocus is true
 	$effect(() => {
@@ -26,7 +17,7 @@
 		}
 	});
 
-	const variantClasses: Record<string, string> = {
+	const variantClasses = {
 		primary: 'bg-gf-maroon text-white hover:bg-gf-maroon-dark',
 		secondary: 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50',
 		danger: 'bg-red-600 text-white hover:bg-red-700',

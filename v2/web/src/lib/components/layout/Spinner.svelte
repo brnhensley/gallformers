@@ -1,11 +1,9 @@
-<script lang="ts">
+<script>
 	let {
 		size = 'md'
-	}: {
-		size?: 'sm' | 'md' | 'lg';
 	} = $props();
 
-	const sizeClasses: Record<string, string> = {
+	const sizeClasses = {
 		sm: 'h-4 w-4',
 		md: 'h-8 w-8',
 		lg: 'h-12 w-12'

@@ -1,4 +1,4 @@
-<script lang="ts">
+<script>
 	import ConfirmModal from './ConfirmModal.svelte';
 	import Button from '../forms/Button.svelte';
 
@@ -10,14 +10,6 @@
 		variant = 'danger',
 		confirmLabel = 'Confirm',
 		cancelLabel = 'Cancel'
-	}: {
-		buttonLabel?: string;
-		buttonVariant?: 'primary' | 'secondary' | 'danger' | 'warning' | 'ghost';
-		title?: string;
-		message?: string;
-		variant?: 'danger' | 'warning';
-		confirmLabel?: string;
-		cancelLabel?: string;
 	} = $props();
 
 	let open = $state(false);

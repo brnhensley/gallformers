@@ -1,12 +1,8 @@
-<script lang="ts">
+<script>
 	let {
 		checked = $bindable(false),
 		label,
 		disabled = false
-	}: {
-		checked?: boolean;
-		label: string;
-		disabled?: boolean;
 	} = $props();
 </script>
 

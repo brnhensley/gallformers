@@ -1,17 +1,11 @@
-<script lang="ts">
-	import type { Snippet } from 'svelte';
-
+<script>
 	let {
 		open = $bindable(false),
 		title,
 		children
-	}: {
-		open?: boolean;
-		title: string;
-		children: Snippet;
 	} = $props();
 
-	let dialogEl: HTMLDialogElement;
+	let dialogEl;
 
 	$effect(() => {
 		if (open) {
@@ -21,13 +15,13 @@
 		}
 	});
 
-	function handleKeydown(e: KeyboardEvent) {
+	function handleKeydown(e) {
 		if (e.key === 'Escape') {
 			open = false;
 		}
 	}
 
-	function handleBackdropClick(e: MouseEvent) {
+	function handleBackdropClick(e) {
 		if (e.target === dialogEl) {
 			open = false;
 		}

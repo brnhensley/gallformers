@@ -1,9 +1,9 @@
-<script lang="ts">
+<script>
 	import ToastContainer from './ToastContainer.svelte';
-	import { toast } from './toast';
+	import { toast } from './toast.js';
 	import Button from '../forms/Button.svelte';
 
-	let { variant = 'all' }: { variant?: 'all' | 'success' | 'error' | 'info' | 'multiple' } = $props();
+	let { variant = 'all' } = $props();
 </script>
 
 <div class="space-y-4">

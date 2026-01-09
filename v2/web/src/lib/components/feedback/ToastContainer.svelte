@@ -1,7 +1,7 @@
-<script lang="ts">
-	import { toasts, toast } from './toast';
+<script>
+	import { toasts, toast } from './toast.js';
 
-	const typeClasses: Record<'success' | 'error' | 'info', string> = {
+	const typeClasses = {
 		success: 'bg-green-500',
 		error: 'bg-red-500',
 		info: 'bg-blue-500'

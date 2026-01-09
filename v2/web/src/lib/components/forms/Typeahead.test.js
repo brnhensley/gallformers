@@ -3,7 +3,7 @@ import { describe, it, expect, vi } from 'vitest';
 import Typeahead from './Typeahead.svelte';
 
 describe('Typeahead', () => {
-	const mockSearchFn = vi.fn(async (query: string) => {
+	const mockSearchFn = vi.fn(async (query) => {
 		return [
 			{ id: 1, name: 'Apple' },
 			{ id: 2, name: 'Banana' },

@@ -1,7 +1,6 @@
-import type { Preview } from '@storybook/sveltekit';
 import '../src/app.css';
 
-const preview: Preview = {
+const preview = {
     parameters: {
         controls: {
             matchers: {
