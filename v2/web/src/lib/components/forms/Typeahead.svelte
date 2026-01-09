@@ -1,4 +1,4 @@
-<script lang="ts">
+<script>
 	import Select from 'svelte-select';
 
 	let {
@@ -10,30 +10,20 @@
 		creatable = false,
 		required = false,
 		error = undefined
-	}: {
-		selected?: unknown;
-		label: string;
-		searchFn: (query: string) => Promise<unknown[]>;
-		labelKey?: string;
-		multiple?: boolean;
-		creatable?: boolean;
-		required?: boolean;
-		error?: string;
 	} = $props();
 
 	// Generate unique ID for accessibility
 	const labelId = `typeahead-label-${Math.random().toString(36).slice(2, 9)}`;
 
-	function getOptionLabel(opt: unknown): string {
+	function getOptionLabel(opt) {
 		if (opt && typeof opt === 'object' && labelKey in opt) {
-			return String((opt as Record<string, unknown>)[labelKey]);
+			return String(opt[labelKey]);
 		}
 		return String(opt);
 	}
 
-	// Extra props to work around incomplete svelte-select types
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	const extraProps: Record<string, any> = $derived({ creatable });
+	// Extra props for svelte-select
+	const extraProps = $derived({ creatable });
 </script>
 
 <div class="block">

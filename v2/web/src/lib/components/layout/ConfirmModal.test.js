@@ -13,11 +13,11 @@ afterEach(() => {
 });
 
 // Helper to get button in dialog (jsdom doesn't properly expose dialog content via role queries)
-function getButtonByText(container: HTMLElement, text: string): HTMLButtonElement {
+function getButtonByText(container, text) {
 	const buttons = container.querySelectorAll('button');
 	for (const btn of buttons) {
 		if (btn.textContent?.trim() === text) {
-			return btn as HTMLButtonElement;
+			return btn;
 		}
 	}
 	throw new Error(`Button with text "${text}" not found`);

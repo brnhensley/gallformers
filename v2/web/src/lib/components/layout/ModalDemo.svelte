@@ -1,8 +1,8 @@
-<script lang="ts">
+<script>
 	import Modal from './Modal.svelte';
 	import Button from '../forms/Button.svelte';
 
-	let { title = 'Modal Title', variant = 'basic' }: { title?: string; variant?: 'basic' | 'form' | 'long' } = $props();
+	let { title = 'Modal Title', variant = 'basic' } = $props();
 
 	let open = $state(false);
 </script>

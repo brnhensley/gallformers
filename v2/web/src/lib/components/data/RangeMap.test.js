@@ -49,7 +49,7 @@ describe('RangeMap', () => {
 	it('renders SVG with correct viewBox', () => {
 		render(RangeMap, {
 			props: {
-				inRange: new Set<string>()
+				inRange: new Set()
 			}
 		});
 
@@ -61,7 +61,7 @@ describe('RangeMap', () => {
 	it('renders path elements for each region', () => {
 		const { container } = render(RangeMap, {
 			props: {
-				inRange: new Set<string>()
+				inRange: new Set()
 			}
 		});
 
@@ -85,7 +85,7 @@ describe('RangeMap', () => {
 	it('fills excluded regions with coral', () => {
 		const { container } = render(RangeMap, {
 			props: {
-				inRange: new Set<string>(),
+				inRange: new Set(),
 				excludedRange: new Set(['TX'])
 			}
 		});
@@ -99,7 +99,7 @@ describe('RangeMap', () => {
 	it('fills unselected regions with white', () => {
 		const { container } = render(RangeMap, {
 			props: {
-				inRange: new Set<string>()
+				inRange: new Set()
 			}
 		});
 
@@ -112,7 +112,7 @@ describe('RangeMap', () => {
 		const mockToggle = vi.fn();
 		const { container } = render(RangeMap, {
 			props: {
-				inRange: new Set<string>(),
+				inRange: new Set(),
 				editable: false,
 				onToggle: mockToggle
 			}
@@ -128,7 +128,7 @@ describe('RangeMap', () => {
 		const mockToggle = vi.fn();
 		const { container } = render(RangeMap, {
 			props: {
-				inRange: new Set<string>(),
+				inRange: new Set(),
 				editable: true,
 				onToggle: mockToggle
 			}
@@ -143,7 +143,7 @@ describe('RangeMap', () => {
 	it('adds cursor-pointer class when editable', () => {
 		const { container } = render(RangeMap, {
 			props: {
-				inRange: new Set<string>(),
+				inRange: new Set(),
 				editable: true
 			}
 		});
@@ -157,7 +157,7 @@ describe('RangeMap', () => {
 	it('does not add cursor-pointer class when not editable', () => {
 		const { container } = render(RangeMap, {
 			props: {
-				inRange: new Set<string>(),
+				inRange: new Set(),
 				editable: false
 			}
 		});
@@ -171,7 +171,7 @@ describe('RangeMap', () => {
 	it('adds button role and tabindex when editable', () => {
 		const { container } = render(RangeMap, {
 			props: {
-				inRange: new Set<string>(),
+				inRange: new Set(),
 				editable: true
 			}
 		});
@@ -187,7 +187,7 @@ describe('RangeMap', () => {
 		const mockToggle = vi.fn();
 		const { container } = render(RangeMap, {
 			props: {
-				inRange: new Set<string>(),
+				inRange: new Set(),
 				editable: true,
 				onToggle: mockToggle
 			}

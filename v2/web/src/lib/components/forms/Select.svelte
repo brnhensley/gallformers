@@ -1,4 +1,4 @@
-<script lang="ts">
+<script>
 	let {
 		value = $bindable(null),
 		label,
@@ -8,15 +8,6 @@
 		required = false,
 		disabled = false,
 		error = undefined
-	}: {
-		value?: unknown;
-		label: string;
-		options: Record<string, unknown>[];
-		optionLabel?: string;
-		optionValue?: string;
-		required?: boolean;
-		disabled?: boolean;
-		error?: string;
 	} = $props();
 </script>
 

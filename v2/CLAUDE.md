@@ -6,7 +6,7 @@ You are working on the gallformers v2 rewrite. All v2 code lives in this directo
 
 The v2 stack is:
 - **Go API** (`v2/api/`) - REST API server serving JSON endpoints and static files
-- **Svelte Web** (`v2/web/`) - SvelteKit frontend compiled to static files
+- **Svelte Web** (`v2/web/`) - SvelteKit frontend (JavaScript, not TypeScript) compiled to static files
 - **SQLite** - Database (shared with v1 during development)
 - **Fly.io** - Production hosting
 

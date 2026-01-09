@@ -1,4 +1,4 @@
-<script lang="ts">
+<script>
 	let {
 		selected = $bindable([]),
 		options,
@@ -7,17 +7,9 @@
 		label,
 		required = false,
 		error = undefined
-	}: {
-		selected?: Record<string, unknown>[];
-		options: Record<string, unknown>[];
-		labelKey?: string;
-		valueKey?: string;
-		label: string;
-		required?: boolean;
-		error?: string;
 	} = $props();
 
-	function toggle(opt: Record<string, unknown>) {
+	function toggle(opt) {
 		const idx = selected.findIndex((s) => s[valueKey] === opt[valueKey]);
 		if (idx >= 0) {
 			selected = selected.filter((_, i) => i !== idx);
@@ -26,7 +18,7 @@
 		}
 	}
 
-	function isSelected(opt: Record<string, unknown>) {
+	function isSelected(opt) {
 		return selected.some((s) => s[valueKey] === opt[valueKey]);
 	}
 </script>

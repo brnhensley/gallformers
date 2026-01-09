@@ -1,20 +1,13 @@
-<script lang="ts">
+<script>
 	import { geoPath, geoAlbers } from 'd3-geo';
 	import { feature } from 'topojson-client';
-	import type { Topology, GeometryCollection } from 'topojson-specification';
-	import type { Feature, Geometry, GeoJsonProperties } from 'geojson';
 	import topology from '$lib/data/usa-can-topo.json';
 
 	let {
 		inRange,
-		excludedRange = new Set<string>(),
+		excludedRange = new Set(),
 		editable = false,
 		onToggle = () => {}
-	}: {
-		inRange: Set<string>;
-		excludedRange?: Set<string>;
-		editable?: boolean;
-		onToggle?: (code: string) => void;
 	} = $props();
 
 	// Albers projection configured for North America (USA + Canada)
@@ -28,29 +21,21 @@
 	const path = geoPath(projection);
 
 	// Extract features from TopoJSON (includes US states + Canadian provinces)
-	const topoTyped = topology as unknown as Topology<{
-		ne_10m_admin_1_states_provinces: GeometryCollection<{
-			name: string;
-			postal: string;
-			iso_a2: string;
-		}>;
-	}>;
-	const features = feature(topoTyped, topoTyped.objects.ne_10m_admin_1_states_provinces)
-		.features as Feature<Geometry, { name: string; postal: string; iso_a2: string }>[];
+	const features = feature(topology, topology.objects.ne_10m_admin_1_states_provinces).features;
 
-	function getFill(code: string): string {
+	function getFill(code) {
 		if (excludedRange.has(code)) return '#F08080'; // LightCoral - excluded
 		if (inRange.has(code)) return '#228B22'; // ForestGreen - in range
 		return '#FFFFFF'; // White - neither
 	}
 
-	function handleClick(code: string) {
+	function handleClick(code) {
 		if (editable) {
 			onToggle(code);
 		}
 	}
 
-	function handleKeyDown(e: KeyboardEvent, code: string) {
+	function handleKeyDown(e, code) {
 		if (editable && (e.key === 'Enter' || e.key === ' ')) {
 			e.preventDefault();
 			onToggle(code);

@@ -46,7 +46,7 @@ describe('Table', () => {
 			{
 				key: 'name',
 				label: 'Species',
-				render: (row: { name: string }) => `Species: ${row.name}`
+				render: (row) => `Species: ${row.name}`
 			}
 		];
 
@@ -99,7 +99,7 @@ describe('Table', () => {
 		});
 
 		const nameHeader = screen.getByText('Name').closest('th');
-		await fireEvent.click(nameHeader!);
+		await fireEvent.click(nameHeader);
 
 		expect(onsort).toHaveBeenCalledWith('name');
 	});
@@ -115,7 +115,7 @@ describe('Table', () => {
 		});
 
 		const idHeader = screen.getByText('ID').closest('th');
-		await fireEvent.click(idHeader!);
+		await fireEvent.click(idHeader);
 
 		expect(onsort).not.toHaveBeenCalled();
 	});
@@ -133,7 +133,7 @@ describe('Table', () => {
 		});
 
 		const nameHeader = screen.getByText('Name').closest('th');
-		await fireEvent.click(nameHeader!);
+		await fireEvent.click(nameHeader);
 
 		// After clicking, sortDir should have toggled
 		expect(onsort).toHaveBeenCalledWith('name');

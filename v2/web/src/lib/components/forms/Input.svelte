@@ -1,4 +1,4 @@
-<script lang="ts">
+<script>
 	let {
 		value = $bindable(''),
 		label,
@@ -6,13 +6,6 @@
 		required = false,
 		disabled = false,
 		error = undefined
-	}: {
-		value?: string;
-		label: string;
-		type?: 'text' | 'number' | 'email';
-		required?: boolean;
-		disabled?: boolean;
-		error?: string;
 	} = $props();
 </script>
 

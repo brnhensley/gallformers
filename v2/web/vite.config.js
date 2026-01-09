@@ -1,4 +1,3 @@
-/// <reference types="vitest/config" />
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 import { svelteTesting } from '@testing-library/svelte/vite';
@@ -6,9 +5,9 @@ import { svelteTesting } from '@testing-library/svelte/vite';
 export default defineConfig({
     plugins: [sveltekit(), svelteTesting()],
     test: {
-        include: ['src/**/*.{test,spec}.{js,ts}'],
+        include: ['src/**/*.{test,spec}.js'],
         environment: 'jsdom',
         globals: true,
-        setupFiles: ['./src/lib/components/vitest-setup.ts'],
+        setupFiles: ['./src/lib/components/vitest-setup.js'],
     },
 });

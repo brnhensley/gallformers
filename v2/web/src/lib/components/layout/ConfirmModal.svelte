@@ -1,4 +1,4 @@
-<script lang="ts">
+<script>
 	import Modal from './Modal.svelte';
 	import Button from '../forms/Button.svelte';
 
@@ -11,15 +11,6 @@
 		variant = 'danger',
 		onConfirm,
 		onCancel
-	}: {
-		open?: boolean;
-		title: string;
-		message: string;
-		confirmLabel?: string;
-		cancelLabel?: string;
-		variant?: 'danger' | 'warning';
-		onConfirm: () => void;
-		onCancel: () => void;
 	} = $props();
 </script>
 

@@ -62,7 +62,7 @@ describe('Modal', () => {
 
 		const dialog = container.querySelector('dialog');
 		expect(dialog).toBeInTheDocument();
-		await fireEvent.keyDown(dialog!, { key: 'Escape' });
+		await fireEvent.keyDown(dialog, { key: 'Escape' });
 
 		// The component calls the effect to close the dialog
 		// Verify close was called (since open should have been set to false)

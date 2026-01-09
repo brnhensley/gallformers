@@ -1,12 +1,5 @@
-<script lang="ts">
+<script>
 	import Button from '../forms/Button.svelte';
-
-	interface Column<T> {
-		key: string;
-		label: string;
-		sortable?: boolean;
-		render?: (row: T) => string;
-	}
 
 	let {
 		data,
@@ -18,16 +11,6 @@
 		pageSize = 25,
 		totalCount = 0,
 		onpagechange
-	}: {
-		data: unknown[];
-		columns: Column<unknown>[];
-		sortBy?: string | null;
-		sortDir?: 'asc' | 'desc';
-		onsort?: (key: string) => void;
-		page?: number;
-		pageSize?: number;
-		totalCount?: number;
-		onpagechange?: (page: number) => void;
 	} = $props();
 
 	// Pagination calculations
@@ -36,7 +19,7 @@
 	let startItem = $derived((page - 1) * pageSize + 1);
 	let endItem = $derived(Math.min(page * pageSize, totalCount));
 
-	function handleSort(key: string) {
+	function handleSort(key) {
 		if (!onsort) return;
 		if (sortBy === key) {
 			sortDir = sortDir === 'asc' ? 'desc' : 'asc';
@@ -47,16 +30,15 @@
 		onsort(key);
 	}
 
-	function getValue(row: unknown, col: Column<unknown>): string {
+	function getValue(row, col) {
 		if (col.render) {
 			return col.render(row);
 		}
-		const record = row as Record<string, unknown>;
-		const value = record[col.key];
+		const value = row[col.key];
 		return value != null ? String(value) : '';
 	}
 
-	function goToPage(newPage: number) {
+	function goToPage(newPage) {
 		if (onpagechange && newPage >= 1 && newPage <= totalPages) {
 			onpagechange(newPage);
 		}

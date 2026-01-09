@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { get } from 'svelte/store';
-import { toast, toasts } from './toast';
+import { toast, toasts } from './toast.js';
 
 describe('toast store', () => {
 	beforeEach(() => {
