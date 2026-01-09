@@ -30,41 +30,41 @@
 ## Phase 2: Form Components
 
 ### 2.1 Input component
-- [ ] Implement `Input.svelte` with props: value, label, type, required, disabled, error
-- [ ] Add two-way binding via `$bindable`
-- [ ] Style with Tailwind, error state styling
-- [ ] Write `Input.test.ts` with tests for: label rendering, error display, required indicator, value binding
+- [x] Implement `Input.svelte` with props: value, label, type, required, disabled, error
+- [x] Add two-way binding via `$bindable`
+- [x] Style with Tailwind, error state styling
+- [x] Write `Input.test.ts` with tests for: label rendering, error display, required indicator, value binding
 - **Verify**: Tests pass, component renders correctly
 
 ### 2.2 Textarea component
-- [ ] Implement `Textarea.svelte` with props: value, label, rows, required, disabled, error
-- [ ] Multi-line text input with configurable rows
-- [ ] Write `Textarea.test.ts`
+- [x] Implement `Textarea.svelte` with props: value, label, rows, required, disabled, error
+- [x] Multi-line text input with configurable rows
+- [x] Write `Textarea.test.ts`
 - **Verify**: Tests pass, textarea renders correctly
 
 ### 2.3 Select component
-- [ ] Implement `Select.svelte` with props: value, label, options, optionLabel, optionValue, required, disabled, error
-- [ ] Support object options with configurable label/value keys
-- [ ] Write `Select.test.ts`
+- [x] Implement `Select.svelte` with props: value, label, options, optionLabel, optionValue, required, disabled, error
+- [x] Support object options with configurable label/value keys
+- [x] Write `Select.test.ts`
 - **Verify**: Tests pass, options render correctly
 
 ### 2.4 Checkbox component
-- [ ] Implement `Checkbox.svelte` with props: checked, label, disabled
-- [ ] Write `Checkbox.test.ts`
+- [x] Implement `Checkbox.svelte` with props: checked, label, disabled
+- [x] Write `Checkbox.test.ts`
 - **Verify**: Tests pass, checked state toggles
 
 ### 2.5 MultiSelect component
-- [ ] Implement `MultiSelect.svelte` with props: selected, options, labelKey, valueKey, label, required, error
-- [ ] Pill/chip toggle UI for selection
-- [ ] Write `MultiSelect.test.ts`
+- [x] Implement `MultiSelect.svelte` with props: selected, options, labelKey, valueKey, label, required, error
+- [x] Pill/chip toggle UI for selection
+- [x] Write `MultiSelect.test.ts`
 - **Verify**: Tests pass, multiple selections work
 
 ### 2.6 Button component
-- [ ] Implement `Button.svelte` with props: variant, type, disabled, autofocus, onclick, children
-- [ ] Four variants: primary, secondary, danger, ghost
-- [ ] Focus ring styling
-- [ ] Autofocus prop focuses button on mount via $effect
-- [ ] Write `Button.test.ts`
+- [x] Implement `Button.svelte` with props: variant, type, disabled, autofocus, onclick, children
+- [x] Four variants: primary, secondary, danger, ghost
+- [x] Focus ring styling
+- [x] Autofocus prop focuses button on mount via $effect
+- [x] Write `Button.test.ts`
 - **Verify**: Tests pass, all variants render correctly, autofocus works
 
 ### 2.7 Typeahead component
@@ -87,11 +87,11 @@
 - **Verify**: Tests pass, modal opens/closes correctly
 
 ### 3.2 ConfirmModal component
-- [ ] Implement `ConfirmModal.svelte` extending Modal
-- [ ] Props: open, title, message, confirmLabel, cancelLabel, variant, onConfirm, onCancel
-- [ ] Cancel button focused by default
-- [ ] Danger variant styling for confirm button
-- [ ] Write `ConfirmModal.test.ts`
+- [x] Implement `ConfirmModal.svelte` extending Modal
+- [x] Props: open, title, message, confirmLabel, cancelLabel, variant, onConfirm, onCancel
+- [x] Cancel button focused by default
+- [x] Danger variant styling for confirm button
+- [x] Write `ConfirmModal.test.ts`
 - **Verify**: Tests pass, Cancel is focused on open
 
 ### 3.3 Card component
@@ -118,14 +118,14 @@
 ## Phase 4: Data Components
 
 ### 4.1 Table component
-- [ ] Implement `Table.svelte` with props: data, columns, sortBy, sortDir, onsort, page, pageSize, totalCount, onpagechange
-- [ ] Column config: key, label, sortable, render
-- [ ] Sort indicator arrows
-- [ ] Hover state on rows
-- [ ] Pagination UI: Previous/Next buttons, "Showing X to Y of Z" text
-- [ ] Hide pagination when totalCount <= pageSize
-- [ ] Disable Previous on first page, Next on last page
-- [ ] Write `Table.test.ts` (sorting and pagination)
+- [x] Implement `Table.svelte` with props: data, columns, sortBy, sortDir, onsort, page, pageSize, totalCount, onpagechange
+- [x] Column config: key, label, sortable, render
+- [x] Sort indicator arrows
+- [x] Hover state on rows
+- [x] Pagination UI: Previous/Next buttons, "Showing X to Y of Z" text
+- [x] Hide pagination when totalCount <= pageSize
+- [x] Disable Previous on first page, Next on last page
+- [x] Write `Table.test.ts` (sorting and pagination)
 - **Verify**: Tests pass, sorting and pagination work
 
 ### 4.2 RangeMap component
@@ -143,19 +143,19 @@
 ## Phase 5: Feedback Components
 
 ### 5.1 Toast store
-- [ ] Implement `toast.ts` Svelte store
-- [ ] Functions: toast.success(), toast.error(), toast.info(), toast.dismiss()
-- [ ] Auto-dismiss after 5 seconds
-- [ ] Write `toast.test.ts`
+- [x] Implement `toast.ts` Svelte store
+- [x] Functions: toast.success(), toast.error(), toast.info(), toast.dismiss()
+- [x] Auto-dismiss after 5 seconds
+- [x] Write `toast.test.ts`
 - **Verify**: Tests pass
 
 ### 5.2 ToastContainer component
-- [ ] Implement `ToastContainer.svelte`
-- [ ] Fixed position bottom-right
-- [ ] Render toasts from store
-- [ ] Variant styling (success=green, error=red, info=blue)
-- [ ] Close button on each toast for manual dismiss
-- [ ] Write `ToastContainer.test.ts`
+- [x] Implement `ToastContainer.svelte`
+- [x] Fixed position bottom-right
+- [x] Render toasts from store
+- [x] Variant styling (success=green, error=red, info=blue)
+- [x] Close button on each toast for manual dismiss
+- [x] Write `ToastContainer.test.ts`
 - **Verify**: Tests pass, toasts appear, auto-dismiss, and can be manually dismissed
 
 ---
@@ -163,12 +163,12 @@
 ## Phase 6: Integration & Documentation
 
 ### 6.1 Update barrel export
-- [ ] Ensure all components exported from `index.ts`
-- [ ] Verify imports work: `import { Button, Input, Modal } from '$lib/components'`
+- [x] Ensure all components exported from `index.ts`
+- [x] Verify imports work: `import { Button, Input, Modal } from '$lib/components'`
 - **Verify**: No import errors
 
 ### 6.2 Final validation
-- [ ] Run full test suite: `yarn test`
+- [x] Run full test suite: `yarn test`
 - [ ] Run type check: `yarn check-types`
 - [ ] Run build: `yarn build`
 - **Verify**: All pass with no errors

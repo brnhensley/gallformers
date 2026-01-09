@@ -10,13 +10,13 @@ export { default as Button } from './forms/Button.svelte';
 
 // Layout
 export { default as Modal } from './layout/Modal.svelte';
-// export { default as ConfirmModal } from './layout/ConfirmModal.svelte';
+export { default as ConfirmModal } from './layout/ConfirmModal.svelte';
 export { default as Card } from './layout/Card.svelte';
 export { default as Alert } from './layout/Alert.svelte';
 export { default as Spinner } from './layout/Spinner.svelte';
 
 // Data
-// export { default as Table } from './data/Table.svelte';
+export { default as Table } from './data/Table.svelte';
 export { default as RangeMap } from './data/RangeMap.svelte';
 
 // Feedback
