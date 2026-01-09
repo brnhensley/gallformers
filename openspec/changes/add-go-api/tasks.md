@@ -98,12 +98,12 @@
 
 ## 8. Domain: Taxonomy
 
-- [ ] 8.1 Write sqlc queries (`internal/db/queries/taxonomy.sql`)
+- [x] 8.1 Write sqlc queries (`internal/db/queries/taxonomy.sql`)
   - Taxonomy CRUD (GetByID, GetBySpeciesID, GetByName, Upsert, Delete)
   - Family CRUD (List, GetByID, Search, Upsert, Delete)
   - Genus CRUD (List, GetByID, Search, Move)
   - Section CRUD (List, GetByID, Delete)
-- [ ] 8.2 Implement handlers (`internal/handlers/taxonomy.go`)
+- [x] 8.2 Implement handlers (`internal/handlers/taxonomy.go`)
   - GET /api/v2/taxonomy
   - GET /api/v2/taxonomy/{id}
   - POST /api/v2/taxonomy (auth required)
@@ -117,8 +117,8 @@
   - GET /api/v2/taxonomy/sections
   - GET /api/v2/taxonomy/sections/{id}
   - DELETE /api/v2/taxonomy/sections/{id} (auth required)
-- [ ] 8.3 Add OpenAPI spec for taxonomy endpoints
-- [ ] 8.4 Write integration tests
+- [x] 8.3 Add OpenAPI spec for taxonomy endpoints
+- [x] 8.4 Write integration tests
 
 ## 9. Domain: Source
 
