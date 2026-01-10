@@ -29,10 +29,20 @@
 
 <svelte:head>
 	{#if data.host}
+		{@const description = `${data.host.name} - A host plant species on Gallformers.`}
+		{@const imageUrl = data.images && data.images.length > 0 ? data.images[0].default : 'https://gallformers.org/images/host.svg'}
 		<title>{data.host.name} | Gallformers</title>
-		<meta name="description" content="{data.host.name} - A host plant species on Gallformers." />
+		<meta name="description" content={description} />
+		<!-- Open Graph (also used by Mastodon, BlueSky, etc.) -->
+		<meta property="og:title" content="{data.host.name} | Gallformers" />
+		<meta property="og:description" content={description} />
+		<meta property="og:type" content="website" />
+		<meta property="og:url" content="https://gallformers.org/host/{data.host.id}" />
+		<meta property="og:image" content={imageUrl} />
+		<meta property="og:site_name" content="Gallformers" />
 	{:else}
 		<title>Host Not Found | Gallformers</title>
+		<meta name="description" content="Host not found on Gallformers." />
 	{/if}
 </svelte:head>
 

@@ -98,8 +98,15 @@
 </script>
 
 <svelte:head>
-	<title>Glossary - Gallformers</title>
-	<meta name="description" content="A Glossary of Gall Related Terminology" />
+	<title>Glossary | Gallformers</title>
+	<meta name="description" content="A glossary of gall related terminology used in cecidiology." />
+	<!-- Open Graph (also used by Mastodon, BlueSky, etc.) -->
+	<meta property="og:title" content="Glossary | Gallformers" />
+	<meta property="og:description" content="A glossary of gall related terminology used in cecidiology." />
+	<meta property="og:type" content="website" />
+	<meta property="og:url" content="https://gallformers.org/glossary" />
+	<meta property="og:image" content="https://gallformers.org/images/cynipid_R.svg" />
+	<meta property="og:site_name" content="Gallformers" />
 </svelte:head>
 
 <div class="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">

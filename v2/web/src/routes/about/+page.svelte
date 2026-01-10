@@ -32,8 +32,15 @@
 </script>
 
 <svelte:head>
-	<title>About Gallformers</title>
-	<meta name="description" content="About the creators of gallformers and why we built the site." />
+	<title>About | Gallformers</title>
+	<meta name="description" content="About the creators of Gallformers and why we built the site." />
+	<!-- Open Graph (also used by Mastodon, BlueSky, etc.) -->
+	<meta property="og:title" content="About | Gallformers" />
+	<meta property="og:description" content="About the creators of Gallformers and why we built the site." />
+	<meta property="og:type" content="website" />
+	<meta property="og:url" content="https://gallformers.org/about" />
+	<meta property="og:image" content="https://gallformers.org/images/cynipid_R.svg" />
+	<meta property="og:site_name" content="Gallformers" />
 </svelte:head>
 
 <div class="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">

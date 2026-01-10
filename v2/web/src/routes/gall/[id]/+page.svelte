@@ -81,15 +81,20 @@
 
 <svelte:head>
 	{#if data.gall}
+		{@const description = `${data.gall.name} - A gall species on Gallformers.${data.gall.undescribed ? ' The inducer of this gall is unknown or undescribed.' : ''}`}
+		{@const imageUrl = data.images && data.images.length > 0 ? data.images[0].default : 'https://gallformers.org/images/cynipid_R.svg'}
 		<title>{data.gall.name} | Gallformers</title>
-		<meta
-			name="description"
-			content="{data.gall.name} - A gall species on Gallformers. {data.gall.undescribed
-				? 'The inducer of this gall is unknown or undescribed.'
-				: ''}"
-		/>
+		<meta name="description" content={description} />
+		<!-- Open Graph (also used by Mastodon, BlueSky, etc.) -->
+		<meta property="og:title" content="{data.gall.name} | Gallformers" />
+		<meta property="og:description" content={description} />
+		<meta property="og:type" content="website" />
+		<meta property="og:url" content="https://gallformers.org/gall/{data.gall.id}" />
+		<meta property="og:image" content={imageUrl} />
+		<meta property="og:site_name" content="Gallformers" />
 	{:else}
 		<title>Gall Not Found | Gallformers</title>
+		<meta name="description" content="Gall not found on Gallformers." />
 	{/if}
 </svelte:head>
 

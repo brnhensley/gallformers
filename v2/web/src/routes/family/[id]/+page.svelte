@@ -25,10 +25,19 @@
 
 <svelte:head>
 	{#if data.family}
+		{@const description = `Family ${data.family.name}${data.family.description ? ` - ${data.family.description}` : ''} - Taxonomy on Gallformers.`}
 		<title>{data.family.name} | Gallformers</title>
-		<meta name="description" content="Family {data.family.name} - Taxonomy on Gallformers." />
+		<meta name="description" content={description} />
+		<!-- Open Graph (also used by Mastodon, BlueSky, etc.) -->
+		<meta property="og:title" content="Family {data.family.name} | Gallformers" />
+		<meta property="og:description" content={description} />
+		<meta property="og:type" content="website" />
+		<meta property="og:url" content="https://gallformers.org/family/{data.family.id}" />
+		<meta property="og:image" content="https://gallformers.org/images/taxon.svg" />
+		<meta property="og:site_name" content="Gallformers" />
 	{:else}
 		<title>Family Not Found | Gallformers</title>
+		<meta name="description" content="Family not found on Gallformers." />
 	{/if}
 </svelte:head>
 

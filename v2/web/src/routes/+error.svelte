@@ -3,8 +3,14 @@
 </script>
 
 <svelte:head>
-	<title>{$page.status} - Gallformers</title>
-	<meta name="description" content="Page not found - Gallformers" />
+	<title>{$page.status === 404 ? 'Page Not Found' : 'Error'} | Gallformers</title>
+	<meta name="description" content={$page.status === 404 ? 'The requested page was not found on Gallformers.' : 'An error occurred on Gallformers.'} />
+	<!-- Open Graph (also used by Mastodon, BlueSky, etc.) -->
+	<meta property="og:title" content="{$page.status === 404 ? 'Page Not Found' : 'Error'} | Gallformers" />
+	<meta property="og:description" content={$page.status === 404 ? 'The requested page was not found on Gallformers.' : 'An error occurred on Gallformers.'} />
+	<meta property="og:type" content="website" />
+	<meta property="og:image" content="https://gallformers.org/images/cynipid_R.svg" />
+	<meta property="og:site_name" content="Gallformers" />
 </svelte:head>
 
 <div class="min-h-[60vh] flex items-center justify-center px-4">

@@ -15,10 +15,19 @@
 
 <svelte:head>
 	{#if data.source}
+		{@const description = data.source.citation || `${data.source.title} - Source on Gallformers.`}
 		<title>{data.source.title} | Gallformers</title>
-		<meta name="description" content="{data.source.citation}" />
+		<meta name="description" content={description} />
+		<!-- Open Graph (also used by Mastodon, BlueSky, etc.) -->
+		<meta property="og:title" content="{data.source.title} | Gallformers" />
+		<meta property="og:description" content={description} />
+		<meta property="og:type" content="website" />
+		<meta property="og:url" content="https://gallformers.org/source/{data.source.id}" />
+		<meta property="og:image" content="https://gallformers.org/images/source.svg" />
+		<meta property="og:site_name" content="Gallformers" />
 	{:else}
 		<title>Source Not Found | Gallformers</title>
+		<meta name="description" content="Source not found on Gallformers." />
 	{/if}
 </svelte:head>
 

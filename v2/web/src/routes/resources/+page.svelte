@@ -1,6 +1,13 @@
 <svelte:head>
-	<title>Resources - Gallformers</title>
+	<title>Resources | Gallformers</title>
 	<meta name="description" content="External resources and links for learning about plant galls." />
+	<!-- Open Graph (also used by Mastodon, BlueSky, etc.) -->
+	<meta property="og:title" content="Resources | Gallformers" />
+	<meta property="og:description" content="External resources and links for learning about plant galls." />
+	<meta property="og:type" content="website" />
+	<meta property="og:url" content="https://gallformers.org/resources" />
+	<meta property="og:image" content="https://gallformers.org/images/cynipid_R.svg" />
+	<meta property="og:site_name" content="Gallformers" />
 </svelte:head>
 
 <div class="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">

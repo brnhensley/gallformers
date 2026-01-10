@@ -153,8 +153,15 @@
 </script>
 
 <svelte:head>
-	<title>Search Results - '{data.query}' | Gallformers</title>
-	<meta name="description" content="Gallformers Search Results" />
+	<title>{data.query ? `Search: '${data.query}'` : 'Search'} | Gallformers</title>
+	<meta name="description" content="Search Gallformers for galls, hosts, sources, glossary terms, and more." />
+	<!-- Open Graph (also used by Mastodon, BlueSky, etc.) -->
+	<meta property="og:title" content="{data.query ? `Search: '${data.query}'` : 'Search'} | Gallformers" />
+	<meta property="og:description" content="Search Gallformers for galls, hosts, sources, glossary terms, and more." />
+	<meta property="og:type" content="website" />
+	<meta property="og:url" content="https://gallformers.org/globalsearch" />
+	<meta property="og:image" content="https://gallformers.org/images/cynipid_R.svg" />
+	<meta property="og:site_name" content="Gallformers" />
 </svelte:head>
 
 <div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">

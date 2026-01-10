@@ -30,10 +30,14 @@
 
 <svelte:head>
 	<title>Explore Galls & Hosts | Gallformers</title>
-	<meta
-		name="description"
-		content="Browse all of the galls and hosts that Gallformers has in its database."
-	/>
+	<meta name="description" content="Browse all of the galls and hosts that Gallformers has in its database." />
+	<!-- Open Graph (also used by Mastodon, BlueSky, etc.) -->
+	<meta property="og:title" content="Explore Galls & Hosts | Gallformers" />
+	<meta property="og:description" content="Browse all of the galls and hosts that Gallformers has in its database." />
+	<meta property="og:type" content="website" />
+	<meta property="og:url" content="https://gallformers.org/explore" />
+	<meta property="og:image" content="https://gallformers.org/images/cynipid_R.svg" />
+	<meta property="og:site_name" content="Gallformers" />
 </svelte:head>
 
 <div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">

@@ -37,10 +37,19 @@
 
 <svelte:head>
 	{#if data.genus}
-		<title>{data.genus.name} | Gallformers</title>
-		<meta name="description" content="Genus {data.genus.name} - Taxonomy on Gallformers." />
+		{@const description = `Genus ${data.genus.name}${data.genus.description ? ` - ${data.genus.description}` : ''} - Taxonomy on Gallformers.`}
+		<title>Genus {data.genus.name} | Gallformers</title>
+		<meta name="description" content={description} />
+		<!-- Open Graph (also used by Mastodon, BlueSky, etc.) -->
+		<meta property="og:title" content="Genus {data.genus.name} | Gallformers" />
+		<meta property="og:description" content={description} />
+		<meta property="og:type" content="website" />
+		<meta property="og:url" content="https://gallformers.org/genus/{data.genus.id}" />
+		<meta property="og:image" content="https://gallformers.org/images/taxon.svg" />
+		<meta property="og:site_name" content="Gallformers" />
 	{:else}
 		<title>Genus Not Found | Gallformers</title>
+		<meta name="description" content="Genus not found on Gallformers." />
 	{/if}
 </svelte:head>
 

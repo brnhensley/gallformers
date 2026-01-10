@@ -22,6 +22,13 @@
 <svelte:head>
 	<title>Gallformers - Plant Gall Identification</title>
 	<meta name="description" content="The place to identify and learn about galls on plants in the US and Canada." />
+	<!-- Open Graph (also used by Mastodon, BlueSky, etc.) -->
+	<meta property="og:title" content="Gallformers - Plant Gall Identification" />
+	<meta property="og:description" content="The place to identify and learn about galls on plants in the US and Canada." />
+	<meta property="og:type" content="website" />
+	<meta property="og:url" content="https://gallformers.org/" />
+	<meta property="og:image" content="https://gallformers.org/images/cynipid_R.svg" />
+	<meta property="og:site_name" content="Gallformers" />
 </svelte:head>
 
 <div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">

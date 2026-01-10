@@ -114,8 +114,8 @@
 
 ## 8. SEO and Metadata
 
-- [ ] 8.1 Add page titles and meta descriptions to all pages
-- [ ] 8.2 Add Open Graph tags for social sharing
+- [x] 8.1 Add page titles and meta descriptions to all pages
+- [x] 8.2 Add Open Graph tags for social sharing
 - [ ] 8.3 Verify URL structure matches current site exactly
 - [ ] 8.4 Configure pre-rendering for static/entity pages per design.md
 - [ ] 8.5 Test with SEO validation tools

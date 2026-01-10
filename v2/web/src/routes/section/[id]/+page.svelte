@@ -24,10 +24,19 @@
 
 <svelte:head>
 	{#if data.section}
-		<title>{data.section.name} | Gallformers</title>
-		<meta name="description" content="Section {formatFullName(data.section.name, data.section.description)} - Taxonomy on Gallformers." />
+		{@const description = `Section ${formatFullName(data.section.name, data.section.description)} - Taxonomy on Gallformers.`}
+		<title>Section {data.section.name} | Gallformers</title>
+		<meta name="description" content={description} />
+		<!-- Open Graph (also used by Mastodon, BlueSky, etc.) -->
+		<meta property="og:title" content="Section {data.section.name} | Gallformers" />
+		<meta property="og:description" content={description} />
+		<meta property="og:type" content="website" />
+		<meta property="og:url" content="https://gallformers.org/section/{data.section.id}" />
+		<meta property="og:image" content="https://gallformers.org/images/taxon.svg" />
+		<meta property="og:site_name" content="Gallformers" />
 	{:else}
 		<title>Section Not Found | Gallformers</title>
+		<meta name="description" content="Section not found on Gallformers." />
 	{/if}
 </svelte:head>
 

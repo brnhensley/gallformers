@@ -23,10 +23,19 @@
 
 <svelte:head>
 	{#if data.place}
+		{@const description = `${data.place.name} (${data.place.code}) - Geographic location on Gallformers.`}
 		<title>{data.place.name} | Gallformers</title>
-		<meta name="description" content="Place {data.place.name} - Geographic location on Gallformers." />
+		<meta name="description" content={description} />
+		<!-- Open Graph (also used by Mastodon, BlueSky, etc.) -->
+		<meta property="og:title" content="{data.place.name} | Gallformers" />
+		<meta property="og:description" content={description} />
+		<meta property="og:type" content="website" />
+		<meta property="og:url" content="https://gallformers.org/place/{data.place.id}" />
+		<meta property="og:image" content="https://gallformers.org/images/place.svg" />
+		<meta property="og:site_name" content="Gallformers" />
 	{:else}
 		<title>Place Not Found | Gallformers</title>
+		<meta name="description" content="Place not found on Gallformers." />
 	{/if}
 </svelte:head>
 

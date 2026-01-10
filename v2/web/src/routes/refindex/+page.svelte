@@ -1,6 +1,13 @@
 <svelte:head>
-	<title>Reference Library - Gallformers</title>
+	<title>Reference Library | Gallformers</title>
 	<meta name="description" content="The Gallformers Reference Library - articles about gall biology and identification." />
+	<!-- Open Graph (also used by Mastodon, BlueSky, etc.) -->
+	<meta property="og:title" content="Reference Library | Gallformers" />
+	<meta property="og:description" content="The Gallformers Reference Library - articles about gall biology and identification." />
+	<meta property="og:type" content="website" />
+	<meta property="og:url" content="https://gallformers.org/refindex" />
+	<meta property="og:image" content="https://gallformers.org/images/cynipid_R.svg" />
+	<meta property="og:site_name" content="Gallformers" />
 </svelte:head>
 
 <div class="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
