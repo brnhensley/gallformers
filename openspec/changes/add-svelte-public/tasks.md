@@ -81,11 +81,11 @@
 
 ## 6. Search and Browse
 
-- [ ] 6.1 Implement global search page (`/globalsearch`)
-  - [ ] Search input with query param sync
-  - [ ] Results table with type icons
-  - [ ] Links to appropriate detail pages
-  - [ ] Empty state handling
+- [x] 6.1 Implement global search page (`/globalsearch`)
+  - [x] Search input with query param sync
+  - [x] Results table with type icons
+  - [x] Links to appropriate detail pages
+  - [x] Empty state handling
 - [ ] 6.2 Implement explore page (`/explore`)
   - [ ] Tree menu for galls by family
   - [ ] Tree menu for undescribed galls
