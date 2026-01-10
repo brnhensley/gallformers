@@ -24,14 +24,14 @@
 - [x] 2.6 Create `TreeMenu.svelte` - custom hierarchical tree browser (recursive component)
 - [x] 2.7 Create `Typeahead.svelte` - search-as-you-type select
 - [x] 2.8 Create `DataTable.svelte` - sortable, paginated table
-- [ ] 2.9 Create `SpeciesSynonymy.svelte` - aliases/synonyms display
-- [ ] 2.10 Create `DataCompletenessIndicator.svelte` - accessible icon + text with tooltip
+- [x] 2.9 Create `SpeciesSynonymy.svelte` - aliases/synonyms display
+- [x] 2.10 Create `DataCompletenessIndicator.svelte` - accessible icon + text with tooltip
 - [x] 2.11 Create `LoadingSpinner.svelte` - loading indicator
-- [ ] 2.12 Create `ErrorMessage.svelte` - user-friendly error display with retry option
-- [ ] 2.13 Create `EditButton.svelte` - admin edit link (hidden for public users)
-- [ ] 2.14 Create `InfoTip.svelte` - tooltip information icons
+- [x] 2.12 Create `ErrorMessage.svelte` - user-friendly error display with retry option
+- [x] 2.13 Create `EditButton.svelte` - admin edit link (hidden for public users)
+- [x] 2.14 Create `InfoTip.svelte` - tooltip information icons
 - [x] 2.15 Create `Toast.svelte` - notification toast for user feedback (e.g., "Copied to clipboard")
-- [ ] 2.16 Create `Tabs.svelte` - tab navigation component (used by Explore page)
+- [x] 2.16 Create `Tabs.svelte` - tab navigation component (used by Explore page)
 
 ## 3. Static Pages
 
