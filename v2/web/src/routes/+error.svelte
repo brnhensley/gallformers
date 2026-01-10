@@ -26,7 +26,7 @@
 						src="/images/scale.jpg"
 						alt="A scale insect not a gall"
 						class="max-w-full h-auto rounded-lg mx-auto shadow-md"
-						onerror="this.style.display='none'"
+						onerror={(e) => { e.target.style.display = 'none' }}
 					/>
 				</a>
 			</div>

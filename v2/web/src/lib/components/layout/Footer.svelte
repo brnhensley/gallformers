@@ -21,15 +21,15 @@
 	];
 </script>
 
-<footer class="bg-gray-800 text-gray-300">
-	<div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+<footer class="bg-gray-100 text-gf-maroon">
+	<div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
 		<div class="md:flex md:items-center md:justify-between">
 			<!-- Footer Navigation -->
 			<nav class="flex flex-wrap justify-center gap-x-6 md:justify-start" aria-label="Footer navigation">
 				{#each footerLinks as link}
 					<a
 						href={link.href}
-						class="text-sm hover:text-white transition-colors"
+						class="text-sm font-medium text-gf-maroon hover:underline transition-colors"
 					>
 						{link.label}
 					</a>
@@ -43,7 +43,7 @@
 						href={social.href}
 						target="_blank"
 						rel="noopener noreferrer"
-						class="text-gray-400 hover:text-white transition-colors"
+						class="text-gf-maroon hover:text-gf-autumn transition-colors"
 						aria-label={social.label}
 					>
 						{#if social.icon === 'github'}
@@ -67,17 +67,17 @@
 		</div>
 
 		<!-- Copyright and License -->
-		<div class="mt-6 border-t border-gray-700 pt-6">
-			<p class="text-center text-xs text-gray-400">
+		<div class="mt-4 border-t border-gray-300 pt-4">
+			<p class="text-center text-xs text-gray-600">
 				&copy; {currentYear} Gallformers. All rights reserved.
 			</p>
-			<p class="mt-2 text-center text-xs text-gray-500">
+			<p class="mt-1 text-center text-xs text-gray-500">
 				Content is available under
 				<a
 					href="https://creativecommons.org/licenses/by-nc-sa/4.0/"
 					target="_blank"
 					rel="noopener noreferrer"
-					class="text-gray-400 hover:text-white underline"
+					class="text-gf-maroon hover:underline"
 				>
 					CC BY-NC-SA 4.0
 				</a>

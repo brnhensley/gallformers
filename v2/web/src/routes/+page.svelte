@@ -29,21 +29,21 @@
 
 <div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
 	<!-- Hero Section -->
-	<div class="text-center mb-12">
-		<h1 class="text-4xl font-bold text-gf-maroon mb-2">Welcome to Gallformers</h1>
-		<p class="text-xl text-gray-600">
+	<div class="text-center mb-8">
+		<h1 class="text-3xl font-bold text-gf-maroon mb-2">Welcome to Gallformers</h1>
+		<p class="text-lg text-gf-autumn">
 			The place to identify and learn about galls on plants in the US and Canada.
 		</p>
 	</div>
 
-	<div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+	<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 		<!-- What is a Gall -->
-		<div class="bg-white rounded-lg shadow-md overflow-hidden">
-			<div class="bg-gf-maroon px-4 py-3">
-				<h2 class="text-xl font-semibold text-white">What the heck is a gall?!</h2>
+		<div class="bg-white rounded border border-gray-200 shadow-sm">
+			<div class="px-4 py-3 border-b border-gray-200">
+				<h2 class="text-xl font-semibold text-gf-maroon">What the heck is a gall?!</h2>
 			</div>
-			<div class="p-6">
-				<p class="text-gray-700 leading-relaxed">
+			<div class="p-4">
+				<p class="text-gray-700 leading-relaxed description-text">
 					Plant galls are abnormal growths of plant tissues, similar to tumors or warts in animals,
 					that have an external cause--such as an insect, mite, nematode, virus, fungus, bacterium,
 					or even another plant species. Growths caused by genetic mutations are not galls. Nor are
@@ -55,24 +55,24 @@
 		</div>
 
 		<!-- Stuff You Can Do -->
-		<div class="bg-white rounded-lg shadow-md overflow-hidden">
-			<div class="bg-gf-maroon px-4 py-3">
-				<h2 class="text-xl font-semibold text-white">Stuff you can do.</h2>
+		<div class="bg-white rounded border border-gray-200 shadow-sm">
+			<div class="px-4 py-3 border-b border-gray-200">
+				<h2 class="text-xl font-semibold text-gf-maroon">Stuff you can do.</h2>
 			</div>
-			<div class="p-6">
-				<ul class="space-y-3">
+			<div class="p-4">
+				<ul class="space-y-2">
 					<li>
-						<a href="/id" class="text-gf-maroon hover:text-gf-maroon-dark underline font-medium">
+						<a href="/id" class="text-gf-maroon hover:underline font-medium">
 							Identify Galls
 						</a>
 					</li>
 					<li>
-						<a href="/refindex" class="text-gf-maroon hover:text-gf-maroon-dark underline font-medium">
+						<a href="/refindex" class="text-gf-maroon hover:underline font-medium">
 							Learn More About Galls
 						</a>
 					</li>
 					<li>
-						<a href="/explore" class="text-gf-maroon hover:text-gf-maroon-dark underline font-medium">
+						<a href="/explore" class="text-gf-maroon hover:underline font-medium">
 							Explore the Data
 						</a>
 					</li>
@@ -81,7 +81,7 @@
 							href="https://megachile.shinyapps.io/doycalc/"
 							target="_blank"
 							rel="noreferrer"
-							class="text-gf-maroon hover:text-gf-maroon-dark underline font-medium"
+							class="text-gf-maroon hover:underline font-medium"
 						>
 							Explore the seasonal timing of gall development and emergence with our phenology tool
 						</a>
@@ -92,9 +92,9 @@
 	</div>
 
 	<!-- Random Gall and Help Section -->
-	<div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
+	<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
 		<!-- Random Gall -->
-		<div class="bg-white rounded-lg shadow-md overflow-hidden">
+		<div class="bg-white rounded border border-gray-200 shadow-sm">
 			{#if loading}
 				<div class="p-6 text-center">
 					<div class="animate-spin rounded-full h-12 w-12 border-b-2 border-gf-maroon mx-auto"></div>
@@ -110,10 +110,10 @@
 						src="/images/placeholder-gall.jpg"
 						alt={randomGall.name}
 						class="w-full h-64 object-cover"
-						onerror="this.src='/images/placeholder-gall.jpg'"
+						onerror={(e) => { e.target.src = '/images/placeholder-gall.jpg' }}
 					/>
 				</a>
-				<div class="p-6">
+				<div class="p-4">
 					<p class="text-gray-700">
 						Here is a random gall from our database.
 						{#if randomGall.undescribed}
@@ -121,7 +121,7 @@
 						{:else}
 							This one is called{' '}
 						{/if}
-						<a href="/gall/{randomGall.id}" class="text-gf-maroon hover:text-gf-maroon-dark">
+						<a href="/gall/{randomGall.id}" class="text-gf-maroon hover:underline">
 							<em>{randomGall.name}</em>
 						</a>.
 					</p>
@@ -134,28 +134,28 @@
 		</div>
 
 		<!-- Help Us Out -->
-		<div class="bg-white rounded-lg shadow-md overflow-hidden">
-			<div class="bg-gf-maroon px-4 py-3">
-				<h2 class="text-xl font-semibold text-white">Help Us Out</h2>
+		<div class="bg-white rounded border border-gray-200 shadow-sm">
+			<div class="px-4 py-3 border-b border-gray-200">
+				<h2 class="text-xl font-semibold text-gf-maroon">Help Us Out</h2>
 			</div>
-			<div class="p-6">
+			<div class="p-4">
 				<p class="text-gray-700 mb-4">
 					If you find gallformers.org useful and you are interested in helping us out there are a few
 					ways you can do so:
 				</p>
-				<ul class="space-y-3">
+				<ul class="space-y-2">
 					<li>
 						<a
 							href="https://www.patreon.com/gallformers"
 							target="_blank"
 							rel="noreferrer"
-							class="text-gf-maroon hover:text-gf-maroon-dark underline font-medium"
+							class="text-gf-maroon hover:underline font-medium"
 						>
 							Help cover operational costs via donations to our Patreon
 						</a>
 					</li>
 					<li>
-						<a href="/about#administrators" class="text-gf-maroon hover:text-gf-maroon-dark underline font-medium">
+						<a href="/about#administrators" class="text-gf-maroon hover:underline font-medium">
 							Help add and maintain our data as an Administrator
 						</a>
 					</li>
@@ -164,7 +164,7 @@
 							href="https://github.com/jeffdc/gallformers"
 							target="_blank"
 							rel="noreferrer"
-							class="text-gf-maroon hover:text-gf-maroon-dark underline font-medium"
+							class="text-gf-maroon hover:underline font-medium"
 						>
 							Help fix bugs and add new features
 						</a>

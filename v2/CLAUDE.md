@@ -9,6 +9,7 @@ The v2 stack is:
 - **Svelte Web** (`v2/web/`) - SvelteKit frontend (JavaScript, not TypeScript) compiled to static files
 - **SQLite** - Database (shared with v1 during development)
 - **Fly.io** - Production hosting
+- **JavaScript** - Do not create TypeScript files this is a JavaScript project -- you are too dense to understand TypeScript and it creates huge messes. Do not do it or you will be fired, no excuses you have been told.
 
 ## Isolation Rules
 
@@ -107,6 +108,72 @@ func (h *FooHandler) RegisterRoutes(r chi.Router) {
 ```
 
 Use `middleware.RespondJSON()` and `middleware.RespondError()` for responses.
+
+## Styling (Tailwind v4)
+
+V2 uses **Tailwind v4** which reads configuration from CSS, not `tailwind.config.js`.
+
+### Custom Colors
+
+Colors are defined in `web/src/app.css` via `@theme`. Use these classes:
+
+| Class | Hex | Use for |
+|-------|-----|---------|
+| `text-gf-maroon` / `bg-gf-maroon` | #661419 | Headings, links, primary accent |
+| `text-gf-sky-blue` / `bg-gf-sky-blue` | #c1e0f3 | Header background |
+| `text-gf-autumn` / `bg-gf-autumn` | #bc6428 | Subtitles, secondary text |
+| `bg-cadet-blue` | #96adc8 | Table headers |
+| `bg-canary` | #f8f991 | Selected/highlighted rows |
+
+### Page Styling Patterns
+
+**Page titles:**
+```svelte
+<h1 class="text-2xl font-bold text-gf-maroon mb-4">Page Title</h1>
+```
+
+**Links:**
+```svelte
+<a href="..." class="text-gf-maroon hover:underline">Link text</a>
+```
+
+**Cards (v1-style):**
+```svelte
+<div class="bg-white rounded border border-gray-200 shadow-sm">
+  <div class="px-4 py-3 border-b border-gray-200">
+    <h2 class="text-xl font-semibold text-gf-maroon">Card Title</h2>
+  </div>
+  <div class="p-4">
+    Content here
+  </div>
+</div>
+```
+
+**Page container:**
+```svelte
+<div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+  <!-- page content -->
+</div>
+```
+
+### Global Styles
+
+These apply automatically to all pages via `+layout.svelte`:
+- **Font**: League Spartan (falls back to system fonts)
+- **Header**: Sky blue background, maroon navigation (in `Layout.svelte`)
+- **Footer**: Light gray background, maroon links (in `Layout.svelte`)
+
+### Adding New Colors
+
+To add colors, edit `web/src/app.css`:
+
+```css
+@theme {
+  --color-my-new-color: #hexvalue;
+}
+```
+
+Then use as `text-my-new-color` or `bg-my-new-color`.
 
 ## Important Notes
 
