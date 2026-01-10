@@ -86,11 +86,11 @@
   - [x] Results table with type icons
   - [x] Links to appropriate detail pages
   - [x] Empty state handling
-- [ ] 6.2 Implement explore page (`/explore`)
-  - [ ] Tree menu for galls by family
-  - [ ] Tree menu for undescribed galls
-  - [ ] Tree menu for hosts by family
-  - [ ] Tab navigation between views
+- [x] 6.2 Implement explore page (`/explore`)
+  - [x] Tree menu for galls by family
+  - [x] Tree menu for undescribed galls
+  - [x] Tree menu for hosts by family
+  - [x] Tab navigation between views
 
 ## 7. ID Tool
 

@@ -141,6 +141,10 @@ func main() {
 		// Stats endpoint
 		statsHandler := handlers.NewStatsHandler(queries)
 		statsHandler.RegisterRoutes(r)
+
+		// Explore endpoint
+		exploreHandler := handlers.NewExploreHandler(queries)
+		exploreHandler.RegisterRoutes(r)
 	})
 
 	// Static file serving from embedded filesystem
