@@ -345,6 +345,46 @@ func (q *Queries) GetAliasesBySpeciesID(ctx context.Context, speciesID int64) ([
 	return items, nil
 }
 
+const getDefaultImages = `-- name: GetDefaultImages :many
+SELECT
+    i.species_id,
+    i.path
+FROM image i
+INNER JOIN species s ON i.species_id = s.id
+WHERE s.taxoncode = 'gall'
+  AND i.` + "`" + `default` + "`" + ` = 1
+`
+
+type GetDefaultImagesRow struct {
+	SpeciesID int64  `json:"species_id"`
+	Path      string `json:"path"`
+}
+
+// Gets default images for all gall species (for ID tool).
+// Returns one image per species where default=1.
+func (q *Queries) GetDefaultImages(ctx context.Context) ([]GetDefaultImagesRow, error) {
+	rows, err := q.db.QueryContext(ctx, getDefaultImages)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetDefaultImagesRow{}
+	for rows.Next() {
+		var i GetDefaultImagesRow
+		if err := rows.Scan(&i.SpeciesID, &i.Path); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getGallAlignments = `-- name: GetGallAlignments :many
 SELECT a.id, a.alignment, a.description
 FROM alignment a
@@ -570,6 +610,37 @@ func (q *Queries) GetGallColors(ctx context.Context, gallID int64) ([]Color, err
 	return items, nil
 }
 
+const getGallExcludedPlaces = `-- name: GetGallExcludedPlaces :many
+SELECT DISTINCT p.name
+FROM place p
+INNER JOIN speciesplace sp ON sp.place_id = p.id
+WHERE sp.species_id = ?
+`
+
+// Gets places directly associated with a gall species (excluded range).
+func (q *Queries) GetGallExcludedPlaces(ctx context.Context, speciesID sql.NullInt64) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, getGallExcludedPlaces, speciesID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, err
+		}
+		items = append(items, name)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getGallForms = `-- name: GetGallForms :many
 SELECT f.id, f.form, f.description
 FROM form f
@@ -672,6 +743,38 @@ func (q *Queries) GetGallLocations(ctx context.Context, gallID int64) ([]Locatio
 	return items, nil
 }
 
+const getGallPlaces = `-- name: GetGallPlaces :many
+SELECT DISTINCT p.name
+FROM place p
+INNER JOIN speciesplace sp ON sp.place_id = p.id
+INNER JOIN host h ON h.host_species_id = sp.species_id
+WHERE h.gall_species_id = ?
+`
+
+// Gets places associated with a gall via its host plants.
+func (q *Queries) GetGallPlaces(ctx context.Context, gallSpeciesID sql.NullInt64) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, getGallPlaces, gallSpeciesID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, err
+		}
+		items = append(items, name)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getGallSeasons = `-- name: GetGallSeasons :many
 SELECT se.id, se.season
 FROM season se
@@ -734,6 +837,30 @@ func (q *Queries) GetGallShapes(ctx context.Context, gallID int64) ([]Shape, err
 	return items, nil
 }
 
+const getGallTaxonomy = `-- name: GetGallTaxonomy :one
+SELECT
+    g.name AS genus,
+    f.name AS family
+FROM speciestaxonomy st
+INNER JOIN taxonomy g ON st.taxonomy_id = g.id AND g.type = 'genus'
+LEFT JOIN taxonomy f ON g.parent_id = f.id AND f.type = 'family'
+WHERE st.species_id = ?
+LIMIT 1
+`
+
+type GetGallTaxonomyRow struct {
+	Genus  string         `json:"genus"`
+	Family sql.NullString `json:"family"`
+}
+
+// Gets the genus and family for a gall species.
+func (q *Queries) GetGallTaxonomy(ctx context.Context, speciesID int64) (GetGallTaxonomyRow, error) {
+	row := q.db.QueryRowContext(ctx, getGallTaxonomy, speciesID)
+	var i GetGallTaxonomyRow
+	err := row.Scan(&i.Genus, &i.Family)
+	return i, err
+}
+
 const getGallTextures = `-- name: GetGallTextures :many
 SELECT t.id, t.texture, t.description
 FROM texture t
@@ -783,6 +910,163 @@ func (q *Queries) GetGallWalls(ctx context.Context, gallID int64) ([]Wall, error
 	for rows.Next() {
 		var i Wall
 		if err := rows.Scan(&i.ID, &i.Walls, &i.Description); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getImagesBySpeciesID = `-- name: GetImagesBySpeciesID :many
+SELECT
+    i.id,
+    i.path,
+    i.creator,
+    i.attribution,
+    i.sourcelink,
+    i.license,
+    i.licenselink,
+    i.caption
+FROM image i
+WHERE i.species_id = ?
+ORDER BY i.id
+`
+
+type GetImagesBySpeciesIDRow struct {
+	ID          int64          `json:"id"`
+	Path        string         `json:"path"`
+	Creator     sql.NullString `json:"creator"`
+	Attribution sql.NullString `json:"attribution"`
+	Sourcelink  sql.NullString `json:"sourcelink"`
+	License     sql.NullString `json:"license"`
+	Licenselink sql.NullString `json:"licenselink"`
+	Caption     sql.NullString `json:"caption"`
+}
+
+// Gets all images for a species.
+func (q *Queries) GetImagesBySpeciesID(ctx context.Context, speciesID int64) ([]GetImagesBySpeciesIDRow, error) {
+	rows, err := q.db.QueryContext(ctx, getImagesBySpeciesID, speciesID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetImagesBySpeciesIDRow{}
+	for rows.Next() {
+		var i GetImagesBySpeciesIDRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Path,
+			&i.Creator,
+			&i.Attribution,
+			&i.Sourcelink,
+			&i.License,
+			&i.Licenselink,
+			&i.Caption,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getRandomGallWithImage = `-- name: GetRandomGallWithImage :one
+SELECT
+    s.id,
+    s.name,
+    g.undescribed,
+    i.path AS image_path,
+    i.creator AS image_creator,
+    i.license AS image_license,
+    i.sourcelink AS image_sourcelink,
+    i.licenselink AS image_licenselink
+FROM gall g
+INNER JOIN gallspecies gs ON gs.gall_id = g.id
+INNER JOIN species s ON gs.species_id = s.id
+INNER JOIN image i ON i.species_id = s.id
+WHERE i.` + "`" + `default` + "`" + ` = 1
+ORDER BY RANDOM()
+LIMIT 1
+`
+
+type GetRandomGallWithImageRow struct {
+	ID               int64          `json:"id"`
+	Name             string         `json:"name"`
+	Undescribed      bool           `json:"undescribed"`
+	ImagePath        string         `json:"image_path"`
+	ImageCreator     sql.NullString `json:"image_creator"`
+	ImageLicense     sql.NullString `json:"image_license"`
+	ImageSourcelink  sql.NullString `json:"image_sourcelink"`
+	ImageLicenselink sql.NullString `json:"image_licenselink"`
+}
+
+// Gets a random gall that has a default image.
+func (q *Queries) GetRandomGallWithImage(ctx context.Context) (GetRandomGallWithImageRow, error) {
+	row := q.db.QueryRowContext(ctx, getRandomGallWithImage)
+	var i GetRandomGallWithImageRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Undescribed,
+		&i.ImagePath,
+		&i.ImageCreator,
+		&i.ImageLicense,
+		&i.ImageSourcelink,
+		&i.ImageLicenselink,
+	)
+	return i, err
+}
+
+const getRelatedGalls = `-- name: GetRelatedGalls :many
+SELECT
+    s.id,
+    s.name,
+    s.taxoncode
+FROM species s
+INNER JOIN gallspecies gs ON gs.species_id = s.id
+WHERE s.taxoncode = 'gall'
+  AND s.name LIKE ? || '%'
+  AND s.id != ?
+ORDER BY s.name
+`
+
+type GetRelatedGallsParams struct {
+	Column1 sql.NullString `json:"column_1"`
+	ID      int64          `json:"id"`
+}
+
+type GetRelatedGallsRow struct {
+	ID        int64          `json:"id"`
+	Name      string         `json:"name"`
+	Taxoncode sql.NullString `json:"taxoncode"`
+}
+
+// Gets galls with the same binomial name (genus + species epithet).
+// Related galls share the same first two name parts but have additional qualifiers.
+// Example: "Andricus quercuscalifornicus agamic" is related to "Andricus quercuscalifornicus sexual".
+// The name_prefix parameter should be "Genus species " (with trailing space).
+func (q *Queries) GetRelatedGalls(ctx context.Context, arg GetRelatedGallsParams) ([]GetRelatedGallsRow, error) {
+	rows, err := q.db.QueryContext(ctx, getRelatedGalls, arg.Column1, arg.ID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetRelatedGallsRow{}
+	for rows.Next() {
+		var i GetRelatedGallsRow
+		if err := rows.Scan(&i.ID, &i.Name, &i.Taxoncode); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

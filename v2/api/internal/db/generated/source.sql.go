@@ -204,6 +204,54 @@ func (q *Queries) GetSourcesBySpeciesID(ctx context.Context, speciesID int64) ([
 	return items, nil
 }
 
+const getSpeciesBySourceID = `-- name: GetSpeciesBySourceID :many
+SELECT
+    sp.id,
+    sp.name,
+    sp.taxoncode,
+    sp.datacomplete
+FROM species sp
+INNER JOIN speciessource ss ON ss.species_id = sp.id
+WHERE ss.source_id = ?
+ORDER BY sp.name
+`
+
+type GetSpeciesBySourceIDRow struct {
+	ID           int64          `json:"id"`
+	Name         string         `json:"name"`
+	Taxoncode    sql.NullString `json:"taxoncode"`
+	Datacomplete bool           `json:"datacomplete"`
+}
+
+// Gets all species associated with a source via speciessource table.
+func (q *Queries) GetSpeciesBySourceID(ctx context.Context, sourceID int64) ([]GetSpeciesBySourceIDRow, error) {
+	rows, err := q.db.QueryContext(ctx, getSpeciesBySourceID, sourceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetSpeciesBySourceIDRow{}
+	for rows.Next() {
+		var i GetSpeciesBySourceIDRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Taxoncode,
+			&i.Datacomplete,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listSources = `-- name: ListSources :many
 SELECT id, title, author, pubyear, link, citation, datacomplete, license, licenselink
 FROM source

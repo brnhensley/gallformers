@@ -31,6 +31,20 @@ type PlaceResponse struct {
 	Type string `json:"type"`
 }
 
+// PlaceHost represents minimal host info for place detail page.
+type PlaceHost struct {
+	ID           int64  `json:"id"`
+	Name         string `json:"name"`
+	Datacomplete bool   `json:"datacomplete"`
+}
+
+// PlaceDetailResponse represents a place with parent and hosts.
+type PlaceDetailResponse struct {
+	PlaceResponse
+	Parent *PlaceResponse `json:"parent,omitempty"`
+	Hosts  []PlaceHost    `json:"hosts"`
+}
+
 // PlaceListResponse represents a paginated list of places.
 type PlaceListResponse struct {
 	Data   []PlaceResponse `json:"data"`
@@ -221,7 +235,38 @@ func (h *PlaceHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	middleware.RespondOK(w, placeToResponse(row))
+	// Fetch parent place
+	var parent *PlaceResponse
+	parentRow, err := h.queries.GetParentPlace(ctx, sql.NullInt64{Int64: id, Valid: true})
+	if err == nil {
+		p := placeToResponse(parentRow)
+		parent = &p
+	}
+
+	// Fetch hosts
+	hostRows, err := h.queries.GetHostsByPlaceID(ctx, sql.NullInt64{Int64: id, Valid: true})
+	var hosts []PlaceHost
+	if err != nil {
+		slog.Error("failed to get hosts for place", "error", err, "placeID", id)
+		hosts = []PlaceHost{}
+	} else {
+		hosts = make([]PlaceHost, len(hostRows))
+		for i, h := range hostRows {
+			hosts[i] = PlaceHost{
+				ID:           h.ID,
+				Name:         h.Name,
+				Datacomplete: h.Datacomplete,
+			}
+		}
+	}
+
+	response := PlaceDetailResponse{
+		PlaceResponse: placeToResponse(row),
+		Parent:        parent,
+		Hosts:         hosts,
+	}
+
+	middleware.RespondOK(w, response)
 }
 
 // GetByName handles GET /api/v2/places/by-name/{name}

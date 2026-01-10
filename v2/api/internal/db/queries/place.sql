@@ -63,3 +63,27 @@ WHERE id = ?;
 -- name: DeletePlace :exec
 -- Deletes a place by ID.
 DELETE FROM place WHERE id = ?;
+
+-- name: GetHostsByPlaceID :many
+-- Gets all host species associated with a place via speciesplace table.
+-- Only returns species where taxoncode = 'plant' (hosts are plants).
+SELECT
+    sp.id,
+    sp.name,
+    sp.taxoncode,
+    sp.datacomplete
+FROM species sp
+INNER JOIN speciesplace spp ON spp.species_id = sp.id
+WHERE spp.place_id = ? AND sp.taxoncode = 'plant'
+ORDER BY sp.name;
+
+-- name: GetParentPlace :one
+-- Gets the parent place for a given place via placeplace table.
+SELECT
+    p.id,
+    p.name,
+    p.code,
+    p.type
+FROM place p
+INNER JOIN placeplace pp ON pp.parent_id = p.id
+WHERE pp.place_id = ?;

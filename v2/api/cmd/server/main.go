@@ -137,6 +137,14 @@ func main() {
 		// Global search endpoint
 		searchHandler := handlers.NewSearchHandler(queries)
 		searchHandler.RegisterRoutes(r)
+
+		// Stats endpoint
+		statsHandler := handlers.NewStatsHandler(queries)
+		statsHandler.RegisterRoutes(r)
+
+		// Explore endpoint
+		exploreHandler := handlers.NewExploreHandler(queries)
+		exploreHandler.RegisterRoutes(r)
 	})
 
 	// Static file serving from embedded filesystem

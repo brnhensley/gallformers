@@ -362,3 +362,90 @@ VALUES (?, ?);
 -- name: DeleteAliasByID :exec
 -- Deletes an alias by ID.
 DELETE FROM alias WHERE id = ?;
+
+-- name: GetGallPlaces :many
+-- Gets places associated with a gall via its host plants.
+SELECT DISTINCT p.name
+FROM place p
+INNER JOIN speciesplace sp ON sp.place_id = p.id
+INNER JOIN host h ON h.host_species_id = sp.species_id
+WHERE h.gall_species_id = ?;
+
+-- name: GetGallExcludedPlaces :many
+-- Gets places directly associated with a gall species (excluded range).
+SELECT DISTINCT p.name
+FROM place p
+INNER JOIN speciesplace sp ON sp.place_id = p.id
+WHERE sp.species_id = ?;
+
+-- name: GetGallTaxonomy :one
+-- Gets the genus and family for a gall species.
+SELECT
+    g.name AS genus,
+    f.name AS family
+FROM speciestaxonomy st
+INNER JOIN taxonomy g ON st.taxonomy_id = g.id AND g.type = 'genus'
+LEFT JOIN taxonomy f ON g.parent_id = f.id AND f.type = 'family'
+WHERE st.species_id = ?
+LIMIT 1;
+
+-- name: GetRandomGallWithImage :one
+-- Gets a random gall that has a default image.
+SELECT
+    s.id,
+    s.name,
+    g.undescribed,
+    i.path AS image_path,
+    i.creator AS image_creator,
+    i.license AS image_license,
+    i.sourcelink AS image_sourcelink,
+    i.licenselink AS image_licenselink
+FROM gall g
+INNER JOIN gallspecies gs ON gs.gall_id = g.id
+INNER JOIN species s ON gs.species_id = s.id
+INNER JOIN image i ON i.species_id = s.id
+WHERE i.`default` = 1
+ORDER BY RANDOM()
+LIMIT 1;
+
+-- name: GetImagesBySpeciesID :many
+-- Gets all images for a species.
+SELECT
+    i.id,
+    i.path,
+    i.creator,
+    i.attribution,
+    i.sourcelink,
+    i.license,
+    i.licenselink,
+    i.caption
+FROM image i
+WHERE i.species_id = ?
+ORDER BY i.id;
+
+-- name: GetDefaultImages :many
+-- Gets default images for all gall species (for ID tool).
+-- Returns one image per species where default=1.
+SELECT
+    i.species_id,
+    i.path
+FROM image i
+INNER JOIN species s ON i.species_id = s.id
+WHERE s.taxoncode = 'gall'
+  AND i.`default` = 1;
+
+-- name: GetRelatedGalls :many
+-- Gets galls with the same binomial name (genus + species epithet).
+-- Related galls share the same first two name parts but have additional qualifiers.
+-- Example: "Andricus quercuscalifornicus agamic" is related to "Andricus quercuscalifornicus sexual".
+-- The name_prefix parameter should be "Genus species " (with trailing space).
+SELECT
+    s.id,
+    s.name,
+    s.taxoncode
+FROM species s
+INNER JOIN gallspecies gs ON gs.species_id = s.id
+WHERE s.taxoncode = 'gall'
+  AND s.name LIKE ? || '%'
+  AND s.id != ?
+ORDER BY s.name;
