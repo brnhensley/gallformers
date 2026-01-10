@@ -4,33 +4,33 @@
 
 - [ ] `define-v2-foundation` completed (Svelte app scaffold)
 - [ ] `add-go-api` endpoints available for all entity types
-- [ ] Base component library from umbrella (Button, Input, Modal, etc.)
+- [x] Base component library from umbrella (Button, Input, Modal, etc.)
 
 ## 1. Site Layout
 
-- [ ] 1.1 Create `Header.svelte` - logo, navigation links, search input, login link
-- [ ] 1.2 Create `Footer.svelte` - copyright, GitHub/Patreon links, license info
-- [ ] 1.3 Create `Layout.svelte` - wrapper combining header/footer
-- [ ] 1.4 Implement mobile-responsive navigation (hamburger menu)
-- [ ] 1.5 Implement header search that navigates to `/globalsearch?q={term}`
+- [x] 1.1 Create `Header.svelte` - logo, navigation links, search input, login link
+- [x] 1.2 Create `Footer.svelte` - copyright, GitHub/Patreon links, license info
+- [x] 1.3 Create `Layout.svelte` - wrapper combining header/footer
+- [x] 1.4 Implement mobile-responsive navigation (hamburger menu)
+- [x] 1.5 Implement header search that navigates to `/globalsearch?q={term}`
 
 ## 2. Shared Components
 
-- [ ] 2.1 Create `ImageGallery.svelte` - carousel with attribution, lightbox, placeholder fallback
-- [ ] 2.2 Create `RangeMap.svelte` - shared map component (view-only + editable modes, d3-geo projection)
-- [ ] 2.3 Create `SourceList.svelte` - citation list with selection state
-- [ ] 2.4 Create `ExternalLinks.svelte` - links to iNaturalist, BugGuide, Google Scholar, BHL (described vs undescribed behavior)
-- [ ] 2.5 Create `TaxonomyBreadcrumb.svelte` - Family → Genus → Species nav
-- [ ] 2.6 Create `TreeMenu.svelte` - custom hierarchical tree browser (recursive component)
-- [ ] 2.7 Create `Typeahead.svelte` - search-as-you-type select
-- [ ] 2.8 Create `DataTable.svelte` - sortable, paginated table
+- [x] 2.1 Create `ImageGallery.svelte` - carousel with attribution, lightbox, placeholder fallback
+- [x] 2.2 Create `RangeMap.svelte` - shared map component (view-only + editable modes, d3-geo projection)
+- [x] 2.3 Create `SourceList.svelte` - citation list with selection state
+- [x] 2.4 Create `ExternalLinks.svelte` - links to iNaturalist, BugGuide, Google Scholar, BHL (described vs undescribed behavior)
+- [x] 2.5 Create `TaxonomyBreadcrumb.svelte` - Family → Genus → Species nav
+- [x] 2.6 Create `TreeMenu.svelte` - custom hierarchical tree browser (recursive component)
+- [x] 2.7 Create `Typeahead.svelte` - search-as-you-type select
+- [x] 2.8 Create `DataTable.svelte` - sortable, paginated table
 - [ ] 2.9 Create `SpeciesSynonymy.svelte` - aliases/synonyms display
 - [ ] 2.10 Create `DataCompletenessIndicator.svelte` - accessible icon + text with tooltip
-- [ ] 2.11 Create `LoadingSpinner.svelte` - loading indicator
+- [x] 2.11 Create `LoadingSpinner.svelte` - loading indicator
 - [ ] 2.12 Create `ErrorMessage.svelte` - user-friendly error display with retry option
 - [ ] 2.13 Create `EditButton.svelte` - admin edit link (hidden for public users)
 - [ ] 2.14 Create `InfoTip.svelte` - tooltip information icons
-- [ ] 2.15 Create `Toast.svelte` - notification toast for user feedback (e.g., "Copied to clipboard")
+- [x] 2.15 Create `Toast.svelte` - notification toast for user feedback (e.g., "Copied to clipboard")
 - [ ] 2.16 Create `Tabs.svelte` - tab navigation component (used by Explore page)
 
 ## 3. Static Pages
