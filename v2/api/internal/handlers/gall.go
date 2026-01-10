@@ -93,14 +93,14 @@ type GallListResponse struct {
 
 // RandomGallResponse represents a random gall with its image for the home page.
 type RandomGallResponse struct {
-	ID              int64  `json:"id"`
-	Name            string `json:"name"`
-	Undescribed     bool   `json:"undescribed"`
-	ImagePath       string `json:"image_path"`
-	ImageURL        string `json:"image_url"`
-	ImageCreator    string `json:"image_creator"`
-	ImageLicense    string `json:"image_license"`
-	ImageSourceLink string `json:"image_sourcelink"`
+	ID               int64  `json:"id"`
+	Name             string `json:"name"`
+	Undescribed      bool   `json:"undescribed"`
+	ImagePath        string `json:"image_path"`
+	ImageURL         string `json:"image_url"`
+	ImageCreator     string `json:"image_creator"`
+	ImageLicense     string `json:"image_license"`
+	ImageSourceLink  string `json:"image_sourcelink"`
 	ImageLicenseLink string `json:"image_licenselink"`
 }
 
@@ -470,14 +470,14 @@ func (h *GallHandler) GetRandom(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := RandomGallResponse{
-		ID:              row.ID,
-		Name:            row.Name,
-		Undescribed:     row.Undescribed,
-		ImagePath:       row.ImagePath,
-		ImageURL:        imageBaseURL + "/" + row.ImagePath,
-		ImageCreator:    row.ImageCreator.String,
-		ImageLicense:    row.ImageLicense.String,
-		ImageSourceLink: row.ImageSourcelink.String,
+		ID:               row.ID,
+		Name:             row.Name,
+		Undescribed:      row.Undescribed,
+		ImagePath:        row.ImagePath,
+		ImageURL:         imageBaseURL + "/" + row.ImagePath,
+		ImageCreator:     row.ImageCreator.String,
+		ImageLicense:     row.ImageLicense.String,
+		ImageSourceLink:  row.ImageSourcelink.String,
 		ImageLicenseLink: row.ImageLicenselink.String,
 	}
 
