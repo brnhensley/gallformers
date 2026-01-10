@@ -95,10 +95,10 @@
 ## 7. ID Tool
 
 ### 7.1 Foundation
-- [ ] 7.1.1 Port `gallsearch.ts` filter logic to v2
-- [ ] 7.1.2 Create filter state store (`stores/filters.ts`)
-- [ ] 7.1.3 Create URL state sync (`stores/url.ts`)
-- [ ] 7.1.4 Create results derived store (`stores/results.ts`)
+- [x] 7.1.1 Port `gallsearch.ts` filter logic to v2
+- [x] 7.1.2 Create filter state store (`stores/filters.js`)
+- [x] 7.1.3 Create URL state sync (`stores/url.js`)
+- [x] 7.1.4 Create results derived store (`stores/results.js`)
 
 ### 7.2 Components
 - [ ] 7.2.1 Create `HostPicker.svelte` - host typeahead
