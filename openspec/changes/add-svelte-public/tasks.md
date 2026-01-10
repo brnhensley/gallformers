@@ -66,13 +66,13 @@
   - [x] Undescribed species warning + copy gallformers code button
   - [x] Phenology tool link
   - [x] Edit buttons for authenticated admins
-- [ ] 5.2 Implement host detail page (`/host/{id}`)
-  - [ ] Host info, taxonomy
-  - [ ] Associated galls list
-  - [ ] Range map
-  - [ ] Species aliases/synonyms
-  - [ ] Data completeness indicator
-  - [ ] Edit buttons for authenticated admins
+- [x] 5.2 Implement host detail page (`/host/{id}`)
+  - [x] Host info, taxonomy
+  - [x] Associated galls list
+  - [x] Range map
+  - [x] Species aliases/synonyms
+  - [x] Data completeness indicator
+  - [x] Edit buttons for authenticated admins
 - [ ] 5.3 Implement family page (`/family/{id}`)
 - [ ] 5.4 Implement genus page (`/genus/{id}`)
 - [ ] 5.5 Implement source page (`/source/{id}`)
