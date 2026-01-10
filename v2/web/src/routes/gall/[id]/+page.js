@@ -11,7 +11,7 @@ export async function load({ fetch, params }) {
 			fetch(`/api/v2/galls/${id}`),
 			fetch(`/api/v2/taxonomy?id=${id}`),
 			fetch(`/api/v2/sources?speciesid=${id}`),
-			fetch(`/api/v2/species/${id}/images`).catch(() => null) // Images endpoint may not exist
+			fetch(`/api/v2/galls/${id}/images`)
 		]);
 
 		if (!gallRes.ok) {
@@ -56,9 +56,10 @@ export async function load({ fetch, params }) {
 		const defaultSourceId = defaultSource?.id || (sources.length > 0 ? sources[0].id : null);
 
 		// Transform images for ImageGallery component
+		// API response includes: id, path, url, creator, attribution, sourcelink, license, licenselink, caption
 		const transformedImages = images.map((img) => ({
 			id: img.id,
-			url: `https://dhz6u1p7t6okk.cloudfront.net/${img.path}`,
+			url: img.url, // Full URL already provided by API
 			alt: gall.name,
 			caption: img.caption || '',
 			creator: img.creator || '',

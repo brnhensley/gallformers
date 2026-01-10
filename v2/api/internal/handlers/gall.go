@@ -45,6 +45,19 @@ type Host struct {
 	Name string `json:"name"`
 }
 
+// ImageResponse represents an image for API responses.
+type ImageResponse struct {
+	ID          int64  `json:"id"`
+	Path        string `json:"path"`
+	URL         string `json:"url"`
+	Creator     string `json:"creator,omitempty"`
+	Attribution string `json:"attribution,omitempty"`
+	Sourcelink  string `json:"sourcelink,omitempty"`
+	License     string `json:"license,omitempty"`
+	Licenselink string `json:"licenselink,omitempty"`
+	Caption     string `json:"caption,omitempty"`
+}
+
 // GallResponse represents a gall in API responses.
 type GallResponse struct {
 	ID           int64         `json:"id"`
@@ -159,8 +172,9 @@ func (h *GallHandler) RegisterRoutes(r chi.Router) {
 		// Public routes
 		r.Get("/", h.List)
 		r.Get("/random", h.GetRandom) // Random gall with image for home page
-		r.Get("/id", h.ListForID) // Must come before /{id} to not be matched as an ID
+		r.Get("/id", h.ListForID)     // Must come before /{id} to not be matched as an ID
 		r.Get("/{id}", h.GetByID)
+		r.Get("/{id}/images", h.GetImages) // Images for a species
 
 		// Protected routes - require authentication
 		r.Group(func(r chi.Router) {
@@ -319,6 +333,55 @@ func (h *GallHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 		row.AbundanceID, row.GallID, row.Detachable, row.Undescribed, true)
 
 	middleware.RespondOK(w, gall)
+}
+
+// GetImages handles GET /api/v2/galls/{id}/images
+// Returns all images for a species (gall).
+func (h *GallHandler) GetImages(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	idStr := chi.URLParam(r, "id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		middleware.RespondBadRequest(w, "Invalid species ID")
+		return
+	}
+
+	rows, err := h.queries.GetImagesBySpeciesID(ctx, id)
+	if err != nil {
+		slog.Error("failed to get images", "error", err, "speciesID", id)
+		middleware.RespondInternalError(w, "Failed to get images")
+		return
+	}
+
+	images := make([]ImageResponse, len(rows))
+	for i, row := range rows {
+		images[i] = ImageResponse{
+			ID:   row.ID,
+			Path: row.Path,
+			URL:  imageBaseURL + "/" + row.Path,
+		}
+		if row.Creator.Valid {
+			images[i].Creator = row.Creator.String
+		}
+		if row.Attribution.Valid {
+			images[i].Attribution = row.Attribution.String
+		}
+		if row.Sourcelink.Valid {
+			images[i].Sourcelink = row.Sourcelink.String
+		}
+		if row.License.Valid {
+			images[i].License = row.License.String
+		}
+		if row.Licenselink.Valid {
+			images[i].Licenselink = row.Licenselink.String
+		}
+		if row.Caption.Valid {
+			images[i].Caption = row.Caption.String
+		}
+	}
+
+	middleware.RespondOK(w, images)
 }
 
 // GetRandom handles GET /api/v2/galls/random
