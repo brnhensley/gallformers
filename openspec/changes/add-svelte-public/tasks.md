@@ -53,19 +53,19 @@
 
 ## 5. Entity Detail Pages
 
-- [ ] 5.1 Implement gall detail page (`/gall/{id}`)
-  - [ ] Species name, taxonomy hierarchy, hosts
-  - [ ] Morphological characteristics (detachable, color, texture, shape, etc.)
-  - [ ] Image gallery integration (with placeholder fallback)
-  - [ ] Range map integration
-  - [ ] Source list with selection
-  - [ ] Related galls (internal links)
-  - [ ] External links (iNat, BugGuide, etc.)
-  - [ ] Species aliases/synonyms
-  - [ ] Data completeness indicator (accessible design)
-  - [ ] Undescribed species warning + copy gallformers code button
-  - [ ] Phenology tool link
-  - [ ] Edit buttons for authenticated admins
+- [x] 5.1 Implement gall detail page (`/gall/{id}`)
+  - [x] Species name, taxonomy hierarchy, hosts
+  - [x] Morphological characteristics (detachable, color, texture, shape, etc.)
+  - [x] Image gallery integration (with placeholder fallback)
+  - [x] Range map integration
+  - [x] Source list with selection
+  - [x] Related galls (internal links) - Note: UI ready, requires API endpoint
+  - [x] External links (iNat, BugGuide, etc.)
+  - [x] Species aliases/synonyms
+  - [x] Data completeness indicator (accessible design)
+  - [x] Undescribed species warning + copy gallformers code button
+  - [x] Phenology tool link
+  - [x] Edit buttons for authenticated admins
 - [ ] 5.2 Implement host detail page (`/host/{id}`)
   - [ ] Host info, taxonomy
   - [ ] Associated galls list
