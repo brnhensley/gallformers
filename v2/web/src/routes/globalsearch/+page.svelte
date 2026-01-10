@@ -4,7 +4,13 @@
 
 	let { data } = $props();
 
-	let searchInput = $state(data.query);
+	// Local state for input that syncs with data.query when it changes
+	let searchInput = $state('');
+
+	// Sync searchInput with data.query when data changes (e.g., navigation)
+	$effect(() => {
+		searchInput = data.query;
+	});
 
 	// Debounced search handler
 	let searchTimeout;

@@ -47,7 +47,7 @@
 	{#each features as feat}
 		{@const postal = feat.properties?.postal ?? ''}
 		{@const name = feat.properties?.name ?? 'Unknown'}
-		<!-- svelte-ignore a11y_no_static_element_interactions -->
+		<!-- svelte-ignore a11y_no_static_element_interactions a11y_no_noninteractive_tabindex -->
 		<path
 			d={path(feat) ?? ''}
 			fill={getFill(postal)}

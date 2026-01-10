@@ -95,6 +95,19 @@ export const finalResults = filteredByGenus;
 export const finalResultCount = derived(finalResults, ($results) => $results.length);
 
 /**
+ * Transform API response to match filter logic expectations.
+ * @param {Object} gall - Raw gall from API
+ * @returns {Object} - Transformed gall
+ */
+function transformGall(gall) {
+	return {
+		...gall,
+		// Convert detachable string to object with value property
+		detachable: { value: gall.detachable || '' }
+	};
+}
+
+/**
  * Load galls data from API
  * @param {typeof fetch} fetcher - Fetch function (from SvelteKit load or browser)
  * @param {Object} [options]
@@ -112,7 +125,9 @@ export async function loadGalls(fetcher, options = {}) {
 			throw new Error(`Failed to load galls: ${response.status}`);
 		}
 		const data = await response.json();
-		galls.set(data);
+		// Transform each gall to match expected filter logic format
+		const transformedData = data.map(transformGall);
+		galls.set(transformedData);
 	} catch (err) {
 		error.set(err.message || 'Failed to load galls');
 		galls.set([]);

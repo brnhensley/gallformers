@@ -3,13 +3,18 @@
 
 	let stats = $state(null);
 	let statsLoading = $state(true);
+	let statsError = $state(null);
 	let genTime = new Date().toUTCString();
 	let showEasterEgg = $state(false);
 
 	onMount(async () => {
 		try {
-			// TODO: Fetch stats from API when endpoint is available
-			// For now, we'll show placeholder data
+			const response = await fetch('/api/v2/stats');
+			if (!response.ok) throw new Error('Failed to fetch stats');
+			stats = await response.json();
+		} catch (err) {
+			statsError = err.message;
+			// Fallback to placeholder data if API fails
 			stats = {
 				galls: '~3700',
 				gallFamilies: '~17',
@@ -120,13 +125,13 @@
 			<p class="text-gray-700 mb-2">As of <em>{genTime}</em> there are:</p>
 			<ul class="list-disc list-inside text-gray-700 mb-6">
 				<li>
-					{stats.galls} gallformers across {stats.gallFamilies} families and {stats.gallGenera} genera,
-					of which {stats.undescribed} are undescribed
+					{typeof stats.galls === 'number' ? stats.galls.toLocaleString() : stats.galls} gallformers across {typeof stats.gallFamilies === 'number' ? stats.gallFamilies.toLocaleString() : stats.gallFamilies} families and {typeof stats.gallGenera === 'number' ? stats.gallGenera.toLocaleString() : stats.gallGenera} genera,
+					of which {typeof stats.undescribed === 'number' ? stats.undescribed.toLocaleString() : stats.undescribed} are undescribed
 				</li>
 				<li>
-					{stats.hosts} hosts across {stats.hostFamilies} families and {stats.hostGenera} genera
+					{typeof stats.hosts === 'number' ? stats.hosts.toLocaleString() : stats.hosts} hosts across {typeof stats.hostFamilies === 'number' ? stats.hostFamilies.toLocaleString() : stats.hostFamilies} families and {typeof stats.hostGenera === 'number' ? stats.hostGenera.toLocaleString() : stats.hostGenera} genera
 				</li>
-				<li>{stats.sources} sources</li>
+				<li>{typeof stats.sources === 'number' ? stats.sources.toLocaleString() : stats.sources} sources</li>
 			</ul>
 		{/if}
 
