@@ -345,6 +345,46 @@ func (q *Queries) GetAliasesBySpeciesID(ctx context.Context, speciesID int64) ([
 	return items, nil
 }
 
+const getDefaultImages = `-- name: GetDefaultImages :many
+SELECT
+    i.species_id,
+    i.path
+FROM image i
+INNER JOIN species s ON i.species_id = s.id
+WHERE s.taxoncode = 'gall'
+  AND i.` + "`" + `default` + "`" + ` = 1
+`
+
+type GetDefaultImagesRow struct {
+	SpeciesID int64  `json:"species_id"`
+	Path      string `json:"path"`
+}
+
+// Gets default images for all gall species (for ID tool).
+// Returns one image per species where default=1.
+func (q *Queries) GetDefaultImages(ctx context.Context) ([]GetDefaultImagesRow, error) {
+	rows, err := q.db.QueryContext(ctx, getDefaultImages)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetDefaultImagesRow{}
+	for rows.Next() {
+		var i GetDefaultImagesRow
+		if err := rows.Scan(&i.SpeciesID, &i.Path); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getGallAlignments = `-- name: GetGallAlignments :many
 SELECT a.id, a.alignment, a.description
 FROM alignment a

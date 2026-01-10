@@ -84,14 +84,12 @@
 	}
 
 	/**
-	 * Get default image for a gall
+	 * Get default image URL for a gall
 	 * @param {Object} gall
-	 * @returns {Object | null}
+	 * @returns {string | null}
 	 */
-	function getDefaultImage(gall) {
-		if (!gall.images || gall.images.length === 0) return null;
-		// Find default image or return first
-		return gall.images.find((img) => img.default) || gall.images[0];
+	function getDefaultImageUrl(gall) {
+		return gall.imageUrl || '/images/noimage.jpg';
 	}
 
 	/**
@@ -178,14 +176,14 @@
 		<!-- Results Grid -->
 		<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
 			{#each results as gall (gall.id)}
-				{@const image = getDefaultImage(gall)}
+				{@const imageUrl = getDefaultImageUrl(gall)}
 				{@const summary = createSummary(gall)}
 				<div class="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
 					<a href="/gall/{gall.id}" class="block">
 						<div class="aspect-square bg-gray-100">
-							{#if image}
+							{#if imageUrl}
 								<img
-									src={image.small || image.original}
+									src={imageUrl}
 									alt="{gall.name} - {summary}"
 									class="w-full h-full object-cover"
 									loading="lazy"
@@ -216,7 +214,7 @@
 								<em>{gall.name}</em>
 							</h3>
 						</a>
-						{#if !image && summary}
+						{#if !imageUrl && summary}
 							<p class="text-xs text-gray-500 mt-1 line-clamp-2">{summary}</p>
 						{/if}
 						<div class="flex items-center gap-1 mt-2">

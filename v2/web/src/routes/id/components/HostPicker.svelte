@@ -37,14 +37,14 @@
 		}
 
 		try {
-			const response = await fetch(`${apiBase}/hosts/search?q=${encodeURIComponent(filterText)}`);
+			const response = await fetch(`${apiBase}/hosts?q=${encodeURIComponent(filterText)}`);
 			if (!response.ok) {
 				console.error('Failed to search hosts:', response.status);
 				return [];
 			}
-			const data = await response.json();
+			const result = await response.json();
 			// Format for display: name (aliases)
-			return data.map((host) => ({
+			return result.data.map((host) => ({
 				...host,
 				displayName: formatHostLabel(host)
 			}));

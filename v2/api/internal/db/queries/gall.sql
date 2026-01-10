@@ -423,6 +423,17 @@ FROM image i
 WHERE i.species_id = ?
 ORDER BY i.id;
 
+-- name: GetDefaultImages :many
+-- Gets default images for all gall species (for ID tool).
+-- Returns one image per species where default=1.
+SELECT
+    i.species_id,
+    i.path
+FROM image i
+INNER JOIN species s ON i.species_id = s.id
+WHERE s.taxoncode = 'gall'
+  AND i.`default` = 1;
+
 -- name: GetRelatedGalls :many
 -- Gets galls with the same binomial name (genus + species epithet).
 -- Related galls share the same first two name parts but have additional qualifiers.

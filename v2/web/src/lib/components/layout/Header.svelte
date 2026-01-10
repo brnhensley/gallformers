@@ -42,15 +42,15 @@
 </script>
 
 <header class="sticky top-0 z-50 bg-gf-sky-blue shadow-md">
-	<nav class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-		<div class="flex h-16 items-center justify-between">
+	<nav class="px-4 sm:px-6 lg:px-8">
+		<div class="flex h-20 items-center justify-between">
 			<!-- Logo -->
 			<div class="flex-shrink-0">
 				<a href="/" class="flex items-center">
 					<img
 						src="/branding/Wide Logo Versions/gallformers_logo_wide_color.png"
 						alt="Gallformers logo: an oak gall wasp with a spherical oak gall and a white oak leaf"
-						class="h-12"
+						class="h-16"
 					/>
 				</a>
 			</div>
@@ -60,7 +60,7 @@
 				{#each navLinks as link}
 					<a
 						href={link.href}
-						class="rounded-md px-3 py-2 text-sm font-medium text-gf-maroon hover:underline transition-colors"
+						class="rounded-md px-3 py-2 text-base font-medium text-gf-maroon hover:underline transition-colors"
 					>
 						{link.label}
 					</a>
@@ -74,12 +74,12 @@
 						onkeydown={handleSearchKeydown}
 						placeholder="Search"
 						aria-label="Search"
-						class="w-40 rounded-l-md border border-gf-maroon px-3 py-1.5 text-sm text-gray-900
+						class="w-40 rounded-l-md border border-gf-maroon px-3 py-2 text-base text-gray-900
 						       placeholder:text-gray-400 focus:ring-2 focus:ring-gf-maroon focus:outline-none"
 					/>
 					<button
 						type="submit"
-						class="rounded-r-md border border-gf-maroon bg-transparent px-3 py-1.5 text-sm
+						class="rounded-r-md border border-gf-maroon bg-transparent px-3 py-2 text-base
 						       font-medium text-gf-maroon hover:bg-gf-maroon hover:text-white transition-colors"
 					>
 						Search
@@ -90,7 +90,7 @@
 				<div class="relative group">
 					<button
 						type="button"
-						class="flex items-center rounded-md px-3 py-2 text-sm font-medium text-gf-maroon
+						class="flex items-center rounded-md px-3 py-2 text-base font-medium text-gf-maroon
 						       hover:underline transition-colors"
 					>
 						Resources
@@ -106,7 +106,7 @@
 						{#each resourceLinks as link}
 							<a
 								href={link.href}
-								class="block px-4 py-2 text-sm text-gf-maroon hover:bg-gray-100"
+								class="block px-4 py-2 text-base text-gf-maroon hover:bg-gray-100"
 							>
 								{link.label}
 							</a>
@@ -117,7 +117,7 @@
 				<!-- Login Link -->
 				<a
 					href="/login"
-					class="rounded-md px-3 py-2 text-sm font-medium text-gf-maroon hover:underline transition-colors"
+					class="rounded-md px-3 py-2 text-base font-medium text-gf-maroon hover:underline transition-colors"
 				>
 					Login
 				</a>
@@ -172,12 +172,12 @@
 								onkeydown={handleSearchKeydown}
 								placeholder="Search"
 								aria-label="Search"
-								class="flex-1 rounded-l-md border border-gf-maroon px-3 py-2 text-sm text-gray-900
+								class="flex-1 rounded-l-md border border-gf-maroon px-3 py-2 text-base text-gray-900
 								       placeholder:text-gray-400 focus:ring-2 focus:ring-gf-maroon focus:outline-none"
 							/>
 							<button
 								type="submit"
-								class="rounded-r-md border border-gf-maroon bg-transparent px-3 py-2 text-sm
+								class="rounded-r-md border border-gf-maroon bg-transparent px-3 py-2 text-base
 								       font-medium text-gf-maroon hover:bg-gf-maroon hover:text-white"
 							>
 								Search

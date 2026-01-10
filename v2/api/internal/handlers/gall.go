@@ -173,6 +173,7 @@ type IDGallResponse struct {
 	Family      string   `json:"family"`
 	Genus       string   `json:"genus"`
 	Hosts       []Host   `json:"hosts"`
+	ImageURL    string   `json:"imageUrl,omitempty"`
 }
 
 // RegisterRoutes registers gall routes on the router.
@@ -496,9 +497,26 @@ func (h *GallHandler) ListForID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Batch fetch default images for all gall species
+	defaultImages, err := h.queries.GetDefaultImages(ctx)
+	if err != nil {
+		slog.Warn("failed to fetch default images for ID tool", "error", err)
+		defaultImages = nil
+	}
+
+	// Build a map of species_id -> image path for quick lookup
+	imageMap := make(map[int64]string, len(defaultImages))
+	for _, img := range defaultImages {
+		imageMap[img.SpeciesID] = img.Path
+	}
+
 	galls := make([]IDGallResponse, 0, len(rows))
 	for _, row := range rows {
 		gall := h.rowToIDGallResponse(ctx, row.ID, row.Name, row.GallID, row.Detachable, row.Undescribed)
+		// Attach image URL if available
+		if path, ok := imageMap[row.ID]; ok {
+			gall.ImageURL = imageBaseURL + "/" + path
+		}
 		galls = append(galls, gall)
 	}
 

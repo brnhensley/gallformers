@@ -3,8 +3,6 @@
 
 	const footerLinks = [
 		{ href: '/about', label: 'About' },
-		{ href: '/privacy', label: 'Privacy' },
-		{ href: '/terms', label: 'Terms' }
 	];
 
 	const socialLinks = [
@@ -22,14 +20,14 @@
 </script>
 
 <footer class="bg-gray-100 text-gf-maroon">
-	<div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+	<div class="mx-auto px-4 py-6 sm:px-6 lg:px-8">
 		<div class="md:flex md:items-center md:justify-between">
 			<!-- Footer Navigation -->
 			<nav class="flex flex-wrap justify-center gap-x-6 md:justify-start" aria-label="Footer navigation">
 				{#each footerLinks as link}
 					<a
 						href={link.href}
-						class="text-sm font-medium text-gf-maroon hover:underline transition-colors"
+						class="text-base font-medium text-gf-maroon hover:underline transition-colors"
 					>
 						{link.label}
 					</a>
@@ -69,7 +67,7 @@
 		<!-- Copyright and License -->
 		<div class="mt-4 border-t border-gray-300 pt-4">
 			<p class="text-center text-xs text-gray-600">
-				&copy; {currentYear} Gallformers. All rights reserved.
+				&copy; {currentYear} Gallformers.
 			</p>
 			<p class="mt-1 text-center text-xs text-gray-500">
 				Content is available under
