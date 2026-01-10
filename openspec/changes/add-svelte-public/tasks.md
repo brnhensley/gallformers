@@ -35,12 +35,12 @@
 
 ## 3. Static Pages
 
-- [ ] 3.1 Implement home page (`/`) with random gall feature and phenology link
-- [ ] 3.2 Implement about page (`/about`)
-- [ ] 3.3 Implement resources page (`/resources`)
-- [ ] 3.4 Implement filter guide page (`/filterguide`)
-- [ ] 3.5 Implement 404 page
-- [ ] 3.6 Implement stub reference articles page (`/refindex`) - "Coming Soon" placeholder until `add-articles-system`
+- [x] 3.1 Implement home page (`/`) with random gall feature and phenology link
+- [x] 3.2 Implement about page (`/about`)
+- [x] 3.3 Implement resources page (`/resources`)
+- [x] 3.4 Implement filter guide page (`/filterguide`)
+- [x] 3.5 Implement 404 page
+- [x] 3.6 Implement stub reference articles page (`/refindex`) - "Coming Soon" placeholder until `add-articles-system`
 
 ## 4. Dynamic Pages
 
