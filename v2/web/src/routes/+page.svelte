@@ -7,13 +7,10 @@
 
 	onMount(async () => {
 		try {
-			// Fetch a random gall from the API
-			const response = await fetch('/api/v2/galls?limit=1&offset=' + Math.floor(Math.random() * 100));
+			// Fetch a random gall with image from the API
+			const response = await fetch('/api/v2/galls/random');
 			if (!response.ok) throw new Error('Failed to fetch random gall');
-			const data = await response.json();
-			if (data.data && data.data.length > 0) {
-				randomGall = data.data[0];
-			}
+			randomGall = await response.json();
 		} catch (err) {
 			error = err.message;
 		} finally {
@@ -105,15 +102,14 @@
 					<p>Could not load random gall: {error}</p>
 				</div>
 			{:else if randomGall}
-				<div class="flex items-center justify-center h-48 bg-gray-50">
-					<a href="/gall/{randomGall.id}" class="block">
-						<img
-							src="/images/cynipid_R.svg"
-							alt="Gall wasp illustration"
-							class="h-32 w-auto opacity-50"
-						/>
-					</a>
-				</div>
+				<a href="/gall/{randomGall.id}" class="block">
+					<img
+						src={randomGall.image_url}
+						alt={randomGall.name}
+						class="w-full h-48 object-cover"
+						onerror={(e) => { e.target.src = '/images/cynipid_R.svg'; e.target.classList.add('p-8', 'opacity-50'); e.target.classList.remove('object-cover'); }}
+					/>
+				</a>
 				<div class="p-4">
 					<p class="text-gray-700">
 						Here is a random gall from our database.
@@ -126,6 +122,14 @@
 							<em>{randomGall.name}</em>
 						</a>.
 					</p>
+					{#if randomGall.image_creator}
+						<p class="text-xs text-gray-500 mt-2">
+							Photo: {randomGall.image_creator}
+							{#if randomGall.image_license}
+								({randomGall.image_license})
+							{/if}
+						</p>
+					{/if}
 				</div>
 			{:else}
 				<div class="p-6 text-center text-gray-600">

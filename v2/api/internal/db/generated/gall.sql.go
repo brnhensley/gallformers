@@ -672,6 +672,38 @@ func (q *Queries) GetGallLocations(ctx context.Context, gallID int64) ([]Locatio
 	return items, nil
 }
 
+const getGallPlaces = `-- name: GetGallPlaces :many
+SELECT DISTINCT p.name
+FROM place p
+INNER JOIN speciesplace sp ON sp.place_id = p.id
+INNER JOIN host h ON h.host_species_id = sp.species_id
+WHERE h.gall_species_id = ?
+`
+
+// Gets places associated with a gall via its host plants.
+func (q *Queries) GetGallPlaces(ctx context.Context, gallSpeciesID sql.NullInt64) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, getGallPlaces, gallSpeciesID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, err
+		}
+		items = append(items, name)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getGallSeasons = `-- name: GetGallSeasons :many
 SELECT se.id, se.season
 FROM season se
@@ -734,6 +766,30 @@ func (q *Queries) GetGallShapes(ctx context.Context, gallID int64) ([]Shape, err
 	return items, nil
 }
 
+const getGallTaxonomy = `-- name: GetGallTaxonomy :one
+SELECT
+    g.name AS genus,
+    f.name AS family
+FROM speciestaxonomy st
+INNER JOIN taxonomy g ON st.taxonomy_id = g.id AND g.type = 'genus'
+LEFT JOIN taxonomy f ON g.parent_id = f.id AND f.type = 'family'
+WHERE st.species_id = ?
+LIMIT 1
+`
+
+type GetGallTaxonomyRow struct {
+	Genus  string         `json:"genus"`
+	Family sql.NullString `json:"family"`
+}
+
+// Gets the genus and family for a gall species.
+func (q *Queries) GetGallTaxonomy(ctx context.Context, speciesID int64) (GetGallTaxonomyRow, error) {
+	row := q.db.QueryRowContext(ctx, getGallTaxonomy, speciesID)
+	var i GetGallTaxonomyRow
+	err := row.Scan(&i.Genus, &i.Family)
+	return i, err
+}
+
 const getGallTextures = `-- name: GetGallTextures :many
 SELECT t.id, t.texture, t.description
 FROM texture t
@@ -794,6 +850,112 @@ func (q *Queries) GetGallWalls(ctx context.Context, gallID int64) ([]Wall, error
 		return nil, err
 	}
 	return items, nil
+}
+
+const getImagesBySpeciesID = `-- name: GetImagesBySpeciesID :many
+SELECT
+    i.id,
+    i.path,
+    i.creator,
+    i.attribution,
+    i.sourcelink,
+    i.license,
+    i.licenselink,
+    i.caption
+FROM image i
+WHERE i.species_id = ?
+ORDER BY i.id
+`
+
+type GetImagesBySpeciesIDRow struct {
+	ID          int64          `json:"id"`
+	Path        string         `json:"path"`
+	Creator     sql.NullString `json:"creator"`
+	Attribution sql.NullString `json:"attribution"`
+	Sourcelink  sql.NullString `json:"sourcelink"`
+	License     sql.NullString `json:"license"`
+	Licenselink sql.NullString `json:"licenselink"`
+	Caption     sql.NullString `json:"caption"`
+}
+
+// Gets all images for a species.
+func (q *Queries) GetImagesBySpeciesID(ctx context.Context, speciesID int64) ([]GetImagesBySpeciesIDRow, error) {
+	rows, err := q.db.QueryContext(ctx, getImagesBySpeciesID, speciesID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetImagesBySpeciesIDRow{}
+	for rows.Next() {
+		var i GetImagesBySpeciesIDRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Path,
+			&i.Creator,
+			&i.Attribution,
+			&i.Sourcelink,
+			&i.License,
+			&i.Licenselink,
+			&i.Caption,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getRandomGallWithImage = `-- name: GetRandomGallWithImage :one
+SELECT
+    s.id,
+    s.name,
+    g.undescribed,
+    i.path AS image_path,
+    i.creator AS image_creator,
+    i.license AS image_license,
+    i.sourcelink AS image_sourcelink,
+    i.licenselink AS image_licenselink
+FROM gall g
+INNER JOIN gallspecies gs ON gs.gall_id = g.id
+INNER JOIN species s ON gs.species_id = s.id
+INNER JOIN image i ON i.species_id = s.id
+WHERE i.` + "`" + `default` + "`" + ` = 1
+ORDER BY RANDOM()
+LIMIT 1
+`
+
+type GetRandomGallWithImageRow struct {
+	ID               int64          `json:"id"`
+	Name             string         `json:"name"`
+	Undescribed      bool           `json:"undescribed"`
+	ImagePath        string         `json:"image_path"`
+	ImageCreator     sql.NullString `json:"image_creator"`
+	ImageLicense     sql.NullString `json:"image_license"`
+	ImageSourcelink  sql.NullString `json:"image_sourcelink"`
+	ImageLicenselink sql.NullString `json:"image_licenselink"`
+}
+
+// Gets a random gall that has a default image.
+func (q *Queries) GetRandomGallWithImage(ctx context.Context) (GetRandomGallWithImageRow, error) {
+	row := q.db.QueryRowContext(ctx, getRandomGallWithImage)
+	var i GetRandomGallWithImageRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Undescribed,
+		&i.ImagePath,
+		&i.ImageCreator,
+		&i.ImageLicense,
+		&i.ImageSourcelink,
+		&i.ImageLicenselink,
+	)
+	return i, err
 }
 
 const insertGallAlignment = `-- name: InsertGallAlignment :exec

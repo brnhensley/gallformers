@@ -362,3 +362,56 @@ VALUES (?, ?);
 -- name: DeleteAliasByID :exec
 -- Deletes an alias by ID.
 DELETE FROM alias WHERE id = ?;
+
+-- name: GetGallPlaces :many
+-- Gets places associated with a gall via its host plants.
+SELECT DISTINCT p.name
+FROM place p
+INNER JOIN speciesplace sp ON sp.place_id = p.id
+INNER JOIN host h ON h.host_species_id = sp.species_id
+WHERE h.gall_species_id = ?;
+
+-- name: GetGallTaxonomy :one
+-- Gets the genus and family for a gall species.
+SELECT
+    g.name AS genus,
+    f.name AS family
+FROM speciestaxonomy st
+INNER JOIN taxonomy g ON st.taxonomy_id = g.id AND g.type = 'genus'
+LEFT JOIN taxonomy f ON g.parent_id = f.id AND f.type = 'family'
+WHERE st.species_id = ?
+LIMIT 1;
+
+-- name: GetRandomGallWithImage :one
+-- Gets a random gall that has a default image.
+SELECT
+    s.id,
+    s.name,
+    g.undescribed,
+    i.path AS image_path,
+    i.creator AS image_creator,
+    i.license AS image_license,
+    i.sourcelink AS image_sourcelink,
+    i.licenselink AS image_licenselink
+FROM gall g
+INNER JOIN gallspecies gs ON gs.gall_id = g.id
+INNER JOIN species s ON gs.species_id = s.id
+INNER JOIN image i ON i.species_id = s.id
+WHERE i.`default` = 1
+ORDER BY RANDOM()
+LIMIT 1;
+
+-- name: GetImagesBySpeciesID :many
+-- Gets all images for a species.
+SELECT
+    i.id,
+    i.path,
+    i.creator,
+    i.attribution,
+    i.sourcelink,
+    i.license,
+    i.licenselink,
+    i.caption
+FROM image i
+WHERE i.species_id = ?
+ORDER BY i.id;
