@@ -13,8 +13,12 @@
 
 	let { data } = $props();
 
-	// Selected source state
-	let selectedSourceId = $state(data.defaultSourceId);
+	// Selected source state - reset when data changes (e.g., navigating to different gall)
+	let selectedSourceId = $state(null);
+
+	$effect(() => {
+		selectedSourceId = data.defaultSourceId;
+	});
 
 	// Detachable value mapping
 	const detachableValues = {

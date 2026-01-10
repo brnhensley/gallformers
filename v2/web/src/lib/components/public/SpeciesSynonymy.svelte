@@ -14,7 +14,12 @@
 
 	let { aliases = [], showAllByDefault = false } = $props();
 
-	let showSynonyms = $state(showAllByDefault);
+	// Track whether synonyms are expanded - reset when showAllByDefault prop changes
+	let showSynonyms = $state(false);
+
+	$effect(() => {
+		showSynonyms = showAllByDefault;
+	});
 
 	// Filter aliases by type
 	let commonNames = $derived(

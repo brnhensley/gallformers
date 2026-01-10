@@ -6,8 +6,12 @@
 
 	let { data } = $props();
 
-	// Track expanded nodes
-	let expandedKeys = $state(data.initialExpandedKeys || new Set());
+	// Track expanded nodes - reset when data changes (e.g., navigating to different family)
+	let expandedKeys = $state(new Set());
+
+	$effect(() => {
+		expandedKeys = data.initialExpandedKeys || new Set();
+	});
 
 	/**
 	 * Handle tree item click - navigate to species page

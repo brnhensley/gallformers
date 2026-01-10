@@ -1,3 +1,6 @@
+// Disable prerendering since this page uses URL search params
+export const prerender = false;
+
 /**
  * Load function for global search page.
  * Fetches search results from the API and syncs with URL query param.

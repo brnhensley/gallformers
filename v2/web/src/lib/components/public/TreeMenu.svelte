@@ -12,6 +12,9 @@
 	 * @property {TreeNode[]} [nodes] - Child nodes (branch nodes)
 	 */
 
+	// Self-import for recursive rendering (replaces deprecated svelte:self)
+	import TreeMenu from './TreeMenu.svelte';
+
 	let {
 		data = [],
 		onitemclick,
@@ -70,7 +73,7 @@
 		{@const expanded = isExpanded(item.key)}
 		{@const isLeaf = !hasChildren}
 
-		<li role="treeitem" aria-expanded={hasChildren ? expanded : undefined}>
+		<li role="treeitem" aria-selected="false" aria-expanded={hasChildren ? expanded : undefined}>
 			<div
 				class="flex items-center py-1.5 px-2 cursor-pointer hover:bg-gray-100 rounded transition-colors
 					{expanded ? 'bg-gray-50' : ''}"
@@ -111,7 +114,7 @@
 
 			<!-- Recursive children -->
 			{#if hasChildren && expanded}
-				<svelte:self
+				<TreeMenu
 					data={item.nodes}
 					{onitemclick}
 					level={level + 1}

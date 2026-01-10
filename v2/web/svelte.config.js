@@ -16,7 +16,8 @@ const config = {
 		prerender: {
 			handleHttpError: 'warn',
 			handleMissingId: 'warn',
-			handleEntryGeneratorMismatch: 'warn'
+			handleEntryGeneratorMismatch: 'warn',
+			handleUnseenRoutes: 'warn'
 		}
 	}
 };

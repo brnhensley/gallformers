@@ -86,9 +86,9 @@
 						</thead>
 						<tbody class="bg-white divide-y divide-gray-200">
 							{#each sortedSpecies as species}
+								{@const isGall = species.taxoncode === 'gall'}
 								<tr class="hover:bg-gray-50">
 									<td class="px-6 py-4 whitespace-nowrap text-sm">
-										{@const isGall = species.taxoncode === 'gall'}
 										<a
 											href="{isGall ? '/gall' : '/host'}/{species.id}"
 											class="text-blue-600 hover:underline"

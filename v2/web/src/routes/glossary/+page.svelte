@@ -2,9 +2,11 @@
 	import { onMount } from 'svelte';
 	import EditButton from '$lib/components/public/EditButton.svelte';
 
-	let entries = $state([]);
-	let loading = $state(true);
-	let error = $state(null);
+	let { data } = $props();
+
+	// Use entries from load function (server-side) with client-side state for sorting
+	let entries = $derived(data.entries || []);
+	let error = $derived(data.error || null);
 	let sortBy = $state('word');
 	let sortDir = $state('asc');
 
@@ -60,19 +62,6 @@
 		}));
 	}
 
-	onMount(async () => {
-		try {
-			const response = await fetch('/api/v2/glossary');
-			if (!response.ok) throw new Error('Failed to fetch glossary entries');
-			const data = await response.json();
-			entries = data.data || [];
-		} catch (err) {
-			error = err.message;
-		} finally {
-			loading = false;
-		}
-	});
-
 	function handleSort(key) {
 		if (sortBy === key) {
 			sortDir = sortDir === 'asc' ? 'desc' : 'asc';
@@ -97,7 +86,7 @@
 
 	// Use effect to scroll when entries are loaded and there's a hash
 	$effect(() => {
-		if (!loading && entries.length > 0 && window.location.hash) {
+		if (entries.length > 0 && typeof window !== 'undefined' && window.location.hash) {
 			setTimeout(scrollToHash, 100);
 		}
 	});
@@ -116,12 +105,7 @@
 <div class="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
 	<h1 class="text-3xl font-bold text-gf-maroon mb-6">A Glossary of Gall Related Terminology</h1>
 
-	{#if loading}
-		<div class="flex justify-center items-center py-12">
-			<div class="animate-spin rounded-full h-12 w-12 border-b-2 border-gf-maroon"></div>
-			<span class="ml-4 text-gray-600">Loading glossary...</span>
-		</div>
-	{:else if error}
+	{#if error}
 		<div class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
 			<p>Error loading glossary: {error}</p>
 		</div>

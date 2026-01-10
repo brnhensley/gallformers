@@ -12,8 +12,12 @@
 
 	let { data } = $props();
 
-	// Selected source state
-	let selectedSourceId = $state(data.defaultSourceId);
+	// Selected source state - reset when data changes (e.g., navigating to different host)
+	let selectedSourceId = $state(null);
+
+	$effect(() => {
+		selectedSourceId = data.defaultSourceId;
+	});
 
 	/**
 	 * Get completeness level based on datacomplete flag

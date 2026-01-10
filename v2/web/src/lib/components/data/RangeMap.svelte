@@ -47,18 +47,27 @@
 	{#each features as feat}
 		{@const postal = feat.properties?.postal ?? ''}
 		{@const name = feat.properties?.name ?? 'Unknown'}
-		<!-- svelte-ignore a11y_no_static_element_interactions a11y_no_noninteractive_tabindex -->
-		<path
-			d={path(feat) ?? ''}
-			fill={getFill(postal)}
-			stroke="#2F4F4F"
-			stroke-width="0.5"
-			onclick={() => handleClick(postal)}
-			onkeydown={(e) => handleKeyDown(e, postal)}
-			class={editable ? 'cursor-pointer hover:opacity-80' : ''}
-			role={editable ? 'button' : undefined}
-			tabindex={editable ? 0 : undefined}
-			aria-label={editable ? `Toggle ${name}` : name}
-		/>
+		{#if editable}
+			<path
+				d={path(feat) ?? ''}
+				fill={getFill(postal)}
+				stroke="#2F4F4F"
+				stroke-width="0.5"
+				onclick={() => handleClick(postal)}
+				onkeydown={(e) => handleKeyDown(e, postal)}
+				class="cursor-pointer hover:opacity-80"
+				role="button"
+				tabindex="0"
+				aria-label="Toggle {name}"
+			/>
+		{:else}
+			<path
+				d={path(feat) ?? ''}
+				fill={getFill(postal)}
+				stroke="#2F4F4F"
+				stroke-width="0.5"
+				aria-label={name}
+			/>
+		{/if}
 	{/each}
 </svg>
