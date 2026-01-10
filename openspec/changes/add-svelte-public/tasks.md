@@ -101,11 +101,11 @@
 - [x] 7.1.4 Create results derived store (`stores/results.js`)
 
 ### 7.2 Components
-- [ ] 7.2.1 Create `HostPicker.svelte` - host typeahead
-- [ ] 7.2.2 Create `GenusPicker.svelte` - genus typeahead
-- [ ] 7.2.3 Create `FilterPanel.svelte` - all filter controls
-- [ ] 7.2.4 Create `FilterChips.svelte` - active filter display
-- [ ] 7.2.5 Create `ResultsGrid.svelte` - filtered results display
+- [x] 7.2.1 Create `HostPicker.svelte` - host typeahead
+- [x] 7.2.2 Create `GenusPicker.svelte` - genus typeahead
+- [x] 7.2.3 Create `FilterPanel.svelte` - all filter controls
+- [x] 7.2.4 Create `FilterChips.svelte` - active filter display
+- [x] 7.2.5 Create `ResultsGrid.svelte` - filtered results display
 
 ### 7.3 Integration
 - [ ] 7.3.1 Assemble ID tool page (`/id`)
