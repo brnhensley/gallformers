@@ -13,7 +13,7 @@
 	// Local state bound to typeahead
 	let selected = $state(null);
 
-	// Sync store to local state on mount
+	// Sync store to local state
 	$effect(() => {
 		const unsub = selectedHost.subscribe((value) => {
 			selected = value;
@@ -80,7 +80,9 @@
 </script>
 
 <div class="host-picker" class:opacity-50={disabled}>
-	<Typeahead bind:selected label="Host" searchFn={searchHosts} labelKey="displayName" />
+	{#key selected?.id}
+		<Typeahead bind:selected label="Host" searchFn={searchHosts} labelKey="displayName" />
+	{/key}
 	{#if selected}
 		<button
 			type="button"

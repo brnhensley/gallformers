@@ -6,6 +6,7 @@
 		label,
 		searchFn,
 		labelKey = 'name',
+		itemId = 'id',
 		multiple = false,
 		creatable = false,
 		required = false,
@@ -19,7 +20,18 @@
 		if (opt && typeof opt === 'object' && labelKey in opt) {
 			return String(opt[labelKey]);
 		}
+		// Fallback to 'name' if labelKey not found
+		if (opt && typeof opt === 'object' && 'name' in opt) {
+			return String(opt.name);
+		}
 		return String(opt);
+	}
+
+	function getItemId(opt) {
+		if (opt && typeof opt === 'object' && itemId in opt) {
+			return opt[itemId];
+		}
+		return opt;
 	}
 
 	// Extra props for svelte-select
@@ -37,6 +49,7 @@
 			{multiple}
 			{...extraProps}
 			{getOptionLabel}
+			itemId={getItemId}
 			placeholder="Type to search..."
 			--border-radius="0.375rem"
 			--border-focused="2px solid #661419"
@@ -51,6 +64,9 @@
 		>
 			<div slot="item" let:item style="color: #1f2937;">
 				{getOptionLabel(item)}
+			</div>
+			<div slot="selection" let:selection style="color: #1f2937;">
+				{getOptionLabel(selection)}
 			</div>
 		</Select>
 	</div>

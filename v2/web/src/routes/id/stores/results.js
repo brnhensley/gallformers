@@ -25,27 +25,6 @@ export const loading = writable(false);
 export const error = writable(null);
 
 /**
- * Derived store that provides filtered results
- * Automatically recomputes when filters or galls change.
- */
-export const results = derived([galls, filters], ([$galls, $filters]) => {
-	if ($galls.length === 0) {
-		return [];
-	}
-	return filterGalls($galls, $filters);
-});
-
-/**
- * Derived store for result count
- */
-export const resultCount = derived(results, ($results) => $results.length);
-
-/**
- * Derived store for total gall count
- */
-export const totalCount = derived(galls, ($galls) => $galls.length);
-
-/**
  * Store for selected host filter (separate from main filters as it requires API lookup)
  */
 export const selectedHost = writable(null);
@@ -56,43 +35,58 @@ export const selectedHost = writable(null);
 export const selectedGenus = writable(null);
 
 /**
- * Derived store that filters results further by host if selected
+ * Derived store that filters galls by selected host.
+ * This is applied FIRST to narrow to host-specific galls.
  */
-export const filteredByHost = derived([results, selectedHost], ([$results, $host]) => {
+export const gallsForHost = derived([galls, selectedHost], ([$galls, $host]) => {
 	if (!$host) {
-		return $results;
+		return $galls;
 	}
-	// Filter results to only show galls that have this host
-	// This requires the gall data to include host information
-	return $results.filter((gall) => {
+	return $galls.filter((gall) => {
 		if (!gall.hosts) return false;
 		return gall.hosts.some((h) => h.id === $host.id || h.name === $host.name);
 	});
 });
 
 /**
- * Derived store that filters results further by genus if selected
+ * Derived store that filters by genus after host filtering.
+ * This gives us the total pool of galls for the selected host/genus combination.
  */
-export const filteredByGenus = derived([filteredByHost, selectedGenus], ([$results, $genus]) => {
+export const gallsForSelection = derived([gallsForHost, selectedGenus], ([$galls, $genus]) => {
 	if (!$genus) {
-		return $results;
+		return $galls;
 	}
-	// Filter results to only show galls in this genus
-	return $results.filter((gall) => {
+	return $galls.filter((gall) => {
 		if (!gall.genus) return false;
 		return gall.genus === $genus.name || gall.genus === $genus;
 	});
 });
 
 /**
- * Final results store - combines all filters
+ * Derived store for total gall count - reflects the count for selected host/genus.
+ * This is the "total" shown in "Showing X of Y galls".
  */
-export const finalResults = filteredByGenus;
+export const totalCount = derived(gallsForSelection, ($galls) => $galls.length);
+
+/**
+ * Derived store that applies filter panel filters to the host/genus selection.
+ * This is the final filtered result.
+ */
+export const finalResults = derived([gallsForSelection, filters], ([$galls, $filters]) => {
+	if ($galls.length === 0) {
+		return [];
+	}
+	return filterGalls($galls, $filters);
+});
 
 /**
  * Final result count
  */
 export const finalResultCount = derived(finalResults, ($results) => $results.length);
+
+// Legacy aliases for compatibility with existing components
+export const results = finalResults;
+export const resultCount = finalResultCount;
 
 /**
  * Transform API response to match filter logic expectations.

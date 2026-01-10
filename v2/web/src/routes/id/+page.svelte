@@ -7,17 +7,20 @@
 	 */
 
 	import { onMount } from 'svelte';
-	import { startUrlSync } from './stores/url.js';
+	import { startUrlSync, initFromUrlParams } from './stores/url.js';
 	import { resetResults, selectedHost, selectedGenus } from './stores/results.js';
-	import { filters } from './stores/filters.js';
 	import HostPicker from './components/HostPicker.svelte';
 	import GenusPicker from './components/GenusPicker.svelte';
 	import FilterPanel from './components/FilterPanel.svelte';
 	import FilterChips from './components/FilterChips.svelte';
 	import ResultsGrid from './components/ResultsGrid.svelte';
 
+	// Get data from load function
+	let { data } = $props();
+
 	let host = $state(null);
 	let genus = $state(null);
+	let stopUrlSync = null;
 
 	$effect(() => {
 		const unsub = selectedHost.subscribe((value) => {
@@ -33,12 +36,30 @@
 		return unsub;
 	});
 
+
+
 	let hasSelection = $derived(host !== null || genus !== null);
 
-	onMount(() => {
-		const stopUrlSync = startUrlSync();
+	onMount(async () => {
+		// Determine which params to use: load function params or browser fallback
+		let paramsToUse = data.searchParams;
+		
+		// Fallback: read directly from window.location if load function got empty params
+		// This handles cases where the client-side router didn't pass params correctly
+		if (Object.keys(paramsToUse).length === 0 && window.location.search) {
+			paramsToUse = Object.fromEntries(new URLSearchParams(window.location.search));
+		}
+
+		// Initialize from URL params BEFORE starting URL sync
+		// This prevents the race condition where empty store values sync to URL
+		if (Object.keys(paramsToUse).length > 0) {
+			await initFromUrlParams(paramsToUse);
+		}
+
+		// Only start URL sync AFTER initialization is complete
+		stopUrlSync = startUrlSync();
 		return () => {
-			stopUrlSync();
+			if (stopUrlSync) stopUrlSync();
 		};
 	});
 

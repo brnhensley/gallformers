@@ -78,7 +78,9 @@
 </script>
 
 <div class="genus-picker" class:opacity-50={disabled}>
-	<Typeahead bind:selected label="Genus / Section" searchFn={searchGenera} labelKey="displayName" />
+	{#key selected?.id}
+		<Typeahead bind:selected label="Genus / Section" searchFn={searchGenera} labelKey="displayName" />
+	{/key}
 	{#if selected}
 		<button
 			type="button"

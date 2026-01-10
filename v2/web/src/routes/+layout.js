@@ -1,2 +1,2 @@
-// Enable prerendering for all pages by default
-export const prerender = true;
+// Disable prerendering - most pages have dynamic content (search, filtering, URL state)
+export const prerender = false;
