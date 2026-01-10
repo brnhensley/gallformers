@@ -44,12 +44,12 @@
 
 ## 4. Dynamic Pages
 
-- [ ] 4.1 Implement glossary page (`/glossary`)
-  - [ ] Load entries from database
-  - [ ] Sortable table display
-  - [ ] Cross-link terms within definitions
-  - [ ] Anchor links for direct term navigation
-  - [ ] Edit buttons for authenticated admins
+- [x] 4.1 Implement glossary page (`/glossary`)
+  - [x] Load entries from database
+  - [x] Sortable table display
+  - [x] Cross-link terms within definitions
+  - [x] Anchor links for direct term navigation
+  - [x] Edit buttons for authenticated admins
 
 ## 5. Entity Detail Pages
 
