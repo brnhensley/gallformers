@@ -48,6 +48,13 @@ type SectionResponse struct {
 	Aliases []Alias         `json:"aliases,omitempty"`
 }
 
+// GenusResponse represents a genus with its parent family and species.
+type GenusResponse struct {
+	TaxonomyEntry
+	Family  *TaxonomyEntry  `json:"family,omitempty"`
+	Species []SimpleSpecies `json:"species,omitempty"`
+}
+
 // SimpleSpecies represents minimal species info.
 type SimpleSpecies struct {
 	ID           int64   `json:"id"`
@@ -139,6 +146,7 @@ func (h *TaxonomyHandler) RegisterRoutes(r chi.Router) {
 		// Genus routes
 		r.Route("/genera", func(r chi.Router) {
 			r.Get("/", h.ListGenera)
+			r.Get("/{id}", h.GetGenusByID)
 
 			r.Group(func(r chi.Router) {
 				r.Use(middleware.RequireAuth)
@@ -682,6 +690,40 @@ func (h *TaxonomyHandler) ListGenera(w http.ResponseWriter, r *http.Request) {
 	middleware.RespondBadRequest(w, "Must provide either famid or q parameter")
 }
 
+// GetGenusByID handles GET /api/v2/taxonomy/genera/{id}
+func (h *TaxonomyHandler) GetGenusByID(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	idStr := chi.URLParam(r, "id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		middleware.RespondBadRequest(w, "Invalid genus ID")
+		return
+	}
+
+	row, err := h.queries.GetTaxonomyByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			middleware.RespondNotFound(w, "Genus not found")
+			return
+		}
+		slog.Error("failed to get genus", "error", err, "id", id)
+		middleware.RespondInternalError(w, "Failed to get genus")
+		return
+	}
+
+	// Verify it's actually a genus
+	if row.Type != "genus" {
+		middleware.RespondNotFound(w, "Genus not found")
+		return
+	}
+
+	genus := h.rowToGenusResponse(ctx, row.ID, row.Name, row.Description, row.Type,
+		row.ParentID, row.ParentName, row.ParentType)
+
+	middleware.RespondOK(w, genus)
+}
+
 // MoveGenera handles POST /api/v2/taxonomy/genera/move
 func (h *TaxonomyHandler) MoveGenera(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
@@ -1003,6 +1045,53 @@ func (h *TaxonomyHandler) rowToSectionResponse(ctx context.Context, id int64, na
 	}
 
 	return section
+}
+
+func (h *TaxonomyHandler) rowToGenusResponse(ctx context.Context, id int64, name string,
+	desc sql.NullString, typ string, parentID sql.NullInt64, parentName, parentType sql.NullString) GenusResponse {
+
+	genus := GenusResponse{
+		TaxonomyEntry: h.rowToTaxonomyEntry(id, name, desc, typ,
+			parentID, parentName, parentType),
+	}
+
+	// Build family info from parent
+	if parentID.Valid && parentName.Valid {
+		family := TaxonomyEntry{
+			ID:   parentID.Int64,
+			Name: parentName.String,
+			Type: "family",
+		}
+		if parentType.Valid {
+			family.Type = parentType.String
+		}
+		genus.Family = &family
+	}
+
+	// Fetch species for this genus
+	species, err := h.queries.GetSpeciesForTaxonomy(ctx, id)
+	if err != nil {
+		slog.Error("failed to get species for genus", "error", err, "genusID", id)
+		genus.Species = []SimpleSpecies{}
+	} else {
+		genus.Species = make([]SimpleSpecies, len(species))
+		for i, s := range species {
+			sp := SimpleSpecies{
+				ID:           s.ID,
+				Name:         s.Name,
+				Datacomplete: s.Datacomplete,
+			}
+			if s.Taxoncode.Valid {
+				sp.Taxoncode = &s.Taxoncode.String
+			}
+			if s.AbundanceID.Valid {
+				sp.AbundanceID = &s.AbundanceID.Int64
+			}
+			genus.Species[i] = sp
+		}
+	}
+
+	return genus
 }
 
 func (h *TaxonomyHandler) buildFGS(rows []db.GetTaxonomyForSpeciesRow) FGS {

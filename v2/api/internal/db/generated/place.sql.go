@@ -66,6 +66,79 @@ func (q *Queries) DeletePlace(ctx context.Context, id int64) error {
 	return err
 }
 
+const getHostsByPlaceID = `-- name: GetHostsByPlaceID :many
+SELECT
+    sp.id,
+    sp.name,
+    sp.taxoncode,
+    sp.datacomplete
+FROM species sp
+INNER JOIN speciesplace spp ON spp.species_id = sp.id
+WHERE spp.place_id = ? AND sp.taxoncode = 'plant'
+ORDER BY sp.name
+`
+
+type GetHostsByPlaceIDRow struct {
+	ID           int64          `json:"id"`
+	Name         string         `json:"name"`
+	Taxoncode    sql.NullString `json:"taxoncode"`
+	Datacomplete bool           `json:"datacomplete"`
+}
+
+// Gets all host species associated with a place via speciesplace table.
+// Only returns species where taxoncode = 'plant' (hosts are plants).
+func (q *Queries) GetHostsByPlaceID(ctx context.Context, placeID sql.NullInt64) ([]GetHostsByPlaceIDRow, error) {
+	rows, err := q.db.QueryContext(ctx, getHostsByPlaceID, placeID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetHostsByPlaceIDRow{}
+	for rows.Next() {
+		var i GetHostsByPlaceIDRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Taxoncode,
+			&i.Datacomplete,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getParentPlace = `-- name: GetParentPlace :one
+SELECT
+    p.id,
+    p.name,
+    p.code,
+    p.type
+FROM place p
+INNER JOIN placeplace pp ON pp.parent_id = p.id
+WHERE pp.place_id = ?
+`
+
+// Gets the parent place for a given place via placeplace table.
+func (q *Queries) GetParentPlace(ctx context.Context, placeID sql.NullInt64) (Place, error) {
+	row := q.db.QueryRowContext(ctx, getParentPlace, placeID)
+	var i Place
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Code,
+		&i.Type,
+	)
+	return i, err
+}
+
 const getPlaceByID = `-- name: GetPlaceByID :one
 SELECT id, name, code, type
 FROM place

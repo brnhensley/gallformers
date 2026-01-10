@@ -86,3 +86,15 @@ WHERE id = ?;
 -- name: DeleteSource :exec
 -- Deletes a source by ID.
 DELETE FROM source WHERE id = ?;
+
+-- name: GetSpeciesBySourceID :many
+-- Gets all species associated with a source via speciessource table.
+SELECT
+    sp.id,
+    sp.name,
+    sp.taxoncode,
+    sp.datacomplete
+FROM species sp
+INNER JOIN speciessource ss ON ss.species_id = sp.id
+WHERE ss.source_id = ?
+ORDER BY sp.name;

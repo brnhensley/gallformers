@@ -2,8 +2,8 @@
 
 ## Prerequisites
 
-- [ ] `define-v2-foundation` completed (Svelte app scaffold)
-- [ ] `add-go-api` endpoints available for all entity types
+- [x] `define-v2-foundation` completed (Svelte app scaffold)
+- [x] `add-go-api` endpoints available for all entity types
 - [x] Base component library from umbrella (Button, Input, Modal, etc.)
 
 ## 1. Site Layout
@@ -73,11 +73,11 @@
   - [x] Species aliases/synonyms
   - [x] Data completeness indicator
   - [x] Edit buttons for authenticated admins
-- [ ] 5.3 Implement family page (`/family/{id}`)
-- [ ] 5.4 Implement genus page (`/genus/{id}`)
-- [ ] 5.5 Implement source page (`/source/{id}`)
-- [ ] 5.6 Implement section page (`/section/{id}`)
-- [ ] 5.7 Implement place page (`/place/{id}`)
+- [x] 5.3 Implement family page (`/family/{id}`)
+- [x] 5.4 Implement genus page (`/genus/{id}`)
+- [x] 5.5 Implement source page (`/source/{id}`)
+- [x] 5.6 Implement section page (`/section/{id}`)
+- [x] 5.7 Implement place page (`/place/{id}`)
 
 ## 6. Search and Browse
 

@@ -50,6 +50,20 @@ type SourceWithSpeciesSourceResponse struct {
 	SpeciesSource SpeciesSourceInfo `json:"speciessource"`
 }
 
+// SourceSpecies represents minimal species info for source detail page.
+type SourceSpecies struct {
+	ID           int64   `json:"id"`
+	Name         string  `json:"name"`
+	Taxoncode    *string `json:"taxoncode,omitempty"`
+	Datacomplete bool    `json:"datacomplete"`
+}
+
+// SourceDetailResponse represents a source with its connected species.
+type SourceDetailResponse struct {
+	SourceResponse
+	Species []SourceSpecies `json:"species"`
+}
+
 // SourceListResponse represents a paginated list of sources.
 type SourceListResponse struct {
 	Data   []SourceResponse `json:"data"`
@@ -281,7 +295,33 @@ func (h *SourceHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	middleware.RespondOK(w, sourceToResponse(row))
+	// Fetch connected species
+	speciesRows, err := h.queries.GetSpeciesBySourceID(ctx, id)
+	var species []SourceSpecies
+	if err != nil {
+		slog.Error("failed to get species for source", "error", err, "sourceID", id)
+		species = []SourceSpecies{}
+	} else {
+		species = make([]SourceSpecies, len(speciesRows))
+		for i, sp := range speciesRows {
+			s := SourceSpecies{
+				ID:           sp.ID,
+				Name:         sp.Name,
+				Datacomplete: sp.Datacomplete,
+			}
+			if sp.Taxoncode.Valid {
+				s.Taxoncode = &sp.Taxoncode.String
+			}
+			species[i] = s
+		}
+	}
+
+	response := SourceDetailResponse{
+		SourceResponse: sourceToResponse(row),
+		Species:        species,
+	}
+
+	middleware.RespondOK(w, response)
 }
 
 // GetByTitle handles GET /api/v2/sources/by-title/{title}
