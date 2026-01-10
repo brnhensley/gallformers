@@ -108,9 +108,9 @@
 - [x] 7.2.5 Create `ResultsGrid.svelte` - filtered results display
 
 ### 7.3 Integration
-- [ ] 7.3.1 Assemble ID tool page (`/id`)
-- [ ] 7.3.2 Verify filter combinations match current behavior
-- [ ] 7.3.3 Verify URL state persistence works
+- [x] 7.3.1 Assemble ID tool page (`/id`)
+- [x] 7.3.2 Verify filter combinations match current behavior
+- [x] 7.3.3 Verify URL state persistence works
 
 ## 8. SEO and Metadata
 
