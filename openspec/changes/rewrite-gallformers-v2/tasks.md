@@ -44,12 +44,13 @@ This is an **umbrella proposal**. Most tasks are creating and completing sub-pro
 
 ## 3. Phase 2: Svelte Common Components
 
-- [ ] 3.1 Complete `add-svelte-common` proposal implementation
+- [x] 3.1 Complete `add-svelte-common` proposal implementation
   - Set up shared component library
   - Build common UI components (buttons, forms, modals, etc.)
   - Build API client utilities
   - Build shared types and stores
-- [ ] 3.2 Component documentation and testing
+  - Setup Storybooks for common components
+- [x] 3.2 Component documentation and testing
 
 ## 4. Phase 3: Svelte Public Site
 

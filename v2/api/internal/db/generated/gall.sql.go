@@ -570,6 +570,37 @@ func (q *Queries) GetGallColors(ctx context.Context, gallID int64) ([]Color, err
 	return items, nil
 }
 
+const getGallExcludedPlaces = `-- name: GetGallExcludedPlaces :many
+SELECT DISTINCT p.name
+FROM place p
+INNER JOIN speciesplace sp ON sp.place_id = p.id
+WHERE sp.species_id = ?
+`
+
+// Gets places directly associated with a gall species (excluded range).
+func (q *Queries) GetGallExcludedPlaces(ctx context.Context, speciesID sql.NullInt64) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, getGallExcludedPlaces, speciesID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, err
+		}
+		items = append(items, name)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getGallForms = `-- name: GetGallForms :many
 SELECT f.id, f.form, f.description
 FROM form f
@@ -956,6 +987,57 @@ func (q *Queries) GetRandomGallWithImage(ctx context.Context) (GetRandomGallWith
 		&i.ImageLicenselink,
 	)
 	return i, err
+}
+
+const getRelatedGalls = `-- name: GetRelatedGalls :many
+SELECT
+    s.id,
+    s.name,
+    s.taxoncode
+FROM species s
+INNER JOIN gallspecies gs ON gs.species_id = s.id
+WHERE s.taxoncode = 'gall'
+  AND s.name LIKE ? || '%'
+  AND s.id != ?
+ORDER BY s.name
+`
+
+type GetRelatedGallsParams struct {
+	Column1 sql.NullString `json:"column_1"`
+	ID      int64          `json:"id"`
+}
+
+type GetRelatedGallsRow struct {
+	ID        int64          `json:"id"`
+	Name      string         `json:"name"`
+	Taxoncode sql.NullString `json:"taxoncode"`
+}
+
+// Gets galls with the same binomial name (genus + species epithet).
+// Related galls share the same first two name parts but have additional qualifiers.
+// Example: "Andricus quercuscalifornicus agamic" is related to "Andricus quercuscalifornicus sexual".
+// The name_prefix parameter should be "Genus species " (with trailing space).
+func (q *Queries) GetRelatedGalls(ctx context.Context, arg GetRelatedGallsParams) ([]GetRelatedGallsRow, error) {
+	rows, err := q.db.QueryContext(ctx, getRelatedGalls, arg.Column1, arg.ID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetRelatedGallsRow{}
+	for rows.Next() {
+		var i GetRelatedGallsRow
+		if err := rows.Scan(&i.ID, &i.Name, &i.Taxoncode); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const insertGallAlignment = `-- name: InsertGallAlignment :exec

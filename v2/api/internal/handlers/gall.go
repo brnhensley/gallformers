@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	db "github.com/jeffdc/gallformers/v2/api/internal/db/generated"
@@ -60,24 +61,26 @@ type ImageResponse struct {
 
 // GallResponse represents a gall in API responses.
 type GallResponse struct {
-	ID           int64         `json:"id"`
-	Name         string        `json:"name"`
-	GallID       int64         `json:"gall_id"`
-	Datacomplete bool          `json:"datacomplete"`
-	AbundanceID  *int64        `json:"abundance_id,omitempty"`
-	Detachable   *int64        `json:"detachable,omitempty"`
-	Undescribed  bool          `json:"undescribed"`
-	Aliases      []Alias       `json:"aliases"`
-	Hosts        []Host        `json:"hosts,omitempty"`
-	Colors       []FilterField `json:"colors,omitempty"`
-	Shapes       []FilterField `json:"shapes,omitempty"`
-	Textures     []FilterField `json:"textures,omitempty"`
-	Locations    []FilterField `json:"locations,omitempty"`
-	Alignments   []FilterField `json:"alignments,omitempty"`
-	Walls        []FilterField `json:"walls,omitempty"`
-	Cells        []FilterField `json:"cells,omitempty"`
-	Seasons      []FilterField `json:"seasons,omitempty"`
-	Forms        []FilterField `json:"forms,omitempty"`
+	ID             int64         `json:"id"`
+	Name           string        `json:"name"`
+	GallID         int64         `json:"gall_id"`
+	Datacomplete   bool          `json:"datacomplete"`
+	AbundanceID    *int64        `json:"abundance_id,omitempty"`
+	Detachable     *int64        `json:"detachable,omitempty"`
+	Undescribed    bool          `json:"undescribed"`
+	Aliases        []Alias       `json:"aliases"`
+	Hosts          []Host        `json:"hosts,omitempty"`
+	Colors         []FilterField `json:"colors,omitempty"`
+	Shapes         []FilterField `json:"shapes,omitempty"`
+	Textures       []FilterField `json:"textures,omitempty"`
+	Locations      []FilterField `json:"locations,omitempty"`
+	Alignments     []FilterField `json:"alignments,omitempty"`
+	Walls          []FilterField `json:"walls,omitempty"`
+	Cells          []FilterField `json:"cells,omitempty"`
+	Seasons        []FilterField `json:"seasons,omitempty"`
+	Forms          []FilterField `json:"forms,omitempty"`
+	Places         []string      `json:"places,omitempty"`
+	ExcludedPlaces []string      `json:"excludedPlaces,omitempty"`
 }
 
 // GallListResponse represents a paginated list of galls.
@@ -99,6 +102,12 @@ type RandomGallResponse struct {
 	ImageLicense    string `json:"image_license"`
 	ImageSourceLink string `json:"image_sourcelink"`
 	ImageLicenseLink string `json:"image_licenselink"`
+}
+
+// RelatedGallResponse represents a related gall (same binomial name) for linking.
+type RelatedGallResponse struct {
+	ID   int64  `json:"id"`
+	Name string `json:"name"`
 }
 
 // CloudFront base URL for images
@@ -174,7 +183,8 @@ func (h *GallHandler) RegisterRoutes(r chi.Router) {
 		r.Get("/random", h.GetRandom) // Random gall with image for home page
 		r.Get("/id", h.ListForID)     // Must come before /{id} to not be matched as an ID
 		r.Get("/{id}", h.GetByID)
-		r.Get("/{id}/images", h.GetImages) // Images for a species
+		r.Get("/{id}/images", h.GetImages)   // Images for a species
+		r.Get("/{id}/related", h.GetRelated) // Related galls (same binomial name)
 
 		// Protected routes - require authentication
 		r.Group(func(r chi.Router) {
@@ -382,6 +392,64 @@ func (h *GallHandler) GetImages(w http.ResponseWriter, r *http.Request) {
 	}
 
 	middleware.RespondOK(w, images)
+}
+
+// GetRelated handles GET /api/v2/galls/{id}/related
+// Returns galls with the same binomial name (genus + species epithet).
+// Related galls share the first two name parts but have additional qualifiers.
+func (h *GallHandler) GetRelated(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	idStr := chi.URLParam(r, "id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		middleware.RespondBadRequest(w, "Invalid gall ID")
+		return
+	}
+
+	// Get the gall to get its name
+	row, err := h.queries.GetGallByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			middleware.RespondNotFound(w, "Gall not found")
+			return
+		}
+		slog.Error("failed to get gall", "error", err, "id", id)
+		middleware.RespondInternalError(w, "Failed to get gall")
+		return
+	}
+
+	// Split the name into parts
+	nameParts := strings.Fields(row.Name)
+	if len(nameParts) < 2 {
+		// No related galls possible without at least genus + species
+		middleware.RespondOK(w, []RelatedGallResponse{})
+		return
+	}
+
+	// Build the prefix: "Genus species " (with trailing space)
+	namePrefix := nameParts[0] + " " + nameParts[1] + " "
+
+	// Find related galls
+	related, err := h.queries.GetRelatedGalls(ctx, db.GetRelatedGallsParams{
+		Column1: sql.NullString{String: namePrefix, Valid: true},
+		ID:      id,
+	})
+	if err != nil {
+		slog.Error("failed to get related galls", "error", err, "id", id)
+		middleware.RespondInternalError(w, "Failed to get related galls")
+		return
+	}
+
+	response := make([]RelatedGallResponse, len(related))
+	for i, r := range related {
+		response[i] = RelatedGallResponse{
+			ID:   r.ID,
+			Name: r.Name,
+		}
+	}
+
+	middleware.RespondOK(w, response)
 }
 
 // GetRandom handles GET /api/v2/galls/random
@@ -943,6 +1011,16 @@ func (h *GallHandler) rowToGallResponse(ctx context.Context, id int64, name stri
 		response.Cells = h.getCells(ctx, gallID)
 		response.Seasons = h.getSeasons(ctx, gallID)
 		response.Forms = h.getForms(ctx, gallID)
+
+		// Fetch places (from hosts) and excluded places (direct on species)
+		places, err := h.queries.GetGallPlaces(ctx, sql.NullInt64{Int64: id, Valid: true})
+		if err == nil {
+			response.Places = places
+		}
+		excludedPlaces, err := h.queries.GetGallExcludedPlaces(ctx, sql.NullInt64{Int64: id, Valid: true})
+		if err == nil {
+			response.ExcludedPlaces = excludedPlaces
+		}
 	}
 
 	return response

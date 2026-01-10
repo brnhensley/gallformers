@@ -371,6 +371,13 @@ INNER JOIN speciesplace sp ON sp.place_id = p.id
 INNER JOIN host h ON h.host_species_id = sp.species_id
 WHERE h.gall_species_id = ?;
 
+-- name: GetGallExcludedPlaces :many
+-- Gets places directly associated with a gall species (excluded range).
+SELECT DISTINCT p.name
+FROM place p
+INNER JOIN speciesplace sp ON sp.place_id = p.id
+WHERE sp.species_id = ?;
+
 -- name: GetGallTaxonomy :one
 -- Gets the genus and family for a gall species.
 SELECT
@@ -415,3 +422,19 @@ SELECT
 FROM image i
 WHERE i.species_id = ?
 ORDER BY i.id;
+
+-- name: GetRelatedGalls :many
+-- Gets galls with the same binomial name (genus + species epithet).
+-- Related galls share the same first two name parts but have additional qualifiers.
+-- Example: "Andricus quercuscalifornicus agamic" is related to "Andricus quercuscalifornicus sexual".
+-- The name_prefix parameter should be "Genus species " (with trailing space).
+SELECT
+    s.id,
+    s.name,
+    s.taxoncode
+FROM species s
+INNER JOIN gallspecies gs ON gs.species_id = s.id
+WHERE s.taxoncode = 'gall'
+  AND s.name LIKE ? || '%'
+  AND s.id != ?
+ORDER BY s.name;
