@@ -105,14 +105,15 @@
 					<p>Could not load random gall: {error}</p>
 				</div>
 			{:else if randomGall}
-				<a href="/gall/{randomGall.id}" class="block">
-					<img
-						src="/images/placeholder-gall.jpg"
-						alt={randomGall.name}
-						class="w-full h-64 object-cover"
-						onerror={(e) => { e.target.src = '/images/placeholder-gall.jpg' }}
-					/>
-				</a>
+				<div class="flex items-center justify-center h-48 bg-gray-50">
+					<a href="/gall/{randomGall.id}" class="block">
+						<img
+							src="/images/cynipid_R.svg"
+							alt="Gall wasp illustration"
+							class="h-32 w-auto opacity-50"
+						/>
+					</a>
+				</div>
 				<div class="p-4">
 					<p class="text-gray-700">
 						Here is a random gall from our database.
