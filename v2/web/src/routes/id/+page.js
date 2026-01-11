@@ -6,6 +6,9 @@
 
 import { loadGalls } from './stores/results.js';
 
+// Disable prerendering - this page uses URL search params
+export const prerender = false;
+
 export async function load({ fetch, url }) {
 	await loadGalls(fetch);
 
