@@ -5,47 +5,55 @@ import Footer from './Footer.svelte';
 describe('Footer', () => {
     it('renders footer navigation links', () => {
         render(Footer);
-        expect(screen.getByRole('link', { name: /about/i })).toBeInTheDocument();
+        // Footer has both desktop and mobile nav, so multiple About links exist
+        const aboutLinks = screen.getAllByRole('link', { name: /about/i });
+        expect(aboutLinks.length).toBeGreaterThanOrEqual(1);
+        expect(aboutLinks[0]).toBeInTheDocument();
     });
 
-    it('renders social links', () => {
+    it('renders donate link', () => {
         render(Footer);
-        expect(screen.getByRole('link', { name: /github/i })).toBeInTheDocument();
-        expect(screen.getByRole('link', { name: /patreon/i })).toBeInTheDocument();
+        // Check for Donate link (desktop nav)
+        const donateLinks = screen.getAllByRole('link', { name: /donate/i });
+        expect(donateLinks.length).toBeGreaterThanOrEqual(1);
     });
 
     it('renders copyright notice with current year', () => {
         render(Footer);
         const currentYear = new Date().getFullYear();
-        expect(screen.getByText(new RegExp(`${currentYear}.*gallformers`, 'i'))).toBeInTheDocument();
+        // Multiple copyright notices (desktop + mobile)
+        const copyrightElements = screen.getAllByText(new RegExp(`${currentYear}.*gallformers`, 'i'));
+        expect(copyrightElements.length).toBeGreaterThanOrEqual(1);
     });
 
     it('renders license information', () => {
         render(Footer);
-        expect(screen.getByRole('link', { name: /cc by-nc-sa 4.0/i })).toBeInTheDocument();
+        // Multiple CC links (desktop + mobile), use getAllBy
+        const ccLinks = screen.getAllByRole('link', { name: /cc by-nc-sa 4.0/i });
+        expect(ccLinks.length).toBeGreaterThanOrEqual(1);
     });
 
-    it('has correct href for GitHub link', () => {
+    it('has correct href for Donate link (Patreon)', () => {
         render(Footer);
-        const githubLink = screen.getByRole('link', { name: /github/i });
-        expect(githubLink).toHaveAttribute('href', 'https://github.com/jeffdc/gallformers');
+        const donateLinks = screen.getAllByRole('link', { name: /donate/i });
+        expect(donateLinks[0]).toHaveAttribute('href', 'https://www.patreon.com/gallformers');
     });
 
-    it('has correct href for Patreon link', () => {
+    it('has correct href for Phenology Tool link', () => {
         render(Footer);
-        const patreonLink = screen.getByRole('link', { name: /patreon/i });
-        expect(patreonLink).toHaveAttribute('href', 'https://www.patreon.com/gallformers');
+        const phenologyLinks = screen.getAllByRole('link', { name: /phenology tool/i });
+        expect(phenologyLinks[0]).toHaveAttribute('href', 'https://megachile.shinyapps.io/doycalc/');
     });
 
-    it('opens social links in new tab', () => {
+    it('opens external links in new tab', () => {
         render(Footer);
-        const githubLink = screen.getByRole('link', { name: /github/i });
-        const patreonLink = screen.getByRole('link', { name: /patreon/i });
+        const donateLinks = screen.getAllByRole('link', { name: /donate/i });
+        const phenologyLinks = screen.getAllByRole('link', { name: /phenology tool/i });
 
-        expect(githubLink).toHaveAttribute('target', '_blank');
-        expect(githubLink).toHaveAttribute('rel', 'noopener noreferrer');
+        expect(donateLinks[0]).toHaveAttribute('target', '_blank');
+        expect(donateLinks[0]).toHaveAttribute('rel', 'noopener noreferrer');
 
-        expect(patreonLink).toHaveAttribute('target', '_blank');
-        expect(patreonLink).toHaveAttribute('rel', 'noopener noreferrer');
+        expect(phenologyLinks[0]).toHaveAttribute('target', '_blank');
+        expect(phenologyLinks[0]).toHaveAttribute('rel', 'noopener noreferrer');
     });
 });

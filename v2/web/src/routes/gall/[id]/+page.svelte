@@ -20,11 +20,12 @@
 		selectedSourceId = data.defaultSourceId;
 	});
 
-	// Detachable value mapping
+	// Detachable value mapping (matches V1: 0=None, 1=Integral, 2=Detachable, 3=Both)
 	const detachableValues = {
-		0: 'Integral',
-		1: 'Detachable',
-		2: 'Both'
+		0: '',
+		1: 'Integral',
+		2: 'Detachable',
+		3: 'Both'
 	};
 
 	/**
@@ -39,7 +40,7 @@
 	 * Check if detachable is "Both"
 	 */
 	function isDetachableBoth(value) {
-		return value === 2;
+		return value === 3;
 	}
 
 	/**
@@ -71,12 +72,9 @@
 		}
 	}
 
-	/**
-	 * Get completeness level based on datacomplete flag
-	 */
-	function getCompletenessLevel(datacomplete) {
-		return datacomplete ? 'complete' : 'unknown';
-	}
+	// Tooltip text matching V1
+	const gallCompleteText = 'All sources containing unique information relevant to this gall have been added and are reflected in its associated data. However, filter criteria may not be comprehensive in every field.';
+	const gallIncompleteText = 'We are still working on this species so data is missing.';
 </script>
 
 <svelte:head>
@@ -98,62 +96,41 @@
 	{/if}
 </svelte:head>
 
-<div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+<div class="mx-auto max-w-7xl px-4 pt-2 sm:px-6 lg:px-8">
 	{#if data.error}
 		<ErrorMessage message={data.error} />
 	{:else if data.gall}
-		<!-- Phenology Tool Link -->
-		<div class="mb-4 text-center">
-			<a
-				href="https://megachile.shinyapps.io/doycalc/"
-				target="_blank"
-				rel="noreferrer"
-				class="text-sm text-gf-maroon hover:underline"
-			>
-				<span class="hidden md:inline">
-					Explore the seasonal timing of gall development and emergence with our phenology tool
-				</span>
-				<span class="md:hidden" title="Explore the seasonal timing of gall development and emergence with our phenology tool">
-					Phenology Tool
-				</span>
-			</a>
-		</div>
-
 		<!-- Main Content Grid -->
-		<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+		<div class="grid grid-cols-1 lg:grid-cols-3 gap-2">
 			<!-- Left Column: Details -->
-			<div class="lg:col-span-2 space-y-6">
+			<div class="lg:col-span-2 space-y-1">
 				<!-- Header: Name + Status -->
 				<div class="flex items-start justify-between gap-4">
 					<div class="flex-1">
-						<h1 class="text-2xl font-bold text-gf-maroon">
+						<h2 class="text-2xl font-bold">
 							<em>{data.gall.name}</em>
-						</h1>
+						</h2>
 					</div>
 					<div class="flex items-center gap-2">
 						<EditButton id={data.gall.id} type="gall" />
 						<DataCompletenessIndicator
-							level={getCompletenessLevel(data.gall.datacomplete)}
-							showLabel={false}
+							complete={data.gall.datacomplete}
+							tooltipText={data.gall.datacomplete ? gallCompleteText : gallIncompleteText}
 						/>
 					</div>
 				</div>
 
 				<!-- Undescribed Warning -->
 				{#if data.gall.undescribed}
-					<div class="bg-red-50 border border-red-200 rounded-md p-4">
-						<div class="flex flex-wrap items-center gap-3">
-							<span class="text-red-700">
-								The inducer of this gall is unknown or undescribed.
-							</span>
-							<button
-								type="button"
-								onclick={copyGallformersCode}
-								class="px-3 py-1 text-sm border border-gray-300 rounded-md bg-white hover:bg-gray-50 text-gray-700 transition-colors"
-							>
-								Copy gallformers code
-							</button>
-						</div>
+					<div>
+						<span class="text-red-600">The inducer of this gall is unknown or undescribed.</span>
+						<button
+							type="button"
+							onclick={copyGallformersCode}
+							class="ml-2 px-2 py-0.5 text-sm border border-gray-400 rounded bg-white hover:bg-gray-50 text-gray-600"
+						>
+							Copy gallformers code
+						</button>
 					</div>
 				{/if}
 
@@ -170,10 +147,10 @@
 				<!-- Hosts -->
 				{#if data.gall.hosts && data.gall.hosts.length > 0}
 					<div>
-						<span class="font-semibold">Hosts: </span>
+						<strong>Hosts:</strong>{' '}
 						<em>
 							{#each data.gall.hosts as host, i}
-								<a href="/host/{host.id}" class="text-blue-600 hover:underline">
+								<a href="/host/{host.id}" class="hover:underline">
 									{host.name}
 								</a>{i < data.gall.hosts.length - 1 ? ' / ' : ''}
 							{/each}
@@ -182,72 +159,73 @@
 					</div>
 				{/if}
 
-				<!-- Morphological Characteristics -->
-				<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+				<!-- Morphological Characteristics - 3 column layout like V1 -->
+				<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-2">
 					<!-- Column 1 -->
-					<div class="space-y-2">
-						<div>
-							<span class="font-semibold">Detachable: </span>
-							<span>{getDetachableDisplay(data.gall.detachable)}</span>
+					<div>
+						<div class="py-0.5">
+							<strong>Detachable:</strong> {getDetachableDisplay(data.gall.detachable)}
 							{#if isDetachableBoth(data.gall.detachable)}
 								<InfoTip text="This gall can be both detachable and integral depending on what stage of its lifecycle it is in." />
 							{/if}
 						</div>
-						<div>
-							<span class="font-semibold">Color: </span>
-							<span>{formatFields(data.gall.colors)}</span>
+						<div class="py-0.5">
+							<strong>Color:</strong> {formatFields(data.gall.colors)}
 						</div>
-						<div>
-							<span class="font-semibold">Texture: </span>
-							<span>{formatFields(data.gall.textures)}</span>
+						<div class="py-0.5">
+							<strong>Texture:</strong> {formatFields(data.gall.textures)}
 						</div>
-						<div>
-							<span class="font-semibold">Shape: </span>
-							<span>{formatFields(data.gall.shapes)}</span>
+						<div class="py-0.5">
+							<strong>Abundance:</strong> {data.gall.abundance || ''}
 						</div>
-						<div>
-							<span class="font-semibold">Season: </span>
-							<span>{formatFields(data.gall.seasons)}</span>
+						<div class="py-0.5">
+							<strong>Shape:</strong> {formatFields(data.gall.shapes)}
 						</div>
+						<div class="py-0.5">
+							<strong>Season:</strong> {formatFields(data.gall.seasons)}
+						</div>
+						{#if data.relatedGalls && data.relatedGalls.length > 0}
+							<div class="py-0.5">
+								<strong>Related:</strong>{' '}
+								{#each data.relatedGalls as related, i}
+									<a href="/gall/{related.id}" class="hover:underline">
+										{related.name}
+									</a>{i < data.relatedGalls.length - 1 ? ', ' : ''}
+								{/each}
+							</div>
+						{/if}
 					</div>
 
 					<!-- Column 2 -->
-					<div class="space-y-2">
-						<div>
-							<span class="font-semibold">Alignment: </span>
-							<span>{formatFields(data.gall.alignments)}</span>
+					<div>
+						<div class="py-0.5">
+							<strong>Alignment:</strong> {formatFields(data.gall.alignments)}
 						</div>
-						<div>
-							<span class="font-semibold">Walls: </span>
-							<span>{formatFields(data.gall.walls)}</span>
+						<div class="py-0.5">
+							<strong>Walls:</strong> {formatFields(data.gall.walls)}
 						</div>
-						<div>
-							<span class="font-semibold">Location: </span>
-							<span>{formatFields(data.gall.locations)}</span>
+						<div class="py-0.5">
+							<strong>Location:</strong> {formatFields(data.gall.locations)}
 						</div>
-						<div>
-							<span class="font-semibold">Form: </span>
-							<span>{formatFields(data.gall.forms)}</span>
+						<div class="py-0.5">
+							<strong>Form:</strong> {formatFields(data.gall.forms)}
 						</div>
-						<div>
-							<span class="font-semibold">Cells: </span>
-							<span>{formatFields(data.gall.cells)}</span>
+						<div class="py-0.5">
+							<strong>Cells:</strong> {formatFields(data.gall.cells)}
 						</div>
 					</div>
-				</div>
 
-				<!-- Range Map -->
-				{#if data.range && data.range.size > 0}
-					<div>
-						<div class="flex items-center gap-1 mb-2">
-							<span class="font-semibold">Possible Range:</span>
+					<!-- Column 3 - Range Map -->
+					<div class="p-0 m-0">
+						<div class="py-0.5">
+							<strong>Possible Range:</strong>
 							<InfoTip text="The gall's range is computed from the range of all hosts that the gall occurs on. In some cases we have evidence that the gall does not occur across the full range of the hosts and we will remove these places from the range. For undescribed species we will show the expected range based on hosts plus where the galls have been observed. All of this said, the exact ranges for most galls is uncertain." />
 						</div>
-						<div class="max-w-md">
+						{#if data.range && data.range.size > 0}
 							<RangeMap inRange={data.range} excludedRange={data.excludedRange} />
-						</div>
+						{/if}
 					</div>
-				{/if}
+				</div>
 
 				<!-- Aliases/Synonymy -->
 				{#if data.gall.aliases && data.gall.aliases.length > 0}
@@ -262,20 +240,20 @@
 		</div>
 
 		<!-- Sources Section -->
-		<div class="mt-8">
-			<hr class="border-gray-200 mb-6" />
+		<div class="mt-4">
+			<hr class="border-gray-200 mb-4" />
 			{#if data.sources && data.sources.length > 0}
 				<SourceList sources={data.sources} bind:selectedId={selectedSourceId} />
 			{:else}
-				<p class="text-gray-500">No sources available for this species.</p>
+				<p class="italic">No sources available for this species.</p>
 			{/if}
 		</div>
 
 		<!-- External Links Section -->
-		<div class="mt-8">
-			<hr class="border-gray-200 mb-6" />
-			<div class="flex items-center gap-2 mb-4">
-				<span class="font-semibold">See Also:</span>
+		<div class="mt-4">
+			<hr class="border-gray-200 mb-4" />
+			<div class="mb-2">
+				<strong>See Also:</strong>
 			</div>
 			<ExternalLinks name={data.gall.name} undescribed={data.gall.undescribed} />
 		</div>

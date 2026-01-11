@@ -54,13 +54,13 @@ This is an **umbrella proposal**. Most tasks are creating and completing sub-pro
 
 ## 4. Phase 3: Svelte Public Site
 
-- [ ] 4.1 Complete `add-svelte-public` proposal implementation
+- [X] 4.1 Complete `add-svelte-public` proposal implementation
   - Species/gall/host pages (SPA routes)
   - Search functionality
   - Reference article rendering (see deferred proposal)
   - Image gallery (see deferred proposal)
-- [ ] 4.2 Public site feature parity testing
-- [ ] 4.3 URL preservation verification
+- [X] 4.2 Public site feature parity testing
+- [X] 4.3 URL preservation verification
 
 ## 5. Phase 4: Svelte Admin
 

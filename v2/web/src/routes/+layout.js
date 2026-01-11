@@ -1,2 +1,2 @@
-// Disable prerendering - most pages have dynamic content (search, filtering, URL state)
-export const prerender = false;
+// Enable prerendering for static pages - individual pages can override with prerender = false
+export const prerender = true;

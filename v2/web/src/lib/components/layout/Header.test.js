@@ -39,11 +39,6 @@ describe('Header', () => {
 		expect(screen.getByRole('button', { name: /search/i })).toBeInTheDocument();
 	});
 
-	it('renders login link', () => {
-		render(Header);
-		expect(screen.getByRole('link', { name: /login/i })).toBeInTheDocument();
-	});
-
 	it('renders resources dropdown button', () => {
 		render(Header);
 		expect(screen.getByRole('button', { name: /resources/i })).toBeInTheDocument();

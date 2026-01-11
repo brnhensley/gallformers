@@ -1,6 +1,6 @@
 # Gallformers V2 API Makefile
 
-.PHONY: build run test lint clean help
+.PHONY: build run test lint clean generate help
 
 # Build the binary (CGO required for SQLite)
 build:
@@ -23,6 +23,10 @@ clean:
 	rm -rf bin/
 	go clean
 
+# Generate sqlc code from SQL queries
+generate:
+	cd internal/db && sqlc generate
+
 # Show help
 help:
 	@echo "Gallformers V2 API Makefile"
@@ -32,3 +36,4 @@ help:
 	@echo "  make test     Run tests"
 	@echo "  make lint     Run linter (golangci-lint)"
 	@echo "  make clean    Remove build artifacts"
+	@echo "  make generate Regenerate sqlc code from SQL queries"

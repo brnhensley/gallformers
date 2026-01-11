@@ -66,6 +66,7 @@ type GallResponse struct {
 	GallID         int64         `json:"gall_id"`
 	Datacomplete   bool          `json:"datacomplete"`
 	AbundanceID    *int64        `json:"abundance_id,omitempty"`
+	Abundance      *string       `json:"abundance,omitempty"`
 	Detachable     *int64        `json:"detachable,omitempty"`
 	Undescribed    bool          `json:"undescribed"`
 	Aliases        []Alias       `json:"aliases"`
@@ -254,7 +255,7 @@ func (h *GallHandler) List(w http.ResponseWriter, r *http.Request) {
 			galls = make([]GallResponse, len(rows))
 			for i, row := range rows {
 				galls[i] = h.rowToGallResponse(ctx, row.ID, row.Name, row.Datacomplete,
-					row.AbundanceID, row.GallID, row.Detachable, row.Undescribed, false)
+					row.AbundanceID, row.AbundanceName, row.GallID, row.Detachable, row.Undescribed, false)
 			}
 		} else {
 			rows, err := h.queries.SearchGalls(ctx, sql.NullString{String: searchQuery, Valid: true})
@@ -266,7 +267,7 @@ func (h *GallHandler) List(w http.ResponseWriter, r *http.Request) {
 			galls = make([]GallResponse, len(rows))
 			for i, row := range rows {
 				galls[i] = h.rowToGallResponse(ctx, row.ID, row.Name, row.Datacomplete,
-					row.AbundanceID, row.GallID, row.Detachable, row.Undescribed, false)
+					row.AbundanceID, row.AbundanceName, row.GallID, row.Detachable, row.Undescribed, false)
 			}
 		}
 	} else {
@@ -291,7 +292,7 @@ func (h *GallHandler) List(w http.ResponseWriter, r *http.Request) {
 			galls = make([]GallResponse, len(rows))
 			for i, row := range rows {
 				galls[i] = h.rowToGallResponse(ctx, row.ID, row.Name, row.Datacomplete,
-					row.AbundanceID, row.GallID, row.Detachable, row.Undescribed, false)
+					row.AbundanceID, row.AbundanceName, row.GallID, row.Detachable, row.Undescribed, false)
 			}
 		} else {
 			rows, err := h.queries.ListGalls(ctx)
@@ -303,7 +304,7 @@ func (h *GallHandler) List(w http.ResponseWriter, r *http.Request) {
 			galls = make([]GallResponse, len(rows))
 			for i, row := range rows {
 				galls[i] = h.rowToGallResponse(ctx, row.ID, row.Name, row.Datacomplete,
-					row.AbundanceID, row.GallID, row.Detachable, row.Undescribed, false)
+					row.AbundanceID, row.AbundanceName, row.GallID, row.Detachable, row.Undescribed, false)
 			}
 		}
 	}
@@ -341,7 +342,7 @@ func (h *GallHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	gall := h.rowToGallResponse(ctx, row.ID, row.Name, row.Datacomplete,
-		row.AbundanceID, row.GallID, row.Detachable, row.Undescribed, true)
+		row.AbundanceID, row.AbundanceName, row.GallID, row.Detachable, row.Undescribed, true)
 
 	middleware.RespondOK(w, gall)
 }
@@ -972,7 +973,7 @@ func (h *GallHandler) Delete(w http.ResponseWriter, r *http.Request) {
 // Helper methods
 
 func (h *GallHandler) rowToGallResponse(ctx context.Context, id int64, name string, datacomplete bool,
-	abundanceID sql.NullInt64, gallID int64, detachable sql.NullInt64, undescribed bool, includeDetails bool) GallResponse {
+	abundanceID sql.NullInt64, abundanceName sql.NullString, gallID int64, detachable sql.NullInt64, undescribed bool, includeDetails bool) GallResponse {
 
 	response := GallResponse{
 		ID:           id,
@@ -984,6 +985,9 @@ func (h *GallHandler) rowToGallResponse(ctx context.Context, id int64, name stri
 
 	if abundanceID.Valid {
 		response.AbundanceID = &abundanceID.Int64
+	}
+	if abundanceName.Valid {
+		response.Abundance = &abundanceName.String
 	}
 	if detachable.Valid {
 		response.Detachable = &detachable.Int64

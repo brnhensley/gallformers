@@ -158,7 +158,7 @@
 			</p>
 			<p class="mt-2">
 				However, before giving up, try
-				<a href="/ref/IDGuide#troubleshooting" class="text-gf-maroon hover:underline"
+				<a href="/ref/IDGuide#troubleshooting" class="hover:underline"
 					>altering your filter choices</a
 				>.
 			</p>
@@ -166,7 +166,7 @@
 				<p class="mt-2">
 					To our knowledge, every gall that occurs on the host you have selected is included in the
 					database. If you find a gall on this host that is not listed above,
-					<a href="mailto:gallformers@gmail.com" class="text-gf-maroon hover:underline"
+					<a href="mailto:gallformers@gmail.com" class="hover:underline"
 						>contact us</a
 					>.
 				</p>
@@ -242,7 +242,7 @@
 			<p>
 				If none of these results match your gall, you may have found an undescribed species.
 				However, before concluding that your gall is not in the database, try
-				<a href="/ref/IDGuide#troubleshooting" class="text-gf-maroon hover:underline"
+				<a href="/ref/IDGuide#troubleshooting" class="hover:underline"
 					>altering your filter choices</a
 				>.
 			</p>
@@ -250,7 +250,7 @@
 				<p class="mt-2">
 					To our knowledge, every gall that occurs on the host you have selected is included in the
 					database. If you find a gall on this host that is not listed above,
-					<a href="mailto:gallformers@gmail.com" class="text-gf-maroon hover:underline"
+					<a href="mailto:gallformers@gmail.com" class="hover:underline"
 						>contact us</a
 					>.
 				</p>

@@ -6,12 +6,13 @@ export async function load({ fetch, params }) {
 	const { id } = params;
 
 	try {
-		// Fetch gall data, taxonomy, sources, and images in parallel
-		const [gallRes, taxonomyRes, sourcesRes, imagesRes] = await Promise.all([
+		// Fetch gall data, taxonomy, sources, images, and related galls in parallel
+		const [gallRes, taxonomyRes, sourcesRes, imagesRes, relatedRes] = await Promise.all([
 			fetch(`/api/v2/galls/${id}`),
 			fetch(`/api/v2/taxonomy?id=${id}`),
 			fetch(`/api/v2/sources?speciesid=${id}`),
-			fetch(`/api/v2/galls/${id}/images`)
+			fetch(`/api/v2/galls/${id}/images`),
+			fetch(`/api/v2/galls/${id}/related`)
 		]);
 
 		if (!gallRes.ok) {
@@ -28,11 +29,21 @@ export async function load({ fetch, params }) {
 		const taxonomy = taxonomyRes.ok ? await taxonomyRes.json() : null;
 		const sources = sourcesRes.ok ? await sourcesRes.json() : [];
 		const images = imagesRes?.ok ? await imagesRes.json() : [];
+		const relatedGalls = relatedRes?.ok ? await relatedRes.json() : [];
 
-		// Build range from hosts' places if available
-		// Note: Current API doesn't include places in gall detail, so this may be empty
+		// Build range from gall's places (derived from hosts) and excluded places
 		const range = new Set();
+		if (gall.places && gall.places.length > 0) {
+			for (const place of gall.places) {
+				range.add(place);
+			}
+		}
 		const excludedRange = new Set();
+		if (gall.excludedPlaces && gall.excludedPlaces.length > 0) {
+			for (const place of gall.excludedPlaces) {
+				excludedRange.add(place);
+			}
+		}
 
 		// Transform sources to match SourceList component expectations
 		// API returns SourceWithSpeciesSourceResponse: { id, title, author, ..., speciessource: { id, description, useasdefault, externallink } }
@@ -75,7 +86,8 @@ export async function load({ fetch, params }) {
 			images: transformedImages,
 			defaultSourceId,
 			range,
-			excludedRange
+			excludedRange,
+			relatedGalls
 		};
 	} catch (err) {
 		console.error('Gall detail fetch error:', err);

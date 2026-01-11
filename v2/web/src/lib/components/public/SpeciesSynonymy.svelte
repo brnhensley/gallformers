@@ -35,40 +35,40 @@
 	let synonymsList = $derived(synonyms.map((s) => s.name).join(', '));
 </script>
 
-<div class="space-y-2">
+<div>
 	<!-- Common Names -->
 	<div>
-		<span class="font-semibold">Common Name(s): </span>
-		<span class="text-gray-700">
+		<strong>Common Name(s): </strong>
+		<span>
 			{#if commonNames.length > 0}
 				{commonNames.join(', ')}
 			{:else}
-				<span class="text-gray-400 italic">None</span>
+				<span class="italic">None</span>
 			{/if}
 		</span>
 	</div>
 
 	<!-- Synonyms -->
 	<div>
-		<span class="font-semibold">Synonymy: </span>
+		<strong>Synonymy: </strong>
 
 		{#if synonyms.length === 0}
-			<span class="text-gray-400 italic">None</span>
+			<span class="italic">None</span>
 		{:else if showAllByDefault}
 			<!-- Always show table when showAllByDefault is true -->
-			<div class="mt-2 overflow-x-auto">
-				<table class="min-w-full text-sm border border-gray-200">
-					<thead class="bg-gray-50">
+			<div class="mt-1 overflow-x-auto">
+				<table class="min-w-full border border-gray-200">
+					<thead class="bg-cadet-blue">
 						<tr>
-							<th class="px-3 py-2 text-left font-medium text-gray-700">Name</th>
-							<th class="px-3 py-2 text-left font-medium text-gray-700">Notes</th>
+							<th class="px-2 py-1 text-left font-medium">Name</th>
+							<th class="px-2 py-1 text-left font-medium">Notes</th>
 						</tr>
 					</thead>
-					<tbody class="divide-y divide-gray-100">
-						{#each synonyms as synonym}
-							<tr class="hover:bg-gray-50">
-								<td class="px-3 py-2 italic">{synonym.name}</td>
-								<td class="px-3 py-2 text-gray-600">{synonym.description || ''}</td>
+					<tbody class="divide-y divide-gray-200">
+						{#each synonyms as synonym, i}
+							<tr class="hover:bg-gray-50 {i % 2 === 1 ? 'bg-gray-50' : ''}">
+								<td class="px-2 py-1 italic">{synonym.name}</td>
+								<td class="px-2 py-1">{synonym.description || ''}</td>
 							</tr>
 						{/each}
 					</tbody>
@@ -77,7 +77,7 @@
 		{:else}
 			<!-- Collapsed view with toggle -->
 			{#if !showSynonyms}
-				<span class="text-gray-700 truncate block max-w-full overflow-hidden text-ellipsis whitespace-nowrap">
+				<span class="truncate block max-w-full overflow-hidden text-ellipsis whitespace-nowrap">
 					{synonymsList}
 				</span>
 			{/if}
@@ -86,7 +86,7 @@
 				<button
 					type="button"
 					onclick={() => (showSynonyms = !showSynonyms)}
-					class="text-sm px-3 py-1 border border-gray-300 rounded-md bg-white hover:bg-gray-50 text-gray-700 transition-colors"
+					class="text-sm px-2 py-0.5 border border-gray-300 rounded bg-white hover:bg-gray-50"
 				>
 					{#if showSynonyms}
 						Hide
@@ -96,19 +96,19 @@
 				</button>
 
 				{#if showSynonyms}
-					<div class="mt-2 overflow-x-auto">
-						<table class="min-w-full text-sm border border-gray-200">
-							<thead class="bg-gray-50">
+					<div class="mt-1 overflow-x-auto">
+						<table class="min-w-full border border-gray-200">
+							<thead class="bg-cadet-blue">
 								<tr>
-									<th class="px-3 py-2 text-left font-medium text-gray-700">Name</th>
-									<th class="px-3 py-2 text-left font-medium text-gray-700">Notes</th>
+									<th class="px-2 py-1 text-left font-medium">Name</th>
+									<th class="px-2 py-1 text-left font-medium">Notes</th>
 								</tr>
 							</thead>
-							<tbody class="divide-y divide-gray-100">
-								{#each synonyms as synonym}
-									<tr class="hover:bg-gray-50">
-										<td class="px-3 py-2 italic">{synonym.name}</td>
-										<td class="px-3 py-2 text-gray-600">{synonym.description || ''}</td>
+							<tbody class="divide-y divide-gray-200">
+								{#each synonyms as synonym, i}
+									<tr class="hover:bg-gray-50 {i % 2 === 1 ? 'bg-gray-50' : ''}">
+										<td class="px-2 py-1 italic">{synonym.name}</td>
+										<td class="px-2 py-1">{synonym.description || ''}</td>
 									</tr>
 								{/each}
 							</tbody>

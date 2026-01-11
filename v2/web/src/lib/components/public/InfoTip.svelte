@@ -55,8 +55,8 @@
 		<div
 			id={tooltipId}
 			role="tooltip"
-			class="absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 text-sm
-                   bg-gray-900 text-white rounded-md shadow-lg max-w-xs whitespace-normal"
+			class="absolute z-50 bottom-full left-0 mb-2 px-3 py-2 text-sm
+                   bg-gray-900 text-white rounded-md shadow-lg w-max max-w-md break-words"
 		>
 			{#if text}
 				<p>{text}</p>
@@ -65,7 +65,7 @@
 				{@render children()}
 			{/if}
 			<div
-				class="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"
+				class="absolute top-full left-2 border-4 border-transparent border-t-gray-900"
 			></div>
 		</div>
 	{/if}

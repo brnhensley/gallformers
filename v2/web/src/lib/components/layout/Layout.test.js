@@ -26,9 +26,10 @@ describe('Layout', () => {
 
 	it('renders footer', () => {
 		render(Layout);
-		// Footer contains the copyright notice
+		// Footer contains the copyright notice (multiple elements due to desktop + mobile)
 		const currentYear = new Date().getFullYear();
-		expect(screen.getByText(new RegExp(`${currentYear}.*gallformers`, 'i'))).toBeInTheDocument();
+		const copyrightElements = screen.getAllByText(new RegExp(`${currentYear}.*gallformers`, 'i'));
+		expect(copyrightElements.length).toBeGreaterThanOrEqual(1);
 	});
 
 	it('renders main content area', () => {
