@@ -64,6 +64,7 @@ templ GallPage(data GallData) {
 - Use `templ generate --watch` for template live reload (regenerates `_templ.go` on `.templ` changes)
 - `make dev` runs both in parallel
 - Browser refresh shows updated templates within ~1 second
+- Run `templ fmt .` to format templates before committing (CI enforces formatting)
 
 ### Decision 2: Use HTMX for interactivity
 
@@ -94,6 +95,30 @@ templ GallPage(data GallData) {
 - On page load, server reads URL params and renders with those filters applied
 - Enables bookmarking and sharing of filtered views
 - Back/forward navigation works via `htmx:historyRestore` event
+
+**Safari/iOS compatibility**:
+Safari aggressively caches pages in its back-forward cache (bfcache), which can cause issues:
+- `htmx:historyRestore` may not fire when navigating back
+- Page state may be stale (old filter selections visible)
+
+Mitigation:
+```javascript
+// In base layout, handle Safari bfcache
+window.addEventListener('pageshow', (e) => {
+  if (e.persisted) {
+    // Page restored from bfcache - refresh dynamic content
+    htmx.trigger(document.body, 'htmx:historyRestore');
+  }
+});
+```
+
+**Swap strategy conventions**:
+- Default: `hx-swap="innerHTML"` - replace contents of target element
+- Use `outerHTML` only when replacing the triggering element itself
+- Use `beforeend` / `afterbegin` for appending to lists
+- Partials must NOT include the container element (target provides it)
+
+**Navigation**: Do NOT use `hx-boost`. Standard full-page navigation is simpler and server-side caching makes pages fast enough.
 
 **Error handling**:
 ```html
@@ -203,7 +228,7 @@ cache.Remove("host:" + affectedHostID)  // invalidate related
 
 **Browser cache headers**:
 - Static assets (`/static/*`): `Cache-Control: public, max-age=31536000, immutable` (1 year, hash-busted)
-- Full pages: `Cache-Control: no-cache` (browser revalidates, server responds from cache)
+- Full pages: `Cache-Control: no-cache` + `ETag` header (browser revalidates, server returns 304 if unchanged)
 - Partials: `Cache-Control: no-store` (never cache, always fresh)
 - API responses: `Cache-Control: no-store`
 
@@ -225,8 +250,14 @@ cache.Remove("host:" + affectedHostID)  // invalidate related
 ```go
 r.Get("/gall/{id}", pages.Gall)           // Full page
 r.Get("/partials/gall/{id}", partials.Gall) // Fragment
-r.Get("/api/species/{id}", api.GetSpecies)  // JSON API
+r.Get("/api/species/{id}", api.GetSpecies)  // JSON API (with CORS middleware)
 ```
+
+**Content-Type headers**:
+- Full pages: `text/html; charset=utf-8`
+- Partials: `text/html; charset=utf-8`
+- API: `application/json`
+- Use middleware or helper to set consistently
 
 ### Decision 6: Alpine.js for client-side state
 
@@ -279,6 +310,12 @@ r.Get("/api/species/{id}", api.GetSpecies)  // JSON API
 - Works globally for all HTMX requests without per-form configuration
 - Token is HttpOnly cookie + header, preventing both CSRF and XSS token theft
 
+**Cookie attributes**:
+- `HttpOnly: true` - prevent JavaScript access
+- `Secure: true` - HTTPS only (disabled in local dev)
+- `SameSite: Strict` - prevent cross-site requests
+- `Path: /admin` - scope to admin routes only
+
 ### Decision 8: JavaScript islands for complex features
 
 **What**: Use standalone JS bundles for features that truly need rich client-side behavior.
@@ -290,11 +327,31 @@ r.Get("/api/species/{id}", api.GetSpecies)  // JSON API
 
 **Pattern**:
 ```html
-<!-- Server renders container with data -->
+<!-- Server renders container with data and fallback -->
 <div id="range-map" data-range='{"states": ["CA", "OR"]}'>
+  <p class="text-gray-500 italic">Range map loading...</p>
 </div>
 <script src="/static/islands/range-map.js" defer></script>
 ```
+
+**Error handling**:
+- Islands must wrap initialization in try/catch
+- On error, display user-friendly message in the container (e.g., "Map unavailable")
+- Log error details to console for debugging
+- Never leave container empty or show raw error messages
+
+**CSS isolation**:
+- Islands should use Tailwind classes from the main stylesheet (preferred)
+- If custom styles needed, use Svelte's scoped CSS (automatically namespaced)
+- Never duplicate Tailwind in island bundles - rely on page's existing styles
+- For third-party components (e.g., MapLibre), scope overrides with island-specific class
+
+**Authentication for admin islands**:
+- Auth uses JWT stored in httpOnly cookie (`auth_token`)
+- Browser automatically includes cookie with same-origin API requests
+- Islands use standard `fetch()` with `credentials: 'same-origin'` (default)
+- No need to manually handle tokens - cookie is sent automatically
+- For mutating requests, include CSRF token header (same as HTMX forms)
 
 **Build process**:
 1. `make build` runs `make build-islands` first, then `go build`

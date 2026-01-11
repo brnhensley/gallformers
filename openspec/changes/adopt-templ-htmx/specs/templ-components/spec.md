@@ -132,6 +132,28 @@ Images in galleries and lists MUST use native lazy loading to improve initial pa
 - Then it does NOT have `loading="lazy"` (loads immediately)
 - And it may have `fetchpriority="high"` for faster loading
 
+### Requirement: Images MUST have meaningful alt text
+
+All images MUST have alt text for accessibility.
+
+#### Scenario: Species image alt text
+- Given an image of a species
+- When the image is rendered
+- Then it has an `alt` attribute with format: "{species name} - {image caption if available}"
+- And if no caption, alt is just the species name
+
+#### Scenario: Gallery image alt text
+- Given multiple images in a gallery
+- When images are rendered
+- Then each has unique alt text (e.g., "{species name} - image 1 of 5")
+- And the primary image indicates it is the primary
+
+#### Scenario: Decorative images
+- Given a purely decorative image (icons, backgrounds)
+- When the image is rendered
+- Then it has `alt=""` (empty string, not missing)
+- And it has `role="presentation"` if appropriate
+
 ### Requirement: JavaScript islands MUST be lazy-loaded
 
 Complex JavaScript features MUST load only on pages that need them.

@@ -39,14 +39,21 @@
 - [ ] 1.3.6 Configure static file serving in Go server with 1-year cache headers
 - [ ] 1.3.7 Implement build hash generation for cache busting (git commit or timestamp)
 - [ ] 1.3.8 Add BuildHash variable to templates for static asset URLs
+- [ ] 1.3.9 Copy favicon, apple-touch-icon, and web manifest from V1 (`public/`)
 
 ### 1.4 Base Templates
-- [ ] 1.4.1 Create `templates/layouts/base.templ` - HTML skeleton with HTMX/Alpine
+- [ ] 1.4.1 Create `templates/layouts/base.templ` - HTML skeleton with HTMX/Alpine, include Safari bfcache fix
 - [ ] 1.4.2 Create `templates/layouts/public.templ` - Public site layout
 - [ ] 1.4.3 Create `templates/layouts/admin.templ` - Admin layout
 - [ ] 1.4.4 Create `templates/components/header.templ`
 - [ ] 1.4.5 Create `templates/components/footer.templ`
 - [ ] 1.4.6 Create `templates/components/nav.templ`
+
+### 1.5 HTTP Server Configuration
+- [ ] 1.5.1 Configure HTTP server read/write timeouts (e.g., 30s read, 60s write)
+- [ ] 1.5.2 Add request context timeouts for database operations
+- [ ] 1.5.3 Review SQLite connection pool settings (SetMaxOpenConns) for Templ concurrency
+- [ ] 1.5.4 Add request logging for `/partials/*` endpoints to detect abuse patterns
 
 ## 2. Page Cache
 
@@ -54,6 +61,8 @@
 - [ ] 2.2 Implement `internal/cache/cache.go` wrapping LRU with TTL expiry
 - [ ] 2.3 Add singleflight for stampede protection
 - [ ] 2.4 Add cache stats endpoint for monitoring (`/debug/cache`)
+- [ ] 2.5 Implement ETag headers for cached pages (hash of content or cache timestamp)
+- [ ] 2.6 Handle `If-None-Match` requests, return 304 Not Modified when appropriate
 
 ## 3. Markdown & Glossary
 
@@ -158,6 +167,8 @@
 
 ## 11. Admin Pages
 
+**Note**: During admin implementation, consider using `HX-Trigger` response headers to update other page elements after saves (e.g., "last modified" timestamps, notification badges).
+
 ### 11.1 Admin Foundation
 - [ ] 11.1.1 Create admin authentication middleware
 - [ ] 11.1.2 Create CSRF middleware and token generation
@@ -219,12 +230,18 @@
 - [ ] 13.3.2 Add a11y tests for key pages (home, gall, host, ID tool, admin form)
 - [ ] 13.3.3 Integrate a11y checks into CI pipeline
 
-### 13.4 Manual Testing
-- [ ] 13.4.1 Test all public pages load correctly
-- [ ] 13.4.2 Test search functionality
-- [ ] 13.4.3 Test ID tool filters
-- [ ] 13.4.4 Test admin edit → public page freshness
-- [ ] 13.4.5 Test range map on species pages
+### 13.4 CI Pipeline
+- [ ] 13.4.1 Add `templ fmt --check` to CI (fail if templates not formatted)
+- [ ] 13.4.2 Add `go fmt` check to CI
+- [ ] 13.4.3 Add `go vet` to CI
+- [ ] 13.4.4 Run `templ generate` before build in CI
+
+### 13.5 Manual Testing
+- [ ] 13.5.1 Test all public pages load correctly
+- [ ] 13.5.2 Test search functionality
+- [ ] 13.5.3 Test ID tool filters
+- [ ] 13.5.4 Test admin edit → public page freshness
+- [ ] 13.5.5 Test range map on species pages
 
 ## 14. Visual Parity Verification
 
@@ -265,11 +282,18 @@
 
 ## 18. Deployment
 
-- [ ] 18.1 Test Docker build
-- [ ] 18.2 Deploy to Fly.io staging
-- [ ] 18.3 Verify all routes work
-- [ ] 18.4 Performance test (page load times)
-- [ ] 18.5 Deploy to production
+### 18.1 Fly.io Configuration
+- [ ] 18.1.1 Review and update `fly.toml` for new architecture (no separate web service)
+- [ ] 18.1.2 Verify environment variables on Fly.io (CORS_ORIGINS, AUTH0_*, etc.)
+- [ ] 18.1.3 Verify volume configuration for SQLite database
+- [ ] 18.1.4 Update Dockerfile to remove Node.js runtime (keep build-time only for islands)
+
+### 18.2 Testing & Rollout
+- [ ] 18.2.1 Test Docker build locally
+- [ ] 18.2.2 Deploy to Fly.io staging
+- [ ] 18.2.3 Verify all routes work
+- [ ] 18.2.4 Performance test (page load times)
+- [ ] 18.2.5 Deploy to production
 
 ## Dependencies
 
@@ -299,3 +323,10 @@ These can be done in parallel after Phase 5:
 - Individual public pages
 - Search and ID tool
 - Admin pages
+
+## 19. Future Enhancements
+
+These are not blocking for initial launch but should be considered post-launch:
+
+- [ ] 19.1 Implement graceful shutdown (handle SIGTERM, drain in-flight requests before exit)
+- [ ] 19.2 Add rate limiting middleware for `/partials/*` endpoints if abuse detected

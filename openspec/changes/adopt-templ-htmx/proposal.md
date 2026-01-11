@@ -43,7 +43,7 @@ This architecture:
 ### What Stays the Same
 
 - SQLite database
-- S3 image storage
+- S3 image storage (public URLs, no signing required)
 - Auth0 authentication
 - Fly.io deployment
 - Go API endpoints (still available for external use)
