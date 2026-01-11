@@ -24,6 +24,9 @@ import (
 //go:embed static/*
 var staticFiles embed.FS
 
+//go:embed assets/*
+var assetsFiles embed.FS
+
 //go:embed api/openapi.yaml
 var openapiSpec []byte
 
@@ -78,6 +81,18 @@ func main() {
 	// OpenAPI documentation
 	r.Get("/api/docs", swaggerUIHandler)
 	r.Get("/api/docs/openapi.yaml", openapiSpecHandler)
+
+	// Serve HTMX/Alpine assets
+	assetsFS, err := fs.Sub(assetsFiles, "assets")
+	if err != nil {
+		slog.Error("failed to create assets filesystem", "error", err)
+		os.Exit(1)
+	}
+	r.Handle("/assets/*", http.StripPrefix("/assets/", http.FileServer(http.FS(assetsFS))))
+
+	// HTMX-rendered routes (server-side HTML)
+	htmxExample := handlers.NewHTMXExampleHandler()
+	htmxExample.RegisterRoutes(r)
 
 	// API v2 routes
 	r.Route("/api/v2", func(r chi.Router) {

@@ -1,0 +1,75 @@
+package pages
+
+import "github.com/jeffdc/gallformers/v2/api/internal/views/layouts"
+
+// ExampleData holds data for the example page.
+type ExampleData struct {
+	Title   string
+	Message string
+	Items   []string
+}
+
+// ExamplePage renders the full example page with layout.
+templ ExamplePage(data ExampleData) {
+	@layouts.Base(data.Title) {
+		@ExampleContent(data)
+	}
+}
+
+// ExampleContent renders just the content portion.
+// Use this for HTMX partial updates.
+templ ExampleContent(data ExampleData) {
+	<div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+		<h1 class="text-2xl font-bold text-gf-maroon mb-4">{ data.Title }</h1>
+
+		<div class="bg-white rounded border border-gray-200 shadow-sm mb-6">
+			<div class="px-4 py-3 border-b border-gray-200">
+				<h2 class="text-xl font-semibold text-gf-maroon">HTMX Example</h2>
+			</div>
+			<div class="p-4">
+				<p class="mb-4">{ data.Message }</p>
+
+				<!-- Example HTMX button -->
+				<button
+					hx-get="/htmx/example/refresh"
+					hx-target="#items-list"
+					hx-swap="innerHTML"
+					hx-indicator="#loading-indicator"
+					class="rounded-md border border-gf-maroon bg-gf-maroon px-4 py-2 text-white
+					       hover:bg-gf-maroon/80 transition-colors"
+				>
+					Refresh Items
+				</button>
+
+				<!-- Loading indicator -->
+				<span id="loading-indicator" class="htmx-indicator ml-2 text-gray-500">
+					Loading...
+				</span>
+			</div>
+		</div>
+
+		<!-- Items list that can be updated via HTMX -->
+		<div class="bg-white rounded border border-gray-200 shadow-sm">
+			<div class="px-4 py-3 border-b border-gray-200">
+				<h2 class="text-xl font-semibold text-gf-maroon">Items</h2>
+			</div>
+			<div class="p-4" id="items-list">
+				@ItemsList(data.Items)
+			</div>
+		</div>
+	</div>
+}
+
+// ItemsList renders just the items list.
+// Used for partial HTMX updates.
+templ ItemsList(items []string) {
+	if len(items) == 0 {
+		<p class="text-gray-500">No items found.</p>
+	} else {
+		<ul class="list-disc list-inside space-y-1">
+			for _, item := range items {
+				<li>{ item }</li>
+			}
+		</ul>
+	}
+}
