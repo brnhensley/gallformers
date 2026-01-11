@@ -94,6 +94,9 @@ func main() {
 	htmxExample := handlers.NewHTMXExampleHandler()
 	htmxExample.RegisterRoutes(r)
 
+	htmxGlossary := handlers.NewHTMXGlossaryHandler(queries)
+	htmxGlossary.RegisterRoutes(r)
+
 	// API v2 routes
 	r.Route("/api/v2", func(r chi.Router) {
 		// Auth endpoints
