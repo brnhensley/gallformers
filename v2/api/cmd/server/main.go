@@ -222,7 +222,8 @@ func openapiSpecHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // spaFileServer serves static files with SPA fallback support.
-// If a file doesn't exist, it serves 404.html for client-side routing.
+// If a file doesn't exist, it serves 404.html with 200 status for client-side routing.
+// The 200 status is required for SPA frameworks to properly handle client-side routes.
 func spaFileServer(fsys fs.FS) http.Handler {
 	fileServer := http.FileServer(http.FS(fsys))
 
@@ -256,7 +257,7 @@ func spaFileServer(fsys fs.FS) http.Handler {
 		}
 
 		// Serve 404.html for SPA routing (let client-side handle it)
-		// Read 404.html content
+		// Read 404.html content and serve with 200 status for proper SPA behavior
 		content, err := fs.ReadFile(fsys, "404.html")
 		if err != nil {
 			// No 404.html, return plain 404
@@ -265,7 +266,7 @@ func spaFileServer(fsys fs.FS) http.Handler {
 		}
 
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.WriteHeader(http.StatusNotFound)
+		w.WriteHeader(http.StatusOK)
 		w.Write(content)
 	})
 }
