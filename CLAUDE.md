@@ -345,6 +345,42 @@ git worktree add ../gallformers-feature-name -b feature-name origin/main
 
 **Commit messages:** Present tense, imperative mood.
 
+## Multi-Agent Workflow
+
+Multiple agents work in parallel using separate git worktrees.
+
+**Worktree locations:**
+| Worktree | Branch | Role |
+|----------|--------|------|
+| `~/dev/gallformers` | (varies) | Coding Agent 1 |
+| `~/dev/gallformers-code2` | code2 | Coding Agent 2 |
+| `~/dev/gallformers-bugfix` | bugfix | Bug Fixer |
+| `~/dev/gallformers-planning` | planning | Planner + Coordinator |
+
+**Rules for all agents:**
+- Stay in your assigned worktree - never modify files in other worktrees
+- Before starting work on a beads issue, claim it: `bd update <id> --status=in_progress`
+- Commit your work before ending the session
+- Do not run git operations that affect other branches
+
+**Role-specific rules:**
+
+*Coding Agents (gallformers, gallformers-code2):*
+- Full code modification access
+- Run builds, tests as needed
+
+*Bug Fixer (gallformers-bugfix):*
+- Code modification for bug fixes only
+- Keep changes focused and minimal
+
+*Planner (gallformers-planning):*
+- Modify docs: openspec/, CLAUDE.md, README.md, other *.md files
+- Do NOT modify code files
+
+*Coordinator (gallformers-planning):*
+- Modify beads issues, generate prompts for coding agents
+- Do NOT modify code files
+
 ## Project Philosophy
 
 ### Content Over Code
