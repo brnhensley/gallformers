@@ -92,8 +92,8 @@
 	</div>
 {:else}
 	<!-- Undescribed species - show only iNaturalist with explanation -->
-	<div class="flex flex-col md:flex-row items-start md:items-center gap-4">
-		<p class="text-sm text-gray-600 flex-1">
+	<div class="flex flex-col md:flex-row items-start md:items-center gap-2">
+		<p class="text-sm flex-1">
 			Unless noted otherwise in the ID Notes, observations of this gall are collected in the
 			Observation Field <em>Gallformers Code</em> with value <em>{parseUndescribed(name)}</em> on
 			iNaturalist. You can view them here:

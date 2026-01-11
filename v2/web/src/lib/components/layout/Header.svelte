@@ -42,25 +42,25 @@
 </script>
 
 <header class="sticky top-0 z-50 bg-gf-sky-blue shadow-md">
-	<nav class="px-4 sm:px-6 lg:px-8">
-		<div class="flex h-20 items-center justify-between">
+	<nav class="px-3">
+		<div class="flex items-center justify-between py-1">
 			<!-- Logo -->
 			<div class="flex-shrink-0">
 				<a href="/" class="flex items-center">
 					<img
 						src="/branding/Wide Logo Versions/gallformers_logo_wide_color.png"
 						alt="Gallformers logo: an oak gall wasp with a spherical oak gall and a white oak leaf"
-						class="h-16"
+						class="h-[70px]"
 					/>
 				</a>
 			</div>
 
 			<!-- Desktop Navigation -->
-			<div class="hidden md:flex md:items-center md:space-x-4">
+			<div class="hidden md:flex md:items-center gap-1">
 				{#each navLinks as link}
 					<a
 						href={link.href}
-						class="rounded-md px-3 py-2 text-base font-medium text-gf-maroon hover:underline transition-colors"
+						class="px-2 text-lg font-medium !text-gf-maroon hover:underline"
 					>
 						{link.label}
 					</a>
@@ -74,13 +74,13 @@
 						onkeydown={handleSearchKeydown}
 						placeholder="Search"
 						aria-label="Search"
-						class="w-40 rounded-l-md border border-gf-maroon px-3 py-2 text-base text-gray-900
+						class="w-36 rounded-l-md border border-gf-maroon bg-white px-2 py-1 text-lg text-gray-900
 						       placeholder:text-gray-400 focus:ring-2 focus:ring-gf-maroon focus:outline-none"
 					/>
 					<button
 						type="submit"
-						class="rounded-r-md border border-gf-maroon bg-transparent px-3 py-2 text-base
-						       font-medium text-gf-maroon hover:bg-gf-maroon hover:text-white transition-colors"
+						class="rounded-r-md border border-gf-maroon bg-transparent px-2 py-1 text-lg
+						       font-medium text-gf-maroon hover:bg-gf-maroon hover:text-white"
 					>
 						Search
 					</button>
@@ -90,8 +90,7 @@
 				<div class="relative group">
 					<button
 						type="button"
-						class="flex items-center rounded-md px-3 py-2 text-base font-medium text-gf-maroon
-						       hover:underline transition-colors"
+						class="flex items-center px-2 text-lg font-medium text-gf-maroon hover:underline"
 					>
 						Resources
 						<svg class="ml-1 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -106,7 +105,7 @@
 						{#each resourceLinks as link}
 							<a
 								href={link.href}
-								class="block px-4 py-2 text-base text-gf-maroon hover:bg-gray-100"
+								class="block px-4 py-2 text-lg !text-gf-maroon hover:bg-gray-100"
 							>
 								{link.label}
 							</a>
@@ -114,13 +113,6 @@
 					</div>
 				</div>
 
-				<!-- Login Link -->
-				<a
-					href="/login"
-					class="rounded-md px-3 py-2 text-base font-medium text-gf-maroon hover:underline transition-colors"
-				>
-					Login
-				</a>
 			</div>
 
 			<!-- Mobile menu button -->
@@ -156,7 +148,7 @@
 					{#each navLinks as link}
 						<a
 							href={link.href}
-							class="block rounded-md px-3 py-2 text-base font-medium text-gf-maroon
+							class="block rounded-md px-3 py-2 text-lg font-medium !text-gf-maroon
 							       hover:bg-white/50"
 						>
 							{link.label}
@@ -172,12 +164,12 @@
 								onkeydown={handleSearchKeydown}
 								placeholder="Search"
 								aria-label="Search"
-								class="flex-1 rounded-l-md border border-gf-maroon px-3 py-2 text-base text-gray-900
+								class="flex-1 rounded-l-md border border-gf-maroon bg-white px-3 py-2 text-lg text-gray-900
 								       placeholder:text-gray-400 focus:ring-2 focus:ring-gf-maroon focus:outline-none"
 							/>
 							<button
 								type="submit"
-								class="rounded-r-md border border-gf-maroon bg-transparent px-3 py-2 text-base
+								class="rounded-r-md border border-gf-maroon bg-transparent px-3 py-2 text-lg
 								       font-medium text-gf-maroon hover:bg-gf-maroon hover:text-white"
 							>
 								Search
@@ -193,7 +185,7 @@
 						{#each resourceLinks as link}
 							<a
 								href={link.href}
-								class="block rounded-md px-3 py-2 text-base font-medium text-gf-maroon
+								class="block rounded-md px-3 py-2 text-lg font-medium !text-gf-maroon
 								       hover:bg-white/50"
 							>
 								{link.label}
@@ -201,16 +193,6 @@
 						{/each}
 					</div>
 
-					<!-- Mobile Login -->
-					<div class="border-t border-gf-maroon/30 pt-2">
-						<a
-							href="/login"
-							class="block rounded-md px-3 py-2 text-base font-medium text-gf-maroon
-							       hover:bg-white/50"
-						>
-							Login
-						</a>
-					</div>
 				</div>
 			</div>
 		{/if}

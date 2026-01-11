@@ -49,14 +49,21 @@ body {
 	margin: 0;
 	min-height: 100vh;
 	font-size: large;
-	color: var(--color-gf-autumn);
+	color: #212529; /* Bootstrap default dark text - matches V1 */
+}
+
+/* Make bold text properly bold (Tailwind preflight can weaken this) */
+strong, b {
+	font-weight: 700;
 }
 
 a {
+	color: #0d6efd; /* Bootstrap 5 link blue */
 	text-decoration: none;
 }
 
 a:hover {
+	color: #0a58ca; /* Bootstrap 5 link hover blue */
 	text-decoration: underline;
 }
 
@@ -128,6 +135,30 @@ blockquote {
 	min-width: 250px;
 	max-width: 450px;
 	z-index: 1;
+}
+
+/* Rendered markdown content styling */
+.markdown-content a {
+	color: #2563eb;
+	text-decoration: underline;
+}
+
+.markdown-content a:hover {
+	color: #1d4ed8;
+}
+
+.markdown-content p {
+	margin-bottom: 0.5em;
+}
+
+.markdown-content ul,
+.markdown-content ol {
+	margin-left: 1.5em;
+	margin-bottom: 0.5em;
+}
+
+.markdown-content li {
+	margin-bottom: 0.25em;
 }
 
 /* svelte-select dropdown overrides - ensure text is visible */

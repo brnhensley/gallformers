@@ -147,14 +147,13 @@ func main() {
 		exploreHandler.RegisterRoutes(r)
 	})
 
-	// Static file serving from embedded filesystem
+	// Static file serving from embedded filesystem with SPA fallback
 	staticFS, err := fs.Sub(staticFiles, "static")
 	if err != nil {
 		slog.Error("failed to create static filesystem", "error", err)
 		os.Exit(1)
 	}
-	fileServer := http.FileServer(http.FS(staticFS))
-	r.Handle("/*", fileServer)
+	r.Handle("/*", spaFileServer(staticFS))
 
 	// Get port from env or default to 8080
 	port := os.Getenv("PORT")
@@ -220,6 +219,55 @@ func openapiSpecHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/yaml")
 	w.Header().Set("Cache-Control", "public, max-age=3600")
 	w.Write(openapiSpec)
+}
+
+// spaFileServer serves static files with SPA fallback support.
+// If a file doesn't exist, it serves 404.html for client-side routing.
+func spaFileServer(fsys fs.FS) http.Handler {
+	fileServer := http.FileServer(http.FS(fsys))
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Clean the path
+		path := r.URL.Path
+		if path == "/" {
+			path = "index.html"
+		} else {
+			// Remove leading slash for fs.Open
+			path = path[1:]
+		}
+
+		// Try to open the file
+		f, err := fsys.Open(path)
+		if err == nil {
+			f.Close()
+			// File exists, serve it normally
+			fileServer.ServeHTTP(w, r)
+			return
+		}
+
+		// File doesn't exist - check if it might be a directory with index.html
+		indexPath := path + "/index.html"
+		f, err = fsys.Open(indexPath)
+		if err == nil {
+			f.Close()
+			// Redirect to path with trailing slash for proper relative URLs
+			http.Redirect(w, r, r.URL.Path+"/", http.StatusMovedPermanently)
+			return
+		}
+
+		// Serve 404.html for SPA routing (let client-side handle it)
+		// Read 404.html content
+		content, err := fs.ReadFile(fsys, "404.html")
+		if err != nil {
+			// No 404.html, return plain 404
+			http.NotFound(w, r)
+			return
+		}
+
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusNotFound)
+		w.Write(content)
+	})
 }
 
 func swaggerUIHandler(w http.ResponseWriter, r *http.Request) {

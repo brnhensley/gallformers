@@ -260,7 +260,7 @@
 		<div class="flex justify-between items-center pt-2">
 			<button
 				type="button"
-				class="text-sm text-gf-maroon hover:underline"
+				class="text-sm hover:underline"
 				onclick={() => (showAdvanced = !showAdvanced)}
 			>
 				{showAdvanced ? 'Hide Advanced Filters' : 'Show Advanced Filters'}

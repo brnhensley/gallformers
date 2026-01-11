@@ -7,12 +7,14 @@ SELECT
     s.taxoncode,
     s.datacomplete,
     s.abundance_id,
+    a.abundance AS abundance_name,
     g.id AS gall_id,
     g.detachable,
     g.undescribed
 FROM species s
 INNER JOIN gallspecies gs ON gs.species_id = s.id
 INNER JOIN gall g ON gs.gall_id = g.id
+LEFT JOIN abundance a ON s.abundance_id = a.id
 WHERE s.taxoncode = 'gall'
 ORDER BY s.name;
 
@@ -24,12 +26,14 @@ SELECT
     s.taxoncode,
     s.datacomplete,
     s.abundance_id,
+    a.abundance AS abundance_name,
     g.id AS gall_id,
     g.detachable,
     g.undescribed
 FROM species s
 INNER JOIN gallspecies gs ON gs.species_id = s.id
 INNER JOIN gall g ON gs.gall_id = g.id
+LEFT JOIN abundance a ON s.abundance_id = a.id
 WHERE s.taxoncode = 'gall'
 ORDER BY s.name
 LIMIT ? OFFSET ?;
@@ -46,12 +50,14 @@ SELECT
     s.taxoncode,
     s.datacomplete,
     s.abundance_id,
+    a.abundance AS abundance_name,
     g.id AS gall_id,
     g.detachable,
     g.undescribed
 FROM species s
 INNER JOIN gallspecies gs ON gs.species_id = s.id
 INNER JOIN gall g ON gs.gall_id = g.id
+LEFT JOIN abundance a ON s.abundance_id = a.id
 WHERE s.taxoncode = 'gall'
   AND s.name LIKE '%' || ? || '%'
 ORDER BY s.name;
@@ -64,12 +70,14 @@ SELECT
     s.taxoncode,
     s.datacomplete,
     s.abundance_id,
+    a.abundance AS abundance_name,
     g.id AS gall_id,
     g.detachable,
     g.undescribed
 FROM species s
 INNER JOIN gallspecies gs ON gs.species_id = s.id
 INNER JOIN gall g ON gs.gall_id = g.id
+LEFT JOIN abundance a ON s.abundance_id = a.id
 WHERE s.taxoncode = 'gall'
   AND s.name LIKE '%' || ? || '%'
 ORDER BY s.name
@@ -91,12 +99,14 @@ SELECT
     s.taxoncode,
     s.datacomplete,
     s.abundance_id,
+    a.abundance AS abundance_name,
     g.id AS gall_id,
     g.detachable,
     g.undescribed
 FROM species s
 INNER JOIN gallspecies gs ON gs.species_id = s.id
 INNER JOIN gall g ON gs.gall_id = g.id
+LEFT JOIN abundance a ON s.abundance_id = a.id
 WHERE s.id = ? AND s.taxoncode = 'gall';
 
 -- name: GetGallBySpeciesID :one
@@ -107,12 +117,14 @@ SELECT
     s.taxoncode,
     s.datacomplete,
     s.abundance_id,
+    a.abundance AS abundance_name,
     g.id AS gall_id,
     g.detachable,
     g.undescribed
 FROM species s
 INNER JOIN gallspecies gs ON gs.species_id = s.id
 INNER JOIN gall g ON gs.gall_id = g.id
+LEFT JOIN abundance a ON s.abundance_id = a.id
 WHERE s.id = ? AND s.taxoncode = 'gall';
 
 -- name: GetGallByName :one
@@ -123,12 +135,14 @@ SELECT
     s.taxoncode,
     s.datacomplete,
     s.abundance_id,
+    a.abundance AS abundance_name,
     g.id AS gall_id,
     g.detachable,
     g.undescribed
 FROM species s
 INNER JOIN gallspecies gs ON gs.species_id = s.id
 INNER JOIN gall g ON gs.gall_id = g.id
+LEFT JOIN abundance a ON s.abundance_id = a.id
 WHERE s.name = ? AND s.taxoncode = 'gall';
 
 -- name: GetAliasesBySpeciesID :many
@@ -364,16 +378,16 @@ VALUES (?, ?);
 DELETE FROM alias WHERE id = ?;
 
 -- name: GetGallPlaces :many
--- Gets places associated with a gall via its host plants.
-SELECT DISTINCT p.name
+-- Gets place codes associated with a gall via its host plants.
+SELECT DISTINCT p.code
 FROM place p
 INNER JOIN speciesplace sp ON sp.place_id = p.id
 INNER JOIN host h ON h.host_species_id = sp.species_id
 WHERE h.gall_species_id = ?;
 
 -- name: GetGallExcludedPlaces :many
--- Gets places directly associated with a gall species (excluded range).
-SELECT DISTINCT p.name
+-- Gets place codes directly associated with a gall species (excluded range).
+SELECT DISTINCT p.code
 FROM place p
 INNER JOIN speciesplace sp ON sp.place_id = p.id
 WHERE sp.species_id = ?;
@@ -409,19 +423,22 @@ ORDER BY RANDOM()
 LIMIT 1;
 
 -- name: GetImagesBySpeciesID :many
--- Gets all images for a species.
+-- Gets all images for a species, sorted by default status then source title.
 SELECT
     i.id,
     i.path,
+    i.[default],
     i.creator,
     i.attribution,
     i.sourcelink,
     i.license,
     i.licenselink,
-    i.caption
+    i.caption,
+    s.title as source_title
 FROM image i
+LEFT JOIN source s ON i.source_id = s.id
 WHERE i.species_id = ?
-ORDER BY i.id;
+ORDER BY i.[default] DESC, s.title ASC, i.id ASC;
 
 -- name: GetDefaultImages :many
 -- Gets default images for all gall species (for ID tool).

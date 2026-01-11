@@ -7,7 +7,6 @@
 	import SpeciesSynonymy from '$lib/components/public/SpeciesSynonymy.svelte';
 	import DataCompletenessIndicator from '$lib/components/public/DataCompletenessIndicator.svelte';
 	import EditButton from '$lib/components/public/EditButton.svelte';
-	import InfoTip from '$lib/components/public/InfoTip.svelte';
 	import ErrorMessage from '$lib/components/public/ErrorMessage.svelte';
 
 	let { data } = $props();
@@ -15,16 +14,35 @@
 	// Selected source state - reset when data changes (e.g., navigating to different host)
 	let selectedSourceId = $state(null);
 
+	// Pagination state for galls list
+	const PAGE_SIZE = 10;
+	let currentPage = $state(1);
+
+	// Sort galls alphabetically by name
+	let sortedGalls = $derived(
+		data.host?.galls ? [...data.host.galls].sort((a, b) => a.name.localeCompare(b.name)) : []
+	);
+
+	// Paginated galls
+	let totalPages = $derived(Math.ceil(sortedGalls.length / PAGE_SIZE));
+	let paginatedGalls = $derived(
+		sortedGalls.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
+	);
+
 	$effect(() => {
 		selectedSourceId = data.defaultSourceId;
 	});
 
-	/**
-	 * Get completeness level based on datacomplete flag
-	 */
-	function getCompletenessLevel(datacomplete) {
-		return datacomplete ? 'complete' : 'unknown';
-	}
+	// Reset pagination when host changes
+	$effect(() => {
+		if (data.host) {
+			currentPage = 1;
+		}
+	});
+
+	// Tooltip text matching V1
+	const hostCompleteText = 'All galls known to occur on this plant have been added to the database, and can be filtered by Location and Detachable. However, sources and images for galls associated with this host may be incomplete or absent, and other filters may not have been entered comprehensively or at all.';
+	const hostIncompleteText = 'We are still working on this species so data might be missing.';
 </script>
 
 <svelte:head>
@@ -46,26 +64,31 @@
 	{/if}
 </svelte:head>
 
-<div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+<div class="mx-auto max-w-7xl px-4 pt-2 sm:px-6 lg:px-8">
 	{#if data.error}
 		<ErrorMessage message={data.error} />
 	{:else if data.host}
 		<!-- Main Content Grid -->
-		<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-			<!-- Left Column: Details -->
-			<div class="lg:col-span-2 space-y-6">
+		<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+			<!-- Left Column: Details (2/3 width on lg) -->
+			<div class="md:col-span-1 lg:col-span-2">
 				<!-- Header: Name + Status -->
 				<div class="flex items-start justify-between gap-4">
 					<div class="flex-1">
-						<h1 class="text-2xl font-bold text-gf-maroon">
-							<em>{data.host.name}</em>
-						</h1>
+						<h2 class="text-2xl font-bold">
+							<a
+								href="/id?hostOrTaxon={encodeURIComponent(data.host.name)}&type=host"
+								class="hover:underline"
+							>
+								<em>{data.host.name}</em>
+							</a>
+						</h2>
 					</div>
-					<div class="flex items-center gap-2">
+					<div class="flex items-center gap-2 me-1">
 						<EditButton id={data.host.id} type="host" />
 						<DataCompletenessIndicator
-							level={getCompletenessLevel(data.host.datacomplete)}
-							showLabel={false}
+							complete={data.host.datacomplete}
+							tooltipText={data.host.datacomplete ? hostCompleteText : hostIncompleteText}
 						/>
 					</div>
 				</div>
@@ -82,47 +105,8 @@
 
 				<!-- Abundance -->
 				{#if data.host.abundance}
-					<div>
-						<span class="font-semibold">Abundance: </span>
-						<span class="text-gray-700">{data.host.abundance}</span>
-					</div>
-				{/if}
-
-				<!-- Associated Galls -->
-				{#if data.host.galls && data.host.galls.length > 0}
-					<div>
-						<div class="flex items-center gap-1 mb-2">
-							<span class="font-semibold">Associated Galls:</span>
-							<InfoTip text="Gall species that have been found on this host plant." />
-						</div>
-						<div class="flex flex-wrap gap-2">
-							{#each data.host.galls as gall}
-								<a
-									href="/gall/{gall.id}"
-									class="inline-block px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-full text-gf-maroon hover:underline transition-colors"
-								>
-									<em>{gall.name}</em>
-								</a>
-							{/each}
-						</div>
-					</div>
-				{:else}
-					<div>
-						<span class="font-semibold">Associated Galls: </span>
-						<span class="text-gray-500 italic">None recorded</span>
-					</div>
-				{/if}
-
-				<!-- Range Map -->
-				{#if data.range && data.range.size > 0}
-					<div>
-						<div class="flex items-center gap-1 mb-2">
-							<span class="font-semibold">Range:</span>
-							<InfoTip text="Geographic range where this host plant is known to occur." />
-						</div>
-						<div class="max-w-md">
-							<RangeMap inRange={data.range} />
-						</div>
+					<div class="py-0.5">
+						<strong>Abundance:</strong> {data.host.abundance}
 					</div>
 				{/if}
 
@@ -130,32 +114,105 @@
 				{#if data.host.aliases && data.host.aliases.length > 0}
 					<SpeciesSynonymy aliases={data.host.aliases} showAllByDefault={true} />
 				{/if}
+
+				<!-- Associated Galls - Paginated Table -->
+				<div class="pt-2">
+					{#if sortedGalls.length > 0}
+						<div class="overflow-hidden rounded border border-gray-200">
+							<table class="min-w-full divide-y divide-gray-200">
+								<thead class="bg-cadet-blue">
+									<tr>
+										<th
+											class="px-3 py-2 text-left text-sm font-medium text-gray-900"
+										>
+											Gall
+										</th>
+									</tr>
+								</thead>
+								<tbody class="bg-white divide-y divide-gray-200">
+									{#each paginatedGalls as gall, i}
+										<tr class="hover:bg-gray-50 {i % 2 === 1 ? 'bg-gray-50' : ''}">
+											<td class="px-3 py-2 text-sm">
+												<a
+													href="/gall/{gall.id}"
+													class="hover:underline"
+												>
+													<em>{gall.name}</em>
+												</a>
+											</td>
+										</tr>
+									{/each}
+								</tbody>
+							</table>
+							<!-- Pagination Controls -->
+							{#if totalPages > 1}
+								<div
+									class="flex items-center justify-between px-3 py-1 bg-white border-t border-gray-200"
+								>
+									<div class="text-sm">
+										{(currentPage - 1) * PAGE_SIZE + 1}-{Math.min(
+											currentPage * PAGE_SIZE,
+											sortedGalls.length
+										)} of {sortedGalls.length}
+									</div>
+									<div class="flex items-center gap-2">
+										<button
+											class="px-2 py-0.5 text-sm border rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+											disabled={currentPage === 1}
+											onclick={() => (currentPage = currentPage - 1)}
+										>
+											Previous
+										</button>
+										<span class="text-sm">
+											Page {currentPage} of {totalPages}
+										</span>
+										<button
+											class="px-2 py-0.5 text-sm border rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+											disabled={currentPage === totalPages}
+											onclick={() => (currentPage = currentPage + 1)}
+										>
+											Next
+										</button>
+									</div>
+								</div>
+							{/if}
+						</div>
+					{:else}
+						<p class="italic">No galls recorded for this host.</p>
+					{/if}
+				</div>
 			</div>
 
-			<!-- Right Column: Images -->
-			<div class="lg:col-span-1">
+			<!-- Right Column: Images + Range Map (1/3 width on lg) -->
+			<div class="md:col-span-1 lg:col-span-1 border rounded p-1 flex flex-col gap-2">
 				<ImageGallery images={data.images} />
+
+				<!-- Range Map -->
+				{#if data.range && data.range.size > 0}
+					<div class="mt-auto">
+						<div>Range:</div>
+						<RangeMap inRange={data.range} />
+					</div>
+				{/if}
 			</div>
 		</div>
+
+		<hr class="border-gray-200 my-4" />
 
 		<!-- Sources Section -->
-		<div class="mt-8">
-			<hr class="border-gray-200 mb-6" />
-			{#if data.sources && data.sources.length > 0}
-				<SourceList sources={data.sources} bind:selectedId={selectedSourceId} />
-			{:else}
-				<p class="text-gray-500">No sources available for this species.</p>
-			{/if}
-		</div>
+		{#if data.sources && data.sources.length > 0}
+			<SourceList sources={data.sources} bind:selectedId={selectedSourceId} />
+		{:else}
+			<p class="italic">No sources available for this species.</p>
+		{/if}
+
+		<hr class="border-gray-200 my-4" />
 
 		<!-- External Links Section -->
-		<div class="mt-8">
-			<hr class="border-gray-200 mb-6" />
-			<div class="flex items-center gap-2 mb-4">
-				<span class="font-semibold">See Also:</span>
-			</div>
-			<ExternalLinks name={data.host.name} undescribed={false} />
+		<div class="mb-2">
+			<strong>See Also:</strong>
 		</div>
+		<ExternalLinks name={data.host.name} undescribed={false} />
 	{:else}
 		<ErrorMessage message="Host not found" />
 	{/if}

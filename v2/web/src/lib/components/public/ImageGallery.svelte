@@ -22,24 +22,27 @@
 
 	let currentIndex = $state(0);
 	let lightboxOpen = $state(false);
+	let infoModalOpen = $state(false);
+	let showCopyrightTooltip = $state(false);
 	let dialogEl;
+	let infoDialogEl;
 
 	// Current image helper
 	let currentImage = $derived(images.length > 0 ? images[currentIndex] : null);
 	let hasImages = $derived(images.length > 0);
-	let hasPrev = $derived(currentIndex > 0);
-	let hasNext = $derived(currentIndex < images.length - 1);
 
 	function goToPrev() {
-		if (hasPrev) {
-			currentIndex--;
+		if (images.length > 1) {
+			// Wrap around to end if at beginning
+			currentIndex = currentIndex > 0 ? currentIndex - 1 : images.length - 1;
 			notifyChange();
 		}
 	}
 
 	function goToNext() {
-		if (hasNext) {
-			currentIndex++;
+		if (images.length > 1) {
+			// Wrap around to beginning if at end
+			currentIndex = currentIndex < images.length - 1 ? currentIndex + 1 : 0;
 			notifyChange();
 		}
 	}
@@ -65,6 +68,14 @@
 		lightboxOpen = false;
 	}
 
+	function openInfoModal() {
+		infoModalOpen = true;
+	}
+
+	function closeInfoModal() {
+		infoModalOpen = false;
+	}
+
 	function handleKeydown(e) {
 		if (e.key === 'Escape') {
 			closeLightbox();
@@ -81,11 +92,25 @@
 		}
 	}
 
+	function handleInfoBackdropClick(e) {
+		if (e.target === infoDialogEl) {
+			closeInfoModal();
+		}
+	}
+
 	$effect(() => {
 		if (lightboxOpen) {
 			dialogEl?.showModal();
 		} else {
 			dialogEl?.close();
+		}
+	});
+
+	$effect(() => {
+		if (infoModalOpen) {
+			infoDialogEl?.showModal();
+		} else {
+			infoDialogEl?.close();
 		}
 	});
 </script>
@@ -107,13 +132,12 @@
 				/>
 			</button>
 
-			<!-- Navigation Arrows -->
+			<!-- Navigation Arrows (overlapping image, edge-to-edge) -->
 			{#if images.length > 1}
 				<button
 					type="button"
 					onclick={goToPrev}
-					disabled={!hasPrev}
-					class="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full w-10 h-10 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+					class="absolute left-0 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white w-10 h-16 flex items-center justify-center transition-colors"
 					aria-label="Previous image"
 				>
 					<svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -123,8 +147,7 @@
 				<button
 					type="button"
 					onclick={goToNext}
-					disabled={!hasNext}
-					class="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full w-10 h-10 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+					class="absolute right-0 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white w-10 h-16 flex items-center justify-center transition-colors"
 					aria-label="Next image"
 				>
 					<svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -134,63 +157,37 @@
 			{/if}
 		</div>
 
-		<!-- Caption & Attribution -->
-		<div class="p-3 bg-white border-t">
-			{#if currentImage.caption}
-				<p class="text-sm text-gray-700 mb-2">{currentImage.caption}</p>
-			{/if}
-
-			<div class="text-xs text-gray-500 flex flex-wrap items-center gap-1">
-				{#if currentImage.sourceLink}
-					<a
-						href={currentImage.sourceLink}
-						target="_blank"
-						rel="noreferrer"
-						class="text-blue-600 hover:underline"
-					>
-						Image
-					</a>
-				{:else}
-					<span>Image</span>
-				{/if}
-
-				{#if currentImage.creator}
-					<span>by {currentImage.creator}</span>
-				{/if}
-
-				{#if currentImage.license}
-					<span class="mx-1">©</span>
-					{#if currentImage.licenseLink}
-						<a
-							href={currentImage.licenseLink}
-							target="_blank"
-							rel="noreferrer"
-							class="text-blue-600 hover:underline"
-						>
-							{currentImage.license}
-						</a>
-					{:else}
-						<span>{currentImage.license}</span>
-					{/if}
+		<!-- Button Bar (like V1: copyright, info) -->
+		<div class="flex justify-center gap-1 py-2 bg-white border-t">
+			<!-- Copyright/License button with tooltip -->
+			<div class="relative">
+				<button
+					type="button"
+					onclick={() => (showCopyrightTooltip = !showCopyrightTooltip)}
+					onblur={() => (showCopyrightTooltip = false)}
+					class="px-3 py-1 text-lg bg-gray-200 hover:bg-gray-300 rounded transition-colors"
+					aria-label="Show license information"
+				>
+					©
+				</button>
+				{#if showCopyrightTooltip && currentImage?.license}
+					<div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-800 text-white text-sm rounded shadow-lg whitespace-nowrap z-10">
+						{currentImage.license}
+						<div class="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-800"></div>
+					</div>
 				{/if}
 			</div>
+
+			<!-- Info button -->
+			<button
+				type="button"
+				onclick={openInfoModal}
+				class="px-3 py-1 text-lg font-bold bg-gray-200 hover:bg-gray-300 rounded transition-colors"
+				aria-label="Show image details"
+			>
+				ⓘ
+			</button>
 		</div>
-
-		<!-- Dot Indicators -->
-		{#if images.length > 1}
-			<div class="flex justify-center gap-2 py-2 bg-white border-t">
-				{#each images as _, index}
-					<button
-						type="button"
-						onclick={() => goToIndex(index)}
-						class="w-2 h-2 rounded-full transition-colors {index === currentIndex
-							? 'bg-blue-600'
-							: 'bg-gray-300 hover:bg-gray-400'}"
-						aria-label="Go to image {index + 1}"
-					></button>
-				{/each}
-			</div>
-		{/if}
 	{:else}
 		<!-- Placeholder for no images -->
 		<div class="aspect-[4/3] flex items-center justify-center bg-gray-200">
@@ -229,8 +226,7 @@
 					<button
 						type="button"
 						onclick={goToPrev}
-						disabled={!hasPrev}
-						class="absolute left-4 bg-white/20 hover:bg-white/40 text-white rounded-full w-12 h-12 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+						class="absolute left-4 bg-white/20 hover:bg-white/40 text-white rounded-full w-12 h-12 flex items-center justify-center transition-colors"
 						aria-label="Previous image"
 					>
 						<svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -249,8 +245,7 @@
 					<button
 						type="button"
 						onclick={goToNext}
-						disabled={!hasNext}
-						class="absolute right-4 bg-white/20 hover:bg-white/40 text-white rounded-full w-12 h-12 flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+						class="absolute right-4 bg-white/20 hover:bg-white/40 text-white rounded-full w-12 h-12 flex items-center justify-center transition-colors"
 						aria-label="Next image"
 					>
 						<svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -290,6 +285,78 @@
 				{#if images.length > 1}
 					<p class="text-xs text-gray-400 mt-2">{currentIndex + 1} / {images.length}</p>
 				{/if}
+			</div>
+		</div>
+	{/if}
+</dialog>
+
+<!-- Info Modal -->
+<dialog
+	bind:this={infoDialogEl}
+	onclick={handleInfoBackdropClick}
+	class="p-0 bg-transparent max-w-2xl backdrop:bg-black/50 rounded-lg"
+>
+	{#if currentImage}
+		<div class="bg-white rounded-lg shadow-xl">
+			<!-- Header -->
+			<div class="flex items-center justify-between px-4 py-3 border-b">
+				<h3 class="text-lg font-semibold">Image Details</h3>
+				<button
+					type="button"
+					onclick={closeInfoModal}
+					class="text-gray-500 hover:text-gray-700"
+					aria-label="Close"
+				>
+					<svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+					</svg>
+				</button>
+			</div>
+
+			<!-- Body -->
+			<div class="p-4 flex gap-4">
+				<!-- Thumbnail -->
+				<div class="flex-shrink-0 w-32">
+					<img
+						src={currentImage.url}
+						alt={currentImage.alt}
+						class="w-full h-auto rounded border"
+					/>
+				</div>
+
+				<!-- Details -->
+				<div class="flex-1 space-y-2 text-sm">
+					{#if currentImage.sourceLink}
+						<div>
+							<strong>Source:</strong>{' '}
+							<a href={currentImage.sourceLink} target="_blank" rel="noreferrer" class="text-blue-600 hover:underline">
+								{currentImage.sourceLink}
+							</a>
+						</div>
+					{/if}
+					{#if currentImage.license}
+						<div>
+							<strong>License:</strong>{' '}
+							{#if currentImage.licenseLink}
+								<a href={currentImage.licenseLink} target="_blank" rel="noreferrer" class="text-blue-600 hover:underline">
+									{currentImage.license}
+								</a>
+							{:else}
+								{currentImage.license}
+							{/if}
+						</div>
+					{/if}
+					{#if currentImage.creator}
+						<div>
+							<strong>Creator:</strong> {currentImage.creator}
+						</div>
+					{/if}
+					{#if currentImage.caption}
+						<div>
+							<strong>Caption:</strong> {currentImage.caption}
+						</div>
+					{/if}
+				</div>
 			</div>
 		</div>
 	{/if}

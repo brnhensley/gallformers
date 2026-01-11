@@ -31,32 +31,32 @@
 	}
 </script>
 
-<div class="flex flex-wrap items-center gap-1 text-sm">
+<div class="flex flex-wrap items-center gap-1">
 	{#if showFamily && family}
-		<span class="font-semibold text-gray-600">Family:</span>
-		<a href="/family/{family.id}" class="text-blue-600 hover:underline">
+		<strong>Family:</strong>
+		<a href="/family/{family.id}" class="hover:underline">
 			{family.name}
 		</a>
 	{/if}
 
 	{#if showFamily && family && ((showGenus && genus) || (showSection && section))}
-		<span class="text-gray-400 mx-1">|</span>
+		<span class="mx-1">|</span>
 	{/if}
 
 	{#if showGenus && genus}
-		<span class="font-semibold text-gray-600">Genus:</span>
-		<a href="/genus/{genus.id}" class="text-blue-600 hover:underline">
+		<strong>Genus:</strong>
+		<a href="/genus/{genus.id}" class="hover:underline">
 			{formatWithDescription(genus.name, genus.description)}
 		</a>
 	{/if}
 
 	{#if showGenus && genus && showSection && section}
-		<span class="text-gray-400 mx-1">|</span>
+		<span class="mx-1">|</span>
 	{/if}
 
 	{#if showSection && section}
-		<span class="font-semibold text-gray-600">Section:</span>
-		<a href="/section/{section.id}" class="text-blue-600 hover:underline">
+		<strong>Section:</strong>
+		<a href="/section/{section.id}" class="hover:underline">
 			{formatWithDescription(section.name, section.description)}
 		</a>
 	{/if}

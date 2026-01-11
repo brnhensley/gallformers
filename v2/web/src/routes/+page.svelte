@@ -80,16 +80,6 @@
 							Explore the Data
 						</a>
 					</li>
-					<li>
-						<a
-							href="https://megachile.shinyapps.io/doycalc/"
-							target="_blank"
-							rel="noreferrer"
-							class="text-gf-maroon hover:underline font-medium"
-						>
-							Explore the seasonal timing of gall development and emergence with our phenology tool
-						</a>
-					</li>
 				</ul>
 			</div>
 		</div>

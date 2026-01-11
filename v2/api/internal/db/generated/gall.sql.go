@@ -423,24 +423,27 @@ SELECT
     s.taxoncode,
     s.datacomplete,
     s.abundance_id,
+    a.abundance AS abundance_name,
     g.id AS gall_id,
     g.detachable,
     g.undescribed
 FROM species s
 INNER JOIN gallspecies gs ON gs.species_id = s.id
 INNER JOIN gall g ON gs.gall_id = g.id
+LEFT JOIN abundance a ON s.abundance_id = a.id
 WHERE s.id = ? AND s.taxoncode = 'gall'
 `
 
 type GetGallByIDRow struct {
-	ID           int64          `json:"id"`
-	Name         string         `json:"name"`
-	Taxoncode    sql.NullString `json:"taxoncode"`
-	Datacomplete bool           `json:"datacomplete"`
-	AbundanceID  sql.NullInt64  `json:"abundance_id"`
-	GallID       int64          `json:"gall_id"`
-	Detachable   sql.NullInt64  `json:"detachable"`
-	Undescribed  bool           `json:"undescribed"`
+	ID            int64          `json:"id"`
+	Name          string         `json:"name"`
+	Taxoncode     sql.NullString `json:"taxoncode"`
+	Datacomplete  bool           `json:"datacomplete"`
+	AbundanceID   sql.NullInt64  `json:"abundance_id"`
+	AbundanceName sql.NullString `json:"abundance_name"`
+	GallID        int64          `json:"gall_id"`
+	Detachable    sql.NullInt64  `json:"detachable"`
+	Undescribed   bool           `json:"undescribed"`
 }
 
 // Gets a single gall by its species ID.
@@ -453,6 +456,7 @@ func (q *Queries) GetGallByID(ctx context.Context, id int64) (GetGallByIDRow, er
 		&i.Taxoncode,
 		&i.Datacomplete,
 		&i.AbundanceID,
+		&i.AbundanceName,
 		&i.GallID,
 		&i.Detachable,
 		&i.Undescribed,
@@ -467,24 +471,27 @@ SELECT
     s.taxoncode,
     s.datacomplete,
     s.abundance_id,
+    a.abundance AS abundance_name,
     g.id AS gall_id,
     g.detachable,
     g.undescribed
 FROM species s
 INNER JOIN gallspecies gs ON gs.species_id = s.id
 INNER JOIN gall g ON gs.gall_id = g.id
+LEFT JOIN abundance a ON s.abundance_id = a.id
 WHERE s.name = ? AND s.taxoncode = 'gall'
 `
 
 type GetGallByNameRow struct {
-	ID           int64          `json:"id"`
-	Name         string         `json:"name"`
-	Taxoncode    sql.NullString `json:"taxoncode"`
-	Datacomplete bool           `json:"datacomplete"`
-	AbundanceID  sql.NullInt64  `json:"abundance_id"`
-	GallID       int64          `json:"gall_id"`
-	Detachable   sql.NullInt64  `json:"detachable"`
-	Undescribed  bool           `json:"undescribed"`
+	ID            int64          `json:"id"`
+	Name          string         `json:"name"`
+	Taxoncode     sql.NullString `json:"taxoncode"`
+	Datacomplete  bool           `json:"datacomplete"`
+	AbundanceID   sql.NullInt64  `json:"abundance_id"`
+	AbundanceName sql.NullString `json:"abundance_name"`
+	GallID        int64          `json:"gall_id"`
+	Detachable    sql.NullInt64  `json:"detachable"`
+	Undescribed   bool           `json:"undescribed"`
 }
 
 // Gets a gall by its exact species name.
@@ -497,6 +504,7 @@ func (q *Queries) GetGallByName(ctx context.Context, name string) (GetGallByName
 		&i.Taxoncode,
 		&i.Datacomplete,
 		&i.AbundanceID,
+		&i.AbundanceName,
 		&i.GallID,
 		&i.Detachable,
 		&i.Undescribed,
@@ -511,24 +519,27 @@ SELECT
     s.taxoncode,
     s.datacomplete,
     s.abundance_id,
+    a.abundance AS abundance_name,
     g.id AS gall_id,
     g.detachable,
     g.undescribed
 FROM species s
 INNER JOIN gallspecies gs ON gs.species_id = s.id
 INNER JOIN gall g ON gs.gall_id = g.id
+LEFT JOIN abundance a ON s.abundance_id = a.id
 WHERE s.id = ? AND s.taxoncode = 'gall'
 `
 
 type GetGallBySpeciesIDRow struct {
-	ID           int64          `json:"id"`
-	Name         string         `json:"name"`
-	Taxoncode    sql.NullString `json:"taxoncode"`
-	Datacomplete bool           `json:"datacomplete"`
-	AbundanceID  sql.NullInt64  `json:"abundance_id"`
-	GallID       int64          `json:"gall_id"`
-	Detachable   sql.NullInt64  `json:"detachable"`
-	Undescribed  bool           `json:"undescribed"`
+	ID            int64          `json:"id"`
+	Name          string         `json:"name"`
+	Taxoncode     sql.NullString `json:"taxoncode"`
+	Datacomplete  bool           `json:"datacomplete"`
+	AbundanceID   sql.NullInt64  `json:"abundance_id"`
+	AbundanceName sql.NullString `json:"abundance_name"`
+	GallID        int64          `json:"gall_id"`
+	Detachable    sql.NullInt64  `json:"detachable"`
+	Undescribed   bool           `json:"undescribed"`
 }
 
 // Gets a gall by species ID (same as GetGallByID, provided for clarity).
@@ -541,6 +552,7 @@ func (q *Queries) GetGallBySpeciesID(ctx context.Context, id int64) (GetGallBySp
 		&i.Taxoncode,
 		&i.Datacomplete,
 		&i.AbundanceID,
+		&i.AbundanceName,
 		&i.GallID,
 		&i.Detachable,
 		&i.Undescribed,
@@ -611,13 +623,13 @@ func (q *Queries) GetGallColors(ctx context.Context, gallID int64) ([]Color, err
 }
 
 const getGallExcludedPlaces = `-- name: GetGallExcludedPlaces :many
-SELECT DISTINCT p.name
+SELECT DISTINCT p.code
 FROM place p
 INNER JOIN speciesplace sp ON sp.place_id = p.id
 WHERE sp.species_id = ?
 `
 
-// Gets places directly associated with a gall species (excluded range).
+// Gets place codes directly associated with a gall species (excluded range).
 func (q *Queries) GetGallExcludedPlaces(ctx context.Context, speciesID sql.NullInt64) ([]string, error) {
 	rows, err := q.db.QueryContext(ctx, getGallExcludedPlaces, speciesID)
 	if err != nil {
@@ -626,11 +638,11 @@ func (q *Queries) GetGallExcludedPlaces(ctx context.Context, speciesID sql.NullI
 	defer rows.Close()
 	items := []string{}
 	for rows.Next() {
-		var name string
-		if err := rows.Scan(&name); err != nil {
+		var code string
+		if err := rows.Scan(&code); err != nil {
 			return nil, err
 		}
-		items = append(items, name)
+		items = append(items, code)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err
@@ -744,14 +756,14 @@ func (q *Queries) GetGallLocations(ctx context.Context, gallID int64) ([]Locatio
 }
 
 const getGallPlaces = `-- name: GetGallPlaces :many
-SELECT DISTINCT p.name
+SELECT DISTINCT p.code
 FROM place p
 INNER JOIN speciesplace sp ON sp.place_id = p.id
 INNER JOIN host h ON h.host_species_id = sp.species_id
 WHERE h.gall_species_id = ?
 `
 
-// Gets places associated with a gall via its host plants.
+// Gets place codes associated with a gall via its host plants.
 func (q *Queries) GetGallPlaces(ctx context.Context, gallSpeciesID sql.NullInt64) ([]string, error) {
 	rows, err := q.db.QueryContext(ctx, getGallPlaces, gallSpeciesID)
 	if err != nil {
@@ -760,11 +772,11 @@ func (q *Queries) GetGallPlaces(ctx context.Context, gallSpeciesID sql.NullInt64
 	defer rows.Close()
 	items := []string{}
 	for rows.Next() {
-		var name string
-		if err := rows.Scan(&name); err != nil {
+		var code string
+		if err := rows.Scan(&code); err != nil {
 			return nil, err
 		}
-		items = append(items, name)
+		items = append(items, code)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err
@@ -927,29 +939,34 @@ const getImagesBySpeciesID = `-- name: GetImagesBySpeciesID :many
 SELECT
     i.id,
     i.path,
+    i.[default],
     i.creator,
     i.attribution,
     i.sourcelink,
     i.license,
     i.licenselink,
-    i.caption
+    i.caption,
+    s.title as source_title
 FROM image i
+LEFT JOIN source s ON i.source_id = s.id
 WHERE i.species_id = ?
-ORDER BY i.id
+ORDER BY i.[default] DESC, s.title ASC, i.id ASC
 `
 
 type GetImagesBySpeciesIDRow struct {
 	ID          int64          `json:"id"`
 	Path        string         `json:"path"`
+	Default     sql.NullBool   `json:"[default]"`
 	Creator     sql.NullString `json:"creator"`
 	Attribution sql.NullString `json:"attribution"`
 	Sourcelink  sql.NullString `json:"sourcelink"`
 	License     sql.NullString `json:"license"`
 	Licenselink sql.NullString `json:"licenselink"`
 	Caption     sql.NullString `json:"caption"`
+	SourceTitle sql.NullString `json:"source_title"`
 }
 
-// Gets all images for a species.
+// Gets all images for a species, sorted by default status then source title.
 func (q *Queries) GetImagesBySpeciesID(ctx context.Context, speciesID int64) ([]GetImagesBySpeciesIDRow, error) {
 	rows, err := q.db.QueryContext(ctx, getImagesBySpeciesID, speciesID)
 	if err != nil {
@@ -962,12 +979,14 @@ func (q *Queries) GetImagesBySpeciesID(ctx context.Context, speciesID int64) ([]
 		if err := rows.Scan(
 			&i.ID,
 			&i.Path,
+			&i.Default,
 			&i.Creator,
 			&i.Attribution,
 			&i.Sourcelink,
 			&i.License,
 			&i.Licenselink,
 			&i.Caption,
+			&i.SourceTitle,
 		); err != nil {
 			return nil, err
 		}
@@ -1238,25 +1257,28 @@ SELECT
     s.taxoncode,
     s.datacomplete,
     s.abundance_id,
+    a.abundance AS abundance_name,
     g.id AS gall_id,
     g.detachable,
     g.undescribed
 FROM species s
 INNER JOIN gallspecies gs ON gs.species_id = s.id
 INNER JOIN gall g ON gs.gall_id = g.id
+LEFT JOIN abundance a ON s.abundance_id = a.id
 WHERE s.taxoncode = 'gall'
 ORDER BY s.name
 `
 
 type ListGallsRow struct {
-	ID           int64          `json:"id"`
-	Name         string         `json:"name"`
-	Taxoncode    sql.NullString `json:"taxoncode"`
-	Datacomplete bool           `json:"datacomplete"`
-	AbundanceID  sql.NullInt64  `json:"abundance_id"`
-	GallID       int64          `json:"gall_id"`
-	Detachable   sql.NullInt64  `json:"detachable"`
-	Undescribed  bool           `json:"undescribed"`
+	ID            int64          `json:"id"`
+	Name          string         `json:"name"`
+	Taxoncode     sql.NullString `json:"taxoncode"`
+	Datacomplete  bool           `json:"datacomplete"`
+	AbundanceID   sql.NullInt64  `json:"abundance_id"`
+	AbundanceName sql.NullString `json:"abundance_name"`
+	GallID        int64          `json:"gall_id"`
+	Detachable    sql.NullInt64  `json:"detachable"`
+	Undescribed   bool           `json:"undescribed"`
 }
 
 // Lists all galls with their species data, ordered by name.
@@ -1276,6 +1298,7 @@ func (q *Queries) ListGalls(ctx context.Context) ([]ListGallsRow, error) {
 			&i.Taxoncode,
 			&i.Datacomplete,
 			&i.AbundanceID,
+			&i.AbundanceName,
 			&i.GallID,
 			&i.Detachable,
 			&i.Undescribed,
@@ -1300,12 +1323,14 @@ SELECT
     s.taxoncode,
     s.datacomplete,
     s.abundance_id,
+    a.abundance AS abundance_name,
     g.id AS gall_id,
     g.detachable,
     g.undescribed
 FROM species s
 INNER JOIN gallspecies gs ON gs.species_id = s.id
 INNER JOIN gall g ON gs.gall_id = g.id
+LEFT JOIN abundance a ON s.abundance_id = a.id
 WHERE s.taxoncode = 'gall'
 ORDER BY s.name
 LIMIT ? OFFSET ?
@@ -1317,14 +1342,15 @@ type ListGallsPaginatedParams struct {
 }
 
 type ListGallsPaginatedRow struct {
-	ID           int64          `json:"id"`
-	Name         string         `json:"name"`
-	Taxoncode    sql.NullString `json:"taxoncode"`
-	Datacomplete bool           `json:"datacomplete"`
-	AbundanceID  sql.NullInt64  `json:"abundance_id"`
-	GallID       int64          `json:"gall_id"`
-	Detachable   sql.NullInt64  `json:"detachable"`
-	Undescribed  bool           `json:"undescribed"`
+	ID            int64          `json:"id"`
+	Name          string         `json:"name"`
+	Taxoncode     sql.NullString `json:"taxoncode"`
+	Datacomplete  bool           `json:"datacomplete"`
+	AbundanceID   sql.NullInt64  `json:"abundance_id"`
+	AbundanceName sql.NullString `json:"abundance_name"`
+	GallID        int64          `json:"gall_id"`
+	Detachable    sql.NullInt64  `json:"detachable"`
+	Undescribed   bool           `json:"undescribed"`
 }
 
 // Lists galls with pagination support.
@@ -1343,6 +1369,7 @@ func (q *Queries) ListGallsPaginated(ctx context.Context, arg ListGallsPaginated
 			&i.Taxoncode,
 			&i.Datacomplete,
 			&i.AbundanceID,
+			&i.AbundanceName,
 			&i.GallID,
 			&i.Detachable,
 			&i.Undescribed,
@@ -1367,26 +1394,29 @@ SELECT
     s.taxoncode,
     s.datacomplete,
     s.abundance_id,
+    a.abundance AS abundance_name,
     g.id AS gall_id,
     g.detachable,
     g.undescribed
 FROM species s
 INNER JOIN gallspecies gs ON gs.species_id = s.id
 INNER JOIN gall g ON gs.gall_id = g.id
+LEFT JOIN abundance a ON s.abundance_id = a.id
 WHERE s.taxoncode = 'gall'
   AND s.name LIKE '%' || ? || '%'
 ORDER BY s.name
 `
 
 type SearchGallsRow struct {
-	ID           int64          `json:"id"`
-	Name         string         `json:"name"`
-	Taxoncode    sql.NullString `json:"taxoncode"`
-	Datacomplete bool           `json:"datacomplete"`
-	AbundanceID  sql.NullInt64  `json:"abundance_id"`
-	GallID       int64          `json:"gall_id"`
-	Detachable   sql.NullInt64  `json:"detachable"`
-	Undescribed  bool           `json:"undescribed"`
+	ID            int64          `json:"id"`
+	Name          string         `json:"name"`
+	Taxoncode     sql.NullString `json:"taxoncode"`
+	Datacomplete  bool           `json:"datacomplete"`
+	AbundanceID   sql.NullInt64  `json:"abundance_id"`
+	AbundanceName sql.NullString `json:"abundance_name"`
+	GallID        int64          `json:"gall_id"`
+	Detachable    sql.NullInt64  `json:"detachable"`
+	Undescribed   bool           `json:"undescribed"`
 }
 
 // Searches galls by name containing the query string.
@@ -1405,6 +1435,7 @@ func (q *Queries) SearchGalls(ctx context.Context, dollar_1 sql.NullString) ([]S
 			&i.Taxoncode,
 			&i.Datacomplete,
 			&i.AbundanceID,
+			&i.AbundanceName,
 			&i.GallID,
 			&i.Detachable,
 			&i.Undescribed,
@@ -1429,12 +1460,14 @@ SELECT
     s.taxoncode,
     s.datacomplete,
     s.abundance_id,
+    a.abundance AS abundance_name,
     g.id AS gall_id,
     g.detachable,
     g.undescribed
 FROM species s
 INNER JOIN gallspecies gs ON gs.species_id = s.id
 INNER JOIN gall g ON gs.gall_id = g.id
+LEFT JOIN abundance a ON s.abundance_id = a.id
 WHERE s.taxoncode = 'gall'
   AND s.name LIKE '%' || ? || '%'
 ORDER BY s.name
@@ -1448,14 +1481,15 @@ type SearchGallsPaginatedParams struct {
 }
 
 type SearchGallsPaginatedRow struct {
-	ID           int64          `json:"id"`
-	Name         string         `json:"name"`
-	Taxoncode    sql.NullString `json:"taxoncode"`
-	Datacomplete bool           `json:"datacomplete"`
-	AbundanceID  sql.NullInt64  `json:"abundance_id"`
-	GallID       int64          `json:"gall_id"`
-	Detachable   sql.NullInt64  `json:"detachable"`
-	Undescribed  bool           `json:"undescribed"`
+	ID            int64          `json:"id"`
+	Name          string         `json:"name"`
+	Taxoncode     sql.NullString `json:"taxoncode"`
+	Datacomplete  bool           `json:"datacomplete"`
+	AbundanceID   sql.NullInt64  `json:"abundance_id"`
+	AbundanceName sql.NullString `json:"abundance_name"`
+	GallID        int64          `json:"gall_id"`
+	Detachable    sql.NullInt64  `json:"detachable"`
+	Undescribed   bool           `json:"undescribed"`
 }
 
 // Searches galls by name with pagination.
@@ -1474,6 +1508,7 @@ func (q *Queries) SearchGallsPaginated(ctx context.Context, arg SearchGallsPagin
 			&i.Taxoncode,
 			&i.Datacomplete,
 			&i.AbundanceID,
+			&i.AbundanceName,
 			&i.GallID,
 			&i.Detachable,
 			&i.Undescribed,

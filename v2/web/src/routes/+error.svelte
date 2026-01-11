@@ -46,11 +46,18 @@
 		{/if}
 
 		<div class="flex flex-col sm:flex-row gap-4 justify-center">
+			<button
+				type="button"
+				onclick={() => history.back()}
+				class="px-6 py-3 bg-gf-maroon text-white font-medium rounded-lg hover:bg-gf-autumn transition-colors cursor-pointer"
+			>
+				Go Back
+			</button>
 			<a
 				href="/"
-				class="inline-block px-6 py-3 bg-gf-maroon text-white font-medium rounded-lg hover:bg-gf-maroon-dark transition-colors"
+				class="inline-block px-6 py-3 border border-gf-maroon text-gf-maroon font-medium rounded-lg hover:bg-gray-50 transition-colors"
 			>
-				Go back home
+				Go Home
 			</a>
 			<a
 				href="/id"

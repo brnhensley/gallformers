@@ -1,4 +1,12 @@
 <script>
+	import { marked } from 'marked';
+
+	// Configure marked for safe rendering
+	marked.setOptions({
+		breaks: true,
+		gfm: true
+	});
+
 	/**
 	 * SourceList - Citation list with selection state
 	 *
@@ -20,9 +28,19 @@
 	 * @property {number} id - Species-source relation ID
 	 * @property {number} sourceId - Source ID
 	 * @property {Source} source - Source details
-	 * @property {string} [description] - Description text from this source
+	 * @property {string} [description] - Description text from this source (markdown)
 	 * @property {string} [externalLink] - External reference URL
 	 */
+
+	/**
+	 * Parse markdown description to HTML
+	 * @param {string} text - Markdown text
+	 * @returns {string} - HTML string
+	 */
+	function parseMarkdown(text) {
+		if (!text) return '';
+		return marked.parse(text);
+	}
 
 	let {
 		sources = [],
@@ -96,7 +114,7 @@
 	}
 </script>
 
-<div class="space-y-4">
+<div class="space-y-2">
 	<!-- Notes Alert -->
 	{#if showGallformersNotes && showNotesAlert && gallformersNotes && selectedId !== gallformersNotes.source?.id}
 		<div class="bg-blue-50 border border-blue-200 rounded-md p-4 flex items-start justify-between">
@@ -132,8 +150,8 @@
 	<div class="flex items-center justify-between">
 		<div class="flex-1">
 			{#if selectedSource}
-				<em class="text-gray-700">
-					<a href="/source/{selectedSource.source?.id}" class="text-blue-600 hover:underline">
+				<em>
+					<a href="/source/{selectedSource.source?.id}" class="hover:underline">
 						{selectedSource.source?.title}
 					</a>
 				</em>
@@ -163,11 +181,11 @@
 
 	<!-- Description Content -->
 	{#if selectedSource?.description}
-		<div class="text-lg text-gray-700 p-4 bg-gray-50 rounded-md">
-			<span class="text-gray-400 text-2xl leading-none">&ldquo;</span>
-			<span class="whitespace-pre-wrap">{@html selectedSource.description}</span>
-			<span class="text-gray-400 text-2xl leading-none">&rdquo;</span>
-			<p class="mt-4 text-sm text-gray-600 italic">
+		<div class="p-3 bg-gray-50 rounded-md">
+			<span class="text-gray-400 text-xl leading-none">&ldquo;</span>
+			<span class="markdown-content">{@html parseMarkdown(selectedSource.description)}</span>
+			<span class="text-gray-400 text-xl leading-none">&rdquo;</span>
+			<p class="mt-2 text-sm italic">
 				- {formatSourceDisplay(selectedSource.source)}
 			</p>
 			{#if selectedSource.externalLink}
@@ -177,7 +195,7 @@
 						href={selectedSource.externalLink}
 						target="_blank"
 						rel="noreferrer"
-						class="text-blue-600 hover:underline break-all"
+						class="hover:underline break-all"
 					>
 						{selectedSource.externalLink}
 					</a>
@@ -190,9 +208,9 @@
 
 	<!-- Sources Table -->
 	<div>
-		<h4 class="font-semibold text-gray-700 mb-2">Further Information:</h4>
-		<div class="overflow-x-auto">
-			<table class="min-w-full text-sm">
+		<strong>Further Information:</strong>
+		<div class="overflow-x-auto mt-1">
+			<table class="min-w-full">
 				<thead class="sr-only">
 					<tr>
 						<th>Author</th>
@@ -201,30 +219,30 @@
 						<th>License</th>
 					</tr>
 				</thead>
-				<tbody class="divide-y divide-gray-100">
+				<tbody class="divide-y divide-gray-200">
 					{#each sortedSources as speciesSource}
 						<tr
 							class="cursor-pointer transition-colors {speciesSource.source?.id === selectedId
-								? 'bg-blue-50 border-l-4 border-blue-500'
+								? 'bg-canary border-l-4 border-blue-500'
 								: 'hover:bg-gray-50'}"
 							onclick={() => selectSource(speciesSource)}
 						>
-							<td class="py-2 px-3 max-w-[200px]">
+							<td class="py-1 px-2 max-w-[200px]">
 								<span class="line-clamp-2">{speciesSource.source?.author || 'Unknown'}</span>
 							</td>
-							<td class="py-2 px-3 text-center hidden sm:table-cell">
+							<td class="py-1 px-2 text-center hidden sm:table-cell">
 								{speciesSource.source?.pubyear || ''}
 							</td>
-							<td class="py-2 px-3">
+							<td class="py-1 px-2">
 								<a
 									href="/source/{speciesSource.source?.id}"
-									class="text-blue-600 hover:underline line-clamp-2"
+									class="hover:underline line-clamp-2"
 									onclick={(e) => e.stopPropagation()}
 								>
 									{speciesSource.source?.title || 'Untitled'}
 								</a>
 							</td>
-							<td class="py-2 px-3 text-center hidden sm:table-cell">
+							<td class="py-1 px-2 text-center hidden sm:table-cell">
 								{#if speciesSource.source?.license}
 									{@const icon = getLicenseIcon(speciesSource.source.license)}
 									{#if icon}
