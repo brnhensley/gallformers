@@ -9,6 +9,7 @@ on:
       - '!v2/docs/**'
       - '!v2/runbooks/**'
   pull_request:
+    branches: [main]  # Only run CI on PRs targeting main
     paths:
       - 'v2/**'
       - '!v2/**/*.md'
