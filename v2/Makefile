@@ -2,7 +2,7 @@
 #
 # Phoenix/LiveView development commands
 
-.PHONY: dev test download-db ci help deps assets setup clean check-db
+.PHONY: dev test download-db ci help deps assets setup clean check-db build run-local-release
 
 # Download production database for local dev
 # Uses public S3 snapshot (updated daily by GitHub Actions)
@@ -59,6 +59,28 @@ setup: deps assets check-db
 # Start development server (ensures deps and assets are ready)
 dev: setup
 	mix phx.server
+
+# =============================================================================
+# Production Build
+# =============================================================================
+
+# Build production release locally
+build: deps
+	MIX_ENV=prod mix compile
+	MIX_ENV=prod mix assets.deploy
+	MIX_ENV=prod mix release --overwrite
+
+# Run the locally built production release
+# Requires SECRET_KEY_BASE and DATABASE_PATH environment variables
+run-local-release:
+	@if [ -z "$$SECRET_KEY_BASE" ]; then \
+		echo "Generating SECRET_KEY_BASE..."; \
+		export SECRET_KEY_BASE=$$(mix phx.gen.secret); \
+	fi; \
+	DATABASE_PATH=$${DATABASE_PATH:-$(PWD)/priv/gallformers.sqlite} \
+	PHX_HOST=localhost \
+	PORT=4000 \
+	_build/prod/rel/gallformers/bin/gallformers start
 
 # Run tests
 test:
@@ -148,18 +170,20 @@ help:
 	@echo "Gallformers V2 Makefile"
 	@echo ""
 	@echo "Development:"
-	@echo "  make dev          Start Phoenix dev server (:4000) - auto-installs deps"
-	@echo "  make test         Run tests"
-	@echo "  make ci           Run all CI checks (format, compile, credo, test, dialyzer)"
+	@echo "  make dev               Start Phoenix dev server (:4000) - auto-installs deps"
+	@echo "  make test              Run tests"
+	@echo "  make ci                Run all CI checks (format, compile, credo, test, dialyzer)"
 	@echo ""
 	@echo "Build:"
-	@echo "  make setup        Full setup (deps + assets + db check)"
-	@echo "  make deps         Install Elixir dependencies"
-	@echo "  make assets       Install npm packages and build assets"
-	@echo "  make clean        Clean build artifacts (node_modules, _build, deps)"
+	@echo "  make setup             Full setup (deps + assets + db check)"
+	@echo "  make deps              Install Elixir dependencies"
+	@echo "  make assets            Install npm packages and build assets"
+	@echo "  make build             Build production release locally"
+	@echo "  make run-local-release Run the locally built production release"
+	@echo "  make clean             Clean build artifacts (node_modules, _build, deps)"
 	@echo ""
 	@echo "Database:"
-	@echo "  make download-db  Download database snapshot from S3"
+	@echo "  make download-db       Download database snapshot from S3"
 	@echo ""
 	@echo "Git Sync (multi-agent workflow):"
 	@echo "  make sync-start              Reset branch to integration (for code1/code2)"
