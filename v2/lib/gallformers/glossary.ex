@@ -1,0 +1,94 @@
+defmodule Gallformers.Glossary do
+  @moduledoc """
+  The Glossary context.
+
+  Provides functions for working with glossary terms and definitions.
+  """
+
+  import Ecto.Query
+
+  alias Gallformers.Glossary.Glossary
+  alias Gallformers.Repo
+
+  @doc """
+  Returns all glossary entries ordered alphabetically.
+  """
+  @spec list_glossary() :: [Glossary.t()]
+  def list_glossary do
+    from(g in Glossary,
+      order_by: g.word
+    )
+    |> Repo.all()
+  end
+
+  @doc """
+  Gets a glossary entry by ID.
+  """
+  @spec get_glossary(integer()) :: Glossary.t() | nil
+  def get_glossary(id) do
+    Repo.get(Glossary, id)
+  end
+
+  @doc """
+  Gets a glossary entry by word.
+  """
+  @spec get_glossary_by_word(String.t()) :: Glossary.t() | nil
+  def get_glossary_by_word(word) do
+    from(g in Glossary,
+      where: g.word == ^word
+    )
+    |> Repo.one()
+  end
+
+  @doc """
+  Searches glossary entries by word (case-insensitive partial match).
+  """
+  @spec search_glossary(String.t()) :: [Glossary.t()]
+  def search_glossary(query) do
+    search_term = "%#{query}%"
+
+    from(g in Glossary,
+      where: ilike(g.word, ^search_term) or ilike(g.definition, ^search_term),
+      order_by: g.word
+    )
+    |> Repo.all()
+  end
+
+  @doc """
+  Returns the count of glossary entries.
+  """
+  @spec count_glossary() :: integer()
+  def count_glossary do
+    from(g in Glossary,
+      select: count(g.id)
+    )
+    |> Repo.one()
+  end
+
+  @doc """
+  Returns glossary entries starting with a specific letter.
+  """
+  @spec list_glossary_by_letter(String.t()) :: [Glossary.t()]
+  def list_glossary_by_letter(letter) do
+    pattern = "#{letter}%"
+
+    from(g in Glossary,
+      where: ilike(g.word, ^pattern),
+      order_by: g.word
+    )
+    |> Repo.all()
+  end
+
+  @doc """
+  Returns a map of first letters to counts for navigation.
+  """
+  @spec get_letter_counts() :: %{String.t() => integer()}
+  def get_letter_counts do
+    from(g in Glossary,
+      group_by: fragment("upper(substr(word, 1, 1))"),
+      select: {fragment("upper(substr(word, 1, 1))"), count(g.id)}
+    )
+    |> Repo.all()
+    |> Map.new()
+  end
+end

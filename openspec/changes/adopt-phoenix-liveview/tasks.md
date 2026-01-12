@@ -91,34 +91,34 @@ Goal: Get the core site working with a real page. Once home page works, we have 
 
 **Milestone: Site is live with working home page**
 
-## 4. Complete Ecto Schemas
+## 4. Complete Ecto Schemas ✅
 
-### 4.1 Core Schemas
-- [ ] 4.1.1 Complete `Species` schema with all fields
-- [ ] 4.1.2 Create `Gall` schema with all fields and associations
-- [ ] 4.1.3 Create `Host` schema with all fields
-- [ ] 4.1.4 Create `Taxonomy` schema with parent relationship
-- [ ] 4.1.5 Create `Source` schema
-- [ ] 4.1.6 Create `Glossary` schema
+### 4.1 Core Schemas ✅
+- [x] 4.1.1 Complete `Species` schema with all fields
+- [x] 4.1.2 Create `Gall` schema with all fields and associations
+- [x] 4.1.3 Create `Host` schema with all fields
+- [x] 4.1.4 Create `Taxonomy` schema with parent relationship
+- [x] 4.1.5 Create `Source` schema
+- [x] 4.1.6 Create `Glossary` schema
 
-### 4.2 Join Tables
-- [ ] 4.2.1 Map `specieshosts` join table
-- [ ] 4.2.2 Map `gallhost` join table
-- [ ] 4.2.3 Map filter field join tables (colors, shapes, textures, etc.)
-- [ ] 4.2.4 Map `speciesplace` for range data
+### 4.2 Join Tables ✅
+- [x] 4.2.1 Map `specieshosts` join table
+- [x] 4.2.2 Map `gallhost` join table
+- [x] 4.2.3 Map filter field join tables (colors, shapes, textures, etc.)
+- [x] 4.2.4 Map `speciesplace` for range data
 
-### 4.3 Filter Fields
-- [ ] 4.3.1 Create schemas for filter field tables (color, shape, texture, etc.)
-- [ ] 4.3.2 Create associations from Gall to filter fields
+### 4.3 Filter Fields ✅
+- [x] 4.3.1 Create schemas for filter field tables (color, shape, texture, etc.)
+- [x] 4.3.2 Create associations from Gall to filter fields
 
-### 4.4 Contexts
-- [ ] 4.4.1 Create `Gallformers.Species` context with CRUD functions
-- [ ] 4.4.2 Create `Gallformers.Hosts` context
-- [ ] 4.4.3 Create `Gallformers.Taxonomy` context
-- [ ] 4.4.4 Create `Gallformers.Glossary` context
-- [ ] 4.4.5 Create `Gallformers.Sources` context
-- [ ] 4.4.6 Create `Gallformers.Search` context
-- [ ] 4.4.7 Create `Gallformers.IDTool` context with filtering logic
+### 4.4 Contexts ✅
+- [x] 4.4.1 Create `Gallformers.Species` context with CRUD functions
+- [x] 4.4.2 Create `Gallformers.Hosts` context
+- [x] 4.4.3 Create `Gallformers.Taxonomy` context
+- [x] 4.4.4 Create `Gallformers.Glossary` context
+- [x] 4.4.5 Create `Gallformers.Sources` context
+- [x] 4.4.6 Create `Gallformers.Search` context
+- [x] 4.4.7 Create `Gallformers.IDTool` context with filtering logic
 
 ## 5. Shared Components
 
