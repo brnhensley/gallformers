@@ -327,7 +327,7 @@ Multiple agents can work in parallel using separate git worktrees.
 | `~/dev/gallformers-code1` | [name based on work being done] | Coding Agent 1 |
 | `~/dev/gallformers-code2` | [name based on work being done] | Coding Agent 2 |
 | `~/dev/gallformers-bugfix` | [name based on work being done] | Bug Fixer |
-| `~/dev/gallformers-planning` | planning | Planner + Coordinator |
+| `~/dev/gallformers` | main | Planner + Coordinator |
 
 **Rules for all agents:**
 - Stay in your assigned worktree - never modify files in other worktrees
