@@ -13,14 +13,24 @@ defmodule GallformersWeb.PlaceLive do
         load_place(socket, place_id)
 
       _ ->
-        {:ok, assign(socket, page_title: "Place Not Found | Gallformers", place: nil, error: "Invalid place ID")}
+        {:ok,
+         assign(socket,
+           page_title: "Place Not Found | Gallformers",
+           place: nil,
+           error: "Invalid place ID"
+         )}
     end
   end
 
   defp load_place(socket, place_id) do
     case get_place(place_id) do
       nil ->
-        {:ok, assign(socket, page_title: "Place Not Found | Gallformers", place: nil, error: "Place not found")}
+        {:ok,
+         assign(socket,
+           page_title: "Place Not Found | Gallformers",
+           place: nil,
+           error: "Place not found"
+         )}
 
       place ->
         # Get parent place
@@ -145,12 +155,13 @@ defmodule GallformersWeb.PlaceLive do
               <% end %>
             </div>
           <% else %>
-            <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">Place not found</div>
+            <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
+              Place not found
+            </div>
           <% end %>
         <% end %>
       </div>
     </Layouts.app>
     """
   end
-
 end

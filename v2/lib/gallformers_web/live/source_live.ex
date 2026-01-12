@@ -16,14 +16,24 @@ defmodule GallformersWeb.SourceLive do
         load_source(socket, source_id)
 
       _ ->
-        {:ok, assign(socket, page_title: "Source Not Found | Gallformers", source: nil, error: "Invalid source ID")}
+        {:ok,
+         assign(socket,
+           page_title: "Source Not Found | Gallformers",
+           source: nil,
+           error: "Invalid source ID"
+         )}
     end
   end
 
   defp load_source(socket, source_id) do
     case Sources.get_source(source_id) do
       nil ->
-        {:ok, assign(socket, page_title: "Source Not Found | Gallformers", source: nil, error: "Source not found")}
+        {:ok,
+         assign(socket,
+           page_title: "Source Not Found | Gallformers",
+           source: nil,
+           error: "Source not found"
+         )}
 
       source ->
         # Get connected species
@@ -154,12 +164,13 @@ defmodule GallformersWeb.SourceLive do
               <% end %>
             </div>
           <% else %>
-            <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">Source not found</div>
+            <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
+              Source not found
+            </div>
           <% end %>
         <% end %>
       </div>
     </Layouts.app>
     """
   end
-
 end

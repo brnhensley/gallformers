@@ -77,19 +77,19 @@ defmodule GallformersWeb.AboutLive do
             Gallformers is the product of curious amateurs becoming obsessed. If you are here then you too have at
             least been touched, if not bitten, by the gall bug. It grows in you, but it is not a
             <.link href="/glossary#parasitism" class="text-gf-maroon hover:underline">parasite</.link>
-            nor an
-            <.link href="/glossary#inquiline" class="text-gf-maroon hover:underline">inquiline</.link>.
+            nor an <.link href="/glossary#inquiline" class="text-gf-maroon hover:underline">inquiline</.link>.
           </p>
           <p class="text-gray-700 mb-4">
             While you are here we hope that we can help you both ID an unknown plant gall as well as to learn about
             galls. Whether your interests are very casual, you are a burgeoning scientist, or even a full-fledged
-            <.link href="/glossary#cecidiology" class="text-gf-maroon hover:underline">cecidiologist</.link>
+            <.link href="/glossary#cecidiology" class="text-gf-maroon hover:underline">
+              cecidiologist
+            </.link>
             we strive to provide useful tools.
           </p>
           <p class="text-gray-700 mb-4">
             This site is open source and you can view all of the code/data and if so inclined even open a pull
-            request on
-            <.link
+            request on <.link
               href="https://github.com/jeffdc/gallformers"
               target="_blank"
               rel="noreferrer"
@@ -194,8 +194,10 @@ defmodule GallformersWeb.AboutLive do
           </h2>
           <p class="text-gray-700 mb-4">
             We also have an ever growing list of people that help us out as site administrators, without whom the site
-            would be far poorer. If you are interested in becoming an administrator
-            <.link href="mailto:gallformers@gmail.com" class="text-gf-maroon hover:underline">reach out</.link>:
+            would be far poorer. If you are interested in becoming an administrator <.link
+              href="mailto:gallformers@gmail.com"
+              class="text-gf-maroon hover:underline"
+            >reach out</.link>:
           </p>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
             <ul class="list-disc list-inside text-gray-700">
@@ -270,11 +272,14 @@ defmodule GallformersWeb.AboutLive do
           <h2 class="text-2xl font-semibold text-gray-800 mt-8 mb-4">Funding</h2>
           <div class="flex items-center gap-4 mb-6">
             <.link href="https://www.nsf.gov" target="_blank" rel="noreferrer">
-              <img src="/images/nsf-logo.svg" alt="National Science Foundation Logo" class="w-32 h-32" />
+              <img
+                src="/images/nsf-logo.svg"
+                alt="National Science Foundation Logo"
+                class="w-32 h-32"
+              />
             </.link>
             <p class="text-gray-700">
-              This site is supported in part by the National Science Foundation under
-              <.link
+              This site is supported in part by the National Science Foundation under <.link
                 href="https://www.nsf.gov/awardsearch/showAward?AWD_ID=2418250&HistoricalAwards=false"
                 target="_blank"
                 rel="noreferrer"
@@ -303,9 +308,10 @@ defmodule GallformersWeb.AboutLive do
             the many individuals that have allowed usage of their wonderful photos. We have made every effort to
             verify and document the license for all content that we use. If you find anything that you think is
             incorrect please contact us:
-            <.link href="mailto:gallformers@gmail.com" class="text-gf-maroon hover:underline">Email</.link>
-            or
-            <.link
+            <.link href="mailto:gallformers@gmail.com" class="text-gf-maroon hover:underline">
+              Email
+            </.link>
+            or <.link
               href="https://twitter.com/gallformers"
               target="_blank"
               rel="noreferrer"

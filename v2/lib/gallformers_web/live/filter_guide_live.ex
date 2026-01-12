@@ -11,12 +11,15 @@ defmodule GallformersWeb.FilterGuideLive do
   @impl true
   def mount(_params, _session, socket) do
     filter_fields = %{
-      alignment: IDTool.list_alignments() |> Enum.map(&%{field: &1.alignment, description: &1.description}),
+      alignment:
+        IDTool.list_alignments() |> Enum.map(&%{field: &1.alignment, description: &1.description}),
       cells: IDTool.list_cells() |> Enum.map(&%{field: &1.cells, description: &1.description}),
       form: IDTool.list_forms() |> Enum.map(&%{field: &1.form, description: &1.description}),
-      location: IDTool.list_locations() |> Enum.map(&%{field: &1.location, description: &1.description}),
+      location:
+        IDTool.list_locations() |> Enum.map(&%{field: &1.location, description: &1.description}),
       shape: IDTool.list_shapes() |> Enum.map(&%{field: &1.shape, description: &1.description}),
-      texture: IDTool.list_textures() |> Enum.map(&%{field: &1.texture, description: &1.description}),
+      texture:
+        IDTool.list_textures() |> Enum.map(&%{field: &1.texture, description: &1.description}),
       walls: IDTool.list_walls() |> Enum.map(&%{field: &1.walls, description: &1.description})
     }
 
@@ -94,7 +97,12 @@ defmodule GallformersWeb.FilterGuideLive do
                 stroke="currentColor"
                 viewBox="0 0 24 24"
               >
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M19 9l-7 7-7-7"
+                />
               </svg>
             </button>
             <%= if section_open?(@open_sections, :detachable) do %>
@@ -194,7 +202,7 @@ defmodule GallformersWeb.FilterGuideLive do
               <li class="text-gray-700">
                 <span class="font-medium">{item.field}</span>
                 <%= if item.description do %>
-                  <span> - {item.description}</span>
+                  <span>&nbsp;- {item.description}</span>
                 <% end %>
               </li>
             <% end %>

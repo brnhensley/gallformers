@@ -15,18 +15,33 @@ defmodule GallformersWeb.FamilyLive do
         load_family(socket, family_id)
 
       _ ->
-        {:ok, assign(socket, page_title: "Family Not Found | Gallformers", family: nil, error: "Invalid family ID")}
+        {:ok,
+         assign(socket,
+           page_title: "Family Not Found | Gallformers",
+           family: nil,
+           error: "Invalid family ID"
+         )}
     end
   end
 
   defp load_family(socket, family_id) do
     case Taxonomy.get_taxonomy(family_id) do
       nil ->
-        {:ok, assign(socket, page_title: "Family Not Found | Gallformers", family: nil, error: "Family not found")}
+        {:ok,
+         assign(socket,
+           page_title: "Family Not Found | Gallformers",
+           family: nil,
+           error: "Family not found"
+         )}
 
       family ->
         if family.type != "family" do
-          {:ok, assign(socket, page_title: "Family Not Found | Gallformers", family: nil, error: "Not a family")}
+          {:ok,
+           assign(socket,
+             page_title: "Family Not Found | Gallformers",
+             family: nil,
+             error: "Not a family"
+           )}
         else
           # Get genera under this family
           genera = Taxonomy.get_children(family_id)
@@ -52,10 +67,9 @@ defmodule GallformersWeb.FamilyLive do
       species_ids = Taxonomy.get_species_ids_for_genus(genus.id)
 
       species =
-        if length(species_ids) > 0 do
-          get_species_info(species_ids)
-        else
-          []
+        case species_ids do
+          [] -> []
+          ids -> get_species_info(ids)
         end
 
       %{
@@ -140,7 +154,7 @@ defmodule GallformersWeb.FamilyLive do
                           <span>
                             <em class="font-medium">{genus.name}</em>
                             <%= if genus.description do %>
-                              <span class="text-gray-600"> - {genus.description}</span>
+                              <span class="text-gray-600">&nbsp;- {genus.description}</span>
                             <% end %>
                             <span class="text-sm text-gray-500 ml-2">
                               ({length(genus.children)} species)
@@ -182,12 +196,13 @@ defmodule GallformersWeb.FamilyLive do
               </div>
             </div>
           <% else %>
-            <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">Family not found</div>
+            <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
+              Family not found
+            </div>
           <% end %>
         <% end %>
       </div>
     </Layouts.app>
     """
   end
-
 end

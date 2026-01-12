@@ -18,14 +18,24 @@ defmodule GallformersWeb.HostLive do
         load_host(socket, host_id)
 
       _ ->
-        {:ok, assign(socket, page_title: "Host Not Found | Gallformers", host: nil, error: "Invalid host ID")}
+        {:ok,
+         assign(socket,
+           page_title: "Host Not Found | Gallformers",
+           host: nil,
+           error: "Invalid host ID"
+         )}
     end
   end
 
   defp load_host(socket, host_id) do
     case Hosts.get_host(host_id) do
       nil ->
-        {:ok, assign(socket, page_title: "Host Not Found | Gallformers", host: nil, error: "Host not found")}
+        {:ok,
+         assign(socket,
+           page_title: "Host Not Found | Gallformers",
+           host: nil,
+           error: "Host not found"
+         )}
 
       host ->
         galls = Hosts.get_galls_for_host(host_id) |> Enum.sort_by(& &1.name)
@@ -59,7 +69,7 @@ defmodule GallformersWeb.HostLive do
   end
 
   defp format_images(images) do
-    base_url = Gallformers.Species.Image.base_url()
+    base_url = Species.Image.base_url()
 
     Enum.map(images, fn img ->
       Map.merge(img, %{
@@ -105,13 +115,19 @@ defmodule GallformersWeb.HostLive do
               <div class="lg:col-span-2 space-y-2">
                 <div class="flex items-start justify-between gap-4">
                   <h2 class="text-2xl font-bold">
-                    <.link href={"/id?hostOrTaxon=#{URI.encode(@host.name)}&type=host"} class="hover:underline">
+                    <.link
+                      href={"/id?hostOrTaxon=#{URI.encode(@host.name)}&type=host"}
+                      class="hover:underline"
+                    >
                       <em>{@host.name}</em>
                     </.link>
                   </h2>
                   <span class={[
                     "inline-flex items-center px-2 py-1 text-xs font-medium rounded-full",
-                    if(@host.datacomplete, do: "bg-green-100 text-green-800", else: "bg-yellow-100 text-yellow-800")
+                    if(@host.datacomplete,
+                      do: "bg-green-100 text-green-800",
+                      else: "bg-yellow-100 text-yellow-800"
+                    )
                   ]}>
                     {if @host.datacomplete, do: "Complete", else: "In Progress"}
                   </span>
@@ -142,7 +158,9 @@ defmodule GallformersWeb.HostLive do
                       <table class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-cadet-blue">
                           <tr>
-                            <th class="px-3 py-2 text-left text-sm font-medium text-gray-900">Gall</th>
+                            <th class="px-3 py-2 text-left text-sm font-medium text-gray-900">
+                              Gall
+                            </th>
                           </tr>
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
@@ -160,8 +178,10 @@ defmodule GallformersWeb.HostLive do
                       <%= if total_pages(@host.galls, @page_size) > 1 do %>
                         <div class="flex items-center justify-between px-3 py-1 bg-white border-t border-gray-200">
                           <div class="text-sm">
-                            {(@current_page - 1) * @page_size + 1}-{min(@current_page * @page_size, length(@host.galls))}
-                            of {length(@host.galls)}
+                            {(@current_page - 1) * @page_size + 1}-{min(
+                              @current_page * @page_size,
+                              length(@host.galls)
+                            )} of {length(@host.galls)}
                           </div>
                           <div class="flex items-center gap-2">
                             <button
@@ -171,7 +191,9 @@ defmodule GallformersWeb.HostLive do
                             >
                               Previous
                             </button>
-                            <span class="text-sm">Page {@current_page} of {total_pages(@host.galls, @page_size)}</span>
+                            <span class="text-sm">
+                              Page {@current_page} of {total_pages(@host.galls, @page_size)}
+                            </span>
                             <button
                               class="px-2 py-0.5 text-sm border rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                               disabled={@current_page == total_pages(@host.galls, @page_size)}
@@ -196,11 +218,14 @@ defmodule GallformersWeb.HostLive do
                   </div>
                   <%= if hd(@images).creator do %>
                     <p class="text-xs text-gray-500 mt-1">
-                      Photo: {hd(@images).creator}{if hd(@images).license, do: " (#{hd(@images).license})"}
+                      Photo: {hd(@images).creator}{if hd(@images).license,
+                        do: " (#{hd(@images).license})"}
                     </p>
                   <% end %>
                 <% else %>
-                  <div class="bg-gray-100 rounded p-6 text-center text-gray-500">No images available</div>
+                  <div class="bg-gray-100 rounded p-6 text-center text-gray-500">
+                    No images available
+                  </div>
                 <% end %>
 
                 <%= if MapSet.size(@range) > 0 do %>
@@ -218,7 +243,10 @@ defmodule GallformersWeb.HostLive do
               <div class="space-y-2">
                 <%= for source <- @sources do %>
                   <div class={"p-3 rounded border #{if source.id == @selected_source_id, do: "border-gf-maroon bg-canary", else: "border-gray-200 bg-white"}"}>
-                    <.link href={"/source/#{source.id}"} class="font-medium text-gf-maroon hover:underline">
+                    <.link
+                      href={"/source/#{source.id}"}
+                      class="font-medium text-gf-maroon hover:underline"
+                    >
                       {source.title}
                     </.link>
                     {if source.author, do: " - #{source.author}"}
@@ -233,11 +261,27 @@ defmodule GallformersWeb.HostLive do
             <hr class="border-gray-200 my-4" />
             <div class="mb-2"><strong>See Also:</strong></div>
             <div class="flex flex-wrap gap-4 text-sm">
-              <.link href={"https://www.inaturalist.org/taxa/search?q=#{URI.encode(@host.name)}"} target="_blank" rel="noreferrer" class="text-gf-maroon hover:underline">iNaturalist</.link>
-              <.link href={"https://scholar.google.com/scholar?q=#{URI.encode(@host.name)}"} target="_blank" rel="noreferrer" class="text-gf-maroon hover:underline">Google Scholar</.link>
+              <.link
+                href={"https://www.inaturalist.org/taxa/search?q=#{URI.encode(@host.name)}"}
+                target="_blank"
+                rel="noreferrer"
+                class="text-gf-maroon hover:underline"
+              >
+                iNaturalist
+              </.link>
+              <.link
+                href={"https://scholar.google.com/scholar?q=#{URI.encode(@host.name)}"}
+                target="_blank"
+                rel="noreferrer"
+                class="text-gf-maroon hover:underline"
+              >
+                Google Scholar
+              </.link>
             </div>
           <% else %>
-            <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">Host not found</div>
+            <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
+              Host not found
+            </div>
           <% end %>
         <% end %>
       </div>

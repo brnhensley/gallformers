@@ -16,18 +16,33 @@ defmodule GallformersWeb.SectionLive do
         load_section(socket, section_id)
 
       _ ->
-        {:ok, assign(socket, page_title: "Section Not Found | Gallformers", section: nil, error: "Invalid section ID")}
+        {:ok,
+         assign(socket,
+           page_title: "Section Not Found | Gallformers",
+           section: nil,
+           error: "Invalid section ID"
+         )}
     end
   end
 
   defp load_section(socket, section_id) do
     case Taxonomy.get_taxonomy(section_id) do
       nil ->
-        {:ok, assign(socket, page_title: "Section Not Found | Gallformers", section: nil, error: "Section not found")}
+        {:ok,
+         assign(socket,
+           page_title: "Section Not Found | Gallformers",
+           section: nil,
+           error: "Section not found"
+         )}
 
       section ->
         if section.type != "section" do
-          {:ok, assign(socket, page_title: "Section Not Found | Gallformers", section: nil, error: "Not a section")}
+          {:ok,
+           assign(socket,
+             page_title: "Section Not Found | Gallformers",
+             section: nil,
+             error: "Not a section"
+           )}
         else
           # Get species for this section
           species = get_species_for_section(section_id)
@@ -125,12 +140,13 @@ defmodule GallformersWeb.SectionLive do
               <% end %>
             </div>
           <% else %>
-            <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">Section not found</div>
+            <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
+              Section not found
+            </div>
           <% end %>
         <% end %>
       </div>
     </Layouts.app>
     """
   end
-
 end

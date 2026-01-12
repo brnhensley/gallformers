@@ -15,42 +15,48 @@ defmodule GallformersWeb.GenusLive do
         load_genus(socket, genus_id)
 
       _ ->
-        {:ok, assign(socket, page_title: "Genus Not Found | Gallformers", genus: nil, error: "Invalid genus ID")}
+        {:ok,
+         assign(socket,
+           page_title: "Genus Not Found | Gallformers",
+           genus: nil,
+           error: "Invalid genus ID"
+         )}
     end
   end
 
   defp load_genus(socket, genus_id) do
     case Taxonomy.get_taxonomy(genus_id) do
       nil ->
-        {:ok, assign(socket, page_title: "Genus Not Found | Gallformers", genus: nil, error: "Genus not found")}
+        {:ok, assign_genus_not_found(socket, "Genus not found")}
 
-      genus ->
-        if genus.type != "genus" do
-          {:ok, assign(socket, page_title: "Genus Not Found | Gallformers", genus: nil, error: "Not a genus")}
-        else
-          # Get parent family
-          family = if genus.parent_id, do: Taxonomy.get_taxonomy(genus.parent_id), else: nil
+      %{type: "genus"} = genus ->
+        {:ok, assign_genus_data(socket, genus, genus_id)}
 
-          # Get species for this genus
-          species_ids = Taxonomy.get_species_ids_for_genus(genus_id)
-
-          species =
-            if length(species_ids) > 0 do
-              get_species_info(species_ids)
-            else
-              []
-            end
-
-          {:ok,
-           assign(socket,
-             page_title: "Genus #{genus.name} | Gallformers",
-             genus: genus,
-             family: family,
-             species: species,
-             error: nil
-           )}
-        end
+      _not_a_genus ->
+        {:ok, assign_genus_not_found(socket, "Not a genus")}
     end
+  end
+
+  defp assign_genus_not_found(socket, error) do
+    assign(socket,
+      page_title: "Genus Not Found | Gallformers",
+      genus: nil,
+      error: error
+    )
+  end
+
+  defp assign_genus_data(socket, genus, genus_id) do
+    family = if genus.parent_id, do: Taxonomy.get_taxonomy(genus.parent_id), else: nil
+    species_ids = Taxonomy.get_species_ids_for_genus(genus_id)
+    species = if species_ids == [], do: [], else: get_species_info(species_ids)
+
+    assign(socket,
+      page_title: "Genus #{genus.name} | Gallformers",
+      genus: genus,
+      family: family,
+      species: species,
+      error: nil
+    )
   end
 
   defp get_species_info(species_ids) do
@@ -145,12 +151,13 @@ defmodule GallformersWeb.GenusLive do
               <% end %>
             </div>
           <% else %>
-            <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">Genus not found</div>
+            <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
+              Genus not found
+            </div>
           <% end %>
         <% end %>
       </div>
     </Layouts.app>
     """
   end
-
 end

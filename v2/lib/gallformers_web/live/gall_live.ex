@@ -23,14 +23,24 @@ defmodule GallformersWeb.GallLive do
         load_gall(socket, gall_id)
 
       _ ->
-        {:ok, assign(socket, page_title: "Gall Not Found | Gallformers", gall: nil, error: "Invalid gall ID")}
+        {:ok,
+         assign(socket,
+           page_title: "Gall Not Found | Gallformers",
+           gall: nil,
+           error: "Invalid gall ID"
+         )}
     end
   end
 
   defp load_gall(socket, gall_id) do
     case Species.get_gall_by_id(gall_id) do
       nil ->
-        {:ok, assign(socket, page_title: "Gall Not Found | Gallformers", gall: nil, error: "Gall not found")}
+        {:ok,
+         assign(socket,
+           page_title: "Gall Not Found | Gallformers",
+           gall: nil,
+           error: "Gall not found"
+         )}
 
       gall ->
         hosts = Hosts.get_hosts_for_gall(gall_id)
@@ -64,7 +74,7 @@ defmodule GallformersWeb.GallLive do
   end
 
   defp format_images(images) do
-    base_url = Gallformers.Species.Image.base_url()
+    base_url = Species.Image.base_url()
 
     Enum.map(images, fn img ->
       Map.merge(img, %{
@@ -76,15 +86,72 @@ defmodule GallformersWeb.GallLive do
 
   defp get_gall_filter_fields(gall_id) do
     %{
-      colors: get_filter_values(gall_id, "gallcolor", "color_id", Gallformers.FilterFields.Color, :color),
-      shapes: get_filter_values(gall_id, "gallshape", "shape_id", Gallformers.FilterFields.Shape, :shape),
-      textures: get_filter_values(gall_id, "galltexture", "texture_id", Gallformers.FilterFields.Texture, :texture),
-      alignments: get_filter_values(gall_id, "gallalignment", "alignment_id", Gallformers.FilterFields.Alignment, :alignment),
-      walls: get_filter_values(gall_id, "gallwalls", "walls_id", Gallformers.FilterFields.Walls, :walls),
-      locations: get_filter_values(gall_id, "galllocation", "location_id", Gallformers.FilterFields.Location, :location),
-      forms: get_filter_values(gall_id, "gallform", "form_id", Gallformers.FilterFields.Form, :form),
-      cells: get_filter_values(gall_id, "gallcells", "cells_id", Gallformers.FilterFields.Cells, :cells),
-      seasons: get_filter_values(gall_id, "gallseason", "season_id", Gallformers.FilterFields.Season, :season)
+      colors:
+        get_filter_values(
+          gall_id,
+          "gallcolor",
+          "color_id",
+          Gallformers.FilterFields.Color,
+          :color
+        ),
+      shapes:
+        get_filter_values(
+          gall_id,
+          "gallshape",
+          "shape_id",
+          Gallformers.FilterFields.Shape,
+          :shape
+        ),
+      textures:
+        get_filter_values(
+          gall_id,
+          "galltexture",
+          "texture_id",
+          Gallformers.FilterFields.Texture,
+          :texture
+        ),
+      alignments:
+        get_filter_values(
+          gall_id,
+          "gallalignment",
+          "alignment_id",
+          Gallformers.FilterFields.Alignment,
+          :alignment
+        ),
+      walls:
+        get_filter_values(
+          gall_id,
+          "gallwalls",
+          "walls_id",
+          Gallformers.FilterFields.Walls,
+          :walls
+        ),
+      locations:
+        get_filter_values(
+          gall_id,
+          "galllocation",
+          "location_id",
+          Gallformers.FilterFields.Location,
+          :location
+        ),
+      forms:
+        get_filter_values(gall_id, "gallform", "form_id", Gallformers.FilterFields.Form, :form),
+      cells:
+        get_filter_values(
+          gall_id,
+          "gallcells",
+          "cells_id",
+          Gallformers.FilterFields.Cells,
+          :cells
+        ),
+      seasons:
+        get_filter_values(
+          gall_id,
+          "gallseason",
+          "season_id",
+          Gallformers.FilterFields.Season,
+          :season
+        )
     }
   end
 
@@ -121,7 +188,10 @@ defmodule GallformersWeb.GallLive do
                   <h2 class="text-2xl font-bold"><em>{@gall.name}</em></h2>
                   <span class={[
                     "inline-flex items-center px-2 py-1 text-xs font-medium rounded-full",
-                    if(@gall.datacomplete, do: "bg-green-100 text-green-800", else: "bg-yellow-100 text-yellow-800")
+                    if(@gall.datacomplete,
+                      do: "bg-green-100 text-green-800",
+                      else: "bg-yellow-100 text-yellow-800"
+                    )
                   ]}>
                     {if @gall.datacomplete, do: "Complete", else: "In Progress"}
                   </span>
@@ -144,9 +214,18 @@ defmodule GallformersWeb.GallLive do
                     <strong>Hosts:</strong>
                     <em>
                       <%= for {host, i} <- Enum.with_index(@gall.hosts) do %>
-                        <.link href={"/host/#{host.host_species_id}"} class="hover:underline text-gf-maroon">
+                        <.link
+                          href={"/host/#{host.host_species_id}"}
+                          class="hover:underline text-gf-maroon"
+                        >
                           {host.host_name}
-                        </.link>{if i < length(@gall.hosts) - 1, do: " / "}
+                        </.link>{if i <
+                                                                                                   length(
+                                                                                                     @gall.hosts
+                                                                                                   ) -
+                                                                                                     1,
+                                                                                                 do:
+                                                                                                   " / "}
                       <% end %>
                     </em>
                   </div>
@@ -192,11 +271,14 @@ defmodule GallformersWeb.GallLive do
                   </div>
                   <%= if hd(@images).creator do %>
                     <p class="text-xs text-gray-500 mt-1">
-                      Photo: {hd(@images).creator}{if hd(@images).license, do: " (#{hd(@images).license})"}
+                      Photo: {hd(@images).creator}{if hd(@images).license,
+                        do: " (#{hd(@images).license})"}
                     </p>
                   <% end %>
                 <% else %>
-                  <div class="bg-gray-100 rounded p-6 text-center text-gray-500">No images available</div>
+                  <div class="bg-gray-100 rounded p-6 text-center text-gray-500">
+                    No images available
+                  </div>
                 <% end %>
               </div>
             </div>
@@ -208,7 +290,10 @@ defmodule GallformersWeb.GallLive do
               <div class="space-y-2">
                 <%= for source <- @sources do %>
                   <div class={"p-3 rounded border #{if source.id == @selected_source_id, do: "border-gf-maroon bg-canary", else: "border-gray-200 bg-white"}"}>
-                    <.link href={"/source/#{source.id}"} class="font-medium text-gf-maroon hover:underline">
+                    <.link
+                      href={"/source/#{source.id}"}
+                      class="font-medium text-gf-maroon hover:underline"
+                    >
                       {source.title}
                     </.link>
                     {if source.author, do: " - #{source.author}"}
@@ -223,12 +308,35 @@ defmodule GallformersWeb.GallLive do
             <hr class="border-gray-200 my-4" />
             <div class="mb-2"><strong>See Also:</strong></div>
             <div class="flex flex-wrap gap-4 text-sm">
-              <.link href={"https://www.inaturalist.org/taxa/search?q=#{URI.encode(@gall.name)}"} target="_blank" rel="noreferrer" class="text-gf-maroon hover:underline">iNaturalist</.link>
-              <.link href={"https://bugguide.net/index.php?q=search&keys=#{URI.encode(@gall.name)}"} target="_blank" rel="noreferrer" class="text-gf-maroon hover:underline">BugGuide</.link>
-              <.link href={"https://scholar.google.com/scholar?q=#{URI.encode(@gall.name)}"} target="_blank" rel="noreferrer" class="text-gf-maroon hover:underline">Google Scholar</.link>
+              <.link
+                href={"https://www.inaturalist.org/taxa/search?q=#{URI.encode(@gall.name)}"}
+                target="_blank"
+                rel="noreferrer"
+                class="text-gf-maroon hover:underline"
+              >
+                iNaturalist
+              </.link>
+              <.link
+                href={"https://bugguide.net/index.php?q=search&keys=#{URI.encode(@gall.name)}"}
+                target="_blank"
+                rel="noreferrer"
+                class="text-gf-maroon hover:underline"
+              >
+                BugGuide
+              </.link>
+              <.link
+                href={"https://scholar.google.com/scholar?q=#{URI.encode(@gall.name)}"}
+                target="_blank"
+                rel="noreferrer"
+                class="text-gf-maroon hover:underline"
+              >
+                Google Scholar
+              </.link>
             </div>
           <% else %>
-            <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">Gall not found</div>
+            <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
+              Gall not found
+            </div>
           <% end %>
         <% end %>
       </div>
