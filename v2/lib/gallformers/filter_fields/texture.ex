@@ -1,0 +1,23 @@
+defmodule Gallformers.FilterFields.Texture do
+  @moduledoc """
+  Ecto schema for the texture table.
+
+  Textures that describe the surface of galls (e.g., "hairy", "smooth").
+  """
+  use Ecto.Schema
+
+  @type t :: %__MODULE__{
+          id: integer() | nil,
+          texture: String.t() | nil,
+          description: String.t() | nil
+        }
+
+  schema "texture" do
+    field :texture, :string
+    field :description, :string
+
+    many_to_many :galls, Gallformers.Species.Gall,
+      join_through: "galltexture",
+      join_keys: [texture_id: :id, gall_id: :id]
+  end
+end

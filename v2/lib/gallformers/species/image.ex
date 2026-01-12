@@ -12,23 +12,33 @@ defmodule Gallformers.Species.Image do
   @type t :: %__MODULE__{
           id: integer() | nil,
           species_id: integer() | nil,
+          source_id: integer() | nil,
           path: String.t() | nil,
           default: boolean(),
           creator: String.t() | nil,
+          attribution: String.t() | nil,
           license: String.t() | nil,
           licenselink: String.t() | nil,
-          sourcelink: String.t() | nil
+          sourcelink: String.t() | nil,
+          uploader: String.t() | nil,
+          lastchangedby: String.t() | nil,
+          caption: String.t() | nil
         }
 
   schema "image" do
     field :path, :string
     field :default, :boolean, default: false
     field :creator, :string
+    field :attribution, :string
     field :license, :string
     field :licenselink, :string
     field :sourcelink, :string
+    field :uploader, :string
+    field :lastchangedby, :string
+    field :caption, :string
 
     belongs_to :species, Gallformers.Species.Species
+    belongs_to :source, Gallformers.Sources.Source
   end
 
   @doc """
