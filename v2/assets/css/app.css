@@ -6,6 +6,38 @@
 @source "../js";
 @source "../../lib/gallformers_web";
 
+/* ============================================
+   Gallformers Custom Theme
+   ============================================ */
+@theme {
+  /* Gallformers brand colors from v1 */
+  --color-gf-sky-blue: #c1e0f3;
+  --color-gf-autumn: #bc6428;
+  --color-gf-maroon: #661419;
+
+  /* Additional palette colors */
+  --color-cadet-blue: #96adc8;
+  --color-canary: #f8f991;
+  --color-independence: #585563;
+  --color-new-york-pink: #ce796b;
+  --color-persian-orange: #c18c5d;
+
+  /* Table colors */
+  --color-table-header: #96adc8;
+  --color-table-selected: #f8f991;
+
+  /* Font family */
+  --font-family-sans: "League Spartan", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, sans-serif;
+}
+
+/* League Spartan variable font */
+@font-face {
+  font-family: "League Spartan";
+  src: url('/branding/Font/LeagueSpartan-VF.ttf') format('truetype');
+  font-weight: 100 900;
+  font-display: swap;
+}
+
 /* A Tailwind plugin that makes "hero-#{ICON}" classes available.
    The heroicons installation itself is managed by your mix.exs */
 @plugin "../vendor/heroicons";
@@ -102,4 +134,128 @@
 /* Make LiveView wrapper divs transparent for layout */
 [data-phx-session], [data-phx-teleported-src] { display: contents }
 
-/* This file is for your main application CSS */
+/* ============================================
+   Gallformers Base Styles
+   ============================================ */
+
+/* Restore heading sizes stripped by Tailwind preflight */
+h1 { font-size: 2.5rem; font-weight: 700; }
+h2 { font-size: 2rem; font-weight: 600; }
+h3 { font-size: 1.75rem; font-weight: 600; }
+h4 { font-size: 1.5rem; font-weight: 600; }
+h5 { font-size: 1.25rem; font-weight: 600; }
+h6 { font-size: 1rem; font-weight: 600; }
+
+body {
+  font-size: large;
+  color: #212529; /* Bootstrap default dark text - matches V1 */
+}
+
+/* Make bold text properly bold (Tailwind preflight can weaken this) */
+strong, b {
+  font-weight: 700;
+}
+
+a {
+  color: #0d6efd; /* Bootstrap 5 link blue */
+  text-decoration: none;
+}
+
+a:hover {
+  color: #0a58ca; /* Bootstrap 5 link hover blue */
+  text-decoration: underline;
+}
+
+/* Card styles similar to v1 */
+.card {
+  border-color: #fff;
+}
+
+.card-header {
+  color: var(--color-gf-maroon);
+  background-color: #fff;
+}
+
+/* Table header styling */
+.table-header {
+  background-color: rgba(0, 128, 0, 0.205);
+}
+
+/* Description text */
+.description-text {
+  font-size: 16px;
+  line-height: 180%;
+}
+
+/* Blockquote styling */
+blockquote {
+  margin-top: 10px;
+  margin-bottom: 10px;
+  margin-left: 50px;
+  padding-left: 15px;
+  border-left: 3px solid #ccc;
+}
+
+/* Jargon/glossary term styling */
+.jargon-term {
+  text-decoration: underline dotted #228be6;
+}
+
+.jargon-term::after {
+  content: '?';
+  font-weight: bold;
+  display: inline-block;
+  transform: translate(0, -0.5em);
+  font-size: 75%;
+  color: #228be6;
+  margin-left: 3px;
+}
+
+.jargon-term:hover {
+  position: relative;
+  text-decoration: none;
+  cursor: help;
+}
+
+.jargon-term .jargon-info {
+  display: none;
+}
+
+.jargon-term:hover .jargon-info {
+  display: block;
+  position: absolute;
+  top: 1.5em;
+  left: 0;
+  background: #f8f8f8;
+  border: 1px solid #228be6;
+  padding: 1rem;
+  border-radius: 4px;
+  font-size: 75%;
+  min-width: 250px;
+  max-width: 450px;
+  z-index: 1;
+}
+
+/* Rendered markdown content styling */
+.markdown-content a {
+  color: #2563eb;
+  text-decoration: underline;
+}
+
+.markdown-content a:hover {
+  color: #1d4ed8;
+}
+
+.markdown-content p {
+  margin-bottom: 0.5em;
+}
+
+.markdown-content ul,
+.markdown-content ol {
+  margin-left: 1.5em;
+  margin-bottom: 0.5em;
+}
+
+.markdown-content li {
+  margin-bottom: 0.25em;
+}
