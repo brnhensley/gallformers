@@ -25,11 +25,160 @@ import {LiveSocket} from "phoenix_live_view"
 import {hooks as colocatedHooks} from "phoenix-colocated/gallformers"
 import topbar from "../vendor/topbar"
 
+// Custom hooks for UI components
+const Tabs = {
+  mounted() {
+    const defaultTab = this.el.dataset.defaultTab
+    this.activateTab(defaultTab)
+
+    // Handle tab clicks
+    this.el.querySelectorAll("[data-tab-id]").forEach(button => {
+      button.addEventListener("click", (e) => {
+        this.activateTab(e.currentTarget.dataset.tabId)
+      })
+    })
+
+    // Handle keyboard navigation
+    this.el.querySelectorAll("[data-tab-id]").forEach(button => {
+      button.addEventListener("keydown", (e) => {
+        const tabs = Array.from(this.el.querySelectorAll("[data-tab-id]"))
+        const currentIndex = tabs.indexOf(e.currentTarget)
+        let newIndex = currentIndex
+
+        if (e.key === "ArrowLeft") {
+          newIndex = currentIndex > 0 ? currentIndex - 1 : tabs.length - 1
+        } else if (e.key === "ArrowRight") {
+          newIndex = currentIndex < tabs.length - 1 ? currentIndex + 1 : 0
+        } else if (e.key === "Home") {
+          newIndex = 0
+        } else if (e.key === "End") {
+          newIndex = tabs.length - 1
+        } else {
+          return
+        }
+
+        e.preventDefault()
+        const newTab = tabs[newIndex]
+        newTab.focus()
+        this.activateTab(newTab.dataset.tabId)
+      })
+    })
+  },
+  activateTab(tabId) {
+    // Update tab buttons
+    this.el.querySelectorAll("[data-tab-id]").forEach(button => {
+      if (button.dataset.tabId === tabId) {
+        button.setAttribute("data-active", "")
+        button.setAttribute("aria-selected", "true")
+      } else {
+        button.removeAttribute("data-active")
+        button.setAttribute("aria-selected", "false")
+      }
+    })
+
+    // Update tab panels
+    this.el.querySelectorAll("[data-tab-panel]").forEach(panel => {
+      if (panel.dataset.tabPanel === tabId) {
+        panel.setAttribute("data-active", "")
+      } else {
+        panel.removeAttribute("data-active")
+      }
+    })
+  }
+}
+
+// ImageGallery hook for keyboard navigation and lightbox
+const ImageGallery = {
+  mounted() {
+    this.currentIndex = 0
+    this.images = JSON.parse(this.el.dataset.images || "[]")
+    this.lightboxOpen = false
+
+    // Keyboard navigation
+    this.keyHandler = (e) => {
+      if (e.key === "ArrowLeft") {
+        this.prevImage()
+      } else if (e.key === "ArrowRight") {
+        this.nextImage()
+      } else if (e.key === "Escape" && this.lightboxOpen) {
+        this.closeLightbox()
+      }
+    }
+
+    this.el.addEventListener("keydown", this.keyHandler)
+
+    // Navigation button handlers
+    this.el.querySelectorAll("[data-prev]").forEach(btn => {
+      btn.addEventListener("click", () => this.prevImage())
+    })
+    this.el.querySelectorAll("[data-next]").forEach(btn => {
+      btn.addEventListener("click", () => this.nextImage())
+    })
+
+    // Lightbox handlers
+    this.el.querySelectorAll("[data-open-lightbox]").forEach(btn => {
+      btn.addEventListener("click", () => this.openLightbox())
+    })
+    this.el.querySelectorAll("[data-close-lightbox]").forEach(btn => {
+      btn.addEventListener("click", () => this.closeLightbox())
+    })
+  },
+  destroyed() {
+    this.el.removeEventListener("keydown", this.keyHandler)
+  },
+  prevImage() {
+    this.currentIndex = this.currentIndex > 0 ? this.currentIndex - 1 : this.images.length - 1
+    this.updateDisplay()
+  },
+  nextImage() {
+    this.currentIndex = this.currentIndex < this.images.length - 1 ? this.currentIndex + 1 : 0
+    this.updateDisplay()
+  },
+  updateDisplay() {
+    // Update main image
+    const mainImg = this.el.querySelector("[data-main-image]")
+    if (mainImg && this.images[this.currentIndex]) {
+      mainImg.src = this.images[this.currentIndex].src
+      mainImg.alt = this.images[this.currentIndex].alt || ""
+    }
+
+    // Update lightbox image
+    const lightboxImg = this.el.querySelector("[data-lightbox-image]")
+    if (lightboxImg && this.images[this.currentIndex]) {
+      lightboxImg.src = this.images[this.currentIndex].src
+      lightboxImg.alt = this.images[this.currentIndex].alt || ""
+    }
+
+    // Update counter
+    const counter = this.el.querySelector("[data-counter]")
+    if (counter) {
+      counter.textContent = `${this.currentIndex + 1} / ${this.images.length}`
+    }
+
+    // Push event to server if needed
+    this.pushEvent("gallery_index_changed", {index: this.currentIndex})
+  },
+  openLightbox() {
+    this.lightboxOpen = true
+    const lightbox = this.el.querySelector("[data-lightbox]")
+    if (lightbox) {
+      lightbox.showModal()
+    }
+  },
+  closeLightbox() {
+    this.lightboxOpen = false
+    const lightbox = this.el.querySelector("[data-lightbox]")
+    if (lightbox) {
+      lightbox.close()
+    }
+  }
+}
+
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {...colocatedHooks},
+  hooks: {...colocatedHooks, Tabs, ImageGallery},
 })
 
 // Show progress bar on live navigation and form submits

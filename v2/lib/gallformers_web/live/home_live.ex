@@ -145,21 +145,4 @@ defmodule GallformersWeb.HomeLive do
     </Layouts.app>
     """
   end
-
-  # A simple card component with a title and content.
-  attr :title, :string, required: true
-  slot :inner_block, required: true
-
-  defp card(assigns) do
-    ~H"""
-    <div class="bg-white rounded border border-gray-200 shadow-sm">
-      <div class="px-4 py-3 border-b border-gray-200">
-        <h2 class="text-xl font-semibold text-gf-maroon">{@title}</h2>
-      </div>
-      <div class="p-4">
-        {render_slot(@inner_block)}
-      </div>
-    </div>
-    """
-  end
 end
