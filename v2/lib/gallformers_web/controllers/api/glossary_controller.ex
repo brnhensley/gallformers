@@ -9,9 +9,9 @@ defmodule GallformersWeb.API.GlossaryController do
   alias Gallformers.Glossary
   alias GallformersWeb.Schemas
 
-  tags ["Glossary"]
+  tags(["Glossary"])
 
-  operation :index,
+  operation(:index,
     summary: "List glossary entries",
     description: "Lists all glossary entries with optional search and pagination",
     parameters: [
@@ -20,16 +20,19 @@ defmodule GallformersWeb.API.GlossaryController do
       offset: [in: :query, type: :integer, description: "Number of results to skip"]
     ],
     responses: [
-      ok: {"List of glossary entries", "application/json", %OpenApiSpex.Schema{
-        type: :object,
-        properties: %{
-          data: %OpenApiSpex.Schema{type: :array, items: Schemas.Glossary},
-          total: %OpenApiSpex.Schema{type: :integer},
-          limit: %OpenApiSpex.Schema{type: :integer, nullable: true},
-          offset: %OpenApiSpex.Schema{type: :integer}
-        }
-      }}
+      ok:
+        {"List of glossary entries", "application/json",
+         %OpenApiSpex.Schema{
+           type: :object,
+           properties: %{
+             data: %OpenApiSpex.Schema{type: :array, items: Schemas.Glossary},
+             total: %OpenApiSpex.Schema{type: :integer},
+             limit: %OpenApiSpex.Schema{type: :integer, nullable: true},
+             offset: %OpenApiSpex.Schema{type: :integer}
+           }
+         }}
     ]
+  )
 
   @doc """
   GET /api/v2/glossary
@@ -69,7 +72,7 @@ defmodule GallformersWeb.API.GlossaryController do
     })
   end
 
-  operation :show,
+  operation(:show,
     summary: "Get a glossary entry",
     description: "Gets a single glossary entry by ID",
     parameters: [
@@ -79,6 +82,7 @@ defmodule GallformersWeb.API.GlossaryController do
       ok: {"Glossary entry", "application/json", Schemas.Glossary},
       not_found: {"Glossary entry not found", "application/json", Schemas.Error}
     ]
+  )
 
   @doc """
   GET /api/v2/glossary/:id
@@ -104,7 +108,7 @@ defmodule GallformersWeb.API.GlossaryController do
     end
   end
 
-  operation :by_word,
+  operation(:by_word,
     summary: "Get glossary entry by word",
     description: "Gets a glossary entry by word",
     parameters: [
@@ -114,6 +118,7 @@ defmodule GallformersWeb.API.GlossaryController do
       ok: {"Glossary entry", "application/json", Schemas.Glossary},
       not_found: {"Glossary entry not found", "application/json", Schemas.Error}
     ]
+  )
 
   @doc """
   GET /api/v2/glossary/by-word/:word

@@ -9,9 +9,9 @@ defmodule GallformersWeb.API.HostController do
   alias Gallformers.{Hosts, Search}
   alias GallformersWeb.Schemas
 
-  tags ["Hosts"]
+  tags(["Hosts"])
 
-  operation :index,
+  operation(:index,
     summary: "List hosts",
     description: "Lists all hosts with optional search and pagination",
     parameters: [
@@ -23,6 +23,7 @@ defmodule GallformersWeb.API.HostController do
     responses: [
       ok: {"List of hosts", "application/json", Schemas.HostListResponse}
     ]
+  )
 
   @doc """
   GET /api/v2/hosts
@@ -71,7 +72,7 @@ defmodule GallformersWeb.API.HostController do
     })
   end
 
-  operation :show,
+  operation(:show,
     summary: "Get a host",
     description: "Gets a single host by ID with full details",
     parameters: [
@@ -82,6 +83,7 @@ defmodule GallformersWeb.API.HostController do
       ok: {"Host details", "application/json", Schemas.HostResponse},
       not_found: {"Host not found", "application/json", Schemas.Error}
     ]
+  )
 
   @doc """
   GET /api/v2/hosts/:id

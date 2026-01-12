@@ -317,29 +317,29 @@ Port endpoints matching v2_old patterns (see `v2_old/api/internal/handlers/`):
 - [x] 15.4 Cache compiled markdown in ETS or process state
 - [x] 15.5 Test markdown rendering in source descriptions
 
-## 16. Testing
+## 16. Testing ✅
 
-### 16.1 Unit Tests
-- [ ] 16.1.1 Test Ecto schemas and changesets
-- [ ] 16.1.2 Test context functions
-- [ ] 16.1.3 Test markdown processing
-- [ ] 16.1.4 Test glossary linking
+### 16.1 Unit Tests ✅
+- [x] 16.1.1 Test Ecto schemas and changesets
+- [x] 16.1.2 Test context functions
+- [x] 16.1.3 Test markdown processing
+- [x] 16.1.4 Test glossary linking
 
-### 16.2 LiveView Tests
-- [ ] 16.2.1 Test public page LiveViews render correctly
-- [ ] 16.2.2 Test search LiveView events
-- [ ] 16.2.3 Test ID tool filter events
-- [ ] 16.2.4 Test admin form submission
+### 16.2 LiveView Tests ✅
+- [x] 16.2.1 Test public page LiveViews render correctly
+- [x] 16.2.2 Test search LiveView events
+- [x] 16.2.3 Test ID tool filter events
+- [x] 16.2.4 Test admin form submission
 
-### 16.3 Integration Tests
-- [ ] 16.3.1 Test full page load flows
-- [ ] 16.3.2 Test authentication flow
-- [ ] 16.3.3 Test PubSub broadcast → LiveView update
+### 16.3 Integration Tests ✅
+- [x] 16.3.1 Test full page load flows
+- [x] 16.3.2 Test authentication flow
+- [x] 16.3.3 Test PubSub broadcast → LiveView update
 
-### 16.4 API Tests
-- [ ] 16.4.1 Test API endpoints return correct JSON
-- [ ] 16.4.2 Test API error responses
-- [ ] 16.4.3 Test CORS headers
+### 16.4 API Tests ✅
+- [x] 16.4.1 Test API endpoints return correct JSON
+- [x] 16.4.2 Test API error responses
+- [x] 16.4.3 Test CORS headers
 
 ## 17. Visual Parity Verification
 

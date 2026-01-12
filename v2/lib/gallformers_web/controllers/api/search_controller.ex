@@ -9,9 +9,9 @@ defmodule GallformersWeb.API.SearchController do
   alias Gallformers.Search
   alias GallformersWeb.Schemas
 
-  tags ["Search"]
+  tags(["Search"])
 
-  operation :search,
+  operation(:search,
     summary: "Global search",
     description: "Performs a global search across all entity types",
     parameters: [
@@ -20,6 +20,7 @@ defmodule GallformersWeb.API.SearchController do
     responses: [
       ok: {"Search results", "application/json", Schemas.SearchResults}
     ]
+  )
 
   @doc """
   GET /api/v2/search?q=query
