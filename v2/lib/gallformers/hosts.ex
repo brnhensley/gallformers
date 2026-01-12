@@ -184,4 +184,47 @@ defmodule Gallformers.Hosts do
     )
     |> Repo.all()
   end
+
+  @doc """
+  Searches for host species by name prefix (case-insensitive).
+
+  Used for typeahead/autocomplete functionality.
+  Returns up to `limit` results ordered by name.
+  """
+  @spec search_hosts(String.t(), integer()) :: [map()]
+  def search_hosts(query, limit \\ 20) when is_binary(query) do
+    search_pattern = "#{query}%"
+
+    from(s in Species,
+      left_join: a in "alias",
+      on: a.species_id == s.id,
+      where: s.taxoncode == "plant",
+      where: ilike(s.name, ^search_pattern) or ilike(a.name, ^search_pattern),
+      order_by: s.name,
+      limit: ^limit,
+      distinct: s.id,
+      select: %{
+        id: s.id,
+        name: s.name,
+        datacomplete: s.datacomplete
+      }
+    )
+    |> Repo.all()
+    |> Enum.map(fn host ->
+      aliases = get_aliases_for_host(host.id)
+      Map.put(host, :aliases, aliases)
+    end)
+  end
+
+  @doc """
+  Gets aliases for a host species.
+  """
+  @spec get_aliases_for_host(integer()) :: [String.t()]
+  def get_aliases_for_host(host_id) do
+    from(a in "alias",
+      where: a.species_id == ^host_id,
+      select: a.name
+    )
+    |> Repo.all()
+  end
 end

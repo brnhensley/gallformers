@@ -22,7 +22,10 @@ defmodule Gallformers.IDTool do
 
   alias Gallformers.Hosts.Host
   alias Gallformers.Repo
-  alias Gallformers.Species.{Gall, GallSpecies, Species}
+  alias Gallformers.Species
+  alias Gallformers.Species.{Gall, GallSpecies, Image}
+  alias Gallformers.Species.Species, as: SpeciesSchema
+  alias Gallformers.Taxonomy.Taxonomy
 
   @doc """
   Returns all filter field options for the ID tool.
@@ -67,6 +70,8 @@ defmodule Gallformers.IDTool do
   def filter_galls(filters \\ %{}) do
     base_query()
     |> apply_host_filter(filters[:host_ids])
+    |> apply_genus_filter(filters[:genus_id])
+    |> apply_family_filter(filters[:family_id])
     |> apply_location_filter(filters[:location_ids])
     |> apply_color_filter(filters[:color_ids])
     |> apply_shape_filter(filters[:shape_ids])
@@ -78,8 +83,10 @@ defmodule Gallformers.IDTool do
     |> apply_season_filter(filters[:season_ids])
     |> apply_detachable_filter(filters[:detachable])
     |> apply_place_filter(filters[:place_codes])
+    |> apply_undescribed_filter(filters[:undescribed])
     |> select_gall_fields()
     |> Repo.all()
+    |> attach_images()
   end
 
   @doc """
@@ -178,7 +185,7 @@ defmodule Gallformers.IDTool do
   # Private query building functions
 
   defp base_query do
-    from s in Species,
+    from s in SpeciesSchema,
       join: gs in GallSpecies,
       on: gs.species_id == s.id,
       join: g in Gall,
@@ -330,5 +337,52 @@ defmodule Gallformers.IDTool do
             where: p2.code in ^place_codes,
             select: sp2.species_id
         )
+  end
+
+  defp apply_genus_filter(query, nil), do: query
+
+  defp apply_genus_filter(query, genus_id) do
+    from [s, _gs, _g] in query,
+      join: st in "speciestaxonomy",
+      on: st.species_id == s.id,
+      where: st.taxonomy_id == ^genus_id
+  end
+
+  defp apply_family_filter(query, nil), do: query
+
+  defp apply_family_filter(query, family_id) do
+    from [s, _gs, _g] in query,
+      join: st in "speciestaxonomy",
+      on: st.species_id == s.id,
+      join: t in Taxonomy,
+      on: st.taxonomy_id == t.id,
+      where: t.parent_id == ^family_id
+  end
+
+  defp apply_undescribed_filter(query, nil), do: query
+  defp apply_undescribed_filter(query, false), do: query
+
+  defp apply_undescribed_filter(query, true) do
+    from [s, _gs, g] in query,
+      where: g.undescribed == true
+  end
+
+  defp attach_images(galls) do
+    # Get all default images for gall species
+    image_map =
+      Species.get_default_gall_images()
+      |> Enum.into(%{}, fn %{species_id: id, path: path} -> {id, path} end)
+
+    base_url = Image.base_url()
+
+    Enum.map(galls, fn gall ->
+      case Map.get(image_map, gall.id) do
+        nil ->
+          Map.put(gall, :image_url, nil)
+
+        path ->
+          Map.put(gall, :image_url, "#{base_url}/small/#{path}")
+      end
+    end)
   end
 end
