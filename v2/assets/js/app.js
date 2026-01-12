@@ -24,6 +24,9 @@ import {Socket} from "phoenix"
 import {LiveSocket} from "phoenix_live_view"
 import topbar from "../vendor/topbar"
 
+// Import external hooks
+import RangeMap from "./hooks/range_map"
+
 // Custom hooks for UI components
 const Tabs = {
   mounted() {
@@ -177,7 +180,7 @@ const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {Tabs, ImageGallery},
+  hooks: {Tabs, ImageGallery, RangeMap},
 })
 
 // Show progress bar on live navigation and form submits

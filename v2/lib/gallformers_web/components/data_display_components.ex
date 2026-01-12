@@ -575,4 +575,65 @@ defmodule GallformersWeb.DataDisplayComponents do
     </span>
     """
   end
+
+  @doc """
+  Renders a geographic range map showing US and Canadian states/provinces.
+
+  Uses D3.js for SVG-based choropleth rendering. Displays regions in green if
+  in range, coral if excluded, and white otherwise.
+
+  ## Examples
+
+      <.range_map in_range={["CA", "TX", "NY"]} />
+
+      <.range_map in_range={["CA", "TX"]} excluded_range={["AZ"]} />
+
+      <.range_map in_range={@places} editable on_toggle={JS.push("toggle_region")} />
+  """
+  attr :in_range, :list,
+    required: true,
+    doc: "list of postal codes in range (e.g., [\"CA\", \"TX\"])"
+
+  attr :excluded_range, :list,
+    default: [],
+    doc: "list of postal codes explicitly excluded"
+
+  attr :editable, :boolean,
+    default: false,
+    doc: "whether regions are clickable for editing"
+
+  attr :id, :string,
+    default: "range-map",
+    doc: "unique id for the map element"
+
+  attr :class, :any,
+    default: nil,
+    doc: "additional CSS classes"
+
+  def range_map(assigns) do
+    in_range_json = Jason.encode!(assigns.in_range)
+    excluded_range_json = Jason.encode!(assigns.excluded_range)
+
+    assigns =
+      assigns
+      |> assign(:in_range_json, in_range_json)
+      |> assign(:excluded_range_json, excluded_range_json)
+
+    ~H"""
+    <div
+      id={@id}
+      class={["relative", @class]}
+      phx-hook="RangeMap"
+      phx-update="ignore"
+      data-in-range={@in_range_json}
+      data-excluded-range={@excluded_range_json}
+      data-editable={to_string(@editable)}
+    >
+      <div class="flex items-center justify-center p-8 text-gray-500">
+        <.icon name="hero-map" class="size-8 animate-pulse" />
+        <span class="ml-2">{gettext("Loading map...")}</span>
+      </div>
+    </div>
+    """
+  end
 end
