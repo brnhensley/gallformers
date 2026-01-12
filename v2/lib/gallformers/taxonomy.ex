@@ -167,4 +167,62 @@ defmodule Gallformers.Taxonomy do
       Enum.reverse(acc)
     end
   end
+
+  @doc """
+  Searches for genera and sections by name prefix (case-insensitive).
+
+  Used for typeahead/autocomplete functionality in the ID tool.
+  Returns up to `limit` results ordered by name.
+  """
+  @spec search_genera_and_sections(String.t(), integer()) :: [map()]
+  def search_genera_and_sections(query, limit \\ 20) when is_binary(query) do
+    search_pattern = "#{query}%"
+
+    from(t in Taxonomy,
+      where: t.type in ["genus", "section"],
+      where: ilike(t.name, ^search_pattern),
+      order_by: [t.type, t.name],
+      limit: ^limit,
+      select: %{
+        id: t.id,
+        name: t.name,
+        type: t.type,
+        description: t.description
+      }
+    )
+    |> Repo.all()
+  end
+
+  @doc """
+  Gets a taxonomy by name (for URL parameter lookups).
+  """
+  @spec get_taxonomy_by_name(String.t()) :: Taxonomy.t() | nil
+  def get_taxonomy_by_name(name) when is_binary(name) do
+    from(t in Taxonomy,
+      where: t.name == ^name,
+      limit: 1
+    )
+    |> Repo.one()
+  end
+
+  @doc """
+  Lists all genera for gall species (for family filter in ID tool).
+  """
+  @spec list_gall_families() :: [map()]
+  def list_gall_families do
+    from(t in Taxonomy,
+      join: st in "speciestaxonomy",
+      on: st.taxonomy_id == t.id,
+      join: s in Gallformers.Species.Species,
+      on: st.species_id == s.id,
+      where: s.taxoncode == "gall" and t.type == "family",
+      distinct: t.id,
+      order_by: t.name,
+      select: %{
+        id: t.id,
+        name: t.name
+      }
+    )
+    |> Repo.all()
+  end
 end

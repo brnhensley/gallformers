@@ -181,14 +181,14 @@ Build one page at a time, deploy after each, verify visual parity.
 
 ## 8. ID Tool (LiveView)
 
-- [ ] 8.1 Create `IDLive` with filter form
-- [ ] 8.2 Implement `handle_params` for URL-based filter state
-- [ ] 8.3 Implement filter change handlers with `push_patch`
-- [ ] 8.4 Create results grid component
-- [ ] 8.5 Implement host picker (LiveView typeahead)
-- [ ] 8.6 Implement genus picker (LiveView typeahead)
-- [ ] 8.7 Port all filter options (color, shape, texture, location, etc.)
-- [ ] 8.8 Test back/forward navigation preserves filters
+- [x] 8.1 Create `IDLive` with filter form
+- [x] 8.2 Implement `handle_params` for URL-based filter state
+- [x] 8.3 Implement filter change handlers with `push_patch`
+- [x] 8.4 Create results grid component
+- [x] 8.5 Implement host picker (LiveView typeahead)
+- [x] 8.6 Implement genus picker (LiveView typeahead)
+- [x] 8.7 Port all filter options (color, shape, texture, location, etc.)
+- [x] 8.8 Test back/forward navigation preserves filters
 
 ## 9. Explore Page (LiveView)
 
