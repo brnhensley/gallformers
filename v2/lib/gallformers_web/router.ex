@@ -30,13 +30,6 @@ defmodule GallformersWeb.Router do
   # Health check for Fly.io (no pipeline needed)
   get "/health", GallformersWeb.HealthController, :check
 
-  # Admin routes (require authentication)
-  scope "/admin", GallformersWeb do
-    pipe_through [:browser, :admin]
-
-    live "/", AdminDashboardLive
-    live "/images", AdminImagesLive
-  end
 
   # Public routes
   scope "/", GallformersWeb do
