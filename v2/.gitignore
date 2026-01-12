@@ -39,3 +39,5 @@ npm-debug.log
 *.db
 *.db-*
 
+# Dialyzer PLT files (large, environment-specific)
+/priv/plts/

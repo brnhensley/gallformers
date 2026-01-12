@@ -12,7 +12,8 @@ defmodule Gallformers.MixProject do
       deps: deps(),
       releases: releases(),
       compilers: [:phoenix_live_view] ++ Mix.compilers(),
-      listeners: [Phoenix.CodeReloader]
+      listeners: [Phoenix.CodeReloader],
+      dialyzer: dialyzer()
     ]
   end
 
@@ -68,7 +69,8 @@ defmodule Gallformers.MixProject do
       {:dns_cluster, "~> 0.2.0"},
       {:bandit, "~> 1.5"},
       # Dev/Test tools
-      {:credo, "~> 1.7", only: [:dev, :test], runtime: false}
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
+      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false}
     ]
   end
 
@@ -92,6 +94,18 @@ defmodule Gallformers.MixProject do
         "phx.digest"
       ],
       precommit: ["compile --warnings-as-errors", "deps.unlock --unused", "format", "test"]
+    ]
+  end
+
+  defp dialyzer do
+    [
+      plt_core_path: "priv/plts/core.plt",
+      plt_local_path: "priv/plts/project.plt",
+      plt_add_apps: [:mix, :ex_unit],
+      flags: [
+        :error_handling,
+        :unknown
+      ]
     ]
   end
 
