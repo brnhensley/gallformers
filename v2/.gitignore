@@ -1,30 +1,45 @@
-# Environment files
-.env
-.env.local
+# The directory Mix will write compiled artifacts to.
+/_build/
 
-# Go build artifacts
-api/gallformers-api
+# If you run "mix test --cover", coverage assets end up here.
+/cover/
 
-# Node/Svelte
-web/node_modules/
-web/build/
-web/.svelte-kit/
+# The directory Mix downloads your dependencies sources to.
+/deps/
 
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
+# Where 3rd-party dependencies like ExDoc output generated docs.
+/doc/
 
-# macOS
-.DS_Store
+# Ignore .fetch files in case you like to edit your project deps locally.
+/.fetch
 
-# Testing
-.coverage
-web/playwright-report/
-web/test-results/
+# If the VM crashes, it generates a dump, let's ignore it too.
+erl_crash.dump
 
-# Logs
-*.log
+# Also ignore archive artifacts (built via "mix archive.build").
+*.ez
 
+# Temporary files, for example, from tests.
+/tmp/
+
+# Ignore package tarball (built via "mix hex.build").
+gallformers-*.tar
+
+# Ignore assets that are produced by build tools.
+/priv/static/assets/
+
+# Ignore digested assets cache.
+/priv/static/cache_manifest.json
+
+# In case you use Node.js/npm, you want to ignore these.
+npm-debug.log
+/assets/node_modules/
+
+# Database files
+*.db
+*.db-*
+*.sqlite
+*.sqlite-*
+
+# Dialyzer PLT files (large, environment-specific)
+/priv/plts/

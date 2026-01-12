@@ -1,49 +1,79 @@
-# Gallformers V2 - Multi-stage Dockerfile
-# Builds Go API with embedded Svelte static files
+# Gallformers V2 - Phoenix Dockerfile
+# Multi-stage build for Phoenix release with Litestream
 
-# Stage 1: Build Svelte frontend
-FROM node:20-alpine AS web-builder
+# Stage 1: Build Elixir release
+FROM hexpm/elixir:1.17.3-erlang-27.1.2-alpine-3.20.3 AS builder
 
-WORKDIR /app/web
-COPY web/package*.json ./
-RUN npm ci
-COPY web/ .
-RUN npm run build
-
-# Stage 2: Build Go API
-FROM golang:1.23-alpine AS api-builder
-RUN apk add --no-cache gcc musl-dev git
+# Install build dependencies
+RUN apk add --no-cache build-base git
 
 WORKDIR /app
 
-# Copy go.mod and go.sum first for better layer caching
-COPY api/go.mod api/go.sum ./
-RUN go mod download
+# Install hex + rebar
+RUN mix local.hex --force && \
+    mix local.rebar --force
 
-# Copy API source code
-COPY api/ .
+# Set build ENV
+ENV MIX_ENV=prod
 
-# Copy built web static files to cmd/server/static for Go embedding
-# (main.go uses //go:embed static/* which embeds from cmd/server/static/)
-COPY --from=web-builder /app/web/build ./cmd/server/static
+# Install mix dependencies
+COPY mix.exs mix.lock ./
+RUN mix deps.get --only $MIX_ENV
+RUN mkdir config
 
-# Build with CGO enabled for SQLite
-ARG VERSION=dev
-RUN CGO_ENABLED=1 go build \
-    -ldflags "-X main.Version=${VERSION} -X main.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-    -o gallformers-api ./cmd/server
+# Copy compile-time config files
+COPY config/config.exs config/${MIX_ENV}.exs config/
+RUN mix deps.compile
 
-# Stage 3: Runtime
-FROM alpine:3.19
-RUN apk add --no-cache ca-certificates sqlite
+# Copy application code
+COPY lib lib
+COPY priv priv
+COPY assets assets
+
+# Copy release overlays (server, migrate scripts)
+COPY rel rel
+
+# Copy runtime config
+COPY config/runtime.exs config/
+
+# Compile first (needed for colocated hooks)
+RUN mix compile
+
+# Build assets (esbuild + tailwind are installed via mix)
+RUN mix assets.deploy
+
+# Build the release
+RUN mix release
+
+# Stage 2: Runtime
+FROM alpine:3.20 AS runtime
+
+RUN apk add --no-cache libstdc++ openssl ncurses-libs sqlite su-exec
 
 # Install Litestream for continuous SQLite replication
 ADD https://github.com/benbjohnson/litestream/releases/download/v0.3.13/litestream-v0.3.13-linux-amd64.tar.gz /tmp/litestream.tar.gz
 RUN tar -C /usr/local/bin -xzf /tmp/litestream.tar.gz && rm /tmp/litestream.tar.gz
 
 WORKDIR /app
-COPY --from=api-builder /app/gallformers-api /app/gallformers-api
-COPY litestream.yml /etc/litestream.yml
 
-EXPOSE 8080
-CMD ["litestream", "replicate", "-exec", "/app/gallformers-api"]
+# Create non-root user
+RUN addgroup -g 1000 gallformers && \
+    adduser -u 1000 -G gallformers -s /bin/sh -D gallformers
+
+# Copy release from builder
+COPY --from=builder --chown=gallformers:gallformers /app/_build/prod/rel/gallformers ./
+COPY --chown=gallformers:gallformers litestream.yml /etc/litestream.yml
+
+# Create data directory
+RUN mkdir -p /data && chown gallformers:gallformers /data
+
+# Copy entrypoint script (runs as root to fix permissions, then drops to gallformers)
+COPY --chmod=755 docker-entrypoint.sh /app/docker-entrypoint.sh
+
+ENV HOME=/app
+ENV DATABASE_PATH=/data/gallformers.sqlite
+
+EXPOSE 4000
+
+# Run entrypoint as root - it fixes permissions then drops to gallformers user
+CMD ["/app/docker-entrypoint.sh"]

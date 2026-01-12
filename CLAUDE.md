@@ -33,7 +33,9 @@ Gallformers (gallformers.org) is a comprehensive online database and reference g
 
 ## V1 and V2
 There are two versions of the application. V1 is at the root and is a stable legacy implementation. We only fix bugs in it.
-V2 is the bulk of work, it is all in the v2/ directory. See the CLAUDE.md in that directory for more details.
+V2 is the bulk of work, using Phoenix/LiveView with Elixir. It is in the `v2/` directory.
+
+**Note**: The previous Go/Svelte implementation has been moved to `v2_old/` for reference during migration.
 
 ## V1 Technical Stack
 
@@ -93,20 +95,30 @@ gallformers/
 ├── __tests__/          # Test files
 ├── scripts/            # Build and utility scripts
 ├── .beads/             # Beads issue tracking data
-└── v2/                  # V2 rewrite (Go + Svelte) - see below
+├── v2/                  # V2 rewrite (Phoenix/LiveView) - see below
+└── v2_old/             # Previous Go/Svelte implementation (reference only)
 ```
 
 ## V2 Rewrite
 
-The `v2/` directory contains a complete rewrite of Gallformers using Go and Svelte. **This directory has its own `v2/CLAUDE.md` with specific instructions.**
+The `v2/` directory contains a complete rewrite of Gallformers using Phoenix/LiveView with Elixir.
+
+**Tech Stack:**
+- **Phoenix Framework** - Elixir web framework with LiveView for real-time UI
+- **Ecto with ecto_sqlite3** - Database layer using existing SQLite database
+- **Tailwind CSS** - Styling (configured via Phoenix defaults)
+- **Fly.io** - Production hosting
 
 Key points:
 - **Isolation**: V2 work must stay within `v2/` - do not modify v1 code when working on v2
-- **Separate stack**: Go API + SvelteKit frontend (not Next.js/Prisma)
+- **Database**: Uses the same SQLite database as v1 via ecto_sqlite3
 - **Hosting**: V2 deploys to Fly.io (v1 stays on Digital Ocean until cutover)
-- **Instructions**: Follow `v2/CLAUDE.md` for all v2 development
 
-When working on v2 features, always read `v2/CLAUDE.md` first for the isolation rules and development workflow.
+**Reference Implementation:**
+The previous Go/Svelte implementation is preserved in `v2_old/` for reference during migration. This includes:
+- UI designs and component patterns
+- API structure and business logic
+- Tailwind custom colors and styling
 
 ## Key Domain Concepts
 
