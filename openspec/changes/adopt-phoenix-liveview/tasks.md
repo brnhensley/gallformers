@@ -199,13 +199,13 @@ Build one page at a time, deploy after each, verify visual parity.
 
 ## 10. Range Map (JS Hook)
 
-- [ ] 10.1 Create `RangeMap` hook in `assets/js/hooks/range_map.js`
-- [ ] 10.2 Configure MapLibre GL JS
-- [ ] 10.3 Implement `mounted()` to initialize map with data
-- [ ] 10.4 Implement `updated()` to handle data changes
-- [ ] 10.5 Style map to match current design
-- [ ] 10.6 Create HEEx component `range_map` with hook binding
-- [ ] 10.7 Test with real range data
+- [x] 10.1 Create `RangeMap` hook in `assets/js/hooks/range_map.js`
+- [x] 10.2 Configure D3.js (used instead of MapLibre to match v2_old implementation)
+- [x] 10.3 Implement `mounted()` to initialize map with data
+- [x] 10.4 Implement `updated()` to handle data changes
+- [x] 10.5 Style map to match current design
+- [x] 10.6 Create HEEx component `range_map` with hook binding
+- [x] 10.7 Test with real range data
 
 ## 11. Admin Pages (LiveView)
 
@@ -292,11 +292,11 @@ Follow the documentation style from `v2_old/api/`:
 
 ## 15. Markdown & Glossary
 
-- [ ] 15.1 Add earmark or mdex dependency
-- [ ] 15.2 Create `Gallformers.Markdown` module
-- [ ] 15.3 Implement glossary term auto-linking
-- [ ] 15.4 Cache compiled markdown in ETS or process state
-- [ ] 15.5 Test markdown rendering in source descriptions
+- [x] 15.1 Add earmark or mdex dependency
+- [x] 15.2 Create `Gallformers.Markdown` module
+- [x] 15.3 Implement glossary term auto-linking
+- [x] 15.4 Cache compiled markdown in ETS or process state
+- [x] 15.5 Test markdown rendering in source descriptions
 
 ## 16. Testing
 

@@ -18,7 +18,8 @@ defmodule GallformersWeb do
   """
 
   def static_paths,
-    do: ~w(assets fonts images branding favicon.ico favicon.png apple-touch-icon.png robots.txt)
+    do:
+      ~w(assets fonts images branding data favicon.ico favicon.png apple-touch-icon.png robots.txt)
 
   def router do
     quote do
