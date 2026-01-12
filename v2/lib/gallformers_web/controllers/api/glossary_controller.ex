@@ -4,8 +4,32 @@ defmodule GallformersWeb.API.GlossaryController do
   """
 
   use GallformersWeb, :controller
+  use OpenApiSpex.ControllerSpecs
 
   alias Gallformers.Glossary
+  alias GallformersWeb.Schemas
+
+  tags ["Glossary"]
+
+  operation :index,
+    summary: "List glossary entries",
+    description: "Lists all glossary entries with optional search and pagination",
+    parameters: [
+      q: [in: :query, type: :string, description: "Search query"],
+      limit: [in: :query, type: :integer, description: "Maximum number of results"],
+      offset: [in: :query, type: :integer, description: "Number of results to skip"]
+    ],
+    responses: [
+      ok: {"List of glossary entries", "application/json", %OpenApiSpex.Schema{
+        type: :object,
+        properties: %{
+          data: %OpenApiSpex.Schema{type: :array, items: Schemas.Glossary},
+          total: %OpenApiSpex.Schema{type: :integer},
+          limit: %OpenApiSpex.Schema{type: :integer, nullable: true},
+          offset: %OpenApiSpex.Schema{type: :integer}
+        }
+      }}
+    ]
 
   @doc """
   GET /api/v2/glossary
@@ -45,6 +69,17 @@ defmodule GallformersWeb.API.GlossaryController do
     })
   end
 
+  operation :show,
+    summary: "Get a glossary entry",
+    description: "Gets a single glossary entry by ID",
+    parameters: [
+      id: [in: :path, type: :integer, description: "Glossary ID", required: true]
+    ],
+    responses: [
+      ok: {"Glossary entry", "application/json", Schemas.Glossary},
+      not_found: {"Glossary entry not found", "application/json", Schemas.Error}
+    ]
+
   @doc """
   GET /api/v2/glossary/:id
   Gets a single glossary entry by ID.
@@ -68,6 +103,17 @@ defmodule GallformersWeb.API.GlossaryController do
         end
     end
   end
+
+  operation :by_word,
+    summary: "Get glossary entry by word",
+    description: "Gets a glossary entry by word",
+    parameters: [
+      word: [in: :path, type: :string, description: "Glossary word", required: true]
+    ],
+    responses: [
+      ok: {"Glossary entry", "application/json", Schemas.Glossary},
+      not_found: {"Glossary entry not found", "application/json", Schemas.Error}
+    ]
 
   @doc """
   GET /api/v2/glossary/by-word/:word

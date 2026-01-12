@@ -336,6 +336,19 @@ defmodule GallformersWeb.AboutLive do
             Www.gallformers.org/[url to specific species], www.gallformers.org. Accessed [date]
           </div>
 
+          <h2 class="text-2xl font-semibold text-gray-800 mt-8 mb-4">Public API</h2>
+          <p class="text-gray-700 mb-4">
+            Gallformers provides a public API for programmatic access to our database. You can use it to search for
+            galls, hosts, and species, as well as retrieve detailed information about specific entries.
+          </p>
+          <p class="text-gray-700 mb-6">
+            View the full API documentation and try it out interactively at our
+            <.link href="/api/docs" class="text-gf-maroon hover:underline">
+              API Documentation
+            </.link>
+            page.
+          </p>
+
           <%!-- Easter Egg --%>
           <div class="mt-12 border-t pt-6">
             <button

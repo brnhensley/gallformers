@@ -26,12 +26,20 @@ defmodule GallformersWeb.ApiSpec do
         - Search and explore functionality
         """
       },
-      servers: [
-        %Server{url: "https://gallformers.org", description: "Production"},
-        %Server{url: "http://localhost:4000", description: "Development"}
-      ],
+      servers: servers_for_env(),
       paths: Paths.from_router(GallformersWeb.Router)
     }
     |> OpenApiSpex.resolve_schema_modules()
+  end
+
+  defp servers_for_env do
+    prod_server = %Server{url: "https://gallformers.org", description: "Production"}
+    dev_server = %Server{url: "http://localhost:4000", description: "Development"}
+
+    if Application.get_env(:gallformers, :env) == :prod do
+      [prod_server, dev_server]
+    else
+      [dev_server, prod_server]
+    end
   end
 end

@@ -6,8 +6,19 @@ defmodule GallformersWeb.API.FilterFieldController do
   """
 
   use GallformersWeb, :controller
+  use OpenApiSpex.ControllerSpecs
 
   alias Gallformers.IDTool
+  alias GallformersWeb.Schemas
+
+  tags ["ID Tool"]
+
+  operation :index,
+    summary: "Get filter fields",
+    description: "Returns all available filter field options for the ID tool",
+    responses: [
+      ok: {"Filter fields", "application/json", Schemas.FilterFields}
+    ]
 
   @doc """
   GET /api/v2/filter-fields

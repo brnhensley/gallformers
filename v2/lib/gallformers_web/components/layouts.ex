@@ -38,7 +38,7 @@ defmodule GallformersWeb.Layouts do
       <main class="flex-1 pb-32">
         <div class={[
           "px-4 sm:px-6 lg:px-8",
-          !@fluid && "mx-auto max-w-7xl py-8"
+          !@fluid && "mx-auto max-w-screen-2xl py-8"
         ]}>
           {render_slot(@inner_block)}
         </div>

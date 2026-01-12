@@ -4,8 +4,25 @@ defmodule GallformersWeb.API.HostController do
   """
 
   use GallformersWeb, :controller
+  use OpenApiSpex.ControllerSpecs
 
   alias Gallformers.{Hosts, Search}
+  alias GallformersWeb.Schemas
+
+  tags ["Hosts"]
+
+  operation :index,
+    summary: "List hosts",
+    description: "Lists all hosts with optional search and pagination",
+    parameters: [
+      q: [in: :query, type: :string, description: "Search query"],
+      limit: [in: :query, type: :integer, description: "Maximum number of results"],
+      offset: [in: :query, type: :integer, description: "Number of results to skip"],
+      simple: [in: :query, type: :boolean, description: "Return simplified response"]
+    ],
+    responses: [
+      ok: {"List of hosts", "application/json", Schemas.HostListResponse}
+    ]
 
   @doc """
   GET /api/v2/hosts
@@ -53,6 +70,18 @@ defmodule GallformersWeb.API.HostController do
       offset: offset
     })
   end
+
+  operation :show,
+    summary: "Get a host",
+    description: "Gets a single host by ID with full details",
+    parameters: [
+      id: [in: :path, type: :integer, description: "Host ID", required: true],
+      simple: [in: :query, type: :boolean, description: "Return simplified response"]
+    ],
+    responses: [
+      ok: {"Host details", "application/json", Schemas.HostResponse},
+      not_found: {"Host not found", "application/json", Schemas.Error}
+    ]
 
   @doc """
   GET /api/v2/hosts/:id

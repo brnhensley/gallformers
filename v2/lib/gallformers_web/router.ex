@@ -13,6 +13,7 @@ defmodule GallformersWeb.Router do
   pipeline :api do
     plug :accepts, ["json"]
     plug GallformersWeb.Plugs.CORS
+    plug OpenApiSpex.Plug.PutApiSpec, module: GallformersWeb.ApiSpec
   end
 
   # Health check for Fly.io (no pipeline needed)
@@ -49,7 +50,7 @@ defmodule GallformersWeb.Router do
   # API documentation routes
   scope "/api" do
     pipe_through :api
-    get "/docs/openapi.json", OpenApiSpex.Plug.RenderSpec, []
+    get "/docs/openapi.json", OpenApiSpex.Plug.RenderSpec, spec: GallformersWeb.ApiSpec
   end
 
   scope "/api/docs" do

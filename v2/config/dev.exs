@@ -1,5 +1,7 @@
 import Config
 
+config :gallformers, env: :dev
+
 # Configure your database
 # For development, use the local database in priv/
 # Production uses DATABASE_PATH environment variable (configured in runtime.exs)
