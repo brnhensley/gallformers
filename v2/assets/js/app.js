@@ -22,7 +22,6 @@ import "phoenix_html"
 // Establish Phoenix Socket and LiveView configuration.
 import {Socket} from "phoenix"
 import {LiveSocket} from "phoenix_live_view"
-import {hooks as colocatedHooks} from "phoenix-colocated/gallformers"
 import topbar from "../vendor/topbar"
 
 // Custom hooks for UI components
@@ -178,7 +177,7 @@ const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {...colocatedHooks, Tabs, ImageGallery},
+  hooks: {Tabs, ImageGallery},
 })
 
 // Show progress bar on live navigation and form submits
