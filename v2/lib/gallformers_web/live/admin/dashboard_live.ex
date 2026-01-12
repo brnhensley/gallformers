@@ -23,7 +23,7 @@ defmodule GallformersWeb.AdminDashboardLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.admin flash={@flash} current_user={@current_user} page_title="Dashboard">
+    <Layouts.admin flash={@flash} current_user={@current_user} page_title="Admin Dashboard">
       <%!-- Stats Grid --%>
       <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
         <.stat_card

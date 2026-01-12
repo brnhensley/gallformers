@@ -23,7 +23,7 @@ defmodule GallformersWeb.HomeLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash}>
+    <Layouts.app flash={@flash} current_user={@current_user}>
       <%!-- Hero Section --%>
       <div class="text-center mb-8">
         <h1 class="text-3xl font-bold text-gf-maroon mb-2">Welcome to Gallformers</h1>
@@ -76,7 +76,7 @@ defmodule GallformersWeb.HomeLive do
               <img
                 src={@random_gall.image_url}
                 alt={@random_gall.name}
-                class="w-full h-48 object-cover"
+                class="w-full rounded-t"
               />
             </.link>
             <div class="p-4">

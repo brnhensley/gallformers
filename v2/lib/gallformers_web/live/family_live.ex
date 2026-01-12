@@ -121,7 +121,7 @@ defmodule GallformersWeb.FamilyLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash}>
+    <Layouts.app flash={@flash} current_user={@current_user}>
       <div class="mx-auto max-w-7xl">
         <%= if @error do %>
           <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">{@error}</div>

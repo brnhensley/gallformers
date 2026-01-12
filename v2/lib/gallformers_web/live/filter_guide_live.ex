@@ -57,7 +57,7 @@ defmodule GallformersWeb.FilterGuideLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash}>
+    <Layouts.app flash={@flash} current_user={@current_user}>
       <div class="mx-auto max-w-4xl">
         <h1 class="text-3xl font-bold text-gf-maroon mb-4">ID Tool Filter Guide</h1>
         <p class="text-gray-600 mb-8">

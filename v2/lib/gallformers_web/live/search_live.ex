@@ -215,7 +215,7 @@ defmodule GallformersWeb.SearchLive do
     assigns = assign(assigns, :sorted_results, sorted)
 
     ~H"""
-    <Layouts.app flash={@flash}>
+    <Layouts.app flash={@flash} current_user={@current_user}>
       <div class="mx-auto max-w-6xl" id="search-container" phx-window-keydown="keydown">
         <h1 class="text-3xl font-bold text-gf-maroon mb-6">Search</h1>
 

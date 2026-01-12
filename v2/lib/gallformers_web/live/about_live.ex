@@ -68,7 +68,7 @@ defmodule GallformersWeb.AboutLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash}>
+    <Layouts.app flash={@flash} current_user={@current_user}>
       <div class="mx-auto max-w-4xl">
         <h1 class="text-3xl font-bold text-gf-maroon mb-8">About Us</h1>
 

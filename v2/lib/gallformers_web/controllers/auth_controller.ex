@@ -5,10 +5,38 @@ defmodule GallformersWeb.AuthController do
 
   use GallformersWeb, :controller
 
+  # Check Auth0 config before Ueberauth runs to avoid cryptic errors
+  plug :check_auth0_configured when action in [:request]
   plug Ueberauth
 
   alias Gallformers.Accounts
   alias Gallformers.Accounts.User
+
+  @doc """
+  Handles the OAuth request phase. This action exists to allow the
+  check_auth0_configured plug to run before Ueberauth processes the request.
+  Ueberauth will intercept and handle the actual OAuth redirect.
+  """
+  def request(conn, _params) do
+    # Ueberauth handles this automatically via its plug
+    conn
+  end
+
+  defp check_auth0_configured(conn, _opts) do
+    config = Application.get_env(:ueberauth, Ueberauth.Strategy.Auth0.OAuth, [])
+
+    if config[:domain] do
+      conn
+    else
+      conn
+      |> put_flash(
+        :error,
+        "Auth0 is not configured. Set AUTH0_DOMAIN, AUTH0_CLIENT_ID, and AUTH0_SECRET environment variables."
+      )
+      |> redirect(to: ~p"/")
+      |> halt()
+    end
+  end
 
   @doc """
   Handles the OAuth callback from Auth0.

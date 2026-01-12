@@ -557,7 +557,7 @@ defmodule GallformersWeb.IDLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} fluid>
+    <Layouts.app flash={@flash} current_user={@current_user} fluid>
       <div class="py-4">
         <%!-- Host/Genus Pickers --%>
         <div class="mb-2">
