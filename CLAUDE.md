@@ -31,7 +31,11 @@ Gallformers (gallformers.org) is a comprehensive online database and reference g
 - **Education**: Providing guides, keys, and reference materials about galls
 - **Research**: Serving as a data repository for researchers and naturalists
 
-## Technical Stack
+## V1 and V2
+There are two versions of the application. V1 is at the root and is a stable legacy implementation. We only fix bugs in it.
+V2 is the bulk of work, it is all in the v2/ directory. See the CLAUDE.md in that directory for more details.
+
+## V1 Technical Stack
 
 ### Frontend
 - **Next.js 14** (React-based framework) - Server-side rendering and static generation
@@ -303,69 +307,39 @@ This project uses **watchmen** for time tracking. A hook automatically starts th
 
 ## Git Workflow
 
-**IMPORTANT: Never checkout `main` directly.** The beads daemon uses a sparse worktree on `main` for auto-sync. Attempting to checkout `main` will fail.
-
 **Push approval rules:**
 | Change Type | Approval Required | Notes |
 |-------------|-------------------|-------|
 | Beads (`.beads/`) | No | Daemon auto-syncs to main |
-| Specs (`/openspec/`) | No | But must be manually pushed to main |
 | Everything else | **Yes** | Always ask user before pushing to main |
-
-**Workflow for small work (bugs, specs, small features):**
-```bash
-# Start from origin/main
-git fetch origin
-git checkout -b fix/descriptive-name origin/main
-
-# Do work, commit
-git add <files>
-git commit -m "Description"
-
-# For specs: push to main immediately
-git push origin fix/descriptive-name:main
-git checkout --detach origin/main
-git branch -d fix/descriptive-name
-
-# For code: ASK USER FIRST, then push if approved
-```
-
-**Workflow for large features:**
-```bash
-# Create a worktree for the feature
-git worktree add ../gallformers-feature-name -b feature-name origin/main
-
-# Work in that directory until complete
-# When ready to merge: ASK USER FOR APPROVAL
-```
-
-**Specs rule:** When specs in `/openspec/` are modified (even while on a feature branch), ensure they get pushed to main. Create a separate branch from `origin/main` if needed.
-
-**Beads:** The daemon (auto-commit, auto-push, auto-pull) handles all beads sync automatically.
 
 **Commit messages:** Present tense, imperative mood.
 
+CRITICAL: Never push to main without explicit approval from the user, unless it is beads changes only.
+
 ## Multi-Agent Workflow
 
-Multiple agents work in parallel using separate git worktrees.
+Multiple agents can work in parallel using separate git worktrees.
 
 **Worktree locations:**
 | Worktree | Branch | Role |
 |----------|--------|------|
-| `~/dev/gallformers` | (varies) | Coding Agent 1 |
-| `~/dev/gallformers-code2` | code2 | Coding Agent 2 |
-| `~/dev/gallformers-bugfix` | bugfix | Bug Fixer |
+| `~/dev/gallformers-code1` | [name based on work being done] | Coding Agent 1 |
+| `~/dev/gallformers-code2` | [name based on work being done] | Coding Agent 2 |
+| `~/dev/gallformers-bugfix` | [name based on work being done] | Bug Fixer |
 | `~/dev/gallformers-planning` | planning | Planner + Coordinator |
 
 **Rules for all agents:**
 - Stay in your assigned worktree - never modify files in other worktrees
 - Before starting work on a beads issue, claim it: `bd update <id> --status=in_progress`
+- If there is not already a branch, make one. Name it after the work being done.
 - Commit your work before ending the session
+- NEVER push to main unless you are explicitly told to
 - Do not run git operations that affect other branches
 
 **Role-specific rules:**
 
-*Coding Agents (gallformers, gallformers-code2):*
+*Coding Agents (gallformers-code1, gallformers-code2):*
 - Full code modification access
 - Run builds, tests as needed
 
