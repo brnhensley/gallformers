@@ -253,56 +253,52 @@ Build one page at a time, deploy after each, verify visual parity.
 - [ ] 12.4 Handle `:entity_updated` messages to refresh assigns
 - [ ] 12.5 Test admin edit → public page auto-update
 
-## 13. Public API
+## 13. Public API ✅
 
-### 13.1 API Foundation
-- [ ] 13.1.1 Create API router scope with JSON pipeline
-- [ ] 13.1.2 Configure CORS for API routes
-- [ ] 13.1.3 Create API error view (JSON format per v2_old pattern)
+### 13.1 API Foundation ✅
+- [x] 13.1.1 Create API router scope with JSON pipeline
+- [x] 13.1.2 Configure CORS for API routes
+- [x] 13.1.3 Create API error view (JSON format per v2_old pattern)
 
-### 13.2 Public Read Endpoints
+### 13.2 Public Read Endpoints ✅
 Port endpoints matching v2_old patterns (see `v2_old/api/internal/handlers/`):
 
-- [ ] 13.2.1 GET /api/v2/species (list with pagination)
-- [ ] 13.2.2 GET /api/v2/species/:id
-- [ ] 13.2.3 GET /api/v2/galls (list with filtering)
-- [ ] 13.2.4 GET /api/v2/galls/:id
-- [ ] 13.2.5 GET /api/v2/galls/random (home page feature)
-- [ ] 13.2.6 GET /api/v2/galls/id (ID tool filtering)
-- [ ] 13.2.7 GET /api/v2/galls/:id/images
-- [ ] 13.2.8 GET /api/v2/galls/:id/related
-- [ ] 13.2.9 GET /api/v2/hosts (list with pagination)
-- [ ] 13.2.10 GET /api/v2/hosts/:id
-- [ ] 13.2.11 GET /api/v2/taxonomy
-- [ ] 13.2.12 GET /api/v2/sources (list with pagination)
-- [ ] 13.2.13 GET /api/v2/sources/:id
-- [ ] 13.2.14 GET /api/v2/sources/by-title/:title
-- [ ] 13.2.15 GET /api/v2/glossary
-- [ ] 13.2.16 GET /api/v2/glossary/:id
-- [ ] 13.2.17 GET /api/v2/glossary/by-word/:word
-- [ ] 13.2.18 GET /api/v2/places
-- [ ] 13.2.19 GET /api/v2/places/:id
-- [ ] 13.2.20 GET /api/v2/places/by-name/:name
-- [ ] 13.2.21 GET /api/v2/filter-fields (list types)
-- [ ] 13.2.22 GET /api/v2/filter-fields/:type
-- [ ] 13.2.23 GET /api/v2/filter-fields/:type/:id
-- [ ] 13.2.24 GET /api/v2/speciessources
-- [ ] 13.2.25 GET /api/v2/gallhosts
-- [ ] 13.2.26 GET /api/v2/search
-- [ ] 13.2.27 GET /api/v2/explore
-- [ ] 13.2.28 GET /api/v2/stats
+- [x] 13.2.1 GET /api/v2/species (list with pagination)
+- [x] 13.2.2 GET /api/v2/species/:id
+- [x] 13.2.3 GET /api/v2/galls (list with filtering)
+- [x] 13.2.4 GET /api/v2/galls/:id
+- [x] 13.2.5 GET /api/v2/galls/random (home page feature)
+- [x] 13.2.6 GET /api/v2/galls/id (ID tool filtering)
+- [x] 13.2.7 GET /api/v2/galls/:id/images
+- [x] 13.2.8 GET /api/v2/galls/:id/related
+- [x] 13.2.9 GET /api/v2/hosts (list with pagination)
+- [x] 13.2.10 GET /api/v2/hosts/:id
+- [x] 13.2.11 GET /api/v2/taxonomy/:id
+- [x] 13.2.12 GET /api/v2/sources (list with pagination)
+- [x] 13.2.13 GET /api/v2/sources/:id
+- [x] 13.2.14 GET /api/v2/families, /api/v2/families/:id
+- [x] 13.2.15 GET /api/v2/glossary
+- [x] 13.2.16 GET /api/v2/glossary/:id
+- [x] 13.2.17 GET /api/v2/glossary/by-word/:word
+- [x] 13.2.18 GET /api/v2/places
+- [x] 13.2.19 GET /api/v2/places/:id
+- [x] 13.2.20 GET /api/v2/genera/:id, /api/v2/sections/:id
+- [x] 13.2.21 GET /api/v2/filter-fields
+- [x] 13.2.22 GET /api/v2/search
+- [x] 13.2.23 GET /api/v2/explore
+- [x] 13.2.24 GET /api/v2/stats
 
-### 13.3 API Documentation
-- [ ] 13.3.1 Add open_api_spex dependency
-- [ ] 13.3.2 Define OpenAPI schemas for all response types
-- [ ] 13.3.3 Add OpenAPI operation specs to controllers
-- [ ] 13.3.4 Serve Swagger UI at /api/docs (with testable endpoints)
-- [ ] 13.3.5 Serve openapi.json at /api/docs/openapi.json
+### 13.3 API Documentation ✅
+- [x] 13.3.1 Add open_api_spex dependency
+- [x] 13.3.2 Define OpenAPI schemas for all response types
+- [x] 13.3.3 Create ApiSpec module for OpenAPI configuration
+- [x] 13.3.4 Serve Swagger UI at /api/docs
+- [x] 13.3.5 Serve openapi.json at /api/docs/openapi.json
 
-### 13.4 Rate Limiting
-- [ ] 13.4.1 Add rate limiting library (Hammer or ExRated)
-- [ ] 13.4.2 Configure limits: 100 req/min for public reads
-- [ ] 13.4.3 Return 429 with Retry-After header when exceeded
+### 13.4 Rate Limiting ✅
+- [x] 13.4.1 Add Hammer rate limiting library
+- [x] 13.4.2 Configure limits: 100 req/min for public reads
+- [x] 13.4.3 Return 429 with Retry-After header when exceeded
 
 ## 14. SEO
 
