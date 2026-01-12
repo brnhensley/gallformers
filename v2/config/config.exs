@@ -60,6 +60,9 @@ config :logger, :default_formatter,
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
 
+# Disable Tesla deprecation warning (transitive dependency)
+config :tesla, disable_deprecated_builder_warning: true
+
 # Configure Hammer rate limiting
 config :hammer,
   backend: {Hammer.Backend.ETS, [expiry_ms: 60_000 * 60, cleanup_interval_ms: 60_000 * 10]}
