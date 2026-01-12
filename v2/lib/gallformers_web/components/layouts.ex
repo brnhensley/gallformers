@@ -24,6 +24,10 @@ defmodule GallformersWeb.Layouts do
     default: nil,
     doc: "the current [scope](https://hexdocs.pm/phoenix/scopes.html)"
 
+  attr :current_user, :map,
+    default: nil,
+    doc: "the currently logged in user, if any"
+
   attr :fluid, :boolean,
     default: false,
     doc: "if true, content spans full width without max-width constraint"
@@ -33,7 +37,7 @@ defmodule GallformersWeb.Layouts do
   def app(assigns) do
     ~H"""
     <div class="flex min-h-screen flex-col">
-      <.site_header />
+      <.site_header current_user={@current_user} />
 
       <main class="flex-1 pb-32">
         <div class={[
@@ -44,7 +48,7 @@ defmodule GallformersWeb.Layouts do
         </div>
       </main>
 
-      <.site_footer />
+      <.site_footer current_user={@current_user} />
     </div>
 
     <.flash_group flash={@flash} />
@@ -56,6 +60,8 @@ defmodule GallformersWeb.Layouts do
 
   Named `site_header` to avoid conflict with CoreComponents.header/1.
   """
+  attr :current_user, :map, default: nil, doc: "the currently logged in user, if any"
+
   def site_header(assigns) do
     nav_links = [
       %{href: "/id", label: "Identify"},
@@ -90,6 +96,16 @@ defmodule GallformersWeb.Layouts do
 
           <%!-- Desktop Navigation --%>
           <div class="hidden md:flex md:items-center gap-1">
+            <%!-- Admin link (when logged in) --%>
+            <%= if @current_user do %>
+              <a
+                href="/admin"
+                class="px-2 text-lg font-medium !text-gf-maroon hover:underline"
+              >
+                Admin
+              </a>
+            <% end %>
+
             <a
               :for={link <- @nav_links}
               href={link.href}
@@ -174,6 +190,16 @@ defmodule GallformersWeb.Layouts do
         <%!-- Mobile menu (hidden by default, toggle with JS) --%>
         <div class="hidden md:hidden" id="mobile-menu">
           <div class="space-y-1 px-2 pb-3 pt-2">
+            <%!-- Mobile Admin link (when logged in) --%>
+            <%= if @current_user do %>
+              <a
+                href="/admin"
+                class="block rounded-md px-3 py-2 text-lg font-medium !text-gf-maroon hover:bg-white/50"
+              >
+                Admin
+              </a>
+            <% end %>
+
             <a
               :for={link <- @nav_links}
               href={link.href}
@@ -230,6 +256,8 @@ defmodule GallformersWeb.Layouts do
   @doc """
   Renders the site footer with links and copyright.
   """
+  attr :current_user, :map, default: nil, doc: "the currently logged in user, if any"
+
   def site_footer(assigns) do
     current_year = Date.utc_today().year
 
@@ -238,13 +266,30 @@ defmodule GallformersWeb.Layouts do
     ~H"""
     <footer class="fixed bottom-0 left-0 right-0 z-40 bg-gray-100 text-gf-maroon">
       <div class="flex items-center justify-between px-4 py-2">
-        <%!-- Login - left side (desktop only) --%>
-        <a
-          href="/auth/auth0"
-          class="hidden sm:block text-base font-medium !text-gf-maroon hover:underline"
-        >
-          Login
-        </a>
+        <%!-- User info or Login - left side (desktop only) --%>
+        <%= if @current_user do %>
+          <div class="hidden sm:flex items-center gap-2">
+            <%= if @current_user.picture do %>
+              <img class="h-6 w-6 rounded-full" src={@current_user.picture} alt="" />
+            <% end %>
+            <span class="text-base font-medium text-gf-maroon">
+              {Gallformers.Accounts.User.display_name(@current_user)}
+            </span>
+            <a
+              href="/auth/logout"
+              class="text-base font-medium !text-gf-maroon hover:underline"
+            >
+              Log Out
+            </a>
+          </div>
+        <% else %>
+          <a
+            href="/auth/auth0"
+            class="hidden sm:block text-base font-medium !text-gf-maroon hover:underline"
+          >
+            Login
+          </a>
+        <% end %>
 
         <%!-- Copyright - center --%>
         <span class="hidden sm:block text-sm text-gray-600">
@@ -305,12 +350,29 @@ defmodule GallformersWeb.Layouts do
         class="hidden sm:hidden absolute bottom-full left-0 right-0 bg-gray-100 py-3 border-t border-gray-300"
         id="footer-menu"
       >
-        <a
-          href="/auth/auth0"
-          class="block text-base font-medium !text-gf-maroon hover:underline py-1 px-4"
-        >
-          Login
-        </a>
+        <%= if @current_user do %>
+          <div class="flex items-center gap-2 py-1 px-4 mb-2 border-b border-gray-300 pb-2">
+            <%= if @current_user.picture do %>
+              <img class="h-6 w-6 rounded-full" src={@current_user.picture} alt="" />
+            <% end %>
+            <span class="text-base font-medium text-gf-maroon">
+              {Gallformers.Accounts.User.display_name(@current_user)}
+            </span>
+          </div>
+          <a
+            href="/auth/logout"
+            class="block text-base font-medium !text-gf-maroon hover:underline py-1 px-4"
+          >
+            Log Out
+          </a>
+        <% else %>
+          <a
+            href="/auth/auth0"
+            class="block text-base font-medium !text-gf-maroon hover:underline py-1 px-4"
+          >
+            Login
+          </a>
+        <% end %>
         <a
           href="https://megachile.shinyapps.io/doycalc/"
           target="_blank"
@@ -370,8 +432,8 @@ defmodule GallformersWeb.Layouts do
     admin_nav_links = [
       %{href: "/admin", label: "Dashboard", icon: "hero-home"},
       %{href: "/admin/species", label: "Species", icon: "hero-bug-ant"},
-      %{href: "/admin/hosts", label: "Hosts", icon: "hero-leaf"},
-      %{href: "/admin/taxonomy", label: "Taxonomy", icon: "hero-folder-tree"},
+      %{href: "/admin/hosts", label: "Hosts", icon: "hero-globe-americas"},
+      %{href: "/admin/taxonomy", label: "Taxonomy", icon: "hero-share"},
       %{href: "/admin/sources", label: "Sources", icon: "hero-book-open"},
       %{href: "/admin/images", label: "Images", icon: "hero-photo"},
       %{href: "/admin/glossary", label: "Glossary", icon: "hero-book-open"}
@@ -382,26 +444,26 @@ defmodule GallformersWeb.Layouts do
     ~H"""
     <div class="flex min-h-screen">
       <%!-- Admin Sidebar --%>
-      <aside class="hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 bg-gf-maroon">
+      <aside class="hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 bg-slate-700">
         <%!-- Logo/Brand --%>
-        <div class="flex items-center justify-center h-16 px-4 bg-gf-maroon/90">
+        <div class="flex items-center justify-center h-16 px-2 bg-gf-sky-blue">
           <a href="/" class="flex items-center gap-2">
             <img
               src="/branding/Wide Logo Versions/gallformers_logo_wide_color.png"
               alt="Gallformers"
-              class="h-10"
+              class="h-14"
             />
           </a>
         </div>
 
         <%!-- Navigation --%>
-        <nav class="flex-1 px-2 py-4 space-y-1 overflow-y-auto">
+        <nav class="flex-1 px-2 py-4 space-y-2 overflow-y-auto">
           <a
             :for={link <- @admin_nav_links}
             href={link.href}
-            class="flex items-center px-3 py-2 text-sm font-medium text-white/80 rounded-md hover:bg-white/10 hover:text-white group"
+            class="flex items-center px-3 py-3 text-xl font-semibold text-white rounded-md hover:bg-slate-600 group"
           >
-            <.icon name={link.icon} class="mr-3 h-5 w-5" />
+            <.icon name={link.icon} class="mr-3 h-6 w-6 text-white" />
             {link.label}
           </a>
         </nav>
@@ -424,7 +486,7 @@ defmodule GallformersWeb.Layouts do
               </p>
               <a
                 href="/auth/logout"
-                class="text-xs text-white/60 hover:text-white"
+                class="text-base font-semibold text-white hover:text-white/80"
               >
                 Sign out
               </a>
@@ -434,7 +496,7 @@ defmodule GallformersWeb.Layouts do
       </aside>
 
       <%!-- Mobile header --%>
-      <div class="lg:hidden fixed top-0 left-0 right-0 z-40 bg-gf-maroon">
+      <div class="lg:hidden fixed top-0 left-0 right-0 z-40 bg-slate-700">
         <div class="flex items-center justify-between h-14 px-4">
           <a href="/" class="flex items-center">
             <img
@@ -456,7 +518,7 @@ defmodule GallformersWeb.Layouts do
       <%!-- Mobile sidebar --%>
       <div id="admin-mobile-menu" class="lg:hidden hidden fixed inset-0 z-50">
         <div class="fixed inset-0 bg-black/50" phx-click={toggle_admin_menu()}></div>
-        <aside class="fixed inset-y-0 left-0 w-64 bg-gf-maroon">
+        <aside class="fixed inset-y-0 left-0 w-64 bg-slate-700">
           <div class="flex items-center justify-between h-14 px-4 border-b border-white/20">
             <a href="/" class="flex items-center">
               <img
@@ -474,13 +536,13 @@ defmodule GallformersWeb.Layouts do
             </button>
           </div>
 
-          <nav class="px-2 py-4 space-y-1">
+          <nav class="px-2 py-4 space-y-2">
             <a
               :for={link <- @admin_nav_links}
               href={link.href}
-              class="flex items-center px-3 py-2 text-sm font-medium text-white/80 rounded-md hover:bg-white/10 hover:text-white"
+              class="flex items-center px-3 py-3 text-xl font-semibold text-white rounded-md hover:bg-slate-600"
             >
-              <.icon name={link.icon} class="mr-3 h-5 w-5" />
+              <.icon name={link.icon} class="mr-3 h-6 w-6 text-white" />
               {link.label}
             </a>
           </nav>
@@ -514,8 +576,8 @@ defmodule GallformersWeb.Layouts do
         <main class="pt-14 lg:pt-0">
           <%!-- Page header --%>
           <%= if @page_title do %>
-            <div class="bg-white border-b border-gray-200 px-4 py-4 sm:px-6 lg:px-8">
-              <h1 class="text-2xl font-bold text-gf-maroon">{@page_title}</h1>
+            <div class="flex items-center h-16 px-4 sm:px-6 lg:px-8 bg-gf-sky-blue border-l border-slate-400/50">
+              <span class="text-2xl font-bold text-gf-maroon">{@page_title}</span>
             </div>
           <% end %>
 

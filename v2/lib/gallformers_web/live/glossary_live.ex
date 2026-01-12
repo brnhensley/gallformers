@@ -77,7 +77,7 @@ defmodule GallformersWeb.GlossaryLive do
     assigns = assign(assigns, :sorted_entries, sorted)
 
     ~H"""
-    <Layouts.app flash={@flash}>
+    <Layouts.app flash={@flash} current_user={@current_user}>
       <div class="mx-auto max-w-6xl">
         <h1 class="text-3xl font-bold text-gf-maroon mb-6">
           A Glossary of Gall Related Terminology

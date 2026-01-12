@@ -119,7 +119,7 @@ defmodule GallformersWeb.ExploreLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash}>
+    <Layouts.app flash={@flash} current_user={@current_user}>
       <div class="mx-auto max-w-5xl" id="explore-container">
         <h1 class="text-3xl font-bold text-gf-maroon mb-6">Explore</h1>
 

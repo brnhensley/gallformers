@@ -56,29 +56,31 @@ defmodule GallformersWeb.Router do
   scope "/", GallformersWeb do
     pipe_through :browser
 
-    # Home
-    live "/", HomeLive
+    live_session :public, on_mount: [{GallformersWeb.Live.UserAuth, :fetch_current_user}] do
+      # Home
+      live "/", HomeLive
 
-    # Content pages
-    live "/about", AboutLive
-    live "/filterguide", FilterGuideLive
-    live "/resources", ResourcesLive
-    live "/glossary", GlossaryLive
-    live "/refindex", RefIndexLive
-    live "/globalsearch", SearchLive
-    live "/explore", ExploreLive
+      # Content pages
+      live "/about", AboutLive
+      live "/filterguide", FilterGuideLive
+      live "/resources", ResourcesLive
+      live "/glossary", GlossaryLive
+      live "/refindex", RefIndexLive
+      live "/globalsearch", SearchLive
+      live "/explore", ExploreLive
 
-    # ID Tool
-    live "/id", IDLive
+      # ID Tool
+      live "/id", IDLive
 
-    # Entity pages
-    live "/gall/:id", GallLive
-    live "/host/:id", HostLive
-    live "/family/:id", FamilyLive
-    live "/genus/:id", GenusLive
-    live "/source/:id", SourceLive
-    live "/section/:id", SectionLive
-    live "/place/:id", PlaceLive
+      # Entity pages
+      live "/gall/:id", GallLive
+      live "/host/:id", HostLive
+      live "/family/:id", FamilyLive
+      live "/genus/:id", GenusLive
+      live "/source/:id", SourceLive
+      live "/section/:id", SectionLive
+      live "/place/:id", PlaceLive
+    end
   end
 
   # API documentation routes
