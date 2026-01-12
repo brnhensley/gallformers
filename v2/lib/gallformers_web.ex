@@ -87,6 +87,12 @@ defmodule GallformersWeb do
       import Phoenix.HTML
       # Core UI components
       import GallformersWeb.CoreComponents
+      # Shared UI components (cards, alerts, spinners, etc.)
+      import GallformersWeb.UIComponents
+      # Form components (buttons, multi-select, etc.)
+      import GallformersWeb.FormComponents
+      # Data display components (species cards, taxonomy, etc.)
+      import GallformersWeb.DataDisplayComponents
 
       # Common modules used in templates
       alias GallformersWeb.Layouts
