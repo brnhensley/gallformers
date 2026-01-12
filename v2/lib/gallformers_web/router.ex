@@ -30,7 +30,6 @@ defmodule GallformersWeb.Router do
   # Health check for Fly.io (no pipeline needed)
   get "/health", GallformersWeb.HealthController, :check
 
-
   # Public routes
   scope "/", GallformersWeb do
     get "/sitemap.xml", SitemapController, :index
@@ -76,6 +75,9 @@ defmodule GallformersWeb.Router do
     live "/places", Admin.PlaceLive.Index, :index
     live "/places/new", Admin.PlaceLive.Form, :new
     live "/places/:id", Admin.PlaceLive.Form, :edit
+
+    # Images admin
+    live "/images", AdminImagesLive
   end
 
   # Public routes

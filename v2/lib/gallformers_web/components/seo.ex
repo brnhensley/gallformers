@@ -41,6 +41,8 @@ defmodule GallformersWeb.SEO do
   attr :noindex, :boolean, default: false
 
   def meta_tags(assigns) do
+    assigns = assign_new(assigns, :default_description, fn -> @default_description end)
+
     ~H"""
     <meta name="description" content={@description || @default_description} />
     <meta :if={@canonical} name="canonical" content={build_url(@canonical)} />
