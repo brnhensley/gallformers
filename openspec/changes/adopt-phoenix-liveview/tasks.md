@@ -8,168 +8,168 @@
 - **Styling**: Tailwind CSS (ported from SvelteKit)
 - **Auth**: Auth0 via ueberauth
 
-## 0. Code Migration
+## 0. Code Migration ✅
 
-- [ ] 0.1 Move existing `v2/` directory to `v2_old/`
-- [ ] 0.2 Create new `v2/` directory for Phoenix project
-- [ ] 0.3 Update root `CLAUDE.md` to reflect:
+- [x] 0.1 Move existing `v2/` directory to `v2_old/`
+- [x] 0.2 Create new `v2/` directory for Phoenix project
+- [x] 0.3 Update root `CLAUDE.md` to reflect:
   - New v2 is Phoenix + LiveView + Ecto
   - v2_old contains the Go + SvelteKit implementation
   - v2_old serves as reference for porting and will be removed after migration
 
 **Note**: We do NOT need separate documentation of routes and API endpoints (previous 0.2/0.3). The code in `v2_old/` IS the documentation - use it as reference when porting.
 
-## 1. Foundation Setup
+## 1. Foundation Setup ✅
 
-### 1.1 Phoenix Project Bootstrap
-- [ ] 1.1.1 Create new Phoenix project with `mix phx.new gallformers --database sqlite3`
-- [ ] 1.1.2 Configure ecto_sqlite3 to use existing database path
-- [ ] 1.1.3 Verify `mix phx.server` starts successfully
-- [ ] 1.1.4 Configure `.formatter.exs` for consistent code style
+### 1.1 Phoenix Project Bootstrap ✅
+- [x] 1.1.1 Create new Phoenix project with `mix phx.new gallformers --database sqlite3`
+- [x] 1.1.2 Configure ecto_sqlite3 to use existing database path
+- [x] 1.1.3 Verify `mix phx.server` starts successfully
+- [x] 1.1.4 Configure `.formatter.exs` for consistent code style
 
-### 1.2 CI Pipeline (set up early to catch issues)
-- [ ] 1.2.1 Add `mix format --check-formatted` to CI
-- [ ] 1.2.2 Add `mix test` to CI
-- [ ] 1.2.3 Add `mix credo` for code quality (optional)
-- [ ] 1.2.4 Add `mix dialyzer` for type checking (optional)
+### 1.2 CI Pipeline ✅
+- [x] 1.2.1 Add `mix format --check-formatted` to CI
+- [x] 1.2.2 Add `mix test` to CI
+- [x] 1.2.3 Add `mix credo` for code quality
+- [x] 1.2.4 Add `mix dialyzer` for type checking
 
-### 1.3 Documentation
-- [ ] 1.3.1 Create `v2/CLAUDE.md` with:
+### 1.3 Documentation ✅
+- [x] 1.3.1 Create `v2/CLAUDE.md` with:
   - Scope and isolation rules (stay in v2/)
   - Development commands (mix phx.server, etc.)
   - Reference to v2_old for porting guidance
   - Tailwind styling patterns (copy from current v2/CLAUDE.md)
   - LiveView patterns as they emerge
 
-### 1.4 Tailwind Configuration
-- [ ] 1.4.1 Copy custom colors from `v2_old/web/src/app.css` to Tailwind config
-- [ ] 1.4.2 Add `gf-maroon`, `gf-sky-blue`, `gf-autumn`, `cadet-blue`, `canary` colors
-- [ ] 1.4.3 Configure League Spartan font
-- [ ] 1.4.4 Port any custom utility classes from SvelteKit
+### 1.4 Tailwind Configuration ✅
+- [x] 1.4.1 Copy custom colors from `v2_old/web/src/app.css` to Tailwind config
+- [x] 1.4.2 Add `gf-maroon`, `gf-sky-blue`, `gf-autumn`, `cadet-blue`, `canary` colors
+- [x] 1.4.3 Configure League Spartan font
+- [x] 1.4.4 Port any custom utility classes from SvelteKit
 
-### 1.5 Base Layout
-- [ ] 1.5.1 Create `root.html.heex` with HTML skeleton, meta tags
-- [ ] 1.5.2 Create `app.html.heex` with site structure
-- [ ] 1.5.3 Create header component matching SvelteKit design
-- [ ] 1.5.4 Create footer component matching SvelteKit design
-- [ ] 1.5.5 Create navigation component
+### 1.5 Base Layout ✅
+- [x] 1.5.1 Create `root.html.heex` with HTML skeleton, meta tags
+- [x] 1.5.2 Create `app.html.heex` with site structure
+- [x] 1.5.3 Create header component matching SvelteKit design
+- [x] 1.5.4 Create footer component matching SvelteKit design
+- [x] 1.5.5 Create navigation component
 
-### 1.6 Static Assets
-- [ ] 1.6.1 Copy favicon, apple-touch-icon from `v2_old/web/static/`
-- [ ] 1.6.2 Copy brand images (cynipid_R.svg, etc.)
-- [ ] 1.6.3 Configure static file serving with cache headers
+### 1.6 Static Assets ✅
+- [x] 1.6.1 Copy favicon, apple-touch-icon from `v2_old/web/static/`
+- [x] 1.6.2 Copy brand images (cynipid_R.svg, etc.)
+- [x] 1.6.3 Configure static file serving with cache headers
 
-## 2. First Deployment (deploy early, deploy often)
+## 2. First Deployment ✅
 
-### 2.1 Fly.io Configuration
-- [ ] 2.1.1 Create `fly.toml` for Phoenix app
-- [ ] 2.1.2 Configure SQLite volume mount
-- [ ] 2.1.3 Set environment variables (AUTH0_*, DATABASE_PATH, etc.)
-- [ ] 2.1.4 Create release configuration in `mix.exs`
-- [ ] 2.1.5 Create `Dockerfile` for Phoenix release
-- [ ] 2.1.6 Configure health check endpoint
+### 2.1 Fly.io Configuration ✅
+- [x] 2.1.1 Create `fly.toml` for Phoenix app
+- [x] 2.1.2 Configure SQLite volume mount
+- [x] 2.1.3 Set environment variables (SECRET_KEY_BASE, DATABASE_PATH, LITESTREAM_*)
+- [x] 2.1.4 Create release configuration in `mix.exs`
+- [x] 2.1.5 Create `Dockerfile` for Phoenix release (with Litestream)
+- [x] 2.1.6 Configure health check endpoint
 
-### 2.2 Initial Deploy
-- [ ] 2.2.1 Test Docker build locally
-- [ ] 2.2.2 Deploy to Fly.io staging
-- [ ] 2.2.3 Verify site loads (even if just layout with placeholder content)
-- [ ] 2.2.4 Set up deployment pipeline for continuous deploys
+### 2.2 Initial Deploy ✅
+- [x] 2.2.1 Test Docker build locally
+- [x] 2.2.2 Deploy to Fly.io (fixed Ecto migration skip, litestream permissions, SSL redirect)
+- [x] 2.2.3 Verify site loads at https://gallformers.fly.dev/
+- [ ] 2.2.4 Set up deployment pipeline for continuous deploys (deferred)
 
 ## 3. Home Page (Tracer Bullet)
 
 Goal: Get the core site working with a real page. Once home page works, we have confidence.
 
-### 3.1 Minimal Ecto Schemas
-- [ ] 3.1.1 Create `Species` schema (just fields needed for home page)
-- [ ] 3.1.2 Create `Image` schema with S3 URL handling
-- [ ] 3.1.3 Create `Gallformers.Species` context with `random_gall/0` function
+### 3.1 Minimal Ecto Schemas ✅
+- [x] 3.1.1 Create `Species` schema (just fields needed for home page)
+- [x] 3.1.2 Create `Image` schema with S3 URL handling
+- [x] 3.1.3 Create `Gallformers.Species` context with `random_gall/0` function
 
 ### 3.2 Home Page LiveView
-- [ ] 3.2.1 Create `HomeLive` - home page with random gall feature
-- [ ] 3.2.2 Verify visual parity with `v2_old/web/src/routes/+page.svelte`
+- [x] 3.2.1 Create `HomeLive` - home page with random gall feature
+- [x] 3.2.2 Verify visual parity with `v2_old/web/src/routes/+page.svelte`
 - [ ] 3.2.3 Deploy and verify in production
 
 **Milestone: Site is live with working home page**
 
-## 4. Complete Ecto Schemas
+## 4. Complete Ecto Schemas ✅
 
-### 4.1 Core Schemas
-- [ ] 4.1.1 Complete `Species` schema with all fields
-- [ ] 4.1.2 Create `Gall` schema with all fields and associations
-- [ ] 4.1.3 Create `Host` schema with all fields
-- [ ] 4.1.4 Create `Taxonomy` schema with parent relationship
-- [ ] 4.1.5 Create `Source` schema
-- [ ] 4.1.6 Create `Glossary` schema
+### 4.1 Core Schemas ✅
+- [x] 4.1.1 Complete `Species` schema with all fields
+- [x] 4.1.2 Create `Gall` schema with all fields and associations
+- [x] 4.1.3 Create `Host` schema with all fields
+- [x] 4.1.4 Create `Taxonomy` schema with parent relationship
+- [x] 4.1.5 Create `Source` schema
+- [x] 4.1.6 Create `Glossary` schema
 
-### 4.2 Join Tables
-- [ ] 4.2.1 Map `specieshosts` join table
-- [ ] 4.2.2 Map `gallhost` join table
-- [ ] 4.2.3 Map filter field join tables (colors, shapes, textures, etc.)
-- [ ] 4.2.4 Map `speciesplace` for range data
+### 4.2 Join Tables ✅
+- [x] 4.2.1 Map `specieshosts` join table
+- [x] 4.2.2 Map `gallhost` join table
+- [x] 4.2.3 Map filter field join tables (colors, shapes, textures, etc.)
+- [x] 4.2.4 Map `speciesplace` for range data
 
-### 4.3 Filter Fields
-- [ ] 4.3.1 Create schemas for filter field tables (color, shape, texture, etc.)
-- [ ] 4.3.2 Create associations from Gall to filter fields
+### 4.3 Filter Fields ✅
+- [x] 4.3.1 Create schemas for filter field tables (color, shape, texture, etc.)
+- [x] 4.3.2 Create associations from Gall to filter fields
 
-### 4.4 Contexts
-- [ ] 4.4.1 Create `Gallformers.Species` context with CRUD functions
-- [ ] 4.4.2 Create `Gallformers.Hosts` context
-- [ ] 4.4.3 Create `Gallformers.Taxonomy` context
-- [ ] 4.4.4 Create `Gallformers.Glossary` context
-- [ ] 4.4.5 Create `Gallformers.Sources` context
-- [ ] 4.4.6 Create `Gallformers.Search` context
-- [ ] 4.4.7 Create `Gallformers.IDTool` context with filtering logic
+### 4.4 Contexts ✅
+- [x] 4.4.1 Create `Gallformers.Species` context with CRUD functions
+- [x] 4.4.2 Create `Gallformers.Hosts` context
+- [x] 4.4.3 Create `Gallformers.Taxonomy` context
+- [x] 4.4.4 Create `Gallformers.Glossary` context
+- [x] 4.4.5 Create `Gallformers.Sources` context
+- [x] 4.4.6 Create `Gallformers.Search` context
+- [x] 4.4.7 Create `Gallformers.IDTool` context with filtering logic
 
-## 5. Shared Components
+## 5. Shared Components ✅
 
-### 5.1 UI Components
-- [ ] 5.1.1 Create `card` component matching SvelteKit style
-- [ ] 5.1.2 Create `loading_spinner` component
-- [ ] 5.1.3 Create `error_message` component
-- [ ] 5.1.4 Create `pagination` component
-- [ ] 5.1.5 Create `alert` component (success, error, info)
-- [ ] 5.1.6 Create `info_tip` tooltip component
+### 5.1 UI Components ✅
+- [x] 5.1.1 Create `card` component matching SvelteKit style
+- [x] 5.1.2 Create `loading_spinner` component
+- [x] 5.1.3 Create `error_message` component
+- [x] 5.1.4 Create `pagination` component
+- [x] 5.1.5 Create `alert` component (success, error, info)
+- [x] 5.1.6 Create `info_tip` tooltip component
 
-### 5.2 Form Components
-- [ ] 5.2.1 Create `input` component with error display
-- [ ] 5.2.2 Create `textarea` component
-- [ ] 5.2.3 Create `select` component
-- [ ] 5.2.4 Create `checkbox` component
-- [ ] 5.2.5 Create `button` component with variants
+### 5.2 Form Components ✅
+- [x] 5.2.1 Create `input` component with error display
+- [x] 5.2.2 Create `textarea` component
+- [x] 5.2.3 Create `select` component
+- [x] 5.2.4 Create `checkbox` component
+- [x] 5.2.5 Create `button` component with variants
 
-### 5.3 Data Display Components
-- [ ] 5.3.1 Create `image_gallery` component with lazy loading
-- [ ] 5.3.2 Create `species_card` component
-- [ ] 5.3.3 Create `host_list` component
-- [ ] 5.3.4 Create `source_citation` component
-- [ ] 5.3.5 Create `taxonomy_breadcrumb` component
-- [ ] 5.3.6 Create `data_completeness_indicator` component
-- [ ] 5.3.7 Create `edit_button` component (for admin links)
+### 5.3 Data Display Components ✅
+- [x] 5.3.1 Create `image_gallery` component with lazy loading
+- [x] 5.3.2 Create `species_card` component
+- [x] 5.3.3 Create `host_list` component
+- [x] 5.3.4 Create `source_citation` component
+- [x] 5.3.5 Create `taxonomy_breadcrumb` component
+- [x] 5.3.6 Create `data_completeness_indicator` component
+- [x] 5.3.7 Create `edit_button` component (for admin links)
 
 ## 6. Public Pages (LiveViews)
 
 Build one page at a time, deploy after each, verify visual parity.
 
 ### 6.1 Content Pages
-- [ ] 6.1.1 Create `AboutLive` - about page
-- [ ] 6.1.2 Create `FilterGuideLive` - filter guide page
-- [ ] 6.1.3 Create `ResourcesLive` - resources page
-- [ ] 6.1.4 Create `GlossaryLive` - glossary with sorting
-- [ ] 6.1.5 Create `RefIndexLive` - reference article index
+- [x] 6.1.1 Create `AboutLive` - about page
+- [x] 6.1.2 Create `FilterGuideLive` - filter guide page
+- [x] 6.1.3 Create `ResourcesLive` - resources page
+- [x] 6.1.4 Create `GlossaryLive` - glossary with sorting
+- [x] 6.1.5 Create `RefIndexLive` - reference article index
 
 ### 6.2 Entity Pages
-- [ ] 6.2.1 Create `GallLive` - gall/species detail page
-- [ ] 6.2.2 Create `HostLive` - host detail page
-- [ ] 6.2.3 Create `FamilyLive` - family listing page
-- [ ] 6.2.4 Create `GenusLive` - genus listing page
-- [ ] 6.2.5 Create `SourceLive` - source detail page
-- [ ] 6.2.6 Create `SectionLive` - section listing page
-- [ ] 6.2.7 Create `PlaceLive` - place detail page
+- [x] 6.2.1 Create `GallLive` - gall/species detail page
+- [x] 6.2.2 Create `HostLive` - host detail page
+- [x] 6.2.3 Create `FamilyLive` - family listing page
+- [x] 6.2.4 Create `GenusLive` - genus listing page
+- [x] 6.2.5 Create `SourceLive` - source detail page
+- [x] 6.2.6 Create `SectionLive` - section listing page
+- [x] 6.2.7 Create `PlaceLive` - place detail page
 
 ### 6.3 Error Pages
-- [ ] 6.3.1 Create custom 404 page matching site design
-- [ ] 6.3.2 Create custom 500 page matching site design
-- [ ] 6.3.3 Configure error view in endpoint
+- [x] 6.3.1 Create custom 404 page matching site design
+- [x] 6.3.2 Create custom 500 page matching site design
+- [x] 6.3.3 Configure error view in endpoint
 
 ## 7. Search (LiveView)
 
@@ -199,13 +199,13 @@ Build one page at a time, deploy after each, verify visual parity.
 
 ## 10. Range Map (JS Hook)
 
-- [ ] 10.1 Create `RangeMap` hook in `assets/js/hooks/range_map.js`
-- [ ] 10.2 Configure MapLibre GL JS
-- [ ] 10.3 Implement `mounted()` to initialize map with data
-- [ ] 10.4 Implement `updated()` to handle data changes
-- [ ] 10.5 Style map to match current design
-- [ ] 10.6 Create HEEx component `range_map` with hook binding
-- [ ] 10.7 Test with real range data
+- [x] 10.1 Create `RangeMap` hook in `assets/js/hooks/range_map.js`
+- [x] 10.2 Configure D3.js (used instead of MapLibre to match v2_old implementation)
+- [x] 10.3 Implement `mounted()` to initialize map with data
+- [x] 10.4 Implement `updated()` to handle data changes
+- [x] 10.5 Style map to match current design
+- [x] 10.6 Create HEEx component `range_map` with hook binding
+- [x] 10.7 Test with real range data
 
 ## 11. Admin Pages (LiveView)
 
@@ -292,11 +292,11 @@ Follow the documentation style from `v2_old/api/`:
 
 ## 15. Markdown & Glossary
 
-- [ ] 15.1 Add earmark or mdex dependency
-- [ ] 15.2 Create `Gallformers.Markdown` module
-- [ ] 15.3 Implement glossary term auto-linking
-- [ ] 15.4 Cache compiled markdown in ETS or process state
-- [ ] 15.5 Test markdown rendering in source descriptions
+- [x] 15.1 Add earmark or mdex dependency
+- [x] 15.2 Create `Gallformers.Markdown` module
+- [x] 15.3 Implement glossary term auto-linking
+- [x] 15.4 Cache compiled markdown in ETS or process state
+- [x] 15.5 Test markdown rendering in source descriptions
 
 ## 16. Testing
 
