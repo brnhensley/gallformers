@@ -220,6 +220,35 @@ Applied automatically via layouts:
 - Fields set programmatically (like `user_id`) must not be in `cast` calls - set them explicitly
 - **Always** invoke `mix ecto.gen.migration migration_name_using_underscores` when generating migrations
 
+### SQLite Compatibility
+
+This project uses **SQLite** (via ecto_sqlite3), not PostgreSQL. Many Ecto examples online assume PostgreSQL. Always ensure your queries are SQLite-compatible:
+
+**Case-insensitive search (NO `ilike`):**
+```elixir
+# WRONG - PostgreSQL only
+where: ilike(s.name, ^search_term)
+
+# CORRECT - SQLite compatible
+search_term = "%#{String.downcase(query)}%"
+where: fragment("lower(?) LIKE ?", s.name, ^search_term)
+```
+
+**Distinct on column (NO `distinct: column`):**
+```elixir
+# WRONG - PostgreSQL's DISTINCT ON
+distinct: t.id
+
+# CORRECT - SQLite compatible (use group_by instead)
+group_by: [t.id, t.name]
+```
+
+**Other SQLite limitations to watch for:**
+- No `RETURNING` clause in older SQLite versions (ecto_sqlite3 handles this)
+- No `FULL OUTER JOIN` - use `LEFT JOIN` with `UNION`
+- Limited `ALTER TABLE` support - some migrations may need workarounds
+- No native `BOOLEAN` type - stored as integers (0/1)
+
 ---
 
 ## Phoenix HTML Guidelines

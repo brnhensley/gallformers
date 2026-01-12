@@ -41,15 +41,35 @@ defmodule Gallformers.Species.Image do
     belongs_to :source, Gallformers.Sources.Source
   end
 
+  # Image sizes available on CloudFront
+  # Paths in the database use "original", other sizes replace that word
+  @type size :: :original | :small | :medium | :large | :xlarge
+
   @doc """
   Returns the full CloudFront URL for an image.
   """
-  @spec url(t()) :: String.t()
+  @spec url(t()) :: String.t() | nil
   def url(%__MODULE__{path: path}) when is_binary(path) do
     @image_base_url <> "/" <> path
   end
 
   def url(_), do: nil
+
+  @doc """
+  Returns the CloudFront URL for an image at a specific size.
+
+  Image paths in the database contain "original" which gets replaced
+  with the size name (small, medium, large, xlarge).
+  """
+  @spec sized_url(String.t(), size()) :: String.t()
+  def sized_url(path, :original) when is_binary(path) do
+    @image_base_url <> "/" <> path
+  end
+
+  def sized_url(path, size) when is_binary(path) and size in [:small, :medium, :large, :xlarge] do
+    sized_path = String.replace(path, "original", Atom.to_string(size))
+    @image_base_url <> "/" <> sized_path
+  end
 
   @doc """
   Returns the CloudFront base URL.

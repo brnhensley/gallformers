@@ -19,14 +19,14 @@ defmodule Gallformers.Search do
   """
   @spec search_galls(String.t()) :: [map()]
   def search_galls(query) do
-    search_term = "%#{query}%"
+    search_term = "%#{String.downcase(query)}%"
 
     from(s in Species,
       join: gs in GallSpecies,
       on: gs.species_id == s.id,
       join: g in Gall,
       on: gs.gall_id == g.id,
-      where: s.taxoncode == "gall" and ilike(s.name, ^search_term),
+      where: s.taxoncode == "gall" and fragment("lower(?) LIKE ?", s.name, ^search_term),
       order_by: s.name,
       select: %{
         id: s.id,
@@ -43,14 +43,14 @@ defmodule Gallformers.Search do
   """
   @spec search_galls_paginated(String.t(), integer(), integer()) :: [map()]
   def search_galls_paginated(query, limit, offset) do
-    search_term = "%#{query}%"
+    search_term = "%#{String.downcase(query)}%"
 
     from(s in Species,
       join: gs in GallSpecies,
       on: gs.species_id == s.id,
       join: g in Gall,
       on: gs.gall_id == g.id,
-      where: s.taxoncode == "gall" and ilike(s.name, ^search_term),
+      where: s.taxoncode == "gall" and fragment("lower(?) LIKE ?", s.name, ^search_term),
       order_by: s.name,
       limit: ^limit,
       offset: ^offset,
@@ -69,12 +69,12 @@ defmodule Gallformers.Search do
   """
   @spec count_search_galls(String.t()) :: integer()
   def count_search_galls(query) do
-    search_term = "%#{query}%"
+    search_term = "%#{String.downcase(query)}%"
 
     from(s in Species,
       join: gs in GallSpecies,
       on: gs.species_id == s.id,
-      where: s.taxoncode == "gall" and ilike(s.name, ^search_term),
+      where: s.taxoncode == "gall" and fragment("lower(?) LIKE ?", s.name, ^search_term),
       select: count(s.id)
     )
     |> Repo.one()
@@ -85,10 +85,10 @@ defmodule Gallformers.Search do
   """
   @spec search_hosts(String.t()) :: [map()]
   def search_hosts(query) do
-    search_term = "%#{query}%"
+    search_term = "%#{String.downcase(query)}%"
 
     from(s in Species,
-      where: s.taxoncode == "plant" and ilike(s.name, ^search_term),
+      where: s.taxoncode == "plant" and fragment("lower(?) LIKE ?", s.name, ^search_term),
       order_by: s.name,
       select: %{
         id: s.id,
@@ -104,10 +104,10 @@ defmodule Gallformers.Search do
   """
   @spec search_hosts_paginated(String.t(), integer(), integer()) :: [map()]
   def search_hosts_paginated(query, limit, offset) do
-    search_term = "%#{query}%"
+    search_term = "%#{String.downcase(query)}%"
 
     from(s in Species,
-      where: s.taxoncode == "plant" and ilike(s.name, ^search_term),
+      where: s.taxoncode == "plant" and fragment("lower(?) LIKE ?", s.name, ^search_term),
       order_by: s.name,
       limit: ^limit,
       offset: ^offset,
@@ -125,10 +125,10 @@ defmodule Gallformers.Search do
   """
   @spec count_search_hosts(String.t()) :: integer()
   def count_search_hosts(query) do
-    search_term = "%#{query}%"
+    search_term = "%#{String.downcase(query)}%"
 
     from(s in Species,
-      where: s.taxoncode == "plant" and ilike(s.name, ^search_term),
+      where: s.taxoncode == "plant" and fragment("lower(?) LIKE ?", s.name, ^search_term),
       select: count(s.id)
     )
     |> Repo.one()
@@ -139,10 +139,10 @@ defmodule Gallformers.Search do
   """
   @spec search_all(String.t()) :: [map()]
   def search_all(query) do
-    search_term = "%#{query}%"
+    search_term = "%#{String.downcase(query)}%"
 
     from(s in Species,
-      where: ilike(s.name, ^search_term),
+      where: fragment("lower(?) LIKE ?", s.name, ^search_term),
       order_by: s.name,
       select: %{
         id: s.id,
@@ -221,7 +221,7 @@ defmodule Gallformers.Search do
   """
   @spec search_galls_with_aliases(String.t()) :: [map()]
   def search_galls_with_aliases(query) do
-    search_term = "%#{query}%"
+    search_term = "%#{String.downcase(query)}%"
 
     # Search by species name
     name_results =
@@ -230,7 +230,7 @@ defmodule Gallformers.Search do
         on: gs.species_id == s.id,
         join: g in Gall,
         on: gs.gall_id == g.id,
-        where: s.taxoncode == "gall" and ilike(s.name, ^search_term),
+        where: s.taxoncode == "gall" and fragment("lower(?) LIKE ?", s.name, ^search_term),
         order_by: s.name,
         select: %{
           id: s.id,
@@ -250,7 +250,7 @@ defmodule Gallformers.Search do
         on: gs.species_id == s.id,
         join: g in Gall,
         on: gs.gall_id == g.id,
-        where: s.taxoncode == "gall" and ilike(a.name, ^search_term),
+        where: s.taxoncode == "gall" and fragment("lower(?) LIKE ?", a.name, ^search_term),
         order_by: s.name,
         select: %{
           id: s.id,
@@ -271,12 +271,12 @@ defmodule Gallformers.Search do
   """
   @spec search_hosts_with_aliases(String.t()) :: [map()]
   def search_hosts_with_aliases(query) do
-    search_term = "%#{query}%"
+    search_term = "%#{String.downcase(query)}%"
 
     # Search by species name
     name_results =
       from(s in Species,
-        where: s.taxoncode == "plant" and ilike(s.name, ^search_term),
+        where: s.taxoncode == "plant" and fragment("lower(?) LIKE ?", s.name, ^search_term),
         order_by: s.name,
         select: %{
           id: s.id,
@@ -291,7 +291,7 @@ defmodule Gallformers.Search do
     alias_results =
       from(a in Alias,
         join: s in assoc(a, :species),
-        where: s.taxoncode == "plant" and ilike(a.name, ^search_term),
+        where: s.taxoncode == "plant" and fragment("lower(?) LIKE ?", a.name, ^search_term),
         order_by: s.name,
         select: %{
           id: s.id,
@@ -310,10 +310,12 @@ defmodule Gallformers.Search do
   """
   @spec search_glossary(String.t()) :: [map()]
   def search_glossary(query) do
-    search_term = "%#{query}%"
+    search_term = "%#{String.downcase(query)}%"
 
     from(g in Glossary,
-      where: ilike(g.word, ^search_term) or ilike(g.definition, ^search_term),
+      where:
+        fragment("lower(?) LIKE ?", g.word, ^search_term) or
+          fragment("lower(?) LIKE ?", g.definition, ^search_term),
       order_by: g.word,
       select: %{
         id: g.id,
@@ -330,10 +332,12 @@ defmodule Gallformers.Search do
   """
   @spec search_sources(String.t()) :: [map()]
   def search_sources(query) do
-    search_term = "%#{query}%"
+    search_term = "%#{String.downcase(query)}%"
 
     from(s in Source,
-      where: ilike(s.title, ^search_term) or ilike(s.author, ^search_term),
+      where:
+        fragment("lower(?) LIKE ?", s.title, ^search_term) or
+          fragment("lower(?) LIKE ?", s.author, ^search_term),
       order_by: s.title,
       select: %{
         id: s.id,
@@ -351,12 +355,12 @@ defmodule Gallformers.Search do
   """
   @spec search_taxonomy(String.t()) :: [map()]
   def search_taxonomy(query) do
-    search_term = "%#{query}%"
+    search_term = "%#{String.downcase(query)}%"
 
     from(t in Taxonomy,
       where:
         t.type in ["genus", "family", "section"] and
-          ilike(t.name, ^search_term),
+          fragment("lower(?) LIKE ?", t.name, ^search_term),
       order_by: [t.type, t.name],
       select: %{
         id: t.id,
@@ -373,10 +377,12 @@ defmodule Gallformers.Search do
   """
   @spec search_places(String.t()) :: [map()]
   def search_places(query) do
-    search_term = "%#{query}%"
+    search_term = "%#{String.downcase(query)}%"
 
     from(p in Place,
-      where: ilike(p.name, ^search_term) or ilike(p.code, ^search_term),
+      where:
+        fragment("lower(?) LIKE ?", p.name, ^search_term) or
+          fragment("lower(?) LIKE ?", p.code, ^search_term),
       order_by: p.name,
       select: %{
         id: p.id,

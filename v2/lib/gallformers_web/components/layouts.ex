@@ -24,6 +24,10 @@ defmodule GallformersWeb.Layouts do
     default: nil,
     doc: "the current [scope](https://hexdocs.pm/phoenix/scopes.html)"
 
+  attr :fluid, :boolean,
+    default: false,
+    doc: "if true, content spans full width without max-width constraint"
+
   slot :inner_block, required: true
 
   def app(assigns) do
@@ -32,7 +36,10 @@ defmodule GallformersWeb.Layouts do
       <.site_header />
 
       <main class="flex-1 pb-32">
-        <div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <div class={[
+          "px-4 sm:px-6 lg:px-8",
+          !@fluid && "mx-auto max-w-7xl py-8"
+        ]}>
           {render_slot(@inner_block)}
         </div>
       </main>

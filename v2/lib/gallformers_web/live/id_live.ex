@@ -33,14 +33,13 @@ defmodule GallformersWeb.IDLive do
   def mount(_params, _session, socket) do
     filter_options = IDTool.get_filter_options()
     places = Places.list_places()
-    families = Taxonomy.list_gall_families()
 
     {:ok,
      assign(socket,
        page_title: "ID Tool | Gallformers",
        filter_options: filter_options,
        places: places,
-       families: families,
+       families: [],
        # Current filter selections
        filters: default_filters(),
        # Typeahead state
@@ -50,8 +49,14 @@ defmodule GallformersWeb.IDLive do
        genus_query: "",
        genus_results: [],
        selected_genus: nil,
+       # Multi-select typeahead state
+       location_query: "",
+       location_focused: false,
+       texture_query: "",
+       texture_focused: false,
        # Results
        results: [],
+       total_count: 0,
        show_advanced: false
      )}
   end
@@ -127,11 +132,34 @@ defmodule GallformersWeb.IDLive do
         nil
       end
 
+    # Load families based on selection
+    families = load_families_for_selection(selected_host, selected_genus)
+
     socket
     |> assign(filters: filters)
     |> assign(selected_host: selected_host)
     |> assign(selected_genus: selected_genus)
+    |> assign(families: families)
     |> maybe_load_results()
+  end
+
+  # Load families relevant to the current host/genus selection
+  defp load_families_for_selection(nil, nil), do: []
+
+  defp load_families_for_selection(host, nil) do
+    Taxonomy.list_gall_families_for_host(host.id)
+  end
+
+  defp load_families_for_selection(nil, genus) do
+    case Taxonomy.get_family_for_genus(genus.id) do
+      nil -> []
+      family -> [family]
+    end
+  end
+
+  defp load_families_for_selection(host, _genus) do
+    # When both are selected, get families for host (genus family should be in there)
+    Taxonomy.list_gall_families_for_host(host.id)
   end
 
   defp default_filters do
@@ -155,7 +183,7 @@ defmodule GallformersWeb.IDLive do
   # Event handlers
 
   @impl true
-  def handle_event("search_host", %{"query" => query}, socket) do
+  def handle_event("search_host", %{"value" => query}, socket) do
     results =
       if String.length(query) >= 2 do
         Hosts.search_hosts(query, 10)
@@ -190,7 +218,7 @@ defmodule GallformersWeb.IDLive do
   end
 
   @impl true
-  def handle_event("search_genus", %{"query" => query}, socket) do
+  def handle_event("search_genus", %{"value" => query}, socket) do
     results =
       if String.length(query) >= 2 do
         Taxonomy.search_genera_and_sections(query, 10)
@@ -224,17 +252,47 @@ defmodule GallformersWeb.IDLive do
     {:noreply, socket}
   end
 
+  # Location multi-select handlers
   @impl true
-  def handle_event("toggle_location", %{"value" => value}, socket) do
-    location_id = String.to_integer(value)
+  def handle_event("location_search", %{"value" => query}, socket) do
+    {:noreply, assign(socket, location_query: query)}
+  end
+
+  @impl true
+  def handle_event("location_focus", _params, socket) do
+    {:noreply, assign(socket, location_focused: true)}
+  end
+
+  @impl true
+  def handle_event("location_blur", _params, socket) do
+    {:noreply, assign(socket, location_focused: false)}
+  end
+
+  @impl true
+  def handle_event("location_select", %{"id" => id}, socket) do
+    location_id = String.to_integer(id)
     locations = socket.assigns.filters.locations
 
     new_locations =
       if location_id in locations do
-        List.delete(locations, location_id)
+        locations
       else
         [location_id | locations]
       end
+
+    socket =
+      socket
+      |> update_filter(:locations, new_locations)
+      |> assign(location_query: "")
+      |> push_filter_patch()
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("location_remove", %{"id" => id}, socket) do
+    location_id = String.to_integer(id)
+    new_locations = List.delete(socket.assigns.filters.locations, location_id)
 
     socket =
       socket
@@ -245,13 +303,40 @@ defmodule GallformersWeb.IDLive do
   end
 
   @impl true
-  def handle_event("toggle_texture", %{"value" => value}, socket) do
-    texture_id = String.to_integer(value)
+  def handle_event("location_clear", _params, socket) do
+    socket =
+      socket
+      |> update_filter(:locations, [])
+      |> assign(location_query: "", location_focused: false)
+      |> push_filter_patch()
+
+    {:noreply, socket}
+  end
+
+  # Texture multi-select handlers
+  @impl true
+  def handle_event("texture_search", %{"value" => query}, socket) do
+    {:noreply, assign(socket, texture_query: query)}
+  end
+
+  @impl true
+  def handle_event("texture_focus", _params, socket) do
+    {:noreply, assign(socket, texture_focused: true)}
+  end
+
+  @impl true
+  def handle_event("texture_blur", _params, socket) do
+    {:noreply, assign(socket, texture_focused: false)}
+  end
+
+  @impl true
+  def handle_event("texture_select", %{"id" => id}, socket) do
+    texture_id = String.to_integer(id)
     textures = socket.assigns.filters.textures
 
     new_textures =
       if texture_id in textures do
-        List.delete(textures, texture_id)
+        textures
       else
         [texture_id | textures]
       end
@@ -259,6 +344,31 @@ defmodule GallformersWeb.IDLive do
     socket =
       socket
       |> update_filter(:textures, new_textures)
+      |> assign(texture_query: "")
+      |> push_filter_patch()
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("texture_remove", %{"id" => id}, socket) do
+    texture_id = String.to_integer(id)
+    new_textures = List.delete(socket.assigns.filters.textures, texture_id)
+
+    socket =
+      socket
+      |> update_filter(:textures, new_textures)
+      |> push_filter_patch()
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("texture_clear", _params, socket) do
+    socket =
+      socket
+      |> update_filter(:textures, [])
+      |> assign(texture_query: "", texture_focused: false)
       |> push_filter_patch()
 
     {:noreply, socket}
@@ -296,7 +406,8 @@ defmodule GallformersWeb.IDLive do
       |> assign(
         filters: default_filters(),
         selected_host: nil,
-        selected_genus: nil
+        selected_genus: nil,
+        families: []
       )
       |> push_filter_patch()
 
@@ -376,7 +487,12 @@ defmodule GallformersWeb.IDLive do
   defp load_results(socket) do
     filter_params = build_filter_params(socket)
     results = IDTool.filter_galls(filter_params)
-    assign(socket, results: results)
+
+    if socket.assigns.filters == default_filters() do
+      assign(socket, results: results, total_count: length(results))
+    else
+      assign(socket, results: results)
+    end
   end
 
   defp build_filter_params(socket) do
@@ -441,85 +557,113 @@ defmodule GallformersWeb.IDLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash}>
-      <div class="mx-auto max-w-7xl">
-        <div class="mb-6">
-          <h1 class="text-2xl font-bold text-gf-maroon">Gall ID Tool</h1>
-          <p class="text-gray-600 mt-1">
-            Filter galls by host plant, genus, and various characteristics.
-          </p>
-        </div>
-
-        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          <div class="lg:col-span-1 space-y-4">
-            <div class="bg-white rounded-lg border border-gray-200 p-4">
-              <h2 class="font-semibold text-gray-900 mb-4">Filters</h2>
-
+    <Layouts.app flash={@flash} fluid>
+      <div class="py-4">
+        <%!-- Host/Genus Pickers --%>
+        <div class="mb-2">
+          <div class="grid grid-cols-1 md:grid-cols-11 gap-2 items-end">
+            <div class="md:col-span-5">
               <.host_picker
                 query={@host_query}
                 results={@host_results}
                 selected={@selected_host}
               />
-
+            </div>
+            <div class="md:col-span-1 text-center text-sm text-gray-500 pb-2">
+              OR
+            </div>
+            <div class="md:col-span-5">
               <.genus_picker
                 query={@genus_query}
                 results={@genus_results}
                 selected={@selected_genus}
               />
-
-              <.location_filter
-                options={@filter_options.locations}
-                selected={@filters.locations}
-              />
-
-              <.detachable_filter value={@filters.detachable} />
-
-              <.place_filter places={@places} value={@filters.place} />
-
-              <.family_filter families={@families} value={@filters.family} />
-
-              <button
-                type="button"
-                phx-click="toggle_advanced"
-                class="w-full text-left text-sm text-gf-maroon hover:underline mb-2"
-              >
-                {if @show_advanced, do: "Hide", else: "Show"} Advanced Filters
-                <.icon
-                  name={if @show_advanced, do: "hero-chevron-up", else: "hero-chevron-down"}
-                  class="size-4 inline ml-1"
-                />
-              </button>
-
-              <div :if={@show_advanced} class="space-y-4 border-t border-gray-200 pt-4">
-                <.color_filter options={@filter_options.colors} value={@filters.color} />
-                <.shape_filter options={@filter_options.shapes} value={@filters.shape} />
-                <.texture_filter options={@filter_options.textures} selected={@filters.textures} />
-                <.alignment_filter options={@filter_options.alignments} value={@filters.alignment} />
-                <.form_filter options={@filter_options.forms} value={@filters.form} />
-                <.walls_filter options={@filter_options.walls} value={@filters.walls} />
-                <.cells_filter options={@filter_options.cells} value={@filters.cells} />
-                <.season_filter options={@filter_options.seasons} value={@filters.season} />
-                <.undescribed_filter value={@filters.undescribed} />
-              </div>
-
-              <button
-                type="button"
-                phx-click="clear_all"
-                class="w-full mt-4 px-3 py-2 text-sm text-gray-600 border border-gray-300 rounded hover:bg-gray-50"
-              >
-                Clear All Filters
-              </button>
             </div>
           </div>
+        </div>
 
-          <div class="lg:col-span-3">
-            <.results_grid
-              results={@results}
-              has_selection={@selected_host != nil or @selected_genus != nil}
-              selected_host={@selected_host}
+        <hr class="border-gray-200 mb-4" />
+
+        <%!-- Filter Panel (only shown when host/genus selected) --%>
+        <div :if={@selected_host != nil or @selected_genus != nil} class="mb-2">
+          <%!-- Primary Filters (4-column grid) --%>
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+            <.multi_select_typeahead
+              id="locations"
+              name="location"
+              label="Location(s) on Plant:"
+              placeholder="Locations"
+              options={@filter_options.locations}
+              selected={@filters.locations}
+              option_label={:location}
+              query={@location_query}
+              focused={@location_focused}
             />
+            <.detachable_filter value={@filters.detachable} />
+            <.place_filter places={@places} value={@filters.place} />
+            <.family_filter families={@families} value={@filters.family} />
+          </div>
+
+          <%!-- Advanced Filters Toggle and Clear --%>
+          <div class="flex justify-between items-center pt-2">
+            <button
+              type="button"
+              phx-click="toggle_advanced"
+              class="text-sm text-gf-maroon hover:underline"
+            >
+              {if @show_advanced, do: "Hide Advanced Filters", else: "Show Advanced Filters"}
+            </button>
+            <button
+              type="button"
+              phx-click="clear_all"
+              class="text-sm text-red-600 hover:underline"
+            >
+              Clear All Filters
+            </button>
+          </div>
+
+          <%!-- Advanced Filters (Collapsible) --%>
+          <div :if={@show_advanced} class="border-t border-gray-200 pt-3 mt-3">
+            <p class="text-sm text-gray-500 italic mb-3">
+              Be aware that many galls do not have associated information for all of the below properties.
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+              <.season_filter options={@filter_options.seasons} value={@filters.season} />
+              <.multi_select_typeahead
+                id="textures"
+                name="texture"
+                label="Texture(s):"
+                placeholder="Textures"
+                options={@filter_options.textures}
+                selected={@filters.textures}
+                option_label={:texture}
+                query={@texture_query}
+                focused={@texture_focused}
+              />
+              <.alignment_filter options={@filter_options.alignments} value={@filters.alignment} />
+              <.form_filter options={@filter_options.forms} value={@filters.form} />
+              <.walls_filter options={@filter_options.walls} value={@filters.walls} />
+              <.cells_filter options={@filter_options.cells} value={@filters.cells} />
+              <.shape_filter options={@filter_options.shapes} value={@filters.shape} />
+              <.color_filter options={@filter_options.colors} value={@filters.color} />
+            </div>
+
+            <div class="mt-3">
+              <.undescribed_filter value={@filters.undescribed} />
+            </div>
           </div>
         </div>
+
+        <hr class="border-gray-200 my-3" />
+
+        <%!-- Results Grid --%>
+        <.results_grid
+          results={@results}
+          total_count={@total_count}
+          has_selection={@selected_host != nil or @selected_genus != nil}
+          selected_host={@selected_host}
+        />
       </div>
     </Layouts.app>
     """
@@ -532,11 +676,11 @@ defmodule GallformersWeb.IDLive do
 
   defp host_picker(assigns) do
     ~H"""
-    <div class="mb-4">
-      <label class="block text-sm font-medium text-gray-700 mb-1">Host Plant</label>
+    <div>
+      <label class="block text-base font-medium text-gray-700 mb-1">Host:</label>
       <%= if @selected do %>
         <div class="flex items-center gap-2 p-2 bg-gray-50 rounded border">
-          <span class="flex-1 text-sm italic">{@selected.name}</span>
+          <span class="flex-1 text-base italic">{@selected.name}</span>
           <button
             type="button"
             phx-click="clear_host"
@@ -554,7 +698,7 @@ defmodule GallformersWeb.IDLive do
             phx-keyup="search_host"
             phx-debounce="200"
             placeholder="Search hosts..."
-            class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-gf-maroon focus:border-gf-maroon"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md text-base focus:ring-gf-maroon focus:border-gf-maroon"
           />
           <div
             :if={length(@results) > 0}
@@ -565,7 +709,7 @@ defmodule GallformersWeb.IDLive do
               type="button"
               phx-click="select_host"
               phx-value-id={host.id}
-              class="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
+              class="w-full text-left px-3 py-2 text-base hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
             >
               <span class="italic">{format_host_display(host)}</span>
               <span :if={!host.datacomplete} class="ml-2 text-xs text-yellow-600">
@@ -586,11 +730,11 @@ defmodule GallformersWeb.IDLive do
 
   defp genus_picker(assigns) do
     ~H"""
-    <div class="mb-4">
-      <label class="block text-sm font-medium text-gray-700 mb-1">Genus / Section</label>
+    <div>
+      <label class="block text-base font-medium text-gray-700 mb-1">Genus / Section:</label>
       <%= if @selected do %>
         <div class="flex items-center gap-2 p-2 bg-gray-50 rounded border">
-          <span class="flex-1 text-sm italic">{format_genus_display(@selected)}</span>
+          <span class="flex-1 text-base italic">{format_genus_display(@selected)}</span>
           <button
             type="button"
             phx-click="clear_genus"
@@ -608,7 +752,7 @@ defmodule GallformersWeb.IDLive do
             phx-keyup="search_genus"
             phx-debounce="200"
             placeholder="Search genera..."
-            class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-gf-maroon focus:border-gf-maroon"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md text-base focus:ring-gf-maroon focus:border-gf-maroon"
           />
           <div
             :if={length(@results) > 0}
@@ -619,7 +763,7 @@ defmodule GallformersWeb.IDLive do
               type="button"
               phx-click="select_genus"
               phx-value-id={genus.id}
-              class="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
+              class="w-full text-left px-3 py-2 text-base hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
             >
               <span class="italic">{genus.name}</span>
               <span :if={genus.type == "section"} class="ml-1 text-xs text-gray-500">[Section]</span>
@@ -634,51 +778,24 @@ defmodule GallformersWeb.IDLive do
     """
   end
 
-  # Component: Location Filter (multi-select)
-  attr :options, :list, required: true
-  attr :selected, :list, required: true
-
-  defp location_filter(assigns) do
-    ~H"""
-    <div class="mb-4">
-      <label class="block text-sm font-medium text-gray-700 mb-2">Location on Plant</label>
-      <div class="flex flex-wrap gap-1">
-        <button
-          :for={loc <- @options}
-          type="button"
-          phx-click="toggle_location"
-          phx-value-value={loc.id}
-          class={[
-            "px-2 py-1 text-xs rounded border transition-colors",
-            loc.id in @selected && "bg-gf-maroon text-white border-gf-maroon",
-            loc.id not in @selected && "bg-white text-gray-700 border-gray-300 hover:border-gf-maroon"
-          ]}
-        >
-          {loc.location}
-        </button>
-      </div>
-    </div>
-    """
-  end
-
   # Component: Detachable Filter
   attr :value, :string, required: true
 
   defp detachable_filter(assigns) do
     ~H"""
-    <div class="mb-4">
-      <label class="block text-sm font-medium text-gray-700 mb-1">Detachable</label>
-      <select
-        phx-change="change_filter"
-        phx-value-filter="detachable"
-        name="value"
-        class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-gf-maroon focus:border-gf-maroon"
-      >
-        <option value="" selected={@value == nil}>Any</option>
-        <option value="integral" selected={@value == "integral"}>Integral</option>
-        <option value="detachable" selected={@value == "detachable"}>Detachable</option>
-        <option value="both" selected={@value == "both"}>Both</option>
-      </select>
+    <div class="mb-2">
+      <label class="block text-base font-medium text-gray-700 mb-1">Detachable</label>
+      <form phx-change="change_filter" phx-value-filter="detachable">
+        <select
+          name="value"
+          class="w-full px-3 py-2 border border-gray-300 rounded-md text-base focus:ring-gf-maroon focus:border-gf-maroon"
+        >
+          <option value="" selected={@value == nil}>Any</option>
+          <option value="integral" selected={@value == "integral"}>Integral</option>
+          <option value="detachable" selected={@value == "detachable"}>Detachable</option>
+          <option value="both" selected={@value == "both"}>Both</option>
+        </select>
+      </form>
     </div>
     """
   end
@@ -689,19 +806,19 @@ defmodule GallformersWeb.IDLive do
 
   defp place_filter(assigns) do
     ~H"""
-    <div class="mb-4">
-      <label class="block text-sm font-medium text-gray-700 mb-1">Region</label>
-      <select
-        phx-change="change_filter"
-        phx-value-filter="place"
-        name="value"
-        class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-gf-maroon focus:border-gf-maroon"
-      >
-        <option value="" selected={@value == nil}>Any Region</option>
-        <option :for={place <- @places} value={place.code} selected={@value == place.code}>
-          {place.name}
-        </option>
-      </select>
+    <div class="mb-2">
+      <label class="block text-base font-medium text-gray-700 mb-1">Region</label>
+      <form phx-change="change_filter" phx-value-filter="place">
+        <select
+          name="value"
+          class="w-full px-3 py-2 border border-gray-300 rounded-md text-base focus:ring-gf-maroon focus:border-gf-maroon"
+        >
+          <option value="" selected={@value == nil}>Any Region</option>
+          <option :for={place <- @places} value={place.code} selected={@value == place.code}>
+            {place.name}
+          </option>
+        </select>
+      </form>
     </div>
     """
   end
@@ -712,19 +829,19 @@ defmodule GallformersWeb.IDLive do
 
   defp family_filter(assigns) do
     ~H"""
-    <div class="mb-4">
-      <label class="block text-sm font-medium text-gray-700 mb-1">Family</label>
-      <select
-        phx-change="change_filter"
-        phx-value-filter="family"
-        name="value"
-        class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-gf-maroon focus:border-gf-maroon"
-      >
-        <option value="" selected={@value == nil}>Any Family</option>
-        <option :for={fam <- @families} value={fam.id} selected={@value == fam.id}>
-          {fam.name}
-        </option>
-      </select>
+    <div class="mb-2">
+      <label class="block text-base font-medium text-gray-700 mb-1">Family</label>
+      <form phx-change="change_filter" phx-value-filter="family">
+        <select
+          name="value"
+          class="w-full px-3 py-2 border border-gray-300 rounded-md text-base focus:ring-gf-maroon focus:border-gf-maroon"
+        >
+          <option value="" selected={@value == nil}>Any Family</option>
+          <option :for={fam <- @families} value={fam.id} selected={@value == fam.id}>
+            {fam.name}
+          </option>
+        </select>
+      </form>
     </div>
     """
   end
@@ -735,19 +852,19 @@ defmodule GallformersWeb.IDLive do
 
   defp color_filter(assigns) do
     ~H"""
-    <div class="mb-4">
-      <label class="block text-sm font-medium text-gray-700 mb-1">Color</label>
-      <select
-        phx-change="change_filter"
-        phx-value-filter="color"
-        name="value"
-        class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-gf-maroon focus:border-gf-maroon"
-      >
-        <option value="" selected={@value == nil}>Any Color</option>
-        <option :for={opt <- @options} value={opt.id} selected={@value == opt.id}>
-          {opt.color}
-        </option>
-      </select>
+    <div class="mb-2">
+      <label class="block text-base font-medium text-gray-700 mb-1">Color</label>
+      <form phx-change="change_filter" phx-value-filter="color">
+        <select
+          name="value"
+          class="w-full px-3 py-2 border border-gray-300 rounded-md text-base focus:ring-gf-maroon focus:border-gf-maroon"
+        >
+          <option value="" selected={@value == nil}>Any Color</option>
+          <option :for={opt <- @options} value={opt.id} selected={@value == opt.id}>
+            {opt.color}
+          </option>
+        </select>
+      </form>
     </div>
     """
   end
@@ -758,46 +875,19 @@ defmodule GallformersWeb.IDLive do
 
   defp shape_filter(assigns) do
     ~H"""
-    <div class="mb-4">
-      <label class="block text-sm font-medium text-gray-700 mb-1">Shape</label>
-      <select
-        phx-change="change_filter"
-        phx-value-filter="shape"
-        name="value"
-        class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-gf-maroon focus:border-gf-maroon"
-      >
-        <option value="" selected={@value == nil}>Any Shape</option>
-        <option :for={opt <- @options} value={opt.id} selected={@value == opt.id}>
-          {opt.shape}
-        </option>
-      </select>
-    </div>
-    """
-  end
-
-  # Component: Texture Filter (multi-select)
-  attr :options, :list, required: true
-  attr :selected, :list, required: true
-
-  defp texture_filter(assigns) do
-    ~H"""
-    <div class="mb-4">
-      <label class="block text-sm font-medium text-gray-700 mb-2">Texture</label>
-      <div class="flex flex-wrap gap-1">
-        <button
-          :for={tex <- @options}
-          type="button"
-          phx-click="toggle_texture"
-          phx-value-value={tex.id}
-          class={[
-            "px-2 py-1 text-xs rounded border transition-colors",
-            tex.id in @selected && "bg-gf-maroon text-white border-gf-maroon",
-            tex.id not in @selected && "bg-white text-gray-700 border-gray-300 hover:border-gf-maroon"
-          ]}
+    <div class="mb-2">
+      <label class="block text-base font-medium text-gray-700 mb-1">Shape</label>
+      <form phx-change="change_filter" phx-value-filter="shape">
+        <select
+          name="value"
+          class="w-full px-3 py-2 border border-gray-300 rounded-md text-base focus:ring-gf-maroon focus:border-gf-maroon"
         >
-          {tex.texture}
-        </button>
-      </div>
+          <option value="" selected={@value == nil}>Any Shape</option>
+          <option :for={opt <- @options} value={opt.id} selected={@value == opt.id}>
+            {opt.shape}
+          </option>
+        </select>
+      </form>
     </div>
     """
   end
@@ -808,19 +898,19 @@ defmodule GallformersWeb.IDLive do
 
   defp alignment_filter(assigns) do
     ~H"""
-    <div class="mb-4">
-      <label class="block text-sm font-medium text-gray-700 mb-1">Alignment</label>
-      <select
-        phx-change="change_filter"
-        phx-value-filter="alignment"
-        name="value"
-        class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-gf-maroon focus:border-gf-maroon"
-      >
-        <option value="" selected={@value == nil}>Any Alignment</option>
-        <option :for={opt <- @options} value={opt.id} selected={@value == opt.id}>
-          {opt.alignment}
-        </option>
-      </select>
+    <div class="mb-2">
+      <label class="block text-base font-medium text-gray-700 mb-1">Alignment</label>
+      <form phx-change="change_filter" phx-value-filter="alignment">
+        <select
+          name="value"
+          class="w-full px-3 py-2 border border-gray-300 rounded-md text-base focus:ring-gf-maroon focus:border-gf-maroon"
+        >
+          <option value="" selected={@value == nil}>Any Alignment</option>
+          <option :for={opt <- @options} value={opt.id} selected={@value == opt.id}>
+            {opt.alignment}
+          </option>
+        </select>
+      </form>
     </div>
     """
   end
@@ -831,19 +921,19 @@ defmodule GallformersWeb.IDLive do
 
   defp form_filter(assigns) do
     ~H"""
-    <div class="mb-4">
-      <label class="block text-sm font-medium text-gray-700 mb-1">Form</label>
-      <select
-        phx-change="change_filter"
-        phx-value-filter="form"
-        name="value"
-        class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-gf-maroon focus:border-gf-maroon"
-      >
-        <option value="" selected={@value == nil}>Any Form</option>
-        <option :for={opt <- @options} value={opt.id} selected={@value == opt.id}>
-          {opt.form}
-        </option>
-      </select>
+    <div class="mb-2">
+      <label class="block text-base font-medium text-gray-700 mb-1">Form</label>
+      <form phx-change="change_filter" phx-value-filter="form">
+        <select
+          name="value"
+          class="w-full px-3 py-2 border border-gray-300 rounded-md text-base focus:ring-gf-maroon focus:border-gf-maroon"
+        >
+          <option value="" selected={@value == nil}>Any Form</option>
+          <option :for={opt <- @options} value={opt.id} selected={@value == opt.id}>
+            {opt.form}
+          </option>
+        </select>
+      </form>
     </div>
     """
   end
@@ -854,19 +944,19 @@ defmodule GallformersWeb.IDLive do
 
   defp walls_filter(assigns) do
     ~H"""
-    <div class="mb-4">
-      <label class="block text-sm font-medium text-gray-700 mb-1">Walls</label>
-      <select
-        phx-change="change_filter"
-        phx-value-filter="walls"
-        name="value"
-        class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-gf-maroon focus:border-gf-maroon"
-      >
-        <option value="" selected={@value == nil}>Any Walls</option>
-        <option :for={opt <- @options} value={opt.id} selected={@value == opt.id}>
-          {opt.walls}
-        </option>
-      </select>
+    <div class="mb-2">
+      <label class="block text-base font-medium text-gray-700 mb-1">Walls</label>
+      <form phx-change="change_filter" phx-value-filter="walls">
+        <select
+          name="value"
+          class="w-full px-3 py-2 border border-gray-300 rounded-md text-base focus:ring-gf-maroon focus:border-gf-maroon"
+        >
+          <option value="" selected={@value == nil}>Any Walls</option>
+          <option :for={opt <- @options} value={opt.id} selected={@value == opt.id}>
+            {opt.walls}
+          </option>
+        </select>
+      </form>
     </div>
     """
   end
@@ -877,19 +967,19 @@ defmodule GallformersWeb.IDLive do
 
   defp cells_filter(assigns) do
     ~H"""
-    <div class="mb-4">
-      <label class="block text-sm font-medium text-gray-700 mb-1">Cells</label>
-      <select
-        phx-change="change_filter"
-        phx-value-filter="cells"
-        name="value"
-        class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-gf-maroon focus:border-gf-maroon"
-      >
-        <option value="" selected={@value == nil}>Any Cells</option>
-        <option :for={opt <- @options} value={opt.id} selected={@value == opt.id}>
-          {opt.cells}
-        </option>
-      </select>
+    <div class="mb-2">
+      <label class="block text-base font-medium text-gray-700 mb-1">Cells</label>
+      <form phx-change="change_filter" phx-value-filter="cells">
+        <select
+          name="value"
+          class="w-full px-3 py-2 border border-gray-300 rounded-md text-base focus:ring-gf-maroon focus:border-gf-maroon"
+        >
+          <option value="" selected={@value == nil}>Any Cells</option>
+          <option :for={opt <- @options} value={opt.id} selected={@value == opt.id}>
+            {opt.cells}
+          </option>
+        </select>
+      </form>
     </div>
     """
   end
@@ -900,19 +990,19 @@ defmodule GallformersWeb.IDLive do
 
   defp season_filter(assigns) do
     ~H"""
-    <div class="mb-4">
-      <label class="block text-sm font-medium text-gray-700 mb-1">Season</label>
-      <select
-        phx-change="change_filter"
-        phx-value-filter="season"
-        name="value"
-        class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-gf-maroon focus:border-gf-maroon"
-      >
-        <option value="" selected={@value == nil}>Any Season</option>
-        <option :for={opt <- @options} value={opt.id} selected={@value == opt.id}>
-          {opt.season}
-        </option>
-      </select>
+    <div class="mb-2">
+      <label class="block text-base font-medium text-gray-700 mb-1">Season</label>
+      <form phx-change="change_filter" phx-value-filter="season">
+        <select
+          name="value"
+          class="w-full px-3 py-2 border border-gray-300 rounded-md text-base focus:ring-gf-maroon focus:border-gf-maroon"
+        >
+          <option value="" selected={@value == nil}>Any Season</option>
+          <option :for={opt <- @options} value={opt.id} selected={@value == opt.id}>
+            {opt.season}
+          </option>
+        </select>
+      </form>
     </div>
     """
   end
@@ -922,18 +1012,20 @@ defmodule GallformersWeb.IDLive do
 
   defp undescribed_filter(assigns) do
     ~H"""
-    <div class="mb-4">
-      <label class="flex items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          checked={@value}
-          phx-click="change_filter"
-          phx-value-filter="undescribed"
-          phx-value-value={if @value, do: "false", else: "true"}
-          class="h-4 w-4 text-gf-maroon focus:ring-gf-maroon border-gray-300 rounded"
-        />
-        <span class="text-gray-700">Show only undescribed galls</span>
-      </label>
+    <div class="mb-2">
+      <form phx-change="change_filter" phx-value-filter="undescribed">
+        <label class="flex items-center gap-2 text-base cursor-pointer">
+          <input type="hidden" name="value" value="false" />
+          <input
+            type="checkbox"
+            name="value"
+            value="true"
+            checked={@value}
+            class="h-4 w-4 text-gf-maroon focus:ring-gf-maroon border-gray-300 rounded"
+          />
+          <span class="text-gray-700">Show only undescribed galls</span>
+        </label>
+      </form>
     </div>
     """
   end
@@ -942,43 +1034,52 @@ defmodule GallformersWeb.IDLive do
   attr :results, :list, required: true
   attr :has_selection, :boolean, required: true
   attr :selected_host, :any, required: true
+  attr :total_count, :integer, required: true
 
   defp results_grid(assigns) do
     ~H"""
-    <div class="bg-white rounded-lg border border-gray-200 p-4">
+    <div>
       <%= if !@has_selection do %>
-        <div class="text-center py-12 text-gray-500">
-          <.icon name="hero-magnifying-glass" class="size-12 mx-auto mb-4 text-gray-300" />
-          <p>Select a Host or Genus to begin filtering galls.</p>
-        </div>
-      <% else %>
-        <div class="mb-4 flex items-center justify-between">
-          <p class="text-sm text-gray-600">
-            Showing <span class="font-semibold">{length(@results)}</span> galls
+        <div class="text-center py-8 text-gray-500 bg-blue-50 rounded border border-blue-200">
+          <p class="text-sm">
+            Select a Host or Genus to see matching galls. Then you can use the filters to narrow down the list.
           </p>
         </div>
-
+      <% else %>
         <%= if @selected_host && !@selected_host.datacomplete do %>
-          <div class="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800">
-            <.icon name="hero-exclamation-triangle" class="size-4 inline mr-1" />
+          <div class="mb-3 p-2 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800">
             This host does not yet have all known galls added to the database.
           </div>
         <% end %>
 
+        <p class="text-sm text-gray-600 mb-3">
+          Showing <span class="font-semibold">{length(@results)}</span>
+          <span :if={length(@results) != @total_count}>of {@total_count}</span> galls:
+        </p>
+
         <%= if length(@results) == 0 do %>
-          <div class="text-center py-12 text-gray-500">
-            <.icon name="hero-face-frown" class="size-12 mx-auto mb-4 text-gray-300" />
-            <p>No galls match your current filters.</p>
-            <p class="text-sm mt-2">
-              Try removing some filters or check the <.link
-                href="/filterguide"
-                class="text-gf-maroon hover:underline"
-              >filter guide</.link>.
+          <div class="p-4 bg-blue-50 border border-blue-200 rounded text-sm">
+            <p>
+              There are no galls that match your filter. It's possible there are no described species that fit this set of traits and your gall is undescribed.
+            </p>
+            <p class="mt-2">
+              However, before giving up, try <.link
+                href="/ref/IDGuide#troubleshooting"
+                class="text-gf-maroon underline"
+              >altering your filter choices</.link>.
             </p>
           </div>
         <% else %>
-          <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
             <.gall_card :for={gall <- @results} gall={gall} />
+          </div>
+          <div class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded text-sm">
+            <p>
+              If none of these results match your gall, you may have found an undescribed species. However, before concluding that your gall is not in the database, try <.link
+                href="/ref/IDGuide#troubleshooting"
+                class="text-gf-maroon underline"
+              >altering your filter choices</.link>.
+            </p>
           </div>
         <% end %>
       <% end %>
@@ -993,20 +1094,14 @@ defmodule GallformersWeb.IDLive do
     ~H"""
     <.link href={"/gall/#{@gall.id}"} class="block group">
       <div class="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow">
-        <%= if @gall.image_url do %>
-          <div class="aspect-square bg-gray-100">
-            <img
-              src={@gall.image_url}
-              alt={@gall.name}
-              class="w-full h-full object-cover"
-              loading="lazy"
-            />
-          </div>
-        <% else %>
-          <div class="aspect-square bg-gray-100 flex items-center justify-center">
-            <.icon name="hero-photo" class="size-12 text-gray-300" />
-          </div>
-        <% end %>
+        <div class="aspect-square bg-gray-100">
+          <img
+            src={@gall.image_url || ~p"/images/noimage.jpg"}
+            alt={@gall.name}
+            class="w-full h-full object-cover"
+            loading="lazy"
+          />
+        </div>
         <div class="p-2">
           <p class="text-sm font-medium text-gray-900 group-hover:text-gf-maroon truncate italic">
             {@gall.name}

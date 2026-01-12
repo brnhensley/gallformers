@@ -77,10 +77,12 @@ defmodule Gallformers.Sources do
   """
   @spec search_sources(String.t()) :: [Source.t()]
   def search_sources(query) do
-    search_term = "%#{query}%"
+    search_term = "%#{String.downcase(query)}%"
 
     from(s in Source,
-      where: ilike(s.title, ^search_term) or ilike(s.author, ^search_term),
+      where:
+        fragment("lower(?) LIKE ?", s.title, ^search_term) or
+          fragment("lower(?) LIKE ?", s.author, ^search_term),
       order_by: s.title
     )
     |> Repo.all()

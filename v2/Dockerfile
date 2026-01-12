@@ -4,8 +4,8 @@
 # Stage 1: Build Elixir release
 FROM hexpm/elixir:1.17.3-erlang-27.1.2-alpine-3.20.3 AS builder
 
-# Install build dependencies
-RUN apk add --no-cache build-base git
+# Install build dependencies (including nodejs/npm for asset dependencies)
+RUN apk add --no-cache build-base git nodejs npm
 
 WORKDIR /app
 
@@ -38,6 +38,9 @@ COPY config/runtime.exs config/
 
 # Compile first (needed for colocated hooks)
 RUN mix compile
+
+# Install npm dependencies for assets (d3, topojson, etc.)
+RUN cd assets && npm install
 
 # Build assets (esbuild + tailwind are installed via mix)
 RUN mix assets.deploy

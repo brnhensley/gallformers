@@ -446,6 +446,130 @@ defmodule GallformersWeb.CoreComponents do
     """
   end
 
+  @doc """
+  Renders a multi-select typeahead component.
+
+  Displays selected items as removable tags, with a text input for filtering
+  and a dropdown showing available options.
+
+  ## Events
+
+  The component emits events prefixed with the `name` attribute:
+  - `{name}_search` - when user types in the input (params: %{"value" => query})
+  - `{name}_focus` - when input receives focus
+  - `{name}_blur` - when input loses focus
+  - `{name}_select` - when user selects an option (params: %{"id" => id})
+  - `{name}_remove` - when user removes a selected item (params: %{"id" => id})
+  - `{name}_clear` - when user clicks the clear all button
+
+  ## Examples
+
+      <.multi_select_typeahead
+        id="locations"
+        name="location"
+        label="Location(s):"
+        placeholder="Locations"
+        options={@filter_options.locations}
+        selected={@filters.locations}
+        option_label={:location}
+        query={@location_query}
+        focused={@location_focused}
+      />
+  """
+  attr :id, :string, required: true, doc: "unique identifier for the component"
+  attr :name, :string, required: true, doc: "name prefix for events"
+  attr :label, :string, required: true, doc: "label text"
+  attr :placeholder, :string, default: "", doc: "placeholder when no items selected"
+  attr :options, :list, required: true, doc: "list of all available options"
+  attr :selected, :list, required: true, doc: "list of selected option ids"
+  attr :option_label, :atom, required: true, doc: "field name to display from option map"
+  attr :query, :string, required: true, doc: "current search query"
+  attr :focused, :boolean, required: true, doc: "whether the input is focused"
+
+  def multi_select_typeahead(assigns) do
+    option_label = assigns.option_label
+
+    # Get selected option objects
+    selected_options = Enum.filter(assigns.options, fn opt -> opt.id in assigns.selected end)
+
+    # Filter available options based on query
+    query_lower = String.downcase(assigns.query)
+
+    filtered_options =
+      assigns.options
+      |> Enum.reject(fn opt -> opt.id in assigns.selected end)
+      |> Enum.filter(fn opt ->
+        label = Map.get(opt, option_label, "")
+        assigns.query == "" or String.contains?(String.downcase(label), query_lower)
+      end)
+
+    assigns =
+      assigns
+      |> assign(:selected_options, selected_options)
+      |> assign(:filtered_options, filtered_options)
+
+    ~H"""
+    <div class="mb-2">
+      <label class="block text-base font-medium text-gray-700 mb-1">{@label}</label>
+      <div class="relative">
+        <%!-- Selected tags and input --%>
+        <div class="flex flex-wrap gap-1 p-2 border border-gray-300 rounded-md bg-white min-h-[42px]">
+          <span
+            :for={opt <- @selected_options}
+            class="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-100 text-gray-800 rounded text-sm"
+          >
+            {Map.get(opt, @option_label)}
+            <button
+              type="button"
+              phx-click={"#{@name}_remove"}
+              phx-value-id={to_string(opt.id)}
+              class="text-gray-500 hover:text-gray-700"
+            >
+              <.icon name="hero-x-mark" class="size-3" />
+            </button>
+          </span>
+          <input
+            type="text"
+            id={@id}
+            value={@query}
+            phx-keyup={"#{@name}_search"}
+            phx-focus={"#{@name}_focus"}
+            phx-blur={"#{@name}_blur"}
+            phx-debounce="100"
+            placeholder={if @selected_options == [], do: @placeholder, else: ""}
+            class="flex-1 min-w-[80px] border-0 p-0 text-base focus:ring-0 focus:outline-none"
+          />
+          <%!-- Clear all button --%>
+          <button
+            :if={@selected_options != []}
+            type="button"
+            phx-click={"#{@name}_clear"}
+            class="flex-shrink-0 text-gray-400 hover:text-gray-600 p-1"
+            title="Clear all"
+          >
+            <.icon name="hero-x-mark" class="size-4" />
+          </button>
+        </div>
+        <%!-- Dropdown --%>
+        <div
+          :if={@focused and length(@filtered_options) > 0}
+          class="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-48 overflow-auto"
+          onmousedown="event.preventDefault()"
+        >
+          <div
+            :for={opt <- @filtered_options}
+            phx-click={"#{@name}_select"}
+            phx-value-id={to_string(opt.id)}
+            class="w-full text-left px-3 py-2 text-base hover:bg-gray-50 border-b border-gray-100 last:border-b-0 cursor-pointer"
+          >
+            {Map.get(opt, @option_label)}
+          </div>
+        </div>
+      </div>
+    </div>
+    """
+  end
+
   ## JS Commands
 
   def show(js \\ %JS{}, selector) do

@@ -77,9 +77,12 @@ defmodule GallformersWeb.GallLive do
     base_url = Species.Image.base_url()
 
     Enum.map(images, fn img ->
+      # Replace "original" with size name in the path
+      small_path = String.replace(img.path, "original", "small")
+
       Map.merge(img, %{
         url: "#{base_url}/#{img.path}",
-        small_url: "#{base_url}/small/#{img.path}"
+        small_url: "#{base_url}/#{small_path}"
       })
     end)
   end

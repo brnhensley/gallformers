@@ -45,10 +45,12 @@ defmodule Gallformers.Glossary do
   """
   @spec search_glossary(String.t()) :: [Glossary.t()]
   def search_glossary(query) do
-    search_term = "%#{query}%"
+    search_term = "%#{String.downcase(query)}%"
 
     from(g in Glossary,
-      where: ilike(g.word, ^search_term) or ilike(g.definition, ^search_term),
+      where:
+        fragment("lower(?) LIKE ?", g.word, ^search_term) or
+          fragment("lower(?) LIKE ?", g.definition, ^search_term),
       order_by: g.word
     )
     |> Repo.all()
@@ -70,10 +72,10 @@ defmodule Gallformers.Glossary do
   """
   @spec list_glossary_by_letter(String.t()) :: [Glossary.t()]
   def list_glossary_by_letter(letter) do
-    pattern = "#{letter}%"
+    pattern = "#{String.downcase(letter)}%"
 
     from(g in Glossary,
-      where: ilike(g.word, ^pattern),
+      where: fragment("lower(?) LIKE ?", g.word, ^pattern),
       order_by: g.word
     )
     |> Repo.all()

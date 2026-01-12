@@ -186,29 +186,58 @@ defmodule Gallformers.Hosts do
   end
 
   @doc """
-  Searches for host species by name prefix (case-insensitive).
+  Searches for host species by name (case-insensitive).
+
+  Supports multi-word queries where each word must match somewhere in the name.
+  For example, "q alba" matches "Quercus alba".
 
   Used for typeahead/autocomplete functionality.
   Returns up to `limit` results ordered by name.
   """
   @spec search_hosts(String.t(), integer()) :: [map()]
   def search_hosts(query, limit \\ 20) when is_binary(query) do
-    search_pattern = "#{query}%"
+    terms =
+      query
+      |> String.downcase()
+      |> String.split(~r/\s+/, trim: true)
+      |> Enum.map(&"%#{&1}%")
 
-    from(s in Species,
-      left_join: a in "alias",
-      on: a.species_id == s.id,
-      where: s.taxoncode == "plant",
-      where: ilike(s.name, ^search_pattern) or ilike(a.name, ^search_pattern),
-      order_by: s.name,
-      limit: ^limit,
-      distinct: s.id,
-      select: %{
-        id: s.id,
-        name: s.name,
-        datacomplete: s.datacomplete
-      }
-    )
+    if terms == [] do
+      []
+    else
+      search_hosts_with_terms(terms, limit)
+    end
+  end
+
+  defp search_hosts_with_terms(terms, limit) do
+    base_query =
+      from(s in Species,
+        left_join: als in "aliasspecies",
+        on: als.species_id == s.id,
+        left_join: a in "alias",
+        on: a.id == als.alias_id,
+        where: s.taxoncode == "plant",
+        group_by: [s.id, s.name, s.datacomplete],
+        order_by: s.name,
+        limit: ^limit,
+        select: %{
+          id: s.id,
+          name: s.name,
+          datacomplete: s.datacomplete
+        }
+      )
+
+    # Add a WHERE clause for each search term (all must match)
+    query_with_terms =
+      Enum.reduce(terms, base_query, fn term, q ->
+        from([s, als, a] in q,
+          where:
+            fragment("lower(?) LIKE ?", s.name, ^term) or
+              fragment("lower(?) LIKE ?", a.name, ^term)
+        )
+      end)
+
+    query_with_terms
     |> Repo.all()
     |> Enum.map(fn host ->
       aliases = get_aliases_for_host(host.id)
@@ -222,7 +251,9 @@ defmodule Gallformers.Hosts do
   @spec get_aliases_for_host(integer()) :: [String.t()]
   def get_aliases_for_host(host_id) do
     from(a in "alias",
-      where: a.species_id == ^host_id,
+      join: als in "aliasspecies",
+      on: als.alias_id == a.id,
+      where: als.species_id == ^host_id,
       select: a.name
     )
     |> Repo.all()

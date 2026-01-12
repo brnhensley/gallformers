@@ -307,12 +307,20 @@ defmodule Gallformers.IDTool do
   end
 
   defp apply_detachable_filter(query, nil), do: query
-  # 2 = unknown/any
-  defp apply_detachable_filter(query, 2), do: query
+  # 0 = unknown
+  defp apply_detachable_filter(query, 0), do: query
 
+  # 3 = both (exact match only)
+  defp apply_detachable_filter(query, 3) do
+    from [s, _gs, g] in query,
+      where: g.detachable == 3
+  end
+
+  # 1 = integral, 2 = detachable
+  # Also match galls marked as "both" (3)
   defp apply_detachable_filter(query, detachable) do
     from [s, _gs, g] in query,
-      where: g.detachable == ^detachable
+      where: g.detachable == ^detachable or g.detachable == 3
   end
 
   defp apply_place_filter(query, nil), do: query
@@ -381,7 +389,9 @@ defmodule Gallformers.IDTool do
           Map.put(gall, :image_url, nil)
 
         path ->
-          Map.put(gall, :image_url, "#{base_url}/small/#{path}")
+          # Replace "original" with "small" in the path for thumbnail images
+          small_path = String.replace(path, "original", "small")
+          Map.put(gall, :image_url, "#{base_url}/#{small_path}")
       end
     end)
   end

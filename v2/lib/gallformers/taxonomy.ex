@@ -176,11 +176,11 @@ defmodule Gallformers.Taxonomy do
   """
   @spec search_genera_and_sections(String.t(), integer()) :: [map()]
   def search_genera_and_sections(query, limit \\ 20) when is_binary(query) do
-    search_pattern = "#{query}%"
+    search_pattern = "#{String.downcase(query)}%"
 
     from(t in Taxonomy,
       where: t.type in ["genus", "section"],
-      where: ilike(t.name, ^search_pattern),
+      where: fragment("lower(?) LIKE ?", t.name, ^search_pattern),
       order_by: [t.type, t.name],
       limit: ^limit,
       select: %{
@@ -206,23 +206,44 @@ defmodule Gallformers.Taxonomy do
   end
 
   @doc """
-  Lists all genera for gall species (for family filter in ID tool).
+  Lists families for galls that occur on a given host.
   """
-  @spec list_gall_families() :: [map()]
-  def list_gall_families do
-    from(t in Taxonomy,
+  @spec list_gall_families_for_host(integer()) :: [map()]
+  def list_gall_families_for_host(host_id) do
+    from(f in Taxonomy,
+      join: g in Taxonomy,
+      on: g.parent_id == f.id,
       join: st in "speciestaxonomy",
-      on: st.taxonomy_id == t.id,
+      on: st.taxonomy_id == g.id,
       join: s in Gallformers.Species.Species,
       on: st.species_id == s.id,
-      where: s.taxoncode == "gall" and t.type == "family",
-      distinct: t.id,
-      order_by: t.name,
+      join: h in Gallformers.Hosts.Host,
+      on: h.gall_species_id == s.id,
+      where: s.taxoncode == "gall" and f.type == "family" and h.host_species_id == ^host_id,
+      group_by: [f.id, f.name],
+      order_by: f.name,
       select: %{
-        id: t.id,
-        name: t.name
+        id: f.id,
+        name: f.name
       }
     )
     |> Repo.all()
+  end
+
+  @doc """
+  Gets the family for a given genus.
+  """
+  @spec get_family_for_genus(integer()) :: map() | nil
+  def get_family_for_genus(genus_id) do
+    from(f in Taxonomy,
+      join: g in Taxonomy,
+      on: g.parent_id == f.id,
+      where: g.id == ^genus_id and f.type == "family",
+      select: %{
+        id: f.id,
+        name: f.name
+      }
+    )
+    |> Repo.one()
   end
 end

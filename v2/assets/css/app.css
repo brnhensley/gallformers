@@ -136,6 +136,18 @@
    Gallformers Base Styles
    ============================================ */
 
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-family: "League Spartan", -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
 /* Restore heading sizes stripped by Tailwind preflight */
 h1 { font-size: 2.5rem; font-weight: 700; }
 h2 { font-size: 2rem; font-weight: 600; }
@@ -145,6 +157,8 @@ h5 { font-size: 1.25rem; font-weight: 600; }
 h6 { font-size: 1rem; font-weight: 600; }
 
 body {
+  margin: 0;
+  min-height: 100vh;
   font-size: large;
   color: #212529; /* Bootstrap default dark text - matches V1 */
 }

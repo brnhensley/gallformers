@@ -234,19 +234,60 @@ defmodule Gallformers.Species do
 
   @doc """
   Gets default images for all gall species (used by ID tool).
+
+  Returns the default image for each species if one is set,
+  otherwise returns the first image for that species.
   """
   @spec get_default_gall_images() :: [map()]
   def get_default_gall_images do
-    from(i in Image,
-      join: s in Species,
-      on: i.species_id == s.id,
-      where: s.taxoncode == "gall" and i.default == true,
-      select: %{
-        species_id: i.species_id,
-        path: i.path
-      }
-    )
-    |> Repo.all()
+    # First, get all default images
+    default_images =
+      from(i in Image,
+        join: s in Species,
+        on: i.species_id == s.id,
+        where: s.taxoncode == "gall" and i.default == true,
+        select: %{
+          species_id: i.species_id,
+          path: i.path
+        }
+      )
+      |> Repo.all()
+
+    default_species_ids = Enum.map(default_images, & &1.species_id) |> MapSet.new()
+
+    # Then get first image for species without a default
+    # Use a subquery to get the minimum image id per species
+    fallback_images =
+      from(i in Image,
+        join: s in Species,
+        on: i.species_id == s.id,
+        where: s.taxoncode == "gall" and i.species_id not in ^MapSet.to_list(default_species_ids),
+        group_by: i.species_id,
+        select: %{
+          species_id: i.species_id,
+          id: min(i.id)
+        }
+      )
+      |> Repo.all()
+
+    # Get the actual paths for fallback images
+    fallback_image_ids = Enum.map(fallback_images, & &1.id)
+
+    fallback_with_paths =
+      if fallback_image_ids != [] do
+        from(i in Image,
+          where: i.id in ^fallback_image_ids,
+          select: %{
+            species_id: i.species_id,
+            path: i.path
+          }
+        )
+        |> Repo.all()
+      else
+        []
+      end
+
+    default_images ++ fallback_with_paths
   end
 
   @doc """
