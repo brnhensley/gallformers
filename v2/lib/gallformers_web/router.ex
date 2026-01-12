@@ -18,6 +18,12 @@ defmodule GallformersWeb.Router do
   # Health check for Fly.io (no pipeline needed)
   get "/health", GallformersWeb.HealthController, :check
 
+  # SEO routes (outside of normal browser pipeline for simpler responses)
+  scope "/", GallformersWeb do
+    get "/sitemap.xml", SitemapController, :index
+    get "/robots.txt", RobotsController, :index
+  end
+
   scope "/", GallformersWeb do
     pipe_through :browser
 

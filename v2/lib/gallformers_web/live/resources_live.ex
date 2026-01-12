@@ -8,7 +8,15 @@ defmodule GallformersWeb.ResourcesLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    {:ok, assign(socket, page_title: "Resources | Gallformers")}
+    {:ok,
+     assign(socket,
+       page_title: "Resources",
+       page_description:
+         "External resources for learning about plant galls - identification tools, databases, learning materials, and community links.",
+       page_url: "/resources",
+       page_image: nil,
+       page_json_ld: nil
+     )}
   end
 
   @impl true

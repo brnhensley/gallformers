@@ -17,7 +17,12 @@ defmodule GallformersWeb.GenusLive do
       _ ->
         {:ok,
          assign(socket,
-           page_title: "Genus Not Found | Gallformers",
+           page_title: "Genus Not Found",
+           page_description: "The requested taxonomic genus was not found on Gallformers.",
+           page_url: nil,
+           page_image: nil,
+           page_json_ld: nil,
+           page_noindex: true,
            genus: nil,
            error: "Invalid genus ID"
          )}
@@ -39,7 +44,12 @@ defmodule GallformersWeb.GenusLive do
 
   defp assign_genus_not_found(socket, error) do
     assign(socket,
-      page_title: "Genus Not Found | Gallformers",
+      page_title: "Genus Not Found",
+      page_description: "The requested taxonomic genus was not found on Gallformers.",
+      page_url: nil,
+      page_image: nil,
+      page_json_ld: nil,
+      page_noindex: true,
       genus: nil,
       error: error
     )
@@ -51,7 +61,13 @@ defmodule GallformersWeb.GenusLive do
     species = if species_ids == [], do: [], else: get_species_info(species_ids)
 
     assign(socket,
-      page_title: "Genus #{genus.name} | Gallformers",
+      page_title: "Genus #{genus.name}",
+      page_description:
+        "#{genus.name} - A taxonomic genus documented on Gallformers with #{length(species)} species.",
+      page_url: "/genus/#{genus_id}",
+      page_image: nil,
+      page_json_ld: nil,
+      page_noindex: false,
       genus: genus,
       family: family,
       species: species,

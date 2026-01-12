@@ -9,7 +9,15 @@ defmodule GallformersWeb.RefIndexLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    {:ok, assign(socket, page_title: "Reference Library | Gallformers")}
+    {:ok,
+     assign(socket,
+       page_title: "Reference Library",
+       page_description:
+         "The Gallformers Reference Library - in-depth articles on gall biology, identification guides, and scientific literature.",
+       page_url: "/refindex",
+       page_image: nil,
+       page_json_ld: nil
+     )}
   end
 
   @impl true

@@ -25,7 +25,12 @@ defmodule GallformersWeb.FilterGuideLive do
 
     {:ok,
      assign(socket,
-       page_title: "Filter Guide | Gallformers",
+       page_title: "Filter Guide",
+       page_description:
+         "Guide to the filter terms used in the Gallformers gall identification tool - explanations of alignment, cells, forms, location, shape, texture, and walls.",
+       page_url: "/filterguide",
+       page_image: nil,
+       page_json_ld: nil,
        filter_fields: filter_fields,
        open_sections: MapSet.new()
      )}

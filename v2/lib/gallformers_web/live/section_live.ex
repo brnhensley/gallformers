@@ -18,7 +18,12 @@ defmodule GallformersWeb.SectionLive do
       _ ->
         {:ok,
          assign(socket,
-           page_title: "Section Not Found | Gallformers",
+           page_title: "Section Not Found",
+           page_description: "The requested taxonomic section was not found on Gallformers.",
+           page_url: nil,
+           page_image: nil,
+           page_json_ld: nil,
+           page_noindex: true,
            section: nil,
            error: "Invalid section ID"
          )}
@@ -30,7 +35,12 @@ defmodule GallformersWeb.SectionLive do
       nil ->
         {:ok,
          assign(socket,
-           page_title: "Section Not Found | Gallformers",
+           page_title: "Section Not Found",
+           page_description: "The requested taxonomic section was not found on Gallformers.",
+           page_url: nil,
+           page_image: nil,
+           page_json_ld: nil,
+           page_noindex: true,
            section: nil,
            error: "Section not found"
          )}
@@ -39,7 +49,12 @@ defmodule GallformersWeb.SectionLive do
         if section.type != "section" do
           {:ok,
            assign(socket,
-             page_title: "Section Not Found | Gallformers",
+             page_title: "Section Not Found",
+             page_description: "The requested taxonomic section was not found on Gallformers.",
+             page_url: nil,
+             page_image: nil,
+             page_json_ld: nil,
+             page_noindex: true,
              section: nil,
              error: "Not a section"
            )}
@@ -49,7 +64,13 @@ defmodule GallformersWeb.SectionLive do
 
           {:ok,
            assign(socket,
-             page_title: "Section #{section.name} | Gallformers",
+             page_title: "Section #{section.name}",
+             page_description:
+               "#{section.name} - A taxonomic section documented on Gallformers with #{length(species)} species.",
+             page_url: "/section/#{section_id}",
+             page_image: nil,
+             page_json_ld: nil,
+             page_noindex: false,
              section: section,
              species: species,
              error: nil

@@ -14,7 +14,12 @@ defmodule GallformersWeb.GlossaryLive do
 
     {:ok,
      assign(socket,
-       page_title: "Glossary | Gallformers",
+       page_title: "Glossary",
+       page_description:
+         "A glossary of gall-related terminology - definitions of terms commonly used in cecidiology and gall biology.",
+       page_url: "/glossary",
+       page_image: nil,
+       page_json_ld: nil,
        entries: entries,
        sort_by: :word,
        sort_dir: :asc

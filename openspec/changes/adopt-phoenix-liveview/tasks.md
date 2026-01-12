@@ -300,14 +300,14 @@ Port endpoints matching v2_old patterns (see `v2_old/api/internal/handlers/`):
 - [x] 13.4.2 Configure limits: 100 req/min for public reads
 - [x] 13.4.3 Return 429 with Retry-After header when exceeded
 
-## 14. SEO
+## 14. SEO ✅
 
-- [ ] 14.1 Create `meta_tags` component for title, description, canonical
-- [ ] 14.2 Create `og_tags` component for Open Graph
-- [ ] 14.3 Add meta tags to all public pages
-- [ ] 14.4 Create `/sitemap.xml` route with all public URLs
-- [ ] 14.5 Create `/robots.txt` (allow public, disallow admin)
-- [ ] 14.6 Add JSON-LD structured data to species pages
+- [x] 14.1 Create `meta_tags` component for title, description, canonical
+- [x] 14.2 Create `og_tags` component for Open Graph
+- [x] 14.3 Add meta tags to all public pages
+- [x] 14.4 Create `/sitemap.xml` route with all public URLs
+- [x] 14.5 Create `/robots.txt` (allow public, disallow admin)
+- [x] 14.6 Add JSON-LD structured data to species pages
 
 ## 15. Markdown & Glossary
 

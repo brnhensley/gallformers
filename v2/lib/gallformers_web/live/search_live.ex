@@ -17,7 +17,13 @@ defmodule GallformersWeb.SearchLive do
   def mount(_params, _session, socket) do
     {:ok,
      assign(socket,
-       page_title: "Search | Gallformers",
+       page_title: "Search",
+       page_description:
+         "Search the Gallformers database - find galls, host plants, sources, glossary terms, and taxonomic information.",
+       page_url: "/globalsearch",
+       page_image: nil,
+       page_json_ld: nil,
+       page_noindex: true,
        query: "",
        results: [],
        total_count: 0,
