@@ -151,25 +151,25 @@ Goal: Get the core site working with a real page. Once home page works, we have 
 Build one page at a time, deploy after each, verify visual parity.
 
 ### 6.1 Content Pages
-- [ ] 6.1.1 Create `AboutLive` - about page
-- [ ] 6.1.2 Create `FilterGuideLive` - filter guide page
-- [ ] 6.1.3 Create `ResourcesLive` - resources page
-- [ ] 6.1.4 Create `GlossaryLive` - glossary with sorting
-- [ ] 6.1.5 Create `RefIndexLive` - reference article index
+- [x] 6.1.1 Create `AboutLive` - about page
+- [x] 6.1.2 Create `FilterGuideLive` - filter guide page
+- [x] 6.1.3 Create `ResourcesLive` - resources page
+- [x] 6.1.4 Create `GlossaryLive` - glossary with sorting
+- [x] 6.1.5 Create `RefIndexLive` - reference article index
 
 ### 6.2 Entity Pages
-- [ ] 6.2.1 Create `GallLive` - gall/species detail page
-- [ ] 6.2.2 Create `HostLive` - host detail page
-- [ ] 6.2.3 Create `FamilyLive` - family listing page
-- [ ] 6.2.4 Create `GenusLive` - genus listing page
-- [ ] 6.2.5 Create `SourceLive` - source detail page
-- [ ] 6.2.6 Create `SectionLive` - section listing page
-- [ ] 6.2.7 Create `PlaceLive` - place detail page
+- [x] 6.2.1 Create `GallLive` - gall/species detail page
+- [x] 6.2.2 Create `HostLive` - host detail page
+- [x] 6.2.3 Create `FamilyLive` - family listing page
+- [x] 6.2.4 Create `GenusLive` - genus listing page
+- [x] 6.2.5 Create `SourceLive` - source detail page
+- [x] 6.2.6 Create `SectionLive` - section listing page
+- [x] 6.2.7 Create `PlaceLive` - place detail page
 
 ### 6.3 Error Pages
-- [ ] 6.3.1 Create custom 404 page matching site design
-- [ ] 6.3.2 Create custom 500 page matching site design
-- [ ] 6.3.3 Configure error view in endpoint
+- [x] 6.3.1 Create custom 404 page matching site design
+- [x] 6.3.2 Create custom 500 page matching site design
+- [x] 6.3.3 Configure error view in endpoint
 
 ## 7. Search (LiveView)
 
