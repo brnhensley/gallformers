@@ -239,11 +239,11 @@ Build one page at a time, deploy after each, verify visual parity.
 - [x] 11.5.2 Create glossary admin pages (index + form)
 - [x] 11.5.3 Create place admin pages (index + form)
 
-### 11.6 Image Management
-- [ ] 11.6.1 Create `ImageUpload` hook for drag-drop upload
-- [ ] 11.6.2 Implement S3 upload flow (presigned URLs)
-- [ ] 11.6.3 Create image reordering with LiveView
-- [ ] 11.6.4 Implement image deletion with confirmation
+### 11.6 Image Management ✅
+- [x] 11.6.1 Create `ImageUpload` hook for drag-drop upload
+- [x] 11.6.2 Implement S3 upload flow (presigned URLs)
+- [x] 11.6.3 Create image reordering with LiveView
+- [x] 11.6.4 Implement image deletion with confirmation
 
 ## 12. Real-time Updates (PubSub)
 

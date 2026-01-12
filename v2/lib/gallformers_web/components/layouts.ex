@@ -431,15 +431,12 @@ defmodule GallformersWeb.Layouts do
   def admin(assigns) do
     admin_nav_links = [
       %{href: "/admin", label: "Dashboard", icon: "hero-home"},
-      # TODO: Species admin (Phase 11.2)
-      # %{href: "/admin/species", label: "Species", icon: "hero-bug-ant"},
+      %{href: "/admin/species", label: "Species", icon: "hero-bug-ant"},
       %{href: "/admin/hosts", label: "Hosts", icon: "hero-globe-americas"},
       %{href: "/admin/taxonomy", label: "Taxonomy", icon: "hero-share"},
       %{href: "/admin/sources", label: "Sources", icon: "hero-book-open"},
-      # TODO: Images admin (future phase)
-      # %{href: "/admin/images", label: "Images", icon: "hero-photo"},
-      %{href: "/admin/glossary", label: "Glossary", icon: "hero-document-text"},
-      %{href: "/admin/places", label: "Places", icon: "hero-map"}
+      %{href: "/admin/images", label: "Images", icon: "hero-photo"},
+      %{href: "/admin/glossary", label: "Glossary", icon: "hero-book-open"}
     ]
 
     assigns = assign(assigns, :admin_nav_links, admin_nav_links)
@@ -613,7 +610,7 @@ defmodule GallformersWeb.Layouts do
   def flash_group(assigns) do
     ~H"""
     <div id={@id} aria-live="polite">
-      <.flash kind={:info} flash={@flash} />
+      <.flash kind={:info} flash={@flash} auto_dismiss={5000} />
       <.flash kind={:error} flash={@flash} />
 
       <.flash

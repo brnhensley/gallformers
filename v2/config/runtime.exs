@@ -33,6 +33,14 @@ if auth0_domain = System.get_env("AUTH0_DOMAIN") do
     client_secret: System.get_env("AUTH0_CLIENT_SECRET")
 end
 
+# AWS S3 configuration for image uploads
+# Uses separate PUT-only credentials for upload security
+if s3_access_key = System.get_env("S3_PUT_AWS_ACCESS_KEY_ID") do
+  config :ex_aws,
+    access_key_id: s3_access_key,
+    secret_access_key: System.get_env("S3_PUT_AWS_SECRET_ACCESS_KEY")
+end
+
 if config_env() == :prod do
   database_path =
     System.get_env("DATABASE_PATH") ||
