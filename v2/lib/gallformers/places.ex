@@ -39,4 +39,91 @@ defmodule Gallformers.Places do
   def get_place(id) do
     Repo.get(Place, id)
   end
+
+  @doc """
+  Gets a place by ID, raising if not found.
+  """
+  @spec get_place!(integer()) :: Place.t()
+  def get_place!(id) do
+    Repo.get!(Place, id)
+  end
+
+  @doc """
+  Searches places by name (case-insensitive).
+  """
+  @spec search_places(String.t(), integer()) :: [Place.t()]
+  def search_places(query, limit \\ 20) do
+    search_pattern = "%#{String.downcase(query)}%"
+
+    from(p in Place,
+      where: fragment("lower(?) LIKE ?", p.name, ^search_pattern),
+      order_by: p.name,
+      limit: ^limit
+    )
+    |> Repo.all()
+  end
+
+  @doc """
+  Returns all places ordered by name.
+  """
+  @spec list_all_places() :: [Place.t()]
+  def list_all_places do
+    from(p in Place,
+      order_by: p.name
+    )
+    |> Repo.all()
+  end
+
+  # Admin functions
+
+  @doc """
+  Returns a changeset for tracking place changes.
+  """
+  def change_place(%Place{} = place, attrs \\ %{}) do
+    Place.changeset(place, attrs)
+  end
+
+  @doc """
+  Creates a place.
+  """
+  def create_place(attrs \\ %{}) do
+    %Place{}
+    |> Place.changeset(attrs)
+    |> Repo.insert()
+    |> broadcast(:place_created)
+  end
+
+  @doc """
+  Updates a place.
+  """
+  def update_place(%Place{} = place, attrs) do
+    place
+    |> Place.changeset(attrs)
+    |> Repo.update()
+    |> broadcast(:place_updated)
+  end
+
+  @doc """
+  Deletes a place.
+  """
+  def delete_place(%Place{} = place) do
+    Repo.delete(place)
+    |> broadcast(:place_deleted)
+  end
+
+  @doc """
+  Subscribes to place changes.
+  """
+  def subscribe do
+    Phoenix.PubSub.subscribe(Gallformers.PubSub, "places")
+  end
+
+  defp broadcast({:ok, place}, event) do
+    Phoenix.PubSub.broadcast(Gallformers.PubSub, "places", {event, place})
+    {:ok, place}
+  end
+
+  defp broadcast({:error, changeset}, _event) do
+    {:error, changeset}
+  end
 end

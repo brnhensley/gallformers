@@ -436,7 +436,8 @@ defmodule GallformersWeb.Layouts do
       %{href: "/admin/taxonomy", label: "Taxonomy", icon: "hero-share"},
       %{href: "/admin/sources", label: "Sources", icon: "hero-book-open"},
       %{href: "/admin/images", label: "Images", icon: "hero-photo"},
-      %{href: "/admin/glossary", label: "Glossary", icon: "hero-book-open"}
+      %{href: "/admin/glossary", label: "Glossary", icon: "hero-document-text"},
+      %{href: "/admin/places", label: "Places", icon: "hero-map"}
     ]
 
     assigns = assign(assigns, :admin_nav_links, admin_nav_links)

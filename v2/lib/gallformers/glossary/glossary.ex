@@ -5,6 +5,7 @@ defmodule Gallformers.Glossary.Glossary do
   Contains definitions of terms used throughout the site.
   """
   use Ecto.Schema
+  import Ecto.Changeset
 
   @type t :: %__MODULE__{
           id: integer() | nil,
@@ -17,5 +18,17 @@ defmodule Gallformers.Glossary.Glossary do
     field :word, :string
     field :definition, :string
     field :urls, :string
+  end
+
+  @doc """
+  Creates a changeset for a glossary entry.
+  """
+  def changeset(glossary, attrs) do
+    glossary
+    |> cast(attrs, [:word, :definition, :urls])
+    |> validate_required([:word, :definition, :urls])
+    |> validate_length(:word, min: 1, max: 100)
+    |> validate_length(:definition, min: 1)
+    |> unique_constraint(:word)
   end
 end
