@@ -20,7 +20,24 @@ defmodule GallformersWeb.Router do
   scope "/", GallformersWeb do
     pipe_through :browser
 
+    # Home
     live "/", HomeLive
+
+    # Content pages
+    live "/about", AboutLive
+    live "/filterguide", FilterGuideLive
+    live "/resources", ResourcesLive
+    live "/glossary", GlossaryLive
+    live "/refindex", RefIndexLive
+
+    # Entity pages
+    live "/gall/:id", GallLive
+    live "/host/:id", HostLive
+    live "/family/:id", FamilyLive
+    live "/genus/:id", GenusLive
+    live "/source/:id", SourceLive
+    live "/section/:id", SectionLive
+    live "/place/:id", PlaceLive
   end
 
   # Other scopes may use custom stacks.
