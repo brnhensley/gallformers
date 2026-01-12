@@ -155,115 +155,160 @@ defmodule GallformersWeb.HostLive do
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash}>
-      <div class="mx-auto max-w-7xl">
-        <%= if @error do %>
-          <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">{@error}</div>
-        <% else %>
-          <%= if @host do %>
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              <div class="lg:col-span-2 space-y-2">
-                <div class="flex items-start justify-between gap-4">
-                  <h2 class="text-2xl font-bold">
-                    <.link
-                      href={"/id?hostOrTaxon=#{URI.encode(@host.name)}&type=host"}
-                      class="hover:underline"
-                    >
-                      <em>{@host.name}</em>
-                    </.link>
-                  </h2>
-                  <span class={[
+      <%= if @error do %>
+        <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">{@error}</div>
+      <% else %>
+        <%= if @host do %>
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <%!-- Details column (wider) --%>
+            <div class="md:col-span-1 lg:col-span-2 space-y-3">
+              <div class="flex items-start justify-between gap-4">
+                <h2 class="text-2xl font-bold">
+                  <.link
+                    href={"/id?hostOrTaxon=#{URI.encode(@host.name)}&type=host"}
+                    class="hover:underline"
+                  >
+                    <em>{@host.name}</em>
+                  </.link>
+                </h2>
+                <span
+                  class={[
                     "inline-flex items-center px-2 py-1 text-xs font-medium rounded-full",
                     if(@host.datacomplete,
                       do: "bg-green-100 text-green-800",
                       else: "bg-yellow-100 text-yellow-800"
                     )
-                  ]}>
-                    {if @host.datacomplete, do: "Complete", else: "In Progress"}
-                  </span>
-                </div>
-
-                <%= if @taxonomy do %>
-                  <div class="text-sm text-gray-600">
-                    {if @taxonomy.family, do: @taxonomy.family, else: ""}
-                    {if @taxonomy.family && @taxonomy.genus, do: " > "}
-                    {if @taxonomy.genus, do: @taxonomy.genus, else: ""}
-                  </div>
-                <% end %>
-
-                <%= if @host.aliases && length(@host.aliases) > 0 do %>
-                  <div class="mt-2">
-                    <strong>Also known as:</strong>
-                    <ul class="list-disc list-inside text-sm text-gray-700">
-                      <%= for a <- @host.aliases do %>
-                        <li><em>{a.name}</em>{if a.type, do: " (#{a.type})"}</li>
-                      <% end %>
-                    </ul>
-                  </div>
-                <% end %>
-
-                <div class="pt-2">
-                  <%= if length(@host.galls) > 0 do %>
-                    <div class="overflow-hidden rounded border border-gray-200">
-                      <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-cadet-blue">
-                          <tr>
-                            <th class="px-3 py-2 text-left text-sm font-medium text-gray-900">
-                              Gall
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody class="bg-white divide-y divide-gray-200">
-                          <%= for {gall, i} <- Enum.with_index(paginated_galls(@host.galls, @current_page, @page_size)) do %>
-                            <tr class={"hover:bg-gray-50 #{if rem(i, 2) == 1, do: "bg-gray-50"}"}>
-                              <td class="px-3 py-2 text-sm">
-                                <.link href={"/gall/#{gall.id}"} class="hover:underline">
-                                  <em>{gall.name}</em>
-                                </.link>
-                              </td>
-                            </tr>
-                          <% end %>
-                        </tbody>
-                      </table>
-                      <%= if total_pages(@host.galls, @page_size) > 1 do %>
-                        <div class="flex items-center justify-between px-3 py-1 bg-white border-t border-gray-200">
-                          <div class="text-sm">
-                            {(@current_page - 1) * @page_size + 1}-{min(
-                              @current_page * @page_size,
-                              length(@host.galls)
-                            )} of {length(@host.galls)}
-                          </div>
-                          <div class="flex items-center gap-2">
-                            <button
-                              class="px-2 py-0.5 text-sm border rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                              disabled={@current_page == 1}
-                              phx-click="prev_page"
-                            >
-                              Previous
-                            </button>
-                            <span class="text-sm">
-                              Page {@current_page} of {total_pages(@host.galls, @page_size)}
-                            </span>
-                            <button
-                              class="px-2 py-0.5 text-sm border rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                              disabled={@current_page == total_pages(@host.galls, @page_size)}
-                              phx-click="next_page"
-                            >
-                              Next
-                            </button>
-                          </div>
-                        </div>
-                      <% end %>
-                    </div>
-                  <% else %>
-                    <p class="italic">No galls recorded for this host.</p>
-                  <% end %>
-                </div>
+                  ]}
+                  title={
+                    if @host.datacomplete,
+                      do:
+                        "All galls known to occur on this plant have been added to the database. However, sources and images may be incomplete.",
+                      else: "We are still working on this species so data might be missing."
+                  }
+                >
+                  {if @host.datacomplete, do: "💯 Complete", else: "❓ In Progress"}
+                </span>
               </div>
 
-              <div class="lg:col-span-1">
+              <%= if @taxonomy do %>
+                <p>
+                  <strong>Family:</strong>
+                  <.link
+                    href={"/family/#{@taxonomy.family_id}"}
+                    class="text-gf-maroon hover:underline"
+                  >
+                    {@taxonomy.family}
+                  </.link>
+                  <%= if @taxonomy.section do %>
+                    <span class="mx-1">|</span>
+                    <strong>Section:</strong>
+                    <.link
+                      href={"/section/#{@taxonomy.section_id}"}
+                      class="text-gf-maroon hover:underline"
+                    >
+                      <em>{@taxonomy.section}</em>
+                    </.link>
+                  <% end %>
+                  <span class="mx-1">|</span>
+                  <strong>Genus:</strong>
+                  <.link
+                    href={"/genus/#{@taxonomy.genus_id}"}
+                    class="text-gf-maroon hover:underline"
+                  >
+                    <em>{@taxonomy.genus}</em>
+                  </.link>
+                </p>
+              <% end %>
+
+              <%= if @host.abundance_name do %>
+                <p><strong>Abundance:</strong> {@host.abundance_name}</p>
+              <% end %>
+
+              <%= if @host.aliases && length(@host.aliases) > 0 do %>
+                <div>
+                  <strong>Also known as:</strong>
+                  <span class="text-gray-700">
+                    <%= for {a, i} <- Enum.with_index(@host.aliases) do %>
+                      <em>{a.name}</em>{if a.type, do: " (#{a.type})"}{if i <
+                                                                            length(@host.aliases) - 1,
+                                                                          do: ", "}
+                    <% end %>
+                  </span>
+                </div>
+              <% end %>
+
+              <div class="pt-2">
+                <%= if length(@host.galls) > 0 do %>
+                  <div class="overflow-hidden rounded border border-gray-200">
+                    <table class="min-w-full divide-y divide-gray-200">
+                      <thead class="bg-cadet-blue">
+                        <tr>
+                          <th class="px-3 py-2 text-left text-sm font-medium text-gray-900">
+                            Gall
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody class="bg-white divide-y divide-gray-200">
+                        <%= for {gall, i} <- Enum.with_index(paginated_galls(@host.galls, @current_page, @page_size)) do %>
+                          <tr class={"hover:bg-gray-50 #{if rem(i, 2) == 1, do: "bg-gray-50"}"}>
+                            <td class="px-3 py-2 text-sm">
+                              <.link
+                                href={"/gall/#{gall.id}"}
+                                class="text-gf-maroon hover:underline"
+                              >
+                                <em>{gall.name}</em>
+                              </.link>
+                            </td>
+                          </tr>
+                        <% end %>
+                      </tbody>
+                    </table>
+                    <%= if total_pages(@host.galls, @page_size) > 1 do %>
+                      <div class="flex items-center justify-between px-3 py-1 bg-white border-t border-gray-200">
+                        <div class="text-sm">
+                          {(@current_page - 1) * @page_size + 1}-{min(
+                            @current_page * @page_size,
+                            length(@host.galls)
+                          )} of {length(@host.galls)}
+                        </div>
+                        <div class="flex items-center gap-2">
+                          <button
+                            class="px-2 py-0.5 text-sm border rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                            disabled={@current_page == 1}
+                            phx-click="prev_page"
+                          >
+                            Previous
+                          </button>
+                          <span class="text-sm">
+                            Page {@current_page} of {total_pages(@host.galls, @page_size)}
+                          </span>
+                          <button
+                            class="px-2 py-0.5 text-sm border rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                            disabled={@current_page == total_pages(@host.galls, @page_size)}
+                            phx-click="next_page"
+                          >
+                            Next
+                          </button>
+                        </div>
+                      </div>
+                    <% end %>
+                  </div>
+                <% else %>
+                  <p class="italic">No galls recorded for this host.</p>
+                <% end %>
+              </div>
+            </div>
+
+            <%!-- Images and range column --%>
+            <div class="md:col-span-1 lg:col-span-1 border rounded p-2 flex flex-col gap-4">
+              <div>
                 <%= if length(@images) > 0 do %>
-                  <div class="bg-white rounded border border-gray-200 overflow-hidden">
-                    <img src={hd(@images).url} alt="Host image" class="w-full h-48 object-cover" />
+                  <div class="bg-white rounded overflow-hidden">
+                    <img
+                      src={hd(@images).url}
+                      alt="Host image"
+                      class="w-full object-cover max-h-64"
+                    />
                   </div>
                   <%= if hd(@images).creator do %>
                     <p class="text-xs text-gray-500 mt-1">
@@ -276,64 +321,63 @@ defmodule GallformersWeb.HostLive do
                     No images available
                   </div>
                 <% end %>
+              </div>
 
-                <%= if MapSet.size(@range) > 0 do %>
-                  <div class="mt-4">
-                    <strong>Possible Range:</strong> {MapSet.size(@range)} regions
-                  </div>
-                <% end %>
+              <div class="mt-auto">
+                <div class="mb-1"><strong>Range:</strong></div>
+                <.range_map id="host-range-map" in_range={MapSet.to_list(@range)} />
               </div>
             </div>
+          </div>
 
-            <hr class="border-gray-200 my-4" />
+          <hr class="border-gray-200 my-4" />
 
-            <%= if length(@sources) > 0 do %>
-              <h3 class="font-semibold mb-2">Sources ({length(@sources)})</h3>
-              <div class="space-y-2">
-                <%= for source <- @sources do %>
-                  <div class={"p-3 rounded border #{if source.id == @selected_source_id, do: "border-gf-maroon bg-canary", else: "border-gray-200 bg-white"}"}>
-                    <.link
-                      href={"/source/#{source.id}"}
-                      class="font-medium text-gf-maroon hover:underline"
-                    >
-                      {source.title}
-                    </.link>
-                    {if source.author, do: " - #{source.author}"}
-                    {if source.pubyear, do: " (#{source.pubyear})"}
-                  </div>
-                <% end %>
-              </div>
-            <% else %>
-              <p class="italic">No sources available for this species.</p>
-            <% end %>
-
-            <hr class="border-gray-200 my-4" />
-            <div class="mb-2"><strong>See Also:</strong></div>
-            <div class="flex flex-wrap gap-4 text-sm">
-              <.link
-                href={"https://www.inaturalist.org/taxa/search?q=#{URI.encode(@host.name)}"}
-                target="_blank"
-                rel="noreferrer"
-                class="text-gf-maroon hover:underline"
-              >
-                iNaturalist
-              </.link>
-              <.link
-                href={"https://scholar.google.com/scholar?q=#{URI.encode(@host.name)}"}
-                target="_blank"
-                rel="noreferrer"
-                class="text-gf-maroon hover:underline"
-              >
-                Google Scholar
-              </.link>
+          <%= if length(@sources) > 0 do %>
+            <h3 class="font-semibold mb-2">Sources ({length(@sources)})</h3>
+            <div class="space-y-2">
+              <%= for source <- @sources do %>
+                <div class={"p-3 rounded border #{if source.id == @selected_source_id, do: "border-gf-maroon bg-canary", else: "border-gray-200 bg-white"}"}>
+                  <.link
+                    href={"/source/#{source.id}"}
+                    class="font-medium text-gf-maroon hover:underline"
+                  >
+                    {source.title}
+                  </.link>
+                  {if source.author, do: " - #{source.author}"}
+                  {if source.pubyear, do: " (#{source.pubyear})"}
+                </div>
+              <% end %>
             </div>
           <% else %>
-            <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
-              Host not found
-            </div>
+            <p class="italic">No sources available for this species.</p>
           <% end %>
+
+          <hr class="border-gray-200 my-4" />
+          <div class="mb-2"><strong>See Also:</strong></div>
+          <div class="flex flex-wrap gap-4 text-sm">
+            <.link
+              href={"https://www.inaturalist.org/taxa/search?q=#{URI.encode(@host.name)}"}
+              target="_blank"
+              rel="noreferrer"
+              class="text-gf-maroon hover:underline"
+            >
+              iNaturalist
+            </.link>
+            <.link
+              href={"https://scholar.google.com/scholar?q=#{URI.encode(@host.name)}"}
+              target="_blank"
+              rel="noreferrer"
+              class="text-gf-maroon hover:underline"
+            >
+              Google Scholar
+            </.link>
+          </div>
+        <% else %>
+          <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
+            Host not found
+          </div>
         <% end %>
-      </div>
+      <% end %>
     </Layouts.app>
     """
   end

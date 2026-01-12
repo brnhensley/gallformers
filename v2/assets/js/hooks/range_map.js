@@ -30,8 +30,8 @@ const COLORS = {
   inRange: '#228B22',      // ForestGreen
   excluded: '#F08080',     // LightCoral
   default: '#FFFFFF',      // White
-  stroke: '#666666',       // Gray stroke
-  hoverStroke: '#333333'   // Darker stroke on hover
+  stroke: '#333333',       // Dark gray stroke
+  hoverStroke: '#000000'   // Black stroke on hover
 }
 
 const RangeMap = {
@@ -125,7 +125,7 @@ const RangeMap = {
     this.el.appendChild(container)
   },
 
-  createSvg(forModal = false) {
+  createSvg(forModal = false, tooltipContainer = null) {
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
     svg.setAttribute('viewBox', '0 0 800 600')
     svg.setAttribute('class', forModal ? 'w-full h-full' : 'w-full max-w-md')
@@ -160,10 +160,11 @@ const RangeMap = {
         pathEl.style.cursor = 'pointer'
       }
 
-      // Hover effects
-      pathEl.addEventListener('mouseenter', (e) => this.showTooltip(e, name, code))
-      pathEl.addEventListener('mousemove', (e) => this.moveTooltip(e))
-      pathEl.addEventListener('mouseleave', () => this.hideTooltip())
+      // Hover effects - use provided container or default
+      const container = tooltipContainer || this.el
+      pathEl.addEventListener('mouseenter', (e) => this.showTooltip(e, name, code, container))
+      pathEl.addEventListener('mousemove', (e) => this.moveTooltip(e, container))
+      pathEl.addEventListener('mouseleave', () => this.hideTooltip(container))
 
       // Click handler for editable mode
       if (this.editable) {
@@ -223,14 +224,26 @@ const RangeMap = {
     zoomControls.appendChild(zoomOut)
     zoomControls.appendChild(resetZoom)
 
+    // Pan/zoom hint
+    const hint = document.createElement('div')
+    hint.className = 'absolute bottom-4 left-4 z-10 bg-white/90 px-3 py-1.5 rounded shadow text-sm text-gray-600'
+    hint.textContent = 'Drag to pan, scroll to zoom'
+
     // SVG container
     const svgContainer = document.createElement('div')
     svgContainer.className = 'w-full h-full'
     svgContainer.id = `${this.el.id}-modal-svg`
 
+    // Modal tooltip
+    const tooltip = document.createElement('div')
+    tooltip.className = 'range-map-tooltip hidden absolute bg-gray-800 text-white text-sm px-2 py-1 rounded pointer-events-none z-50'
+    tooltip.id = `${this.el.id}-modal-tooltip`
+
     modalContent.appendChild(closeBtn)
     modalContent.appendChild(zoomControls)
+    modalContent.appendChild(hint)
     modalContent.appendChild(svgContainer)
+    modalContent.appendChild(tooltip)
     modal.appendChild(modalContent)
 
     // Close on escape or backdrop click
@@ -255,9 +268,10 @@ const RangeMap = {
 
     // Create modal SVG with zoom
     const svgContainer = modal.querySelector(`#${this.el.id}-modal-svg`)
+    const modalContent = svgContainer.parentElement
     svgContainer.innerHTML = ''
 
-    const svg = this.createSvg(true)
+    const svg = this.createSvg(true, modalContent)
     svg.id = `${this.el.id}-zoom-svg`
     svgContainer.appendChild(svg)
 
@@ -308,8 +322,9 @@ const RangeMap = {
     }
   },
 
-  showTooltip(event, name, code) {
-    const tooltip = this.el.querySelector('.range-map-tooltip')
+  showTooltip(event, name, code, container = null) {
+    const el = container || this.el
+    const tooltip = el.querySelector('.range-map-tooltip')
     if (!tooltip) return
 
     let status = ''
@@ -321,14 +336,15 @@ const RangeMap = {
 
     tooltip.textContent = `${name} (${code})${status}`
     tooltip.classList.remove('hidden')
-    this.moveTooltip(event)
+    this.moveTooltip(event, container)
   },
 
-  moveTooltip(event) {
-    const tooltip = this.el.querySelector('.range-map-tooltip')
+  moveTooltip(event, container = null) {
+    const el = container || this.el
+    const tooltip = el.querySelector('.range-map-tooltip')
     if (!tooltip) return
 
-    const rect = this.el.getBoundingClientRect()
+    const rect = el.getBoundingClientRect()
     const x = event.clientX - rect.left + 10
     const y = event.clientY - rect.top - 25
 
@@ -336,8 +352,9 @@ const RangeMap = {
     tooltip.style.top = `${y}px`
   },
 
-  hideTooltip() {
-    const tooltip = this.el.querySelector('.range-map-tooltip')
+  hideTooltip(container = null) {
+    const el = container || this.el
+    const tooltip = el.querySelector('.range-map-tooltip')
     if (tooltip) {
       tooltip.classList.add('hidden')
     }

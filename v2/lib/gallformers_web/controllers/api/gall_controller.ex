@@ -4,12 +4,28 @@ defmodule GallformersWeb.API.GallController do
   """
 
   use GallformersWeb, :controller
+  use OpenApiSpex.ControllerSpecs
 
   import Ecto.Query
 
   alias Gallformers.{Hosts, Repo, Search, Species, Taxonomy}
   alias Gallformers.Species.{Gall, GallSpecies, Image}
   alias Gallformers.Species.Species, as: SpeciesSchema
+  alias GallformersWeb.Schemas
+
+  tags ["Galls"]
+
+  operation :index,
+    summary: "List galls",
+    description: "Lists all galls with optional search and pagination",
+    parameters: [
+      q: [in: :query, type: :string, description: "Search query"],
+      limit: [in: :query, type: :integer, description: "Maximum number of results"],
+      offset: [in: :query, type: :integer, description: "Number of results to skip"]
+    ],
+    responses: [
+      ok: {"List of galls", "application/json", Schemas.GallListResponse}
+    ]
 
   @doc """
   GET /api/v2/galls
@@ -49,6 +65,17 @@ defmodule GallformersWeb.API.GallController do
     })
   end
 
+  operation :show,
+    summary: "Get a gall",
+    description: "Gets a single gall by ID with full details",
+    parameters: [
+      id: [in: :path, type: :integer, description: "Gall ID", required: true]
+    ],
+    responses: [
+      ok: {"Gall details", "application/json", Schemas.Gall},
+      not_found: {"Gall not found", "application/json", Schemas.Error}
+    ]
+
   @doc """
   GET /api/v2/galls/:id
   Gets a single gall by ID with full details.
@@ -72,6 +99,14 @@ defmodule GallformersWeb.API.GallController do
         end
     end
   end
+
+  operation :random,
+    summary: "Get a random gall",
+    description: "Returns a random gall with its image for the home page",
+    responses: [
+      ok: {"Random gall", "application/json", Schemas.RandomGall},
+      not_found: {"No galls with images found", "application/json", Schemas.Error}
+    ]
 
   @doc """
   GET /api/v2/galls/random
@@ -97,6 +132,13 @@ defmodule GallformersWeb.API.GallController do
     end
   end
 
+  operation :id_tool,
+    summary: "Get galls for ID tool",
+    description: "Returns all galls with filter fields for the ID tool",
+    responses: [
+      ok: {"List of galls for ID tool", "application/json", %OpenApiSpex.Schema{type: :array, items: Schemas.IDGall}}
+    ]
+
   @doc """
   GET /api/v2/galls/id
   Returns all galls with filter fields for the ID tool.
@@ -105,6 +147,16 @@ defmodule GallformersWeb.API.GallController do
     galls = get_galls_for_id_tool()
     json(conn, galls)
   end
+
+  operation :images,
+    summary: "Get gall images",
+    description: "Returns all images for a gall species",
+    parameters: [
+      id: [in: :path, type: :integer, description: "Gall species ID", required: true]
+    ],
+    responses: [
+      ok: {"List of images", "application/json", %OpenApiSpex.Schema{type: :array, items: Schemas.Image}}
+    ]
 
   @doc """
   GET /api/v2/galls/:id/images
@@ -140,6 +192,17 @@ defmodule GallformersWeb.API.GallController do
         json(conn, response)
     end
   end
+
+  operation :related,
+    summary: "Get related galls",
+    description: "Returns galls with the same binomial name",
+    parameters: [
+      id: [in: :path, type: :integer, description: "Gall ID", required: true]
+    ],
+    responses: [
+      ok: {"List of related galls", "application/json", %OpenApiSpex.Schema{type: :array, items: Schemas.RelatedGall}},
+      not_found: {"Gall not found", "application/json", Schemas.Error}
+    ]
 
   @doc """
   GET /api/v2/galls/:id/related

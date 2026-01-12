@@ -4,8 +4,22 @@ defmodule GallformersWeb.API.SearchController do
   """
 
   use GallformersWeb, :controller
+  use OpenApiSpex.ControllerSpecs
 
   alias Gallformers.Search
+  alias GallformersWeb.Schemas
+
+  tags ["Search"]
+
+  operation :search,
+    summary: "Global search",
+    description: "Performs a global search across all entity types",
+    parameters: [
+      q: [in: :query, type: :string, description: "Search query", required: true]
+    ],
+    responses: [
+      ok: {"Search results", "application/json", Schemas.SearchResults}
+    ]
 
   @doc """
   GET /api/v2/search?q=query

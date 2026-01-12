@@ -6,12 +6,23 @@ defmodule GallformersWeb.API.StatsController do
   """
 
   use GallformersWeb, :controller
+  use OpenApiSpex.ControllerSpecs
 
   import Ecto.Query
 
   alias Gallformers.{Glossary, Hosts, Repo, Sources, Species}
   alias Gallformers.Species.{Gall, GallSpecies}
   alias Gallformers.Species.Species, as: SpeciesSchema
+  alias GallformersWeb.Schemas
+
+  tags ["Stats"]
+
+  operation :index,
+    summary: "Get statistics",
+    description: "Returns summary statistics about the database",
+    responses: [
+      ok: {"Statistics", "application/json", Schemas.Stats}
+    ]
 
   @doc """
   GET /api/v2/stats

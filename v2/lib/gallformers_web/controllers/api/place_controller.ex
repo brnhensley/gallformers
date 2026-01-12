@@ -4,12 +4,23 @@ defmodule GallformersWeb.API.PlaceController do
   """
 
   use GallformersWeb, :controller
+  use OpenApiSpex.ControllerSpecs
 
   import Ecto.Query
 
   alias Gallformers.Places
   alias Gallformers.Places.Place
   alias Gallformers.Repo
+  alias GallformersWeb.Schemas
+
+  tags ["Places"]
+
+  operation :index,
+    summary: "List places",
+    description: "Lists all places hierarchically",
+    responses: [
+      ok: {"List of places", "application/json", %OpenApiSpex.Schema{type: :array, items: Schemas.Place}}
+    ]
 
   @doc """
   GET /api/v2/places
@@ -19,6 +30,17 @@ defmodule GallformersWeb.API.PlaceController do
     places = list_all_places()
     json(conn, places)
   end
+
+  operation :show,
+    summary: "Get a place",
+    description: "Gets a single place by ID with its parent and associated hosts",
+    parameters: [
+      id: [in: :path, type: :integer, description: "Place ID", required: true]
+    ],
+    responses: [
+      ok: {"Place details", "application/json", Schemas.Place},
+      not_found: {"Place not found", "application/json", Schemas.Error}
+    ]
 
   @doc """
   GET /api/v2/places/:id

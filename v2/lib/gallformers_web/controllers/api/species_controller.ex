@@ -4,8 +4,32 @@ defmodule GallformersWeb.API.SpeciesController do
   """
 
   use GallformersWeb, :controller
+  use OpenApiSpex.ControllerSpecs
 
   alias Gallformers.Species
+  alias GallformersWeb.Schemas
+
+  tags ["Species"]
+
+  operation :index,
+    summary: "List species",
+    description: "Lists all species with optional search and pagination",
+    parameters: [
+      q: [in: :query, type: :string, description: "Search query"],
+      limit: [in: :query, type: :integer, description: "Maximum number of results"],
+      offset: [in: :query, type: :integer, description: "Number of results to skip"]
+    ],
+    responses: [
+      ok: {"List of species", "application/json", %OpenApiSpex.Schema{
+        type: :object,
+        properties: %{
+          data: %OpenApiSpex.Schema{type: :array, items: %OpenApiSpex.Schema{type: :object}},
+          total: %OpenApiSpex.Schema{type: :integer},
+          limit: %OpenApiSpex.Schema{type: :integer, nullable: true},
+          offset: %OpenApiSpex.Schema{type: :integer}
+        }
+      }}
+    ]
 
   @doc """
   GET /api/v2/species
@@ -44,6 +68,17 @@ defmodule GallformersWeb.API.SpeciesController do
       offset: offset
     })
   end
+
+  operation :show,
+    summary: "Get a species",
+    description: "Gets a single species by ID",
+    parameters: [
+      id: [in: :path, type: :integer, description: "Species ID", required: true]
+    ],
+    responses: [
+      ok: {"Species details", "application/json", %OpenApiSpex.Schema{type: :object}},
+      not_found: {"Species not found", "application/json", Schemas.Error}
+    ]
 
   @doc """
   GET /api/v2/species/:id

@@ -6,6 +6,7 @@ defmodule GallformersWeb.API.ExploreController do
   """
 
   use GallformersWeb, :controller
+  use OpenApiSpex.ControllerSpecs
 
   import Ecto.Query
 
@@ -13,6 +14,16 @@ defmodule GallformersWeb.API.ExploreController do
   alias Gallformers.Species.{Gall, GallSpecies}
   alias Gallformers.Species.Species, as: SpeciesSchema
   alias Gallformers.Taxonomy.Taxonomy
+  alias GallformersWeb.Schemas
+
+  tags ["Explore"]
+
+  operation :explore,
+    summary: "Explore tree data",
+    description: "Returns hierarchical tree data for browsing galls, undescribed galls, and hosts",
+    responses: [
+      ok: {"Explore tree data", "application/json", Schemas.ExploreResponse}
+    ]
 
   @doc """
   GET /api/v2/explore

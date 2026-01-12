@@ -98,26 +98,69 @@ defmodule Gallformers.Taxonomy do
   end
 
   @doc """
-  Gets the genus and family for a species.
+  Gets the genus, section, and family for a species.
 
-  Returns a map with :genus and :family keys (or nil if not found).
+  Returns a map with taxonomy names and IDs (or nil if not found).
+  Section is optional and will only be present for plant hosts in genera
+  that have sections (primarily Quercus).
   """
   @spec get_taxonomy_for_species(integer()) :: map() | nil
   def get_taxonomy_for_species(species_id) do
-    query =
+    # First get the genus, which may have a section parent before family
+    base_query =
       from st in "speciestaxonomy",
         join: g in Taxonomy,
         on: st.taxonomy_id == g.id and g.type == "genus",
-        left_join: f in Taxonomy,
-        on: g.parent_id == f.id and f.type == "family",
+        left_join: parent in Taxonomy,
+        on: g.parent_id == parent.id,
         where: st.species_id == ^species_id,
         limit: 1,
         select: %{
           genus: g.name,
-          family: f.name
+          genus_id: g.id,
+          parent_id: parent.id,
+          parent_name: parent.name,
+          parent_type: parent.type,
+          parent_description: parent.description
         }
 
-    Repo.one(query)
+    case Repo.one(base_query) do
+      nil ->
+        nil
+
+      result ->
+        # If parent is a section, we need to get the family from section's parent
+        if result.parent_type == "section" do
+          family_query =
+            from t in Taxonomy,
+              join: parent in Taxonomy,
+              on: t.parent_id == parent.id,
+              where: t.id == ^result.parent_id,
+              select: %{family: parent.name, family_id: parent.id}
+
+          family_result = Repo.one(family_query) || %{family: nil, family_id: nil}
+
+          %{
+            genus: result.genus,
+            genus_id: result.genus_id,
+            section: result.parent_name,
+            section_id: result.parent_id,
+            section_description: result.parent_description,
+            family: family_result.family,
+            family_id: family_result.family_id
+          }
+        else
+          # Parent is the family directly
+          %{
+            genus: result.genus,
+            genus_id: result.genus_id,
+            section: nil,
+            section_id: nil,
+            family: result.parent_name,
+            family_id: result.parent_id
+          }
+        end
+    end
   end
 
   @doc """

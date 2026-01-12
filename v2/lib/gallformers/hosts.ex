@@ -9,7 +9,7 @@ defmodule Gallformers.Hosts do
 
   alias Gallformers.Hosts.Host
   alias Gallformers.Repo
-  alias Gallformers.Species.{Gall, GallSpecies, Species}
+  alias Gallformers.Species.{Abundance, Gall, GallSpecies, Species}
 
   @doc """
   Returns all host species ordered by name.
@@ -67,12 +67,16 @@ defmodule Gallformers.Hosts do
   @spec get_host(integer()) :: map() | nil
   def get_host(id) do
     from(s in Species,
+      left_join: a in Abundance,
+      on: s.abundance_id == a.id,
       where: s.id == ^id and s.taxoncode == "plant",
       select: %{
         id: s.id,
         name: s.name,
         taxoncode: s.taxoncode,
-        datacomplete: s.datacomplete
+        datacomplete: s.datacomplete,
+        abundance_id: s.abundance_id,
+        abundance_name: a.abundance
       }
     )
     |> Repo.one()

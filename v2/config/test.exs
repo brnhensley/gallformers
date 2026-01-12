@@ -1,5 +1,7 @@
 import Config
 
+config :gallformers, env: :test
+
 # Configure your database
 # Use a schema-only test database (no production data)
 config :gallformers, Gallformers.Repo,
