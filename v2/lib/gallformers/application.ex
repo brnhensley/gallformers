@@ -35,7 +35,8 @@ defmodule Gallformers.Application do
   end
 
   defp skip_migrations?() do
-    # By default, sqlite migrations are run when using a release
-    System.get_env("RELEASE_NAME") == nil
+    # Skip migrations by default since we use an existing database managed by Prisma.
+    # Set RUN_MIGRATIONS=true to explicitly enable Ecto migrations.
+    System.get_env("RUN_MIGRATIONS") != "true"
   end
 end

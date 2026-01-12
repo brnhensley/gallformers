@@ -24,13 +24,12 @@ primary_region = "iad"
     hard_limit = 250
     soft_limit = 200
 
-  [http_service.checks]
-    [http_service.checks.health]
-      interval = "30s"
-      timeout = "5s"
-      grace_period = "10s"
-      method = "GET"
-      path = "/health"
+  [[http_service.checks]]
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "10s"
+    method = "GET"
+    path = "/health"
 
 [[vm]]
   memory = "512mb"

@@ -48,7 +48,7 @@ RUN mix release
 # Stage 2: Runtime
 FROM alpine:3.20 AS runtime
 
-RUN apk add --no-cache libstdc++ openssl ncurses-libs sqlite
+RUN apk add --no-cache libstdc++ openssl ncurses-libs sqlite su-exec
 
 # Install Litestream for continuous SQLite replication
 ADD https://github.com/benbjohnson/litestream/releases/download/v0.3.13/litestream-v0.3.13-linux-amd64.tar.gz /tmp/litestream.tar.gz
@@ -67,12 +67,13 @@ COPY --chown=gallformers:gallformers litestream.yml /etc/litestream.yml
 # Create data directory
 RUN mkdir -p /data && chown gallformers:gallformers /data
 
-USER gallformers
+# Copy entrypoint script (runs as root to fix permissions, then drops to gallformers)
+COPY --chmod=755 docker-entrypoint.sh /app/docker-entrypoint.sh
 
 ENV HOME=/app
 ENV DATABASE_PATH=/data/gallformers.sqlite
 
 EXPOSE 4000
 
-# Run with Litestream for SQLite replication
-CMD ["litestream", "replicate", "-exec", "/app/bin/server"]
+# Run entrypoint as root - it fixes permissions then drops to gallformers user
+CMD ["/app/docker-entrypoint.sh"]
