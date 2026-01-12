@@ -9,9 +9,9 @@ defmodule GallformersWeb.API.SourceController do
   alias Gallformers.Sources
   alias GallformersWeb.Schemas
 
-  tags ["Sources"]
+  tags(["Sources"])
 
-  operation :index,
+  operation(:index,
     summary: "List sources",
     description: "Lists all sources with optional search and pagination",
     parameters: [
@@ -20,16 +20,19 @@ defmodule GallformersWeb.API.SourceController do
       offset: [in: :query, type: :integer, description: "Number of results to skip"]
     ],
     responses: [
-      ok: {"List of sources", "application/json", %OpenApiSpex.Schema{
-        type: :object,
-        properties: %{
-          data: %OpenApiSpex.Schema{type: :array, items: Schemas.Source},
-          total: %OpenApiSpex.Schema{type: :integer},
-          limit: %OpenApiSpex.Schema{type: :integer, nullable: true},
-          offset: %OpenApiSpex.Schema{type: :integer}
-        }
-      }}
+      ok:
+        {"List of sources", "application/json",
+         %OpenApiSpex.Schema{
+           type: :object,
+           properties: %{
+             data: %OpenApiSpex.Schema{type: :array, items: Schemas.Source},
+             total: %OpenApiSpex.Schema{type: :integer},
+             limit: %OpenApiSpex.Schema{type: :integer, nullable: true},
+             offset: %OpenApiSpex.Schema{type: :integer}
+           }
+         }}
     ]
+  )
 
   @doc """
   GET /api/v2/sources
@@ -69,7 +72,7 @@ defmodule GallformersWeb.API.SourceController do
     })
   end
 
-  operation :show,
+  operation(:show,
     summary: "Get a source",
     description: "Gets a single source by ID with its species",
     parameters: [
@@ -79,6 +82,7 @@ defmodule GallformersWeb.API.SourceController do
       ok: {"Source details", "application/json", Schemas.Source},
       not_found: {"Source not found", "application/json", Schemas.Error}
     ]
+  )
 
   @doc """
   GET /api/v2/sources/:id

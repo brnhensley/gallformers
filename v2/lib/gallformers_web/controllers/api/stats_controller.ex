@@ -15,14 +15,15 @@ defmodule GallformersWeb.API.StatsController do
   alias Gallformers.Species.Species, as: SpeciesSchema
   alias GallformersWeb.Schemas
 
-  tags ["Stats"]
+  tags(["Stats"])
 
-  operation :index,
+  operation(:index,
     summary: "Get statistics",
     description: "Returns summary statistics about the database",
     responses: [
       ok: {"Statistics", "application/json", Schemas.Stats}
     ]
+  )
 
   @doc """
   GET /api/v2/stats

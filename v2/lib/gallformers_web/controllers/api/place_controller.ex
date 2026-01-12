@@ -13,14 +13,17 @@ defmodule GallformersWeb.API.PlaceController do
   alias Gallformers.Repo
   alias GallformersWeb.Schemas
 
-  tags ["Places"]
+  tags(["Places"])
 
-  operation :index,
+  operation(:index,
     summary: "List places",
     description: "Lists all places hierarchically",
     responses: [
-      ok: {"List of places", "application/json", %OpenApiSpex.Schema{type: :array, items: Schemas.Place}}
+      ok:
+        {"List of places", "application/json",
+         %OpenApiSpex.Schema{type: :array, items: Schemas.Place}}
     ]
+  )
 
   @doc """
   GET /api/v2/places
@@ -31,7 +34,7 @@ defmodule GallformersWeb.API.PlaceController do
     json(conn, places)
   end
 
-  operation :show,
+  operation(:show,
     summary: "Get a place",
     description: "Gets a single place by ID with its parent and associated hosts",
     parameters: [
@@ -41,6 +44,7 @@ defmodule GallformersWeb.API.PlaceController do
       ok: {"Place details", "application/json", Schemas.Place},
       not_found: {"Place not found", "application/json", Schemas.Error}
     ]
+  )
 
   @doc """
   GET /api/v2/places/:id

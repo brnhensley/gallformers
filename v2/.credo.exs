@@ -74,7 +74,8 @@
           {Credo.Check.Warning.ApplicationConfigInModuleAttribute, []},
           {Credo.Check.Warning.BoolOperationOnSameValues, []},
           {Credo.Check.Warning.Dbg, []},
-          {Credo.Check.Warning.ExpensiveEmptyEnumCheck, []},
+          # Disable ExpensiveEmptyEnumCheck in test files - performance is not critical there
+          {Credo.Check.Warning.ExpensiveEmptyEnumCheck, [files: %{excluded: [~r"test/"]}]},
           {Credo.Check.Warning.IExPry, []},
           {Credo.Check.Warning.IoInspect, []},
           {Credo.Check.Warning.MixEnv, []},
