@@ -610,7 +610,7 @@ defmodule GallformersWeb.Layouts do
   def flash_group(assigns) do
     ~H"""
     <div id={@id} aria-live="polite">
-      <.flash kind={:info} flash={@flash} />
+      <.flash kind={:info} flash={@flash} auto_dismiss={5000} />
       <.flash kind={:error} flash={@flash} />
 
       <.flash
