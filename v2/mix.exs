@@ -73,6 +73,9 @@ defmodule Gallformers.MixProject do
       {:open_api_spex, "~> 3.18"},
       # Rate Limiting
       {:hammer, "~> 6.1"},
+      # Authentication
+      {:ueberauth, "~> 0.10"},
+      {:ueberauth_auth0, "~> 2.1"},
       # Dev/Test tools
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false}
