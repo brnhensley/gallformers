@@ -89,6 +89,19 @@ const Tabs = {
   }
 }
 
+// AutoDismiss hook for flash messages
+const AutoDismiss = {
+  mounted() {
+    const delay = parseInt(this.el.dataset.dismissAfter) || 5000
+    this.timer = setTimeout(() => {
+      this.el.click() // Trigger the phx-click to clear the flash
+    }, delay)
+  },
+  destroyed() {
+    if (this.timer) clearTimeout(this.timer)
+  }
+}
+
 // ImageGallery hook for keyboard navigation and lightbox
 const ImageGallery = {
   mounted() {
@@ -180,7 +193,7 @@ const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {Tabs, ImageGallery, RangeMap},
+  hooks: {Tabs, ImageGallery, RangeMap, AutoDismiss},
 })
 
 // Show progress bar on live navigation and form submits
