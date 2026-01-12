@@ -171,13 +171,13 @@ Build one page at a time, deploy after each, verify visual parity.
 - [x] 6.3.2 Create custom 500 page matching site design
 - [x] 6.3.3 Configure error view in endpoint
 
-## 7. Search (LiveView)
+## 7. Search (LiveView) ✅
 
-- [ ] 7.1 Create `SearchLive` with search input
-- [ ] 7.2 Implement `handle_event("search", ...)` with debounce
-- [ ] 7.3 Display results grouped by type (galls, hosts, sources)
-- [ ] 7.4 Add keyboard navigation for results
-- [ ] 7.5 Implement URL sync with `push_patch`
+- [x] 7.1 Create `SearchLive` with search input
+- [x] 7.2 Implement `handle_event("search", ...)` with debounce
+- [x] 7.3 Display results grouped by type (galls, hosts, sources)
+- [x] 7.4 Add keyboard navigation for results
+- [x] 7.5 Implement URL sync with `push_patch`
 
 ## 8. ID Tool (LiveView)
 
