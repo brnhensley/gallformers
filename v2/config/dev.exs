@@ -1,10 +1,10 @@
 import Config
 
 # Configure your database
-# For development, use the dev database in the v2 directory
+# For development, use the local database in priv/
 # Production uses DATABASE_PATH environment variable (configured in runtime.exs)
 config :gallformers, Gallformers.Repo,
-  database: Path.expand("../priv/gallformers_dev.db", __DIR__),
+  database: Path.expand("../priv/gallformers.sqlite", __DIR__),
   pool_size: 5,
   stacktrace: true,
   show_sensitive_data_on_connection_error: true
