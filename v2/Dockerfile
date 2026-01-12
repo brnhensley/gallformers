@@ -1,22 +1,11 @@
 # Gallformers V2 - Phoenix Dockerfile
 # Multi-stage build for Phoenix release with Litestream
 
-# Stage 1: Build assets
-FROM node:20-alpine AS assets-builder
-
-WORKDIR /app
-COPY assets/package*.json ./assets/
-RUN cd assets && npm ci
-
-COPY assets ./assets
-COPY lib ./lib
-COPY priv ./priv
-
-# Stage 2: Build Elixir release
+# Stage 1: Build Elixir release
 FROM hexpm/elixir:1.17.3-erlang-27.1.2-alpine-3.20.3 AS builder
 
 # Install build dependencies
-RUN apk add --no-cache build-base git nodejs npm
+RUN apk add --no-cache build-base git
 
 WORKDIR /app
 
@@ -36,26 +25,27 @@ RUN mkdir config
 COPY config/config.exs config/${MIX_ENV}.exs config/
 RUN mix deps.compile
 
-# Copy assets from previous stage
-COPY --from=assets-builder /app/assets ./assets
-COPY --from=assets-builder /app/lib ./lib
-COPY --from=assets-builder /app/priv ./priv
-
-# Build assets
-RUN mix assets.deploy
-
-# Compile the release
-COPY config/runtime.exs config/
+# Copy application code
+COPY lib lib
+COPY priv priv
+COPY assets assets
 
 # Copy release overlays (server, migrate scripts)
 COPY rel rel
 
+# Copy runtime config
+COPY config/runtime.exs config/
+
+# Compile first (needed for colocated hooks)
 RUN mix compile
+
+# Build assets (esbuild + tailwind are installed via mix)
+RUN mix assets.deploy
 
 # Build the release
 RUN mix release
 
-# Stage 3: Runtime
+# Stage 2: Runtime
 FROM alpine:3.20 AS runtime
 
 RUN apk add --no-cache libstdc++ openssl ncurses-libs sqlite
