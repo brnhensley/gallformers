@@ -34,7 +34,7 @@ defmodule Gallformers.Application do
     :ok
   end
 
-  defp skip_migrations?() do
+  defp skip_migrations? do
     # Skip migrations by default since we use an existing database managed by Prisma.
     # Set RUN_MIGRATIONS=true to explicitly enable Ecto migrations.
     System.get_env("RUN_MIGRATIONS") != "true"

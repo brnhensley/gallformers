@@ -41,3 +41,5 @@ npm-debug.log
 *.sqlite
 *.sqlite-*
 
+# Dialyzer PLT files (large, environment-specific)
+/priv/plts/

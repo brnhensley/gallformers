@@ -31,7 +31,7 @@
 - [x] 1.2.1 Add `mix format --check-formatted` to CI
 - [x] 1.2.2 Add `mix test` to CI
 - [x] 1.2.3 Add `mix credo` for code quality
-- [ ] 1.2.4 Add `mix dialyzer` for type checking (optional - deferred)
+- [x] 1.2.4 Add `mix dialyzer` for type checking
 
 ### 1.3 Documentation ✅
 - [x] 1.3.1 Create `v2/CLAUDE.md` with:

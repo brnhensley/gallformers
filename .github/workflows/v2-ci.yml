@@ -1,0 +1,83 @@
+name: V2 CI
+
+on:
+  push:
+    branches: [main, code2]
+    paths:
+      - 'v2/lib/**'
+      - 'v2/test/**'
+      - 'v2/config/**'
+      - 'v2/priv/**'
+      - 'v2/assets/**'
+      - 'v2/mix.exs'
+      - 'v2/mix.lock'
+      - '.github/workflows/v2-ci.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'v2/lib/**'
+      - 'v2/test/**'
+      - 'v2/config/**'
+      - 'v2/priv/**'
+      - 'v2/assets/**'
+      - 'v2/mix.exs'
+      - 'v2/mix.lock'
+      - '.github/workflows/v2-ci.yml'
+
+jobs:
+  test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: v2
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          elixir-version: '1.17'
+          otp-version: '27'
+
+      - name: Restore dependencies cache
+        uses: actions/cache@v4
+        with:
+          path: v2/deps
+          key: ${{ runner.os }}-mix-${{ hashFiles('v2/mix.lock') }}
+          restore-keys: ${{ runner.os }}-mix-
+
+      - name: Restore build cache
+        uses: actions/cache@v4
+        with:
+          path: v2/_build
+          key: ${{ runner.os }}-build-${{ hashFiles('v2/mix.lock') }}
+          restore-keys: ${{ runner.os }}-build-
+
+      - name: Restore PLT cache
+        uses: actions/cache@v4
+        id: plt-cache
+        with:
+          path: v2/priv/plts
+          key: ${{ runner.os }}-plt-${{ hashFiles('v2/mix.lock') }}
+          restore-keys: ${{ runner.os }}-plt-
+
+      - name: Install dependencies
+        run: mix deps.get
+
+      - name: Check formatting
+        run: mix format --check-formatted
+
+      - name: Compile with warnings as errors
+        run: mix compile --warnings-as-errors
+
+      - name: Run Credo
+        run: mix credo --strict
+
+      - name: Run tests
+        run: mix test
+
+      - name: Run Dialyzer
+        run: mix dialyzer
