@@ -12,6 +12,7 @@ defmodule GallformersWeb.Router do
 
   pipeline :api do
     plug :accepts, ["json"]
+    plug GallformersWeb.Plugs.CORS
   end
 
   # Health check for Fly.io (no pipeline needed)
@@ -44,10 +45,67 @@ defmodule GallformersWeb.Router do
     live "/place/:id", PlaceLive
   end
 
-  # Other scopes may use custom stacks.
-  # scope "/api", GallformersWeb do
-  #   pipe_through :api
-  # end
+  # API documentation routes
+  scope "/api" do
+    pipe_through :api
+    get "/docs/openapi.json", OpenApiSpex.Plug.RenderSpec, []
+  end
+
+  scope "/api/docs" do
+    pipe_through :browser
+    get "/", OpenApiSpex.Plug.SwaggerUI, path: "/api/docs/openapi.json"
+  end
+
+  # API v2 routes
+  scope "/api/v2", GallformersWeb.API do
+    pipe_through [:api, GallformersWeb.Plugs.RateLimiter]
+
+    # Species endpoints
+    get "/species", SpeciesController, :index
+    get "/species/:id", SpeciesController, :show
+
+    # Gall endpoints
+    get "/galls", GallController, :index
+    get "/galls/random", GallController, :random
+    get "/galls/id", GallController, :id_tool
+    get "/galls/:id", GallController, :show
+    get "/galls/:id/images", GallController, :images
+    get "/galls/:id/related", GallController, :related
+
+    # Host endpoints
+    get "/hosts", HostController, :index
+    get "/hosts/:id", HostController, :show
+
+    # Taxonomy endpoints
+    get "/taxonomy/:id", TaxonomyController, :show
+    get "/families", TaxonomyController, :families
+    get "/families/:id", TaxonomyController, :family
+    get "/genera/:id", TaxonomyController, :genus
+    get "/sections/:id", TaxonomyController, :section
+
+    # Source endpoints
+    get "/sources", SourceController, :index
+    get "/sources/:id", SourceController, :show
+
+    # Glossary endpoints
+    get "/glossary", GlossaryController, :index
+    get "/glossary/:id", GlossaryController, :show
+    get "/glossary/by-word/:word", GlossaryController, :by_word
+
+    # Place endpoints
+    get "/places", PlaceController, :index
+    get "/places/:id", PlaceController, :show
+
+    # Search endpoints
+    get "/search", SearchController, :search
+    get "/explore", ExploreController, :explore
+
+    # Filter fields for ID tool
+    get "/filter-fields", FilterFieldController, :index
+
+    # Stats endpoint
+    get "/stats", StatsController, :index
+  end
 
   # Enable LiveDashboard and Swoosh mailbox preview in development
   if Application.compile_env(:gallformers, :dev_routes) do
