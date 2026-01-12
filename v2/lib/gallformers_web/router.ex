@@ -14,6 +14,9 @@ defmodule GallformersWeb.Router do
     plug :accepts, ["json"]
   end
 
+  # Health check for Fly.io (no pipeline needed)
+  get "/health", GallformersWeb.HealthController, :check
+
   scope "/", GallformersWeb do
     pipe_through :browser
 

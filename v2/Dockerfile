@@ -1,0 +1,88 @@
+# Gallformers V2 - Phoenix Dockerfile
+# Multi-stage build for Phoenix release with Litestream
+
+# Stage 1: Build assets
+FROM node:20-alpine AS assets-builder
+
+WORKDIR /app
+COPY assets/package*.json ./assets/
+RUN cd assets && npm ci
+
+COPY assets ./assets
+COPY lib ./lib
+COPY priv ./priv
+
+# Stage 2: Build Elixir release
+FROM hexpm/elixir:1.17.3-erlang-27.1.2-alpine-3.20.3 AS builder
+
+# Install build dependencies
+RUN apk add --no-cache build-base git nodejs npm
+
+WORKDIR /app
+
+# Install hex + rebar
+RUN mix local.hex --force && \
+    mix local.rebar --force
+
+# Set build ENV
+ENV MIX_ENV=prod
+
+# Install mix dependencies
+COPY mix.exs mix.lock ./
+RUN mix deps.get --only $MIX_ENV
+RUN mkdir config
+
+# Copy compile-time config files
+COPY config/config.exs config/${MIX_ENV}.exs config/
+RUN mix deps.compile
+
+# Copy assets from previous stage
+COPY --from=assets-builder /app/assets ./assets
+COPY --from=assets-builder /app/lib ./lib
+COPY --from=assets-builder /app/priv ./priv
+
+# Build assets
+RUN mix assets.deploy
+
+# Compile the release
+COPY config/runtime.exs config/
+
+# Copy release overlays (server, migrate scripts)
+COPY rel rel
+
+RUN mix compile
+
+# Build the release
+RUN mix release
+
+# Stage 3: Runtime
+FROM alpine:3.20 AS runtime
+
+RUN apk add --no-cache libstdc++ openssl ncurses-libs sqlite
+
+# Install Litestream for continuous SQLite replication
+ADD https://github.com/benbjohnson/litestream/releases/download/v0.3.13/litestream-v0.3.13-linux-amd64.tar.gz /tmp/litestream.tar.gz
+RUN tar -C /usr/local/bin -xzf /tmp/litestream.tar.gz && rm /tmp/litestream.tar.gz
+
+WORKDIR /app
+
+# Create non-root user
+RUN addgroup -g 1000 gallformers && \
+    adduser -u 1000 -G gallformers -s /bin/sh -D gallformers
+
+# Copy release from builder
+COPY --from=builder --chown=gallformers:gallformers /app/_build/prod/rel/gallformers ./
+COPY --chown=gallformers:gallformers litestream.yml /etc/litestream.yml
+
+# Create data directory
+RUN mkdir -p /data && chown gallformers:gallformers /data
+
+USER gallformers
+
+ENV HOME=/app
+ENV DATABASE_PATH=/data/gallformers.sqlite
+
+EXPOSE 4000
+
+# Run with Litestream for SQLite replication
+CMD ["litestream", "replicate", "-exec", "/app/bin/server"]
