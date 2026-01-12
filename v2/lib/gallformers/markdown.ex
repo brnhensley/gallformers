@@ -185,8 +185,6 @@ defmodule Gallformers.Markdown do
   end
 
   defp format_errors(errors) do
-    errors
-    |> Enum.map(fn {_severity, _line, message} -> message end)
-    |> Enum.join("; ")
+    Enum.map_join(errors, "; ", fn {_severity, _line, message} -> message end)
   end
 end

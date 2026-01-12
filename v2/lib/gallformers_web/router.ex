@@ -29,6 +29,7 @@ defmodule GallformersWeb.Router do
     live "/resources", ResourcesLive
     live "/glossary", GlossaryLive
     live "/refindex", RefIndexLive
+    live "/globalsearch", SearchLive
 
     # Entity pages
     live "/gall/:id", GallLive
