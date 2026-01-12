@@ -26,6 +26,8 @@ import topbar from "../vendor/topbar"
 
 // Import external hooks
 import RangeMap from "./hooks/range_map"
+import ImageUpload from "./hooks/image_upload"
+import SortableImages from "./hooks/sortable_images"
 
 // Custom hooks for UI components
 const Tabs = {
@@ -180,7 +182,7 @@ const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {Tabs, ImageGallery, RangeMap},
+  hooks: {Tabs, ImageGallery, RangeMap, ImageUpload, SortableImages},
 })
 
 // Show progress bar on live navigation and form submits

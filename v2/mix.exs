@@ -76,6 +76,13 @@ defmodule Gallformers.MixProject do
       # Authentication
       {:ueberauth, "~> 0.10"},
       {:ueberauth_auth0, "~> 2.1"},
+      # AWS S3 for image uploads
+      {:ex_aws, "~> 2.5"},
+      {:ex_aws_s3, "~> 2.5"},
+      {:sweet_xml, "~> 0.7"},
+      {:hackney, "~> 1.20"},
+      # Image processing
+      {:image, "~> 0.54"},
       # Dev/Test tools
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false}
