@@ -11,7 +11,9 @@ defmodule GallformersWeb.HomeLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    random_gall = Species.random_gall()
+    # Only fetch random gall when connected to avoid fetching twice
+    # (mount is called for both static render and websocket connection)
+    random_gall = if connected?(socket), do: Species.random_gall(), else: nil
 
     {:ok,
      assign(socket,
