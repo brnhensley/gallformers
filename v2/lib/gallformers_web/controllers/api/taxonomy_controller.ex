@@ -12,9 +12,9 @@ defmodule GallformersWeb.API.TaxonomyController do
   alias Gallformers.Taxonomy
   alias GallformersWeb.Schemas
 
-  tags ["Taxonomy"]
+  tags(["Taxonomy"])
 
-  operation :show,
+  operation(:show,
     summary: "Get a taxonomy entry",
     description: "Gets a single taxonomy entry by ID",
     parameters: [
@@ -24,6 +24,7 @@ defmodule GallformersWeb.API.TaxonomyController do
       ok: {"Taxonomy details", "application/json", Schemas.Taxonomy},
       not_found: {"Taxonomy not found", "application/json", Schemas.Error}
     ]
+  )
 
   @doc """
   GET /api/v2/taxonomy/:id
@@ -39,12 +40,15 @@ defmodule GallformersWeb.API.TaxonomyController do
     end
   end
 
-  operation :families,
+  operation(:families,
     summary: "List families",
     description: "Lists all families with their genera",
     responses: [
-      ok: {"List of families", "application/json", %OpenApiSpex.Schema{type: :array, items: %OpenApiSpex.Schema{type: :object}}}
+      ok:
+        {"List of families", "application/json",
+         %OpenApiSpex.Schema{type: :array, items: %OpenApiSpex.Schema{type: :object}}}
     ]
+  )
 
   @doc """
   GET /api/v2/families
@@ -55,7 +59,7 @@ defmodule GallformersWeb.API.TaxonomyController do
     json(conn, families)
   end
 
-  operation :family,
+  operation(:family,
     summary: "Get a family",
     description: "Gets a family by ID with its genera",
     parameters: [
@@ -65,6 +69,7 @@ defmodule GallformersWeb.API.TaxonomyController do
       ok: {"Family details", "application/json", %OpenApiSpex.Schema{type: :object}},
       not_found: {"Family not found", "application/json", Schemas.Error}
     ]
+  )
 
   @doc """
   GET /api/v2/families/:id
@@ -88,7 +93,7 @@ defmodule GallformersWeb.API.TaxonomyController do
     end
   end
 
-  operation :genus,
+  operation(:genus,
     summary: "Get a genus",
     description: "Gets a genus by ID with its parent family and species",
     parameters: [
@@ -98,6 +103,7 @@ defmodule GallformersWeb.API.TaxonomyController do
       ok: {"Genus details", "application/json", %OpenApiSpex.Schema{type: :object}},
       not_found: {"Genus not found", "application/json", Schemas.Error}
     ]
+  )
 
   @doc """
   GET /api/v2/genera/:id
@@ -124,7 +130,7 @@ defmodule GallformersWeb.API.TaxonomyController do
     end
   end
 
-  operation :section,
+  operation(:section,
     summary: "Get a section",
     description: "Gets a section by ID with its species",
     parameters: [
@@ -134,6 +140,7 @@ defmodule GallformersWeb.API.TaxonomyController do
       ok: {"Section details", "application/json", %OpenApiSpex.Schema{type: :object}},
       not_found: {"Section not found", "application/json", Schemas.Error}
     ]
+  )
 
   @doc """
   GET /api/v2/sections/:id

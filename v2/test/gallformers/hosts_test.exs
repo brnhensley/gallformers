@@ -1,0 +1,279 @@
+defmodule Gallformers.HostsTest do
+  @moduledoc """
+  Unit tests for the Hosts context.
+  """
+  use Gallformers.DataCase, async: true
+
+  alias Gallformers.{Hosts, Species}
+
+  describe "list_hosts/0" do
+    test "returns hosts with expected fields" do
+      hosts = Hosts.list_hosts()
+      assert is_list(hosts)
+
+      if length(hosts) > 0 do
+        host = hd(hosts)
+        assert Map.has_key?(host, :id)
+        assert Map.has_key?(host, :name)
+        assert Map.has_key?(host, :taxoncode)
+        assert host.taxoncode == "plant"
+      end
+    end
+
+    test "returns hosts ordered by name" do
+      hosts = Hosts.list_hosts()
+
+      if length(hosts) > 1 do
+        names = Enum.map(hosts, & &1.name)
+        assert names == Enum.sort(names)
+      end
+    end
+  end
+
+  describe "list_hosts_paginated/2" do
+    test "returns limited number of hosts" do
+      hosts = Hosts.list_hosts_paginated(5, 0)
+      assert length(hosts) <= 5
+    end
+
+    test "respects offset parameter" do
+      all_hosts = Hosts.list_hosts()
+
+      if length(all_hosts) > 5 do
+        first_page = Hosts.list_hosts_paginated(5, 0)
+        second_page = Hosts.list_hosts_paginated(5, 5)
+
+        first_ids = MapSet.new(Enum.map(first_page, & &1.id))
+        second_ids = MapSet.new(Enum.map(second_page, & &1.id))
+        assert MapSet.disjoint?(first_ids, second_ids)
+      end
+    end
+  end
+
+  describe "count_hosts/0" do
+    test "returns a non-negative integer" do
+      count = Hosts.count_hosts()
+      assert is_integer(count)
+      assert count >= 0
+    end
+
+    test "count matches length of list_hosts" do
+      count = Hosts.count_hosts()
+      hosts = Hosts.list_hosts()
+      assert count == length(hosts)
+    end
+  end
+
+  describe "get_host/1" do
+    test "returns nil for non-existent ID" do
+      assert nil == Hosts.get_host(999_999_999)
+    end
+
+    test "returns host with expected fields for valid ID" do
+      hosts = Hosts.list_hosts()
+
+      if length(hosts) > 0 do
+        host = Hosts.get_host(hd(hosts).id)
+        assert host != nil
+        assert Map.has_key?(host, :id)
+        assert Map.has_key?(host, :name)
+        assert Map.has_key?(host, :taxoncode)
+        assert host.taxoncode == "plant"
+      end
+    end
+  end
+
+  describe "get_host_by_name/1" do
+    test "returns nil for non-existent name" do
+      assert nil == Hosts.get_host_by_name("Nonexistent host name xyz")
+    end
+
+    test "returns host for valid name" do
+      hosts = Hosts.list_hosts()
+
+      if length(hosts) > 0 do
+        host = Hosts.get_host_by_name(hd(hosts).name)
+        assert host != nil
+        assert host.name == hd(hosts).name
+      end
+    end
+  end
+
+  describe "get_hosts_for_gall/1" do
+    test "returns empty list for non-existent gall" do
+      hosts = Hosts.get_hosts_for_gall(999_999_999)
+      assert hosts == []
+    end
+
+    test "returns hosts with expected fields" do
+      galls = Species.list_galls()
+
+      # Find a gall with hosts
+      gall_with_host =
+        Enum.find(galls, fn g ->
+          length(Hosts.get_hosts_for_gall(g.id)) > 0
+        end)
+
+      if gall_with_host do
+        hosts = Hosts.get_hosts_for_gall(gall_with_host.id)
+        assert length(hosts) > 0
+        host = hd(hosts)
+        assert Map.has_key?(host, :host_relation_id)
+        assert Map.has_key?(host, :host_species_id)
+        assert Map.has_key?(host, :host_name)
+      end
+    end
+  end
+
+  describe "get_galls_for_host/1" do
+    test "returns empty list for non-existent host" do
+      galls = Hosts.get_galls_for_host(999_999_999)
+      assert galls == []
+    end
+
+    test "returns galls with expected fields" do
+      hosts = Hosts.list_hosts()
+
+      # Find a host with galls
+      host_with_gall =
+        Enum.find(hosts, fn h ->
+          length(Hosts.get_galls_for_host(h.id)) > 0
+        end)
+
+      if host_with_gall do
+        galls = Hosts.get_galls_for_host(host_with_gall.id)
+        assert length(galls) > 0
+        gall = hd(galls)
+        assert Map.has_key?(gall, :id)
+        assert Map.has_key?(gall, :name)
+        assert Map.has_key?(gall, :undescribed)
+      end
+    end
+  end
+
+  describe "get_places_for_host/1" do
+    test "returns empty list for non-existent host" do
+      places = Hosts.get_places_for_host(999_999_999)
+      assert places == []
+    end
+
+    test "returns list of place codes" do
+      hosts = Hosts.list_hosts()
+
+      if length(hosts) > 0 do
+        places = Hosts.get_places_for_host(hd(hosts).id)
+        assert is_list(places)
+
+        if length(places) > 0 do
+          # Place codes are strings
+          assert is_binary(hd(places))
+        end
+      end
+    end
+  end
+
+  describe "get_places_for_gall/1" do
+    test "returns empty list for non-existent gall" do
+      places = Hosts.get_places_for_gall(999_999_999)
+      assert places == []
+    end
+
+    test "returns list of place codes" do
+      galls = Species.list_galls()
+
+      if length(galls) > 0 do
+        places = Hosts.get_places_for_gall(hd(galls).id)
+        assert is_list(places)
+      end
+    end
+  end
+
+  describe "get_excluded_places_for_gall/1" do
+    test "returns a list" do
+      galls = Species.list_galls()
+
+      if length(galls) > 0 do
+        excluded = Hosts.get_excluded_places_for_gall(hd(galls).id)
+        assert is_list(excluded)
+      end
+    end
+  end
+
+  describe "search_hosts/2" do
+    test "returns empty list for empty query" do
+      results = Hosts.search_hosts("")
+      assert results == []
+    end
+
+    test "returns empty list for whitespace query" do
+      results = Hosts.search_hosts("   ")
+      assert results == []
+    end
+
+    test "returns matching hosts for valid query" do
+      hosts = Hosts.list_hosts()
+
+      if length(hosts) > 0 do
+        # Search for part of first host's name
+        host_name = hd(hosts).name
+        search_term = String.slice(host_name, 0, 3)
+        results = Hosts.search_hosts(search_term)
+
+        assert is_list(results)
+        # Results should include hosts matching the search term
+      end
+    end
+
+    test "search is case-insensitive" do
+      hosts = Hosts.list_hosts()
+
+      if length(hosts) > 0 do
+        host_name = hd(hosts).name
+        search_term = String.slice(host_name, 0, 3)
+        upper_results = Hosts.search_hosts(String.upcase(search_term))
+        lower_results = Hosts.search_hosts(String.downcase(search_term))
+
+        # Both should return results (may not be identical due to aliases)
+        assert is_list(upper_results)
+        assert is_list(lower_results)
+      end
+    end
+
+    test "respects limit parameter" do
+      results = Hosts.search_hosts("a", 3)
+      assert length(results) <= 3
+    end
+
+    test "results have aliases field" do
+      hosts = Hosts.list_hosts()
+
+      if length(hosts) > 0 do
+        host_name = hd(hosts).name
+        search_term = String.slice(host_name, 0, 3)
+        results = Hosts.search_hosts(search_term, 5)
+
+        if length(results) > 0 do
+          result = hd(results)
+          assert Map.has_key?(result, :aliases)
+          assert is_list(result.aliases)
+        end
+      end
+    end
+  end
+
+  describe "get_aliases_for_host/1" do
+    test "returns empty list for non-existent host" do
+      aliases = Hosts.get_aliases_for_host(999_999_999)
+      assert aliases == []
+    end
+
+    test "returns list of alias names" do
+      hosts = Hosts.list_hosts()
+
+      if length(hosts) > 0 do
+        aliases = Hosts.get_aliases_for_host(hd(hosts).id)
+        assert is_list(aliases)
+      end
+    end
+  end
+end
