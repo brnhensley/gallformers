@@ -262,4 +262,39 @@ defmodule Gallformers.Hosts do
     )
     |> Repo.all()
   end
+
+  @doc """
+  Returns a host with all related data for admin editing.
+  """
+  def get_host_for_edit(id) do
+    host = get_host(id)
+
+    if host do
+      taxonomy = Gallformers.Taxonomy.get_taxonomy_for_species(id)
+      places = get_places_for_host(id)
+      aliases = get_aliases_for_host(id)
+
+      host
+      |> Map.put(:taxonomy, taxonomy)
+      |> Map.put(:places, places)
+      |> Map.put(:aliases, aliases)
+    else
+      nil
+    end
+  end
+
+  @doc """
+  Subscribes to host changes.
+  """
+  def subscribe do
+    Phoenix.PubSub.subscribe(Gallformers.PubSub, "hosts")
+  end
+
+  @doc """
+  Broadcasts a host change event.
+  """
+  def broadcast_change(host, event) do
+    Phoenix.PubSub.broadcast(Gallformers.PubSub, "hosts", {event, host})
+    {:ok, host}
+  end
 end

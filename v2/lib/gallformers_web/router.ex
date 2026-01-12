@@ -30,6 +30,12 @@ defmodule GallformersWeb.Router do
   # Health check for Fly.io (no pipeline needed)
   get "/health", GallformersWeb.HealthController, :check
 
+  # Public routes
+  scope "/", GallformersWeb do
+    get "/sitemap.xml", SitemapController, :index
+    get "/robots.txt", RobotsController, :index
+  end
+
   # Auth routes (login/logout via Auth0)
   scope "/auth", GallformersWeb do
     pipe_through :browser
@@ -44,6 +50,33 @@ defmodule GallformersWeb.Router do
     pipe_through [:browser, :admin]
 
     live "/", AdminDashboardLive
+
+    # Host admin
+    live "/hosts", Admin.HostLive.Index, :index
+    live "/hosts/new", Admin.HostLive.Form, :new
+    live "/hosts/:id", Admin.HostLive.Form, :edit
+
+    # Taxonomy admin
+    live "/taxonomy", Admin.TaxonomyLive.Index, :index
+    live "/taxonomy/new", Admin.TaxonomyLive.Form, :new
+    live "/taxonomy/:id", Admin.TaxonomyLive.Form, :edit
+
+    # Source admin
+    live "/sources", Admin.SourceLive.Index, :index
+    live "/sources/new", Admin.SourceLive.Form, :new
+    live "/sources/:id", Admin.SourceLive.Form, :edit
+
+    # Glossary admin
+    live "/glossary", Admin.GlossaryLive.Index, :index
+    live "/glossary/new", Admin.GlossaryLive.Form, :new
+    live "/glossary/:id", Admin.GlossaryLive.Form, :edit
+
+    # Place admin
+    live "/places", Admin.PlaceLive.Index, :index
+    live "/places/new", Admin.PlaceLive.Form, :new
+    live "/places/:id", Admin.PlaceLive.Form, :edit
+
+    # Images admin
     live "/images", AdminImagesLive
   end
 

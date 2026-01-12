@@ -17,7 +17,12 @@ defmodule GallformersWeb.FamilyLive do
       _ ->
         {:ok,
          assign(socket,
-           page_title: "Family Not Found | Gallformers",
+           page_title: "Family Not Found",
+           page_description: "The requested taxonomic family was not found on Gallformers.",
+           page_url: nil,
+           page_image: nil,
+           page_json_ld: nil,
+           page_noindex: true,
            family: nil,
            error: "Invalid family ID"
          )}
@@ -29,7 +34,12 @@ defmodule GallformersWeb.FamilyLive do
       nil ->
         {:ok,
          assign(socket,
-           page_title: "Family Not Found | Gallformers",
+           page_title: "Family Not Found",
+           page_description: "The requested taxonomic family was not found on Gallformers.",
+           page_url: nil,
+           page_image: nil,
+           page_json_ld: nil,
+           page_noindex: true,
            family: nil,
            error: "Family not found"
          )}
@@ -38,7 +48,12 @@ defmodule GallformersWeb.FamilyLive do
         if family.type != "family" do
           {:ok,
            assign(socket,
-             page_title: "Family Not Found | Gallformers",
+             page_title: "Family Not Found",
+             page_description: "The requested taxonomic family was not found on Gallformers.",
+             page_url: nil,
+             page_image: nil,
+             page_json_ld: nil,
+             page_noindex: true,
              family: nil,
              error: "Not a family"
            )}
@@ -51,7 +66,13 @@ defmodule GallformersWeb.FamilyLive do
 
           {:ok,
            assign(socket,
-             page_title: "#{family.name} | Gallformers",
+             page_title: family.name,
+             page_description:
+               "#{family.name} - A taxonomic family documented on Gallformers with genera and species.",
+             page_url: "/family/#{family_id}",
+             page_image: nil,
+             page_json_ld: nil,
+             page_noindex: false,
              family: family,
              tree_data: tree_data,
              expanded_keys: MapSet.new(),

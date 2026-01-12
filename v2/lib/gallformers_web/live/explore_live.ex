@@ -24,7 +24,12 @@ defmodule GallformersWeb.ExploreLive do
 
     {:ok,
      assign(socket,
-       page_title: "Explore | Gallformers",
+       page_title: "Explore",
+       page_description:
+         "Explore the Gallformers database - browse galls and host plants organized by taxonomic family, genus, and species.",
+       page_url: "/explore",
+       page_image: nil,
+       page_json_ld: nil,
        tabs: @tabs,
        active_tab: "galls",
        galls_tree: galls_tree,

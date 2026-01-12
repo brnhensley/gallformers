@@ -147,4 +147,57 @@ defmodule Gallformers.Sources do
     )
     |> Repo.one()
   end
+
+  # Admin functions
+
+  @doc """
+  Returns a changeset for tracking source changes.
+  """
+  def change_source(%Source{} = source, attrs \\ %{}) do
+    Source.changeset(source, attrs)
+  end
+
+  @doc """
+  Creates a source.
+  """
+  def create_source(attrs \\ %{}) do
+    %Source{}
+    |> Source.changeset(attrs)
+    |> Repo.insert()
+    |> broadcast(:source_created)
+  end
+
+  @doc """
+  Updates a source.
+  """
+  def update_source(%Source{} = source, attrs) do
+    source
+    |> Source.changeset(attrs)
+    |> Repo.update()
+    |> broadcast(:source_updated)
+  end
+
+  @doc """
+  Deletes a source.
+  """
+  def delete_source(%Source{} = source) do
+    Repo.delete(source)
+    |> broadcast(:source_deleted)
+  end
+
+  @doc """
+  Subscribes to source changes.
+  """
+  def subscribe do
+    Phoenix.PubSub.subscribe(Gallformers.PubSub, "sources")
+  end
+
+  defp broadcast({:ok, source}, event) do
+    Phoenix.PubSub.broadcast(Gallformers.PubSub, "sources", {event, source})
+    {:ok, source}
+  end
+
+  defp broadcast({:error, changeset}, _event) do
+    {:error, changeset}
+  end
 end

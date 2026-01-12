@@ -15,7 +15,12 @@ defmodule GallformersWeb.PlaceLive do
       _ ->
         {:ok,
          assign(socket,
-           page_title: "Place Not Found | Gallformers",
+           page_title: "Place Not Found",
+           page_description: "The requested geographic location was not found on Gallformers.",
+           page_url: nil,
+           page_image: nil,
+           page_json_ld: nil,
+           page_noindex: true,
            place: nil,
            error: "Invalid place ID"
          )}
@@ -27,7 +32,12 @@ defmodule GallformersWeb.PlaceLive do
       nil ->
         {:ok,
          assign(socket,
-           page_title: "Place Not Found | Gallformers",
+           page_title: "Place Not Found",
+           page_description: "The requested geographic location was not found on Gallformers.",
+           page_url: nil,
+           page_image: nil,
+           page_json_ld: nil,
+           page_noindex: true,
            place: nil,
            error: "Place not found"
          )}
@@ -41,7 +51,13 @@ defmodule GallformersWeb.PlaceLive do
 
         {:ok,
          assign(socket,
-           page_title: "#{place.name} | Gallformers",
+           page_title: place.name,
+           page_description:
+             "#{place.name} - Host plants found in this geographic location on Gallformers.",
+           page_url: "/place/#{place_id}",
+           page_image: nil,
+           page_json_ld: nil,
+           page_noindex: false,
            place: place,
            parent: parent,
            hosts: hosts,

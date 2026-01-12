@@ -289,4 +289,134 @@ defmodule Gallformers.Taxonomy do
     )
     |> Repo.one()
   end
+
+  # Admin functions
+
+  @doc """
+  Returns a changeset for tracking taxonomy changes.
+  """
+  def change_taxonomy(%Taxonomy{} = taxonomy, attrs \\ %{}) do
+    Taxonomy.changeset(taxonomy, attrs)
+  end
+
+  @doc """
+  Creates a taxonomy entry.
+  """
+  def create_taxonomy(attrs \\ %{}) do
+    %Taxonomy{}
+    |> Taxonomy.changeset(attrs)
+    |> Repo.insert()
+    |> broadcast(:taxonomy_created)
+  end
+
+  @doc """
+  Updates a taxonomy entry.
+  """
+  def update_taxonomy(%Taxonomy{} = taxonomy, attrs) do
+    taxonomy
+    |> Taxonomy.changeset(attrs)
+    |> Repo.update()
+    |> broadcast(:taxonomy_updated)
+  end
+
+  @doc """
+  Deletes a taxonomy entry.
+  """
+  def delete_taxonomy(%Taxonomy{} = taxonomy) do
+    Repo.delete(taxonomy)
+    |> broadcast(:taxonomy_deleted)
+  end
+
+  @doc """
+  Searches taxonomies by name (case-insensitive).
+  """
+  def search_taxonomies(query, type \\ nil, limit \\ 50) do
+    search_pattern = "%#{String.downcase(query)}%"
+
+    base_query =
+      from(t in Taxonomy,
+        where: fragment("lower(?) LIKE ?", t.name, ^search_pattern),
+        order_by: t.name,
+        limit: ^limit
+      )
+
+    query_with_type =
+      if type do
+        from(t in base_query, where: t.type == ^type)
+      else
+        base_query
+      end
+
+    Repo.all(query_with_type)
+  end
+
+  @doc """
+  Returns all taxonomies with their parent preloaded, optionally filtered by type.
+  """
+  def list_taxonomies_with_parent(type \\ nil) do
+    base_query =
+      from(t in Taxonomy,
+        left_join: p in Taxonomy,
+        on: t.parent_id == p.id,
+        order_by: [t.type, t.name],
+        select: %{
+          id: t.id,
+          name: t.name,
+          description: t.description,
+          type: t.type,
+          parent_id: t.parent_id,
+          parent_name: p.name,
+          parent_type: p.type
+        }
+      )
+
+    query_with_type =
+      if type do
+        from([t, p] in base_query, where: t.type == ^type)
+      else
+        base_query
+      end
+
+    Repo.all(query_with_type)
+  end
+
+  @doc """
+  Returns families for use as parent options in forms.
+  """
+  def list_families_for_select do
+    from(t in Taxonomy,
+      where: t.type == "family",
+      order_by: t.name,
+      select: {t.name, t.id}
+    )
+    |> Repo.all()
+  end
+
+  @doc """
+  Returns families and sections for use as parent options for genera.
+  """
+  def list_parents_for_genus do
+    from(t in Taxonomy,
+      where: t.type in ["family", "section"],
+      order_by: [t.type, t.name],
+      select: %{id: t.id, name: t.name, type: t.type}
+    )
+    |> Repo.all()
+  end
+
+  @doc """
+  Subscribes to taxonomy changes.
+  """
+  def subscribe do
+    Phoenix.PubSub.subscribe(Gallformers.PubSub, "taxonomy")
+  end
+
+  defp broadcast({:ok, taxonomy}, event) do
+    Phoenix.PubSub.broadcast(Gallformers.PubSub, "taxonomy", {event, taxonomy})
+    {:ok, taxonomy}
+  end
+
+  defp broadcast({:error, changeset}, _event) do
+    {:error, changeset}
+  end
 end

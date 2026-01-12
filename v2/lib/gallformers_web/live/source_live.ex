@@ -18,7 +18,12 @@ defmodule GallformersWeb.SourceLive do
       _ ->
         {:ok,
          assign(socket,
-           page_title: "Source Not Found | Gallformers",
+           page_title: "Source Not Found",
+           page_description: "The requested source was not found on Gallformers.",
+           page_url: nil,
+           page_image: nil,
+           page_json_ld: nil,
+           page_noindex: true,
            source: nil,
            error: "Invalid source ID"
          )}
@@ -30,7 +35,12 @@ defmodule GallformersWeb.SourceLive do
       nil ->
         {:ok,
          assign(socket,
-           page_title: "Source Not Found | Gallformers",
+           page_title: "Source Not Found",
+           page_description: "The requested source was not found on Gallformers.",
+           page_url: nil,
+           page_image: nil,
+           page_json_ld: nil,
+           page_noindex: true,
            source: nil,
            error: "Source not found"
          )}
@@ -38,10 +48,17 @@ defmodule GallformersWeb.SourceLive do
       source ->
         # Get connected species
         species = Sources.get_species_for_source(source_id) |> Enum.sort_by(& &1.name)
+        author_text = if source.author, do: " by #{source.author}", else: ""
 
         {:ok,
          assign(socket,
-           page_title: "#{source.title} | Gallformers",
+           page_title: source.title,
+           page_description:
+             "#{source.title}#{author_text} - A source referenced on Gallformers.",
+           page_url: "/source/#{source_id}",
+           page_image: nil,
+           page_json_ld: nil,
+           page_noindex: false,
            source: source,
            species: species,
            error: nil

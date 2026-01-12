@@ -6,6 +6,7 @@ defmodule Gallformers.Taxonomy.Taxonomy do
   with a hierarchical parent-child relationship.
   """
   use Ecto.Schema
+  import Ecto.Changeset
 
   @type t :: %__MODULE__{
           id: integer() | nil,
@@ -14,6 +15,8 @@ defmodule Gallformers.Taxonomy.Taxonomy do
           type: String.t() | nil,
           parent_id: integer() | nil
         }
+
+  @taxonomy_types ~w(family genus section)
 
   schema "taxonomy" do
     field :name, :string
@@ -31,4 +34,21 @@ defmodule Gallformers.Taxonomy.Taxonomy do
       join_through: "taxonomyalias",
       join_keys: [taxonomy_id: :id, alias_id: :id]
   end
+
+  @doc """
+  Creates a changeset for a taxonomy.
+  """
+  def changeset(taxonomy, attrs) do
+    taxonomy
+    |> cast(attrs, [:name, :description, :type, :parent_id])
+    |> validate_required([:name, :type])
+    |> validate_inclusion(:type, @taxonomy_types)
+    |> validate_length(:name, min: 1, max: 255)
+    |> unique_constraint(:name, name: :taxonomy_name_type_unique)
+  end
+
+  @doc """
+  Returns the list of valid taxonomy types.
+  """
+  def taxonomy_types, do: @taxonomy_types
 end

@@ -8,6 +8,7 @@ defmodule GallformersWeb.HostLive do
   use GallformersWeb, :live_view
 
   alias Gallformers.{Hosts, Sources, Species, Taxonomy}
+  alias GallformersWeb.SEO
 
   @page_size 10
 
@@ -20,7 +21,12 @@ defmodule GallformersWeb.HostLive do
       _ ->
         {:ok,
          assign(socket,
-           page_title: "Host Not Found | Gallformers",
+           page_title: "Host Not Found",
+           page_description: "The requested host plant was not found on Gallformers.",
+           page_url: nil,
+           page_image: nil,
+           page_json_ld: nil,
+           page_noindex: true,
            host: nil,
            error: "Invalid host ID"
          )}
@@ -32,7 +38,12 @@ defmodule GallformersWeb.HostLive do
       nil ->
         {:ok,
          assign(socket,
-           page_title: "Host Not Found | Gallformers",
+           page_title: "Host Not Found",
+           page_description: "The requested host plant was not found on Gallformers.",
+           page_url: nil,
+           page_image: nil,
+           page_json_ld: nil,
+           page_noindex: true,
            host: nil,
            error: "Host not found"
          )}
@@ -48,9 +59,29 @@ defmodule GallformersWeb.HostLive do
         default_source = Enum.find(sources, fn s -> s.useasdefault end)
         default_source_id = if default_source, do: default_source.id, else: nil
 
+        # Build SEO data
+        page_url = "/host/#{host_id}"
+
+        page_description =
+          "#{host.name} - A host plant species documented on Gallformers with #{length(galls)} associated galls."
+
+        page_image =
+          case images do
+            [first | _] -> first.url
+            [] -> nil
+          end
+
+        # Build JSON-LD structured data
+        json_ld = build_host_json_ld(host, page_url, page_description, page_image)
+
         {:ok,
          assign(socket,
-           page_title: "#{host.name} | Gallformers",
+           page_title: host.name,
+           page_description: page_description,
+           page_url: page_url,
+           page_image: page_image,
+           page_json_ld: json_ld,
+           page_noindex: false,
            host: Map.merge(host, %{galls: galls, aliases: aliases}),
            images: images,
            sources: sources,
@@ -62,6 +93,21 @@ defmodule GallformersWeb.HostLive do
            error: nil
          )}
     end
+  end
+
+  defp build_host_json_ld(host, url, description, image) do
+    json_ld = %{
+      "@context" => "https://schema.org",
+      "@type" => "Thing",
+      "name" => host.name,
+      "description" => description,
+      "url" => SEO.base_url() <> url,
+      "identifier" => host.name
+    }
+
+    json_ld = if image, do: Map.put(json_ld, "image", image), else: json_ld
+
+    Phoenix.HTML.raw(~s(<script type="application/ld+json">#{Jason.encode!(json_ld)}</script>))
   end
 
   defp get_taxonomy_info(species_id) do

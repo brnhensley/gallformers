@@ -93,4 +93,64 @@ defmodule Gallformers.Glossary do
     |> Repo.all()
     |> Map.new()
   end
+
+  # Admin functions
+
+  @doc """
+  Returns a changeset for tracking glossary changes.
+  """
+  def change_glossary(%Glossary{} = glossary, attrs \\ %{}) do
+    Glossary.changeset(glossary, attrs)
+  end
+
+  @doc """
+  Creates a glossary entry.
+  """
+  def create_glossary(attrs \\ %{}) do
+    %Glossary{}
+    |> Glossary.changeset(attrs)
+    |> Repo.insert()
+    |> broadcast(:glossary_created)
+  end
+
+  @doc """
+  Updates a glossary entry.
+  """
+  def update_glossary(%Glossary{} = glossary, attrs) do
+    glossary
+    |> Glossary.changeset(attrs)
+    |> Repo.update()
+    |> broadcast(:glossary_updated)
+  end
+
+  @doc """
+  Deletes a glossary entry.
+  """
+  def delete_glossary(%Glossary{} = glossary) do
+    Repo.delete(glossary)
+    |> broadcast(:glossary_deleted)
+  end
+
+  @doc """
+  Gets a glossary entry by ID, raising if not found.
+  """
+  def get_glossary!(id) do
+    Repo.get!(Glossary, id)
+  end
+
+  @doc """
+  Subscribes to glossary changes.
+  """
+  def subscribe do
+    Phoenix.PubSub.subscribe(Gallformers.PubSub, "glossary")
+  end
+
+  defp broadcast({:ok, glossary}, event) do
+    Phoenix.PubSub.broadcast(Gallformers.PubSub, "glossary", {event, glossary})
+    {:ok, glossary}
+  end
+
+  defp broadcast({:error, changeset}, _event) do
+    {:error, changeset}
+  end
 end

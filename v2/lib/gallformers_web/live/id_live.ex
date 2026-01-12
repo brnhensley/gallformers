@@ -36,7 +36,13 @@ defmodule GallformersWeb.IDLive do
 
     {:ok,
      assign(socket,
-       page_title: "ID Tool | Gallformers",
+       page_title: "ID Tool",
+       page_description:
+         "Identify plant galls using our interactive tool - filter by host plant, genus, location, morphology, and other characteristics.",
+       page_url: "/id",
+       page_image: nil,
+       page_json_ld: nil,
+       page_noindex: true,
        filter_options: filter_options,
        places: places,
        families: [],

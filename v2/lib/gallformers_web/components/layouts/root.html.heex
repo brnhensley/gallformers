@@ -4,14 +4,30 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="csrf-token" content={get_csrf_token()} />
-    <meta
-      name="description"
-      content="Gallformers - A comprehensive database of plant galls and their causative organisms"
+
+    <%!-- SEO Meta Tags --%>
+    <GallformersWeb.SEO.meta_tags
+      title={assigns[:page_title]}
+      description={assigns[:page_description]}
+      canonical={assigns[:page_url]}
+      noindex={assigns[:page_noindex] || false}
+    />
+
+    <%!-- Open Graph & Twitter Card Meta Tags --%>
+    <GallformersWeb.SEO.og_tags
+      title={assigns[:page_title]}
+      description={assigns[:page_description]}
+      url={assigns[:page_url]}
+      image={assigns[:page_image]}
+      type={assigns[:page_type] || "website"}
     />
 
     <.live_title default="Gallformers">
       {assigns[:page_title]}
     </.live_title>
+
+    <%!-- JSON-LD Structured Data (passed from LiveViews) --%>
+    {assigns[:page_json_ld]}
 
     <link rel="icon" href={~p"/favicon.ico"} />
     <link rel="apple-touch-icon" href={~p"/apple-touch-icon.png"} />

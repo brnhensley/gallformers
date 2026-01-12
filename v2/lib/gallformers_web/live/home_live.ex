@@ -17,9 +17,34 @@ defmodule GallformersWeb.HomeLive do
 
     {:ok,
      assign(socket,
-       page_title: "Gallformers - Plant Gall Identification",
+       page_title: "Plant Gall Identification",
+       page_description:
+         "Gallformers - The place to identify and learn about galls on plants in the US and Canada. A comprehensive database of plant galls and their causative organisms.",
+       page_url: "/",
+       page_image: nil,
+       page_json_ld: build_website_json_ld(),
        random_gall: random_gall
      )}
+  end
+
+  defp build_website_json_ld do
+    json_ld = %{
+      "@context" => "https://schema.org",
+      "@type" => "WebSite",
+      "name" => "Gallformers",
+      "url" => "https://gallformers.org",
+      "description" => "A comprehensive database of plant galls and their causative organisms",
+      "potentialAction" => %{
+        "@type" => "SearchAction",
+        "target" => %{
+          "@type" => "EntryPoint",
+          "urlTemplate" => "https://gallformers.org/globalsearch?q={search_term_string}"
+        },
+        "query-input" => "required name=search_term_string"
+      }
+    }
+
+    Phoenix.HTML.raw(~s(<script type="application/ld+json">#{Jason.encode!(json_ld)}</script>))
   end
 
   @impl true

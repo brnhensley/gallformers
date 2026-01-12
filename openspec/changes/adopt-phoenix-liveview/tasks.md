@@ -224,20 +224,20 @@ Build one page at a time, deploy after each, verify visual parity.
 - [ ] 11.2.5 Create host association editor
 - [ ] 11.2.6 Add PubSub broadcast on save
 
-### 11.3 Host Admin
-- [ ] 11.3.1 Create `Admin.HostLive.Index`
-- [ ] 11.3.2 Create `Admin.HostLive.Form`
-- [ ] 11.3.3 Add PubSub broadcast on save
+### 11.3 Host Admin ✅
+- [x] 11.3.1 Create `Admin.HostLive.Index`
+- [x] 11.3.2 Create `Admin.HostLive.Form`
+- [x] 11.3.3 Add PubSub broadcast on save
 
-### 11.4 Taxonomy Admin
-- [ ] 11.4.1 Create `Admin.TaxonomyLive.Index`
-- [ ] 11.4.2 Create `Admin.TaxonomyLive.Form`
-- [ ] 11.4.3 Handle parent taxonomy selection
+### 11.4 Taxonomy Admin ✅
+- [x] 11.4.1 Create `Admin.TaxonomyLive.Index`
+- [x] 11.4.2 Create `Admin.TaxonomyLive.Form`
+- [x] 11.4.3 Handle parent taxonomy selection (hierarchical picker)
 
-### 11.5 Other Admin Pages
-- [ ] 11.5.1 Create source admin pages
-- [ ] 11.5.2 Create glossary admin pages
-- [ ] 11.5.3 Create place admin pages
+### 11.5 Other Admin Pages ✅
+- [x] 11.5.1 Create source admin pages (index + form)
+- [x] 11.5.2 Create glossary admin pages (index + form)
+- [x] 11.5.3 Create place admin pages (index + form)
 
 ### 11.6 Image Management ✅
 - [x] 11.6.1 Create `ImageUpload` hook for drag-drop upload
@@ -300,14 +300,14 @@ Port endpoints matching v2_old patterns (see `v2_old/api/internal/handlers/`):
 - [x] 13.4.2 Configure limits: 100 req/min for public reads
 - [x] 13.4.3 Return 429 with Retry-After header when exceeded
 
-## 14. SEO
+## 14. SEO ✅
 
-- [ ] 14.1 Create `meta_tags` component for title, description, canonical
-- [ ] 14.2 Create `og_tags` component for Open Graph
-- [ ] 14.3 Add meta tags to all public pages
-- [ ] 14.4 Create `/sitemap.xml` route with all public URLs
-- [ ] 14.5 Create `/robots.txt` (allow public, disallow admin)
-- [ ] 14.6 Add JSON-LD structured data to species pages
+- [x] 14.1 Create `meta_tags` component for title, description, canonical
+- [x] 14.2 Create `og_tags` component for Open Graph
+- [x] 14.3 Add meta tags to all public pages
+- [x] 14.4 Create `/sitemap.xml` route with all public URLs
+- [x] 14.5 Create `/robots.txt` (allow public, disallow admin)
+- [x] 14.6 Add JSON-LD structured data to species pages
 
 ## 15. Markdown & Glossary
 

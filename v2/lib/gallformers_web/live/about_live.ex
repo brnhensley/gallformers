@@ -14,7 +14,12 @@ defmodule GallformersWeb.AboutLive do
 
     {:ok,
      assign(socket,
-       page_title: "About | Gallformers",
+       page_title: "About",
+       page_description:
+         "About Gallformers - Learn about the team behind the comprehensive database of plant galls and their causative organisms.",
+       page_url: "/about",
+       page_image: nil,
+       page_json_ld: nil,
        stats: stats,
        gen_time: DateTime.utc_now() |> Calendar.strftime("%a, %d %b %Y %H:%M:%S GMT"),
        show_easter_egg: false
