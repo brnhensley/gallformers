@@ -67,6 +67,23 @@ config :tesla, disable_deprecated_builder_warning: true
 config :hammer,
   backend: {Hammer.Backend.ETS, [expiry_ms: 60_000 * 60, cleanup_interval_ms: 60_000 * 10]}
 
+# Configure ex_aws for S3 image uploads
+# Credentials are set in runtime.exs from environment variables
+config :ex_aws,
+  region: "us-east-2",
+  json_codec: Jason
+
+config :ex_aws, :hackney_opts,
+  follow_redirect: true,
+  recv_timeout: 30_000
+
+# Image storage configuration
+config :gallformers, :images,
+  bucket: "gallformers",
+  cdn_url: "https://dhz6u1p7t6okk.cloudfront.net",
+  # Presigned URL expiry (5 minutes)
+  presign_expiry: 300
+
 # Configure Ueberauth for Auth0 authentication
 # Client ID and secret are set in runtime.exs from environment variables
 config :ueberauth, Ueberauth,

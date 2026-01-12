@@ -44,6 +44,7 @@ defmodule GallformersWeb.Router do
     pipe_through [:browser, :admin]
 
     live "/", AdminDashboardLive
+    live "/images", AdminImagesLive
   end
 
   # Public routes
