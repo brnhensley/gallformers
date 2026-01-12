@@ -8,72 +8,72 @@
 - **Styling**: Tailwind CSS (ported from SvelteKit)
 - **Auth**: Auth0 via ueberauth
 
-## 0. Code Migration
+## 0. Code Migration ✅
 
-- [ ] 0.1 Move existing `v2/` directory to `v2_old/`
-- [ ] 0.2 Create new `v2/` directory for Phoenix project
-- [ ] 0.3 Update root `CLAUDE.md` to reflect:
+- [x] 0.1 Move existing `v2/` directory to `v2_old/`
+- [x] 0.2 Create new `v2/` directory for Phoenix project
+- [x] 0.3 Update root `CLAUDE.md` to reflect:
   - New v2 is Phoenix + LiveView + Ecto
   - v2_old contains the Go + SvelteKit implementation
   - v2_old serves as reference for porting and will be removed after migration
 
 **Note**: We do NOT need separate documentation of routes and API endpoints (previous 0.2/0.3). The code in `v2_old/` IS the documentation - use it as reference when porting.
 
-## 1. Foundation Setup
+## 1. Foundation Setup ✅
 
-### 1.1 Phoenix Project Bootstrap
-- [ ] 1.1.1 Create new Phoenix project with `mix phx.new gallformers --database sqlite3`
-- [ ] 1.1.2 Configure ecto_sqlite3 to use existing database path
-- [ ] 1.1.3 Verify `mix phx.server` starts successfully
-- [ ] 1.1.4 Configure `.formatter.exs` for consistent code style
+### 1.1 Phoenix Project Bootstrap ✅
+- [x] 1.1.1 Create new Phoenix project with `mix phx.new gallformers --database sqlite3`
+- [x] 1.1.2 Configure ecto_sqlite3 to use existing database path
+- [x] 1.1.3 Verify `mix phx.server` starts successfully
+- [x] 1.1.4 Configure `.formatter.exs` for consistent code style
 
-### 1.2 CI Pipeline (set up early to catch issues)
-- [ ] 1.2.1 Add `mix format --check-formatted` to CI
-- [ ] 1.2.2 Add `mix test` to CI
-- [ ] 1.2.3 Add `mix credo` for code quality (optional)
-- [ ] 1.2.4 Add `mix dialyzer` for type checking (optional)
+### 1.2 CI Pipeline ✅
+- [x] 1.2.1 Add `mix format --check-formatted` to CI
+- [x] 1.2.2 Add `mix test` to CI
+- [x] 1.2.3 Add `mix credo` for code quality
+- [ ] 1.2.4 Add `mix dialyzer` for type checking (optional - deferred)
 
-### 1.3 Documentation
-- [ ] 1.3.1 Create `v2/CLAUDE.md` with:
+### 1.3 Documentation ✅
+- [x] 1.3.1 Create `v2/CLAUDE.md` with:
   - Scope and isolation rules (stay in v2/)
   - Development commands (mix phx.server, etc.)
   - Reference to v2_old for porting guidance
   - Tailwind styling patterns (copy from current v2/CLAUDE.md)
   - LiveView patterns as they emerge
 
-### 1.4 Tailwind Configuration
-- [ ] 1.4.1 Copy custom colors from `v2_old/web/src/app.css` to Tailwind config
-- [ ] 1.4.2 Add `gf-maroon`, `gf-sky-blue`, `gf-autumn`, `cadet-blue`, `canary` colors
-- [ ] 1.4.3 Configure League Spartan font
-- [ ] 1.4.4 Port any custom utility classes from SvelteKit
+### 1.4 Tailwind Configuration ✅
+- [x] 1.4.1 Copy custom colors from `v2_old/web/src/app.css` to Tailwind config
+- [x] 1.4.2 Add `gf-maroon`, `gf-sky-blue`, `gf-autumn`, `cadet-blue`, `canary` colors
+- [x] 1.4.3 Configure League Spartan font
+- [x] 1.4.4 Port any custom utility classes from SvelteKit
 
-### 1.5 Base Layout
-- [ ] 1.5.1 Create `root.html.heex` with HTML skeleton, meta tags
-- [ ] 1.5.2 Create `app.html.heex` with site structure
-- [ ] 1.5.3 Create header component matching SvelteKit design
-- [ ] 1.5.4 Create footer component matching SvelteKit design
-- [ ] 1.5.5 Create navigation component
+### 1.5 Base Layout ✅
+- [x] 1.5.1 Create `root.html.heex` with HTML skeleton, meta tags
+- [x] 1.5.2 Create `app.html.heex` with site structure
+- [x] 1.5.3 Create header component matching SvelteKit design
+- [x] 1.5.4 Create footer component matching SvelteKit design
+- [x] 1.5.5 Create navigation component
 
-### 1.6 Static Assets
-- [ ] 1.6.1 Copy favicon, apple-touch-icon from `v2_old/web/static/`
-- [ ] 1.6.2 Copy brand images (cynipid_R.svg, etc.)
-- [ ] 1.6.3 Configure static file serving with cache headers
+### 1.6 Static Assets ✅
+- [x] 1.6.1 Copy favicon, apple-touch-icon from `v2_old/web/static/`
+- [x] 1.6.2 Copy brand images (cynipid_R.svg, etc.)
+- [x] 1.6.3 Configure static file serving with cache headers
 
-## 2. First Deployment (deploy early, deploy often)
+## 2. First Deployment ✅
 
-### 2.1 Fly.io Configuration
-- [ ] 2.1.1 Create `fly.toml` for Phoenix app
-- [ ] 2.1.2 Configure SQLite volume mount
-- [ ] 2.1.3 Set environment variables (AUTH0_*, DATABASE_PATH, etc.)
-- [ ] 2.1.4 Create release configuration in `mix.exs`
-- [ ] 2.1.5 Create `Dockerfile` for Phoenix release
-- [ ] 2.1.6 Configure health check endpoint
+### 2.1 Fly.io Configuration ✅
+- [x] 2.1.1 Create `fly.toml` for Phoenix app
+- [x] 2.1.2 Configure SQLite volume mount
+- [x] 2.1.3 Set environment variables (SECRET_KEY_BASE, DATABASE_PATH, LITESTREAM_*)
+- [x] 2.1.4 Create release configuration in `mix.exs`
+- [x] 2.1.5 Create `Dockerfile` for Phoenix release (with Litestream)
+- [x] 2.1.6 Configure health check endpoint
 
-### 2.2 Initial Deploy
-- [ ] 2.2.1 Test Docker build locally
-- [ ] 2.2.2 Deploy to Fly.io staging
-- [ ] 2.2.3 Verify site loads (even if just layout with placeholder content)
-- [ ] 2.2.4 Set up deployment pipeline for continuous deploys
+### 2.2 Initial Deploy ✅
+- [x] 2.2.1 Test Docker build locally
+- [x] 2.2.2 Deploy to Fly.io (fixed Ecto migration skip, litestream permissions, SSL redirect)
+- [x] 2.2.3 Verify site loads at https://gallformers.fly.dev/
+- [ ] 2.2.4 Set up deployment pipeline for continuous deploys (deferred)
 
 ## 3. Home Page (Tracer Bullet)
 
