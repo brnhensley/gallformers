@@ -57,8 +57,22 @@ mix assets.deploy          # Build for production
 
 ## Database Access
 
-- Local dev: Uses `DATABASE_PATH` env var (typically `../prisma/gallformers.sqlite`)
-- Production: Database on Fly.io volume at `/data/gallformers.sqlite`
+- **Local dev**: Database at `priv/gallformers.sqlite` (not committed to git)
+- **Production**: Database on Fly.io volume at `/data/gallformers.sqlite`
+
+### Getting the Database
+
+The database file is not committed to the v2 directory. To get it:
+
+```bash
+# Download from S3 (recommended - daily snapshot from production)
+make download-db
+
+# Or copy from v1's prisma directory (if available locally)
+cp ../prisma/gallformers.sqlite priv/gallformers.sqlite
+```
+
+The database must exist at `priv/gallformers.sqlite` before running the app.
 
 ## Project Structure
 

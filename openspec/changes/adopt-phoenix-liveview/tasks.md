@@ -79,14 +79,14 @@
 
 Goal: Get the core site working with a real page. Once home page works, we have confidence.
 
-### 3.1 Minimal Ecto Schemas
-- [ ] 3.1.1 Create `Species` schema (just fields needed for home page)
-- [ ] 3.1.2 Create `Image` schema with S3 URL handling
-- [ ] 3.1.3 Create `Gallformers.Species` context with `random_gall/0` function
+### 3.1 Minimal Ecto Schemas ✅
+- [x] 3.1.1 Create `Species` schema (just fields needed for home page)
+- [x] 3.1.2 Create `Image` schema with S3 URL handling
+- [x] 3.1.3 Create `Gallformers.Species` context with `random_gall/0` function
 
 ### 3.2 Home Page LiveView
-- [ ] 3.2.1 Create `HomeLive` - home page with random gall feature
-- [ ] 3.2.2 Verify visual parity with `v2_old/web/src/routes/+page.svelte`
+- [x] 3.2.1 Create `HomeLive` - home page with random gall feature
+- [x] 3.2.2 Verify visual parity with `v2_old/web/src/routes/+page.svelte`
 - [ ] 3.2.3 Deploy and verify in production
 
 **Milestone: Site is live with working home page**
