@@ -260,26 +260,49 @@ Build one page at a time, deploy after each, verify visual parity.
 - [ ] 13.1.2 Configure CORS for API routes
 - [ ] 13.1.3 Create API error view (JSON format per v2_old pattern)
 
-### 13.2 API Endpoints
-Port endpoints matching v2_old patterns (see `v2_old/api/internal/handlers/V1_V2_DIFFERENCES.md`):
+### 13.2 Public Read Endpoints
+Port endpoints matching v2_old patterns (see `v2_old/api/internal/handlers/`):
 
-- [ ] 13.2.1 Create `GET /api/v2/species` with pagination
-- [ ] 13.2.2 Create `GET /api/v2/species/:id`
-- [ ] 13.2.3 Create `GET /api/v2/galls` with filtering
-- [ ] 13.2.4 Create `GET /api/v2/galls/:id`
-- [ ] 13.2.5 Create `GET /api/v2/hosts`
-- [ ] 13.2.6 Create `GET /api/v2/hosts/:id`
-- [ ] 13.2.7 Create `GET /api/v2/search` endpoint
-- [ ] 13.2.8 Create `GET /api/v2/filter-fields` endpoint
+- [ ] 13.2.1 GET /api/v2/species (list with pagination)
+- [ ] 13.2.2 GET /api/v2/species/:id
+- [ ] 13.2.3 GET /api/v2/galls (list with filtering)
+- [ ] 13.2.4 GET /api/v2/galls/:id
+- [ ] 13.2.5 GET /api/v2/galls/random (home page feature)
+- [ ] 13.2.6 GET /api/v2/galls/id (ID tool filtering)
+- [ ] 13.2.7 GET /api/v2/galls/:id/images
+- [ ] 13.2.8 GET /api/v2/galls/:id/related
+- [ ] 13.2.9 GET /api/v2/hosts (list with pagination)
+- [ ] 13.2.10 GET /api/v2/hosts/:id
+- [ ] 13.2.11 GET /api/v2/taxonomy
+- [ ] 13.2.12 GET /api/v2/sources (list with pagination)
+- [ ] 13.2.13 GET /api/v2/sources/:id
+- [ ] 13.2.14 GET /api/v2/sources/by-title/:title
+- [ ] 13.2.15 GET /api/v2/glossary
+- [ ] 13.2.16 GET /api/v2/glossary/:id
+- [ ] 13.2.17 GET /api/v2/glossary/by-word/:word
+- [ ] 13.2.18 GET /api/v2/places
+- [ ] 13.2.19 GET /api/v2/places/:id
+- [ ] 13.2.20 GET /api/v2/places/by-name/:name
+- [ ] 13.2.21 GET /api/v2/filter-fields (list types)
+- [ ] 13.2.22 GET /api/v2/filter-fields/:type
+- [ ] 13.2.23 GET /api/v2/filter-fields/:type/:id
+- [ ] 13.2.24 GET /api/v2/speciessources
+- [ ] 13.2.25 GET /api/v2/gallhosts
+- [ ] 13.2.26 GET /api/v2/search
+- [ ] 13.2.27 GET /api/v2/explore
+- [ ] 13.2.28 GET /api/v2/stats
 
 ### 13.3 API Documentation
-Follow the documentation style from `v2_old/api/`:
-- [ ] 13.3.1 Create `v2/API_REFERENCE.md` documenting:
-  - URL patterns (same as v2_old)
-  - Response structure (pagination format)
-  - Error response format
-  - Query parameters per endpoint
-- [ ] 13.3.2 Add open_api_spex for OpenAPI spec generation (optional)
+- [ ] 13.3.1 Add open_api_spex dependency
+- [ ] 13.3.2 Define OpenAPI schemas for all response types
+- [ ] 13.3.3 Add OpenAPI operation specs to controllers
+- [ ] 13.3.4 Serve Swagger UI at /api/docs (with testable endpoints)
+- [ ] 13.3.5 Serve openapi.json at /api/docs/openapi.json
+
+### 13.4 Rate Limiting
+- [ ] 13.4.1 Add rate limiting library (Hammer or ExRated)
+- [ ] 13.4.2 Configure limits: 100 req/min for public reads
+- [ ] 13.4.3 Return 429 with Retry-After header when exceeded
 
 ## 14. SEO
 
@@ -399,6 +422,21 @@ After Phase 6 public pages:
 
 - [ ] 20.1 Add LiveView streams for large lists (performance)
 - [ ] 20.2 Add offline indicator (detect WebSocket disconnect)
-- [ ] 20.3 Add rate limiting for API endpoints
-- [ ] 20.4 Add caching layer (ETS) for frequently accessed data
-- [ ] 20.5 Add metrics/telemetry for performance monitoring
+- [ ] 20.3 Add caching layer (ETS) for frequently accessed data
+- [ ] 20.4 Add metrics/telemetry for performance monitoring
+
+### 20.5 Admin Write API Endpoints (authenticated)
+- [ ] 20.5.1 POST/PUT/DELETE /api/v2/galls
+- [ ] 20.5.2 POST/PUT/DELETE /api/v2/hosts
+- [ ] 20.5.3 POST/PUT/DELETE /api/v2/sources
+- [ ] 20.5.4 POST/PUT/DELETE /api/v2/glossary
+- [ ] 20.5.5 POST/PUT/DELETE /api/v2/places
+- [ ] 20.5.6 POST/PUT/DELETE /api/v2/filter-fields
+- [ ] 20.5.7 POST/DELETE /api/v2/speciessources
+- [ ] 20.5.8 POST/DELETE /api/v2/gallhosts
+
+### 20.6 Auth API Endpoints
+- [ ] 20.6.1 GET /api/v2/auth/login
+- [ ] 20.6.2 GET /api/v2/auth/callback
+- [ ] 20.6.3 POST /api/v2/auth/refresh
+- [ ] 20.6.4 POST /api/v2/auth/logout
