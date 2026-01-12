@@ -120,31 +120,31 @@ Goal: Get the core site working with a real page. Once home page works, we have 
 - [ ] 4.4.6 Create `Gallformers.Search` context
 - [ ] 4.4.7 Create `Gallformers.IDTool` context with filtering logic
 
-## 5. Shared Components
+## 5. Shared Components ✅
 
-### 5.1 UI Components
-- [ ] 5.1.1 Create `card` component matching SvelteKit style
-- [ ] 5.1.2 Create `loading_spinner` component
-- [ ] 5.1.3 Create `error_message` component
-- [ ] 5.1.4 Create `pagination` component
-- [ ] 5.1.5 Create `alert` component (success, error, info)
-- [ ] 5.1.6 Create `info_tip` tooltip component
+### 5.1 UI Components ✅
+- [x] 5.1.1 Create `card` component matching SvelteKit style
+- [x] 5.1.2 Create `loading_spinner` component
+- [x] 5.1.3 Create `error_message` component
+- [x] 5.1.4 Create `pagination` component
+- [x] 5.1.5 Create `alert` component (success, error, info)
+- [x] 5.1.6 Create `info_tip` tooltip component
 
-### 5.2 Form Components
-- [ ] 5.2.1 Create `input` component with error display
-- [ ] 5.2.2 Create `textarea` component
-- [ ] 5.2.3 Create `select` component
-- [ ] 5.2.4 Create `checkbox` component
-- [ ] 5.2.5 Create `button` component with variants
+### 5.2 Form Components ✅
+- [x] 5.2.1 Create `input` component with error display
+- [x] 5.2.2 Create `textarea` component
+- [x] 5.2.3 Create `select` component
+- [x] 5.2.4 Create `checkbox` component
+- [x] 5.2.5 Create `button` component with variants
 
-### 5.3 Data Display Components
-- [ ] 5.3.1 Create `image_gallery` component with lazy loading
-- [ ] 5.3.2 Create `species_card` component
-- [ ] 5.3.3 Create `host_list` component
-- [ ] 5.3.4 Create `source_citation` component
-- [ ] 5.3.5 Create `taxonomy_breadcrumb` component
-- [ ] 5.3.6 Create `data_completeness_indicator` component
-- [ ] 5.3.7 Create `edit_button` component (for admin links)
+### 5.3 Data Display Components ✅
+- [x] 5.3.1 Create `image_gallery` component with lazy loading
+- [x] 5.3.2 Create `species_card` component
+- [x] 5.3.3 Create `host_list` component
+- [x] 5.3.4 Create `source_citation` component
+- [x] 5.3.5 Create `taxonomy_breadcrumb` component
+- [x] 5.3.6 Create `data_completeness_indicator` component
+- [x] 5.3.7 Create `edit_button` component (for admin links)
 
 ## 6. Public Pages (LiveViews)
 
