@@ -431,11 +431,13 @@ defmodule GallformersWeb.Layouts do
   def admin(assigns) do
     admin_nav_links = [
       %{href: "/admin", label: "Dashboard", icon: "hero-home"},
-      %{href: "/admin/species", label: "Species", icon: "hero-bug-ant"},
+      # TODO: Species admin (Phase 11.2)
+      # %{href: "/admin/species", label: "Species", icon: "hero-bug-ant"},
       %{href: "/admin/hosts", label: "Hosts", icon: "hero-globe-americas"},
       %{href: "/admin/taxonomy", label: "Taxonomy", icon: "hero-share"},
       %{href: "/admin/sources", label: "Sources", icon: "hero-book-open"},
-      %{href: "/admin/images", label: "Images", icon: "hero-photo"},
+      # TODO: Images admin (future phase)
+      # %{href: "/admin/images", label: "Images", icon: "hero-photo"},
       %{href: "/admin/glossary", label: "Glossary", icon: "hero-document-text"},
       %{href: "/admin/places", label: "Places", icon: "hero-map"}
     ]
