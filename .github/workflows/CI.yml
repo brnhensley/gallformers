@@ -11,7 +11,7 @@ on:
             - 'openspec/**'
             - '.beads/**'
     pull_request:
-        branches: ['**']
+        branches: [main]  # Only run CI on PRs targeting main
         paths-ignore:
             - 'v2/**'
             - '*.md'
