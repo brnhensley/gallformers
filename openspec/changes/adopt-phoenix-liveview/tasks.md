@@ -190,12 +190,12 @@ Build one page at a time, deploy after each, verify visual parity.
 - [x] 8.7 Port all filter options (color, shape, texture, location, etc.)
 - [x] 8.8 Test back/forward navigation preserves filters
 
-## 9. Explore Page (LiveView)
+## 9. Explore Page (LiveView) ✅
 
-- [ ] 9.1 Create `ExploreLive` with browse options
-- [ ] 9.2 Implement browse-by-family
-- [ ] 9.3 Implement browse-by-host
-- [ ] 9.4 Add pagination for large result sets
+- [x] 9.1 Create `ExploreLive` with browse options
+- [x] 9.2 Implement browse-by-family
+- [x] 9.3 Implement browse-by-host
+- [x] 9.4 Tree expand/collapse handles large datasets (no pagination needed)
 
 ## 10. Range Map (JS Hook)
 

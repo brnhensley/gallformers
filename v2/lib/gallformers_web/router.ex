@@ -30,6 +30,7 @@ defmodule GallformersWeb.Router do
     live "/glossary", GlossaryLive
     live "/refindex", RefIndexLive
     live "/globalsearch", SearchLive
+    live "/explore", ExploreLive
 
     # ID Tool
     live "/id", IDLive
