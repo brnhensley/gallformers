@@ -141,15 +141,16 @@ sync-bugfix:
 	@echo "Ready to work on $(INTEGRATION_BRANCH)."
 
 # For planning (main worktree) - sync main specs INTO integration branch via PR
+# If conflicts exist, PR will be created but not merged - resolve manually
 sync-main-to-integration:
 	@echo "Creating PR to sync main into $(INTEGRATION_BRANCH)..."
 	git fetch origin
 	gh pr create --base $(INTEGRATION_BRANCH) --head main \
 		--title "Sync main specs into integration" \
-		--body "Sync latest spec/planning changes from main into $(INTEGRATION_BRANCH)"
-	@echo "Merging PR..."
-	gh pr merge --merge
-	@echo "Done. Main synced into $(INTEGRATION_BRANCH)."
+		--body "Sync latest spec/planning changes from main into $(INTEGRATION_BRANCH)" || true
+	@echo "Attempting to merge PR..."
+	@gh pr merge --merge 2>/dev/null && echo "Done. Main synced into $(INTEGRATION_BRANCH)." || \
+		echo "PR has conflicts. Resolve via: gh pr view --web, or use bugfix worktree to merge manually."
 
 # =============================================================================
 
