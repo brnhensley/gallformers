@@ -1,9 +1,9 @@
 import Config
 
 # Configure your database
-# Use the local development database for tests (read-only operations)
+# Use a schema-only test database (no production data)
 config :gallformers, Gallformers.Repo,
-  database: Path.expand("../priv/gallformers.sqlite", __DIR__),
+  database: Path.expand("../priv/gallformers_test.sqlite", __DIR__),
   pool_size: 5,
   pool: Ecto.Adapters.SQL.Sandbox
 
