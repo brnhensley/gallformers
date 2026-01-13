@@ -94,7 +94,7 @@ defmodule GallformersWeb.Admin.SourceLive.Index do
           </div>
           <.link
             navigate={~p"/admin/sources/new"}
-            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gf-maroon hover:bg-gf-maroon/90"
+            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm !text-white !no-underline bg-gf-maroon hover:bg-gf-maroon/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gf-maroon"
           >
             <.icon name="hero-plus" class="h-5 w-5 mr-2" /> New Source
           </.link>

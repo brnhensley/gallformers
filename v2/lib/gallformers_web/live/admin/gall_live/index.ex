@@ -1,23 +1,23 @@
-defmodule GallformersWeb.Admin.HostLive.Index do
+defmodule GallformersWeb.Admin.GallLive.Index do
   @moduledoc """
-  Admin page for listing and searching host species.
+  Admin page for listing and searching galls.
   """
   use GallformersWeb, :live_view
 
-  alias Gallformers.Hosts
+  alias Gallformers.Species
 
   @impl true
   def mount(_params, session, socket) do
     current_user = session["current_user"]
 
-    if connected?(socket), do: Hosts.subscribe()
+    if connected?(socket), do: Species.subscribe()
 
     socket =
       socket
       |> assign(:current_user, current_user)
-      |> assign(:page_title, "Hosts")
+      |> assign(:page_title, "Galls")
       |> assign(:search_query, "")
-      |> assign(:hosts, list_hosts(""))
+      |> assign(:gall_list, list_galls(""))
 
     {:ok, socket}
   end
@@ -29,52 +29,59 @@ defmodule GallformersWeb.Admin.HostLive.Index do
 
   defp apply_action(socket, :index, _params) do
     socket
-    |> assign(:page_title, "Hosts")
+    |> assign(:page_title, "Galls")
   end
 
   @impl true
   def handle_event("search", %{"query" => query}, socket) do
-    hosts = list_hosts(query)
-    {:noreply, assign(socket, hosts: hosts, search_query: query)}
+    gall_list = list_galls(query)
+    {:noreply, assign(socket, gall_list: gall_list, search_query: query)}
   end
 
   @impl true
-  def handle_info({event, _host}, socket)
-      when event in [:host_created, :host_updated, :host_deleted] do
-    hosts = list_hosts(socket.assigns.search_query)
-    {:noreply, assign(socket, hosts: hosts)}
+  def handle_info({event, _species}, socket)
+      when event in [:species_created, :species_updated, :species_deleted] do
+    gall_list = list_galls(socket.assigns.search_query)
+    {:noreply, assign(socket, gall_list: gall_list)}
   end
 
-  defp list_hosts(""), do: Hosts.list_hosts_paginated(100, 0)
-  defp list_hosts(query), do: Hosts.search_hosts(query, 100)
+  defp list_galls("") do
+    Species.list_species_admin(100, 0)
+    |> Enum.filter(&(&1.taxoncode == "gall"))
+  end
+
+  defp list_galls(query) do
+    Species.search_species(query, 100)
+    |> Enum.filter(&(&1.taxoncode == "gall"))
+  end
 
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.admin flash={@flash} current_user={@current_user} page_title="Hosts">
+    <Layouts.admin flash={@flash} current_user={@current_user} page_title="Galls">
       <div class="space-y-6">
         <%!-- Header with search and new button --%>
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div class="flex-1 max-w-lg">
-            <form phx-change="search" phx-submit="search" id="host-search-form">
+          <div class="flex-1 max-w-xl">
+            <form phx-change="search" phx-submit="search" id="gall-search-form">
               <.input
                 type="text"
                 name="query"
                 value={@search_query}
-                placeholder="Search hosts by name..."
+                placeholder="Filter galls by name or alias..."
                 phx-debounce="300"
               />
             </form>
           </div>
           <.link
-            navigate={~p"/admin/hosts/new"}
+            navigate={~p"/admin/galls/new"}
             class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm !text-white !no-underline bg-gf-maroon hover:bg-gf-maroon/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gf-maroon"
           >
-            <.icon name="hero-plus" class="h-5 w-5 mr-2" /> New Host
+            <.icon name="hero-plus" class="h-5 w-5 mr-2" /> New Gall
           </.link>
         </div>
 
-        <%!-- Host list table --%>
+        <%!-- Gall list table --%>
         <div class="bg-white shadow rounded-lg overflow-hidden">
           <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-cadet-blue">
@@ -90,17 +97,17 @@ defmodule GallformersWeb.Admin.HostLive.Index do
               </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
-              <tr :for={host <- @hosts} class="hover:bg-gray-50">
+              <tr :for={gall <- @gall_list} class="hover:bg-gray-50">
                 <td class="px-6 py-4 whitespace-nowrap">
                   <.link
-                    navigate={~p"/admin/hosts/#{host.id}"}
+                    navigate={~p"/admin/galls/#{gall.id}"}
                     class="text-gf-maroon hover:underline font-medium italic"
                   >
-                    {host.name}
+                    {gall.name}
                   </.link>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-center">
-                  <%= if host.datacomplete in [true, 1] do %>
+                  <%= if gall.datacomplete in [true, 1] do %>
                     <span class="text-green-600">
                       <.icon name="hero-check" class="size-5 inline-block" />
                     </span>
@@ -112,19 +119,19 @@ defmodule GallformersWeb.Admin.HostLive.Index do
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                   <.link
-                    navigate={~p"/admin/hosts/#{host.id}"}
+                    navigate={~p"/admin/galls/#{gall.id}"}
                     class="text-gf-maroon hover:text-gf-autumn mr-4"
                   >
                     Edit
                   </.link>
-                  <.link navigate={~p"/host/#{host.id}"} class="text-gray-600 hover:text-gray-900">
+                  <.link navigate={~p"/gall/#{gall.id}"} class="text-gray-600 hover:text-gray-900">
                     View
                   </.link>
                 </td>
               </tr>
-              <tr :if={@hosts == []}>
+              <tr :if={@gall_list == []}>
                 <td colspan="3" class="px-6 py-8 text-center text-gray-500">
-                  No hosts found. Try a different search term.
+                  No galls found. Try a different search term.
                 </td>
               </tr>
             </tbody>
@@ -132,7 +139,7 @@ defmodule GallformersWeb.Admin.HostLive.Index do
         </div>
 
         <p class="text-sm text-gray-500">
-          Showing {@hosts |> length()} hosts
+          Showing {@gall_list |> length()} galls
         </p>
       </div>
     </Layouts.admin>

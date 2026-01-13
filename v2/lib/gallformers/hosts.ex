@@ -297,4 +297,237 @@ defmodule Gallformers.Hosts do
     Phoenix.PubSub.broadcast(Gallformers.PubSub, "hosts", {event, host})
     {:ok, host}
   end
+
+  # ============================================
+  # CRUD Operations
+  # ============================================
+
+  @doc """
+  Returns a changeset for tracking host changes.
+  """
+  def change_host(%Species{} = host, attrs \\ %{}) do
+    Species.changeset(host, Map.put(attrs, "taxoncode", "plant"))
+  end
+
+  @doc """
+  Creates a new host species.
+  """
+  def create_host(attrs) do
+    attrs = Map.put(attrs, "taxoncode", "plant")
+
+    %Species{}
+    |> Species.changeset(attrs)
+    |> Repo.insert()
+    |> broadcast(:host_created)
+  end
+
+  @doc """
+  Updates a host species.
+  """
+  def update_host(%Species{} = host, attrs) do
+    host
+    |> Species.changeset(attrs)
+    |> Repo.update()
+    |> broadcast(:host_updated)
+  end
+
+  @doc """
+  Gets a host species by ID as a Species struct (for changesets).
+  """
+  def get_host_species(id) do
+    from(s in Species,
+      where: s.id == ^id and s.taxoncode == "plant"
+    )
+    |> Repo.one()
+  end
+
+  @doc """
+  Deletes a host species and all associations.
+  """
+  def delete_host(host_id) do
+    case get_host_species(host_id) do
+      nil ->
+        {:error, :not_found}
+
+      host ->
+        Repo.delete(host)
+        |> broadcast(:host_deleted)
+    end
+  end
+
+  # ============================================
+  # Place/Range Management
+  # ============================================
+
+  @doc """
+  Gets place IDs (not codes) for a host species.
+  """
+  @spec get_place_ids_for_host(integer()) :: [integer()]
+  def get_place_ids_for_host(host_species_id) do
+    from(sp in "speciesplace",
+      where: sp.species_id == ^host_species_id,
+      select: sp.place_id
+    )
+    |> Repo.all()
+  end
+
+  @doc """
+  Adds a place to a host's range.
+  """
+  def add_place_to_host(host_species_id, place_id) do
+    Repo.insert_all(
+      "speciesplace",
+      [%{species_id: host_species_id, place_id: place_id}],
+      on_conflict: :nothing
+    )
+
+    broadcast({:ok, %{id: host_species_id}}, :host_updated)
+  end
+
+  @doc """
+  Removes a place from a host's range.
+  """
+  def remove_place_from_host(host_species_id, place_id) do
+    from(sp in "speciesplace",
+      where: sp.species_id == ^host_species_id and sp.place_id == ^place_id
+    )
+    |> Repo.delete_all()
+
+    broadcast({:ok, %{id: host_species_id}}, :host_updated)
+  end
+
+  @doc """
+  Toggles a place in a host's range (add if not present, remove if present).
+  Returns {:added, place_id} or {:removed, place_id}.
+  """
+  def toggle_place_for_host(host_species_id, place_id) do
+    existing =
+      from(sp in "speciesplace",
+        where: sp.species_id == ^host_species_id and sp.place_id == ^place_id,
+        select: count()
+      )
+      |> Repo.one()
+
+    if existing > 0 do
+      remove_place_from_host(host_species_id, place_id)
+      {:removed, place_id}
+    else
+      add_place_to_host(host_species_id, place_id)
+      {:added, place_id}
+    end
+  end
+
+  @doc """
+  Bulk updates all places for a host (replaces existing).
+  """
+  def update_host_places(host_species_id, place_ids) do
+    Repo.transaction(fn ->
+      # Delete existing
+      from(sp in "speciesplace",
+        where: sp.species_id == ^host_species_id
+      )
+      |> Repo.delete_all()
+
+      # Insert new
+      if place_ids != [] do
+        entries = Enum.map(place_ids, &%{species_id: host_species_id, place_id: &1})
+        Repo.insert_all("speciesplace", entries)
+      end
+
+      :ok
+    end)
+
+    broadcast({:ok, %{id: host_species_id}}, :host_updated)
+  end
+
+  # ============================================
+  # Alias Management (wrappers for convenience)
+  # ============================================
+
+  @doc """
+  Gets aliases for a host with full details (id, name, type).
+  """
+  @spec get_aliases_for_host_full(integer()) :: [map()]
+  def get_aliases_for_host_full(host_id) do
+    from(a in "alias",
+      join: als in "aliasspecies",
+      on: als.alias_id == a.id,
+      where: als.species_id == ^host_id,
+      select: %{id: a.id, name: a.name, type: a.type}
+    )
+    |> Repo.all()
+  end
+
+  @doc """
+  Creates an alias for a host.
+  Delegates to Species.create_alias_for_species/2.
+  """
+  def create_alias_for_host(host_id, alias_attrs) do
+    Gallformers.Species.create_alias_for_species(host_id, alias_attrs)
+  end
+
+  @doc """
+  Removes an alias from a host.
+  Delegates to Species.remove_alias_from_species/2.
+  """
+  def remove_alias_from_host(host_id, alias_id) do
+    Gallformers.Species.remove_alias_from_species(host_id, alias_id)
+  end
+
+  # ============================================
+  # Rename Support
+  # ============================================
+
+  @doc """
+  Renames a host species, optionally adding the old name as an alias.
+  """
+  def rename_host(host_id, new_name, add_alias? \\ false) do
+    with {:ok, host} <- fetch_host_species(host_id),
+         :ok <- check_name_available(new_name, host_id),
+         {:ok, updated_host} <- do_rename_host(host, new_name) do
+      maybe_add_alias(host_id, host.name, add_alias?)
+      broadcast({:ok, updated_host}, :host_updated)
+    end
+  end
+
+  defp fetch_host_species(host_id) do
+    case get_host_species(host_id) do
+      nil -> {:error, :not_found}
+      host -> {:ok, host}
+    end
+  end
+
+  defp check_name_available(new_name, host_id) do
+    existing =
+      from(s in Species,
+        where: s.name == ^new_name and s.id != ^host_id
+      )
+      |> Repo.one()
+
+    if existing, do: {:error, :name_exists}, else: :ok
+  end
+
+  defp do_rename_host(host, new_name) do
+    host
+    |> Species.changeset(%{name: new_name})
+    |> Repo.update()
+  end
+
+  defp maybe_add_alias(host_id, old_name, true) do
+    Gallformers.Species.create_alias_for_species(host_id, %{
+      name: old_name,
+      type: "scientific synonym"
+    })
+  end
+
+  defp maybe_add_alias(_host_id, _old_name, false), do: :ok
+
+  defp broadcast({:ok, host}, event) do
+    Phoenix.PubSub.broadcast(Gallformers.PubSub, "hosts", {event, host})
+    {:ok, host}
+  end
+
+  defp broadcast({:error, changeset}, _event) do
+    {:error, changeset}
+  end
 end

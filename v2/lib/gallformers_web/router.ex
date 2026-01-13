@@ -55,10 +55,10 @@ defmodule GallformersWeb.Router do
 
     live "/", AdminDashboardLive
 
-    # Species admin
-    live "/species", Admin.SpeciesLive.Index, :index
-    live "/species/new", Admin.SpeciesLive.Form, :new
-    live "/species/:id", Admin.SpeciesLive.Form, :edit
+    # Gall admin
+    live "/galls", Admin.GallLive.Index, :index
+    live "/galls/new", Admin.GallLive.Form, :new
+    live "/galls/:id", Admin.GallLive.Form, :edit
 
     # Host admin
     live "/hosts", Admin.HostLive.Index, :index
@@ -74,6 +74,10 @@ defmodule GallformersWeb.Router do
     live "/sources", Admin.SourceLive.Index, :index
     live "/sources/new", Admin.SourceLive.Form, :new
     live "/sources/:id", Admin.SourceLive.Form, :edit
+
+    # Species-Source mapping admin
+    live "/species-sources/add", Admin.SpeciesSourceLive.AddFromSource, :add
+    live "/species-sources/find", Admin.SpeciesSourceLive.QuickFind, :find
 
     # Glossary admin
     live "/glossary", Admin.GlossaryLive.Index, :index

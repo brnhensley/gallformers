@@ -493,6 +493,66 @@ defmodule Gallformers.Species do
   end
 
   @doc """
+  Checks if a species name already exists.
+  """
+  @spec species_name_exists?(String.t()) :: boolean()
+  def species_name_exists?(name) do
+    from(s in Species, where: s.name == ^name)
+    |> Repo.exists?()
+  end
+
+  @doc """
+  Renames a species, optionally adding the old name as a scientific synonym alias.
+
+  This handles the complex rename logic including potential genus reassignment.
+  If the genus part of the name changes, the species may need to be reassigned
+  to a different genus (or a new genus created).
+
+  Returns {:ok, species} on success, {:error, reason} on failure.
+  """
+  @spec rename_species(integer(), String.t(), boolean()) ::
+          {:ok, Species.t()} | {:error, atom() | String.t()}
+  def rename_species(species_id, new_name, add_alias?) do
+    if species_name_exists?(new_name) do
+      {:error, :name_exists}
+    else
+      do_rename_species(species_id, new_name, add_alias?)
+    end
+  end
+
+  defp do_rename_species(species_id, new_name, add_alias?) do
+    species = get_species!(species_id)
+    old_name = species.name
+
+    Repo.transaction(fn ->
+      if add_alias?, do: add_rename_alias(species_id, old_name)
+
+      species
+      |> Species.changeset(%{name: new_name})
+      |> Repo.update!()
+    end)
+  end
+
+  defp add_rename_alias(species_id, old_name) do
+    alias Gallformers.Species.Alias
+
+    alias_changeset =
+      %Alias{}
+      |> Ecto.Changeset.cast(
+        %{name: old_name, type: "scientific synonym", description: "Previous name"},
+        [:name, :type, :description]
+      )
+
+    case Repo.insert(alias_changeset) do
+      {:ok, new_alias} ->
+        Repo.insert_all("aliasspecies", [%{alias_id: new_alias.id, species_id: species_id}])
+
+      {:error, _} ->
+        nil
+    end
+  end
+
+  @doc """
   Deletes a species.
   """
   def delete_species(%Species{} = species) do
@@ -594,5 +654,219 @@ defmodule Gallformers.Species do
 
   defp broadcast({:error, changeset}, _event) do
     {:error, changeset}
+  end
+
+  # ============================================
+  # Gall-specific functions for admin
+  # ============================================
+
+  @doc """
+  Gets a gall for editing with all filter field values.
+  Returns a map with gall data and current filter selections.
+  """
+  @spec get_gall_for_admin_edit(integer()) :: map() | nil
+  def get_gall_for_admin_edit(species_id) do
+    gall_data = get_gall_by_id(species_id)
+
+    if gall_data do
+      # Get all current filter field values for this gall
+      gall_id = gall_data.gall_id
+      filter_values = get_gall_filter_values(gall_id)
+
+      Map.merge(gall_data, %{
+        filter_values: filter_values
+      })
+    else
+      nil
+    end
+  end
+
+  @doc """
+  Gets all filter field values for a gall as maps with :id and :field keys.
+  """
+  @spec get_gall_filter_values(integer()) :: map()
+  def get_gall_filter_values(gall_id) do
+    %{
+      colors:
+        get_filter_values_for_gall(
+          gall_id,
+          "gallcolor",
+          "color_id",
+          Gallformers.FilterFields.Color,
+          :color
+        ),
+      shapes:
+        get_filter_values_for_gall(
+          gall_id,
+          "gallshape",
+          "shape_id",
+          Gallformers.FilterFields.Shape,
+          :shape
+        ),
+      textures:
+        get_filter_values_for_gall(
+          gall_id,
+          "galltexture",
+          "texture_id",
+          Gallformers.FilterFields.Texture,
+          :texture
+        ),
+      alignments:
+        get_filter_values_for_gall(
+          gall_id,
+          "gallalignment",
+          "alignment_id",
+          Gallformers.FilterFields.Alignment,
+          :alignment
+        ),
+      walls:
+        get_filter_values_for_gall(
+          gall_id,
+          "gallwalls",
+          "walls_id",
+          Gallformers.FilterFields.Walls,
+          :walls
+        ),
+      cells:
+        get_filter_values_for_gall(
+          gall_id,
+          "gallcells",
+          "cells_id",
+          Gallformers.FilterFields.Cells,
+          :cells
+        ),
+      locations:
+        get_filter_values_for_gall(
+          gall_id,
+          "galllocation",
+          "location_id",
+          Gallformers.FilterFields.Location,
+          :location
+        ),
+      forms:
+        get_filter_values_for_gall(
+          gall_id,
+          "gallform",
+          "form_id",
+          Gallformers.FilterFields.Form,
+          :form
+        ),
+      seasons:
+        get_filter_values_for_gall(
+          gall_id,
+          "gallseason",
+          "season_id",
+          Gallformers.FilterFields.Season,
+          :season
+        )
+    }
+  end
+
+  defp get_filter_values_for_gall(gall_id, join_table, fk_column, schema, field) do
+    fk_col = String.to_atom(fk_column)
+
+    from(j in join_table,
+      join: s in ^schema,
+      on: field(j, ^fk_col) == s.id,
+      where: j.gall_id == ^gall_id,
+      select: %{id: s.id, field: field(s, ^field)}
+    )
+    |> Repo.all()
+  end
+
+  @doc """
+  Updates gall properties (detachable, undescribed).
+  """
+  @spec update_gall_properties(integer(), map()) :: {:ok, Gall.t()} | {:error, Ecto.Changeset.t()}
+  def update_gall_properties(gall_id, attrs) do
+    case Repo.get(Gall, gall_id) do
+      nil ->
+        {:error, :not_found}
+
+      gall ->
+        gall
+        |> Ecto.Changeset.change(attrs)
+        |> Repo.update()
+    end
+  end
+
+  @doc """
+  Adds a filter field to a gall.
+  """
+  @spec add_filter_field_to_gall(integer(), atom(), integer()) :: {:ok, any()} | {:error, any()}
+  def add_filter_field_to_gall(gall_id, filter_type, filter_id) do
+    {join_table, fk_column} = get_join_table_info(filter_type)
+    fk_col = String.to_atom(fk_column)
+    row = Map.new([{:gall_id, gall_id}, {fk_col, filter_id}])
+
+    try do
+      Repo.insert_all(join_table, [row])
+      {:ok, :inserted}
+    rescue
+      e in Ecto.ConstraintError ->
+        {:error, e}
+    end
+  end
+
+  @doc """
+  Removes a filter field from a gall.
+  """
+  @spec remove_filter_field_from_gall(integer(), atom(), integer()) :: {:ok, integer()}
+  def remove_filter_field_from_gall(gall_id, filter_type, filter_id) do
+    {join_table, fk_column} = get_join_table_info(filter_type)
+    fk_col = String.to_atom(fk_column)
+
+    {count, _} =
+      from(j in join_table,
+        where: j.gall_id == ^gall_id and field(j, ^fk_col) == ^filter_id
+      )
+      |> Repo.delete_all()
+
+    {:ok, count}
+  end
+
+  defp get_join_table_info(:colors), do: {"gallcolor", "color_id"}
+  defp get_join_table_info(:shapes), do: {"gallshape", "shape_id"}
+  defp get_join_table_info(:textures), do: {"galltexture", "texture_id"}
+  defp get_join_table_info(:alignments), do: {"gallalignment", "alignment_id"}
+  defp get_join_table_info(:walls), do: {"gallwalls", "walls_id"}
+  defp get_join_table_info(:cells), do: {"gallcells", "cells_id"}
+  defp get_join_table_info(:locations), do: {"galllocation", "location_id"}
+  defp get_join_table_info(:forms), do: {"gallform", "form_id"}
+  defp get_join_table_info(:seasons), do: {"gallseason", "season_id"}
+
+  @doc """
+  Returns all filter field options for gall admin.
+  """
+  @spec get_all_filter_options() :: map()
+  def get_all_filter_options do
+    %{
+      colors:
+        Gallformers.FilterFields.list_all(:color) |> Enum.map(&%{id: &1.id, field: &1.color}),
+      shapes:
+        Gallformers.FilterFields.list_all(:shape) |> Enum.map(&%{id: &1.id, field: &1.shape}),
+      textures:
+        Gallformers.FilterFields.list_all(:texture) |> Enum.map(&%{id: &1.id, field: &1.texture}),
+      alignments:
+        Gallformers.FilterFields.list_all(:alignment)
+        |> Enum.map(&%{id: &1.id, field: &1.alignment}),
+      walls:
+        Gallformers.FilterFields.list_all(:walls) |> Enum.map(&%{id: &1.id, field: &1.walls}),
+      cells:
+        Gallformers.FilterFields.list_all(:cells) |> Enum.map(&%{id: &1.id, field: &1.cells}),
+      locations:
+        Gallformers.FilterFields.list_all(:location)
+        |> Enum.map(&%{id: &1.id, field: &1.location}),
+      forms: Gallformers.FilterFields.list_all(:form) |> Enum.map(&%{id: &1.id, field: &1.form}),
+      seasons: get_all_seasons()
+    }
+  end
+
+  defp get_all_seasons do
+    from(s in Gallformers.FilterFields.Season,
+      order_by: s.id,
+      select: %{id: s.id, field: s.season}
+    )
+    |> Repo.all()
   end
 end

@@ -218,7 +218,7 @@ defmodule GallformersWeb.CoreComponents do
           disabled={@rest[:disabled]}
           form={@rest[:form]}
         />
-        <span class="label">
+        <span class="label text-base font-medium text-gray-700">
           <input
             type="checkbox"
             id={@id}
@@ -239,7 +239,7 @@ defmodule GallformersWeb.CoreComponents do
     ~H"""
     <div class="fieldset mb-2">
       <label>
-        <span :if={@label} class="label mb-1">{@label}</span>
+        <span :if={@label} class="label mb-2 text-base font-medium text-gray-700">{@label}</span>
         <select
           id={@id}
           name={@name}
@@ -260,7 +260,7 @@ defmodule GallformersWeb.CoreComponents do
     ~H"""
     <div class="fieldset mb-2">
       <label>
-        <span :if={@label} class="label mb-1">{@label}</span>
+        <span :if={@label} class="label mb-2 text-base font-medium text-gray-700">{@label}</span>
         <textarea
           id={@id}
           name={@name}
@@ -281,7 +281,7 @@ defmodule GallformersWeb.CoreComponents do
     ~H"""
     <div class="fieldset mb-2">
       <label>
-        <span :if={@label} class="label mb-1">{@label}</span>
+        <span :if={@label} class="label mb-2 text-base font-medium text-gray-700">{@label}</span>
         <input
           type={@type}
           name={@name}

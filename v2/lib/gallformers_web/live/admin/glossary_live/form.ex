@@ -40,7 +40,7 @@ defmodule GallformersWeb.Admin.GlossaryLive.Form do
     changeset = Glossary.change_glossary(entry)
 
     socket
-    |> assign(:page_title, "Edit #{entry.word}")
+    |> assign(:page_title, "Edit Glossary Entry")
     |> assign(:entry, entry)
     |> assign(:form, to_form(changeset))
     |> assign(:mode, :edit)
@@ -91,22 +91,8 @@ defmodule GallformersWeb.Admin.GlossaryLive.Form do
   def render(assigns) do
     ~H"""
     <Layouts.admin flash={@flash} current_user={@current_user} page_title={@page_title}>
-      <div class="max-w-2xl">
-        <%!-- Back link --%>
-        <div class="mb-6">
-          <.link navigate={~p"/admin/glossary"} class="text-gf-maroon hover:underline">
-            <.icon name="hero-arrow-left" class="h-4 w-4 inline" /> Back to Glossary
-          </.link>
-        </div>
-
-        <%!-- Form Card --%>
-        <div class="bg-white shadow rounded-lg overflow-hidden">
-          <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
-            <h2 class="text-xl font-semibold text-gf-maroon">
-              {if @mode == :new, do: "Add New Glossary Entry", else: "Edit Glossary Entry"}
-            </h2>
-          </div>
-
+      <Layouts.admin_form_container back_path={~p"/admin/glossary"} back_label="Back to Glossary">
+        <Layouts.form_card title={if @mode == :new, do: "Add New Glossary Entry"}>
           <.form for={@form} id="glossary-form" phx-change="validate" phx-submit="save" class="p-6">
             <div class="space-y-6">
               <div>
@@ -115,9 +101,10 @@ defmodule GallformersWeb.Admin.GlossaryLive.Form do
                   type="text"
                   label="Word"
                   placeholder="Enter term (lowercase unless proper noun)"
+                  class="w-full input text-lg py-3"
                   required
                 />
-                <p class="mt-1 text-sm text-gray-500">
+                <p class="mt-1 text-base text-gray-500">
                   Use lowercase unless it's a proper name
                 </p>
               </div>
@@ -128,6 +115,7 @@ defmodule GallformersWeb.Admin.GlossaryLive.Form do
                   type="textarea"
                   label="Definition"
                   placeholder="Enter the definition"
+                  class="w-full textarea text-lg py-3"
                   rows={4}
                   required
                 />
@@ -139,10 +127,11 @@ defmodule GallformersWeb.Admin.GlossaryLive.Form do
                   type="textarea"
                   label="Source URLs"
                   placeholder="Enter URLs (one per line)"
-                  rows={3}
+                  class="w-full textarea text-lg py-3"
+                  rows={2}
                   required
                 />
-                <p class="mt-1 text-sm text-gray-500">
+                <p class="mt-1 text-base text-gray-500">
                   Enter one URL per line. These are the sources for the definition.
                 </p>
               </div>
@@ -163,22 +152,22 @@ defmodule GallformersWeb.Admin.GlossaryLive.Form do
               </div>
             </div>
           </.form>
-        </div>
+        </Layouts.form_card>
 
-        <%!-- Preview Card (when editing) --%>
-        <%= if @mode == :edit do %>
-          <div class="mt-6 bg-white shadow rounded-lg overflow-hidden">
-            <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
-              <h3 class="text-lg font-medium text-gray-900">Preview</h3>
-            </div>
+        <%!-- Live Preview Card --%>
+        <% preview_word = get_form_value(@form, :word) %>
+        <% preview_definition = get_form_value(@form, :definition) %>
+        <% preview_urls = get_form_value(@form, :urls) %>
+        <%= if preview_word != "" || preview_definition != "" do %>
+          <Layouts.form_card title="Preview" class="mt-6">
             <div class="p-6">
-              <h4 class="font-semibold text-gf-maroon">{@entry.word}</h4>
-              <p class="mt-2 text-gray-700">{@entry.definition}</p>
-              <%= if @entry.urls && @entry.urls != "" do %>
+              <h4 class="font-semibold text-gf-maroon">{preview_word}</h4>
+              <p class="mt-2 text-gray-700">{preview_definition}</p>
+              <%= if preview_urls && preview_urls != "" do %>
                 <div class="mt-4">
                   <h5 class="text-sm font-medium text-gray-500">Sources:</h5>
                   <ul class="mt-1 space-y-1">
-                    <li :for={url <- String.split(@entry.urls, "\n", trim: true)}>
+                    <li :for={url <- String.split(preview_urls, "\n", trim: true)}>
                       <a
                         href={url}
                         target="_blank"
@@ -192,9 +181,9 @@ defmodule GallformersWeb.Admin.GlossaryLive.Form do
                 </div>
               <% end %>
             </div>
-          </div>
+          </Layouts.form_card>
         <% end %>
-      </div>
+      </Layouts.admin_form_container>
     </Layouts.admin>
     """
   end
@@ -205,5 +194,9 @@ defmodule GallformersWeb.Admin.GlossaryLive.Form do
     else
       url
     end
+  end
+
+  defp get_form_value(form, field) do
+    Ecto.Changeset.get_field(form.source, field) || ""
   end
 end

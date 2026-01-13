@@ -431,7 +431,7 @@ defmodule GallformersWeb.Layouts do
   def admin(assigns) do
     admin_nav_links = [
       %{href: "/admin", label: "Dashboard", icon: "hero-home"},
-      %{href: "/admin/species", label: "Species", icon: "hero-bug-ant"},
+      %{href: "/admin/galls", label: "Galls", icon: "hero-bug-ant"},
       %{href: "/admin/hosts", label: "Hosts", icon: "hero-globe-americas"},
       %{href: "/admin/taxonomy", label: "Taxonomy", icon: "hero-share"},
       %{href: "/admin/sources", label: "Sources", icon: "hero-book-open"},
@@ -681,6 +681,87 @@ defmodule GallformersWeb.Layouts do
         {gettext("Attempting to reconnect")}
         <.icon name="hero-arrow-path" class="ml-1 size-3 motion-safe:animate-spin" />
       </.flash>
+    </div>
+    """
+  end
+
+  @doc """
+  Renders a back link for admin forms.
+
+  ## Examples
+
+      <Layouts.back_link navigate={~p"/admin/glossary"} label="Back to Glossary" />
+  """
+  attr :navigate, :string, required: true, doc: "the path to navigate to"
+  attr :label, :string, required: true, doc: "the link text"
+
+  def back_link(assigns) do
+    ~H"""
+    <div class="mb-6">
+      <.link navigate={@navigate} class="text-gf-maroon hover:underline">
+        <.icon name="hero-arrow-left" class="h-4 w-4 inline" /> {@label}
+      </.link>
+    </div>
+    """
+  end
+
+  @doc """
+  Renders a card container for admin forms.
+
+  ## Examples
+
+      <Layouts.form_card>
+        <:header>Add New Entry</:header>
+        <.form ...>...</.form>
+      </Layouts.form_card>
+
+      <Layouts.form_card title="Edit Entry">
+        <.form ...>...</.form>
+      </Layouts.form_card>
+  """
+  attr :title, :string, default: nil, doc: "optional title for the card header"
+  attr :class, :string, default: nil, doc: "additional classes for the card"
+
+  slot :header, doc: "optional header slot (alternative to title attr)"
+  slot :inner_block, required: true
+
+  def form_card(assigns) do
+    ~H"""
+    <div class={["bg-white shadow rounded-lg overflow-hidden", @class]}>
+      <%= if @title || @header != [] do %>
+        <div class="px-6 py-5 border-b border-gray-200 bg-gray-50">
+          <h2 class="text-2xl font-semibold text-gf-maroon">
+            {render_slot(@header) || @title}
+          </h2>
+        </div>
+      <% end %>
+      {render_slot(@inner_block)}
+    </div>
+    """
+  end
+
+  @doc """
+  Renders the standard admin form container with back link.
+
+  ## Examples
+
+      <Layouts.admin_form_container back_path={~p"/admin/glossary"} back_label="Back to Glossary">
+        <Layouts.form_card title="Add New Entry">
+          ...
+        </Layouts.form_card>
+      </Layouts.admin_form_container>
+  """
+  attr :back_path, :string, required: true, doc: "path for the back link"
+  attr :back_label, :string, required: true, doc: "text for the back link"
+  attr :max_width, :string, default: "max-w-4xl", doc: "max width class for the container"
+
+  slot :inner_block, required: true
+
+  def admin_form_container(assigns) do
+    ~H"""
+    <div class={@max_width}>
+      <Layouts.back_link navigate={@back_path} label={@back_label} />
+      {render_slot(@inner_block)}
     </div>
     """
   end

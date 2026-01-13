@@ -37,7 +37,7 @@ defmodule GallformersWeb.AdminDashboardLiveTest do
       {:ok, _view, html} = live(conn, ~p"/admin")
 
       # Should show stat cards
-      assert html =~ "Species" or html =~ "Hosts" or html =~ "Sources" or html =~ "Images"
+      assert html =~ "Galls" or html =~ "Hosts" or html =~ "Sources" or html =~ "Images"
     end
 
     test "stats show formatted numbers", %{conn: conn} do
@@ -86,10 +86,10 @@ defmodule GallformersWeb.AdminDashboardLiveTest do
       {:ok, conn: conn}
     end
 
-    test "species count is displayed", %{conn: conn} do
+    test "gall count is displayed", %{conn: conn} do
       {:ok, _view, html} = live(conn, ~p"/admin")
 
-      assert html =~ "Species"
+      assert html =~ "Galls"
     end
 
     test "host count is displayed", %{conn: conn} do
@@ -130,11 +130,11 @@ defmodule GallformersWeb.AdminDashboardLiveTest do
       {:ok, conn: conn}
     end
 
-    test "add species link exists", %{conn: conn} do
+    test "add gall link exists", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/admin")
 
-      assert has_element?(view, "a[href='/admin/species/new']") or
-               render(view) =~ "Add New Species"
+      assert has_element?(view, "a[href='/admin/galls/new']") or
+               render(view) =~ "Add New Gall"
     end
 
     test "add host link exists", %{conn: conn} do

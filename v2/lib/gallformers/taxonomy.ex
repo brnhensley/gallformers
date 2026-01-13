@@ -46,6 +46,14 @@ defmodule Gallformers.Taxonomy do
   end
 
   @doc """
+  Returns all sections.
+  """
+  @spec list_sections() :: [Taxonomy.t()]
+  def list_sections do
+    list_taxonomies_by_type("section")
+  end
+
+  @doc """
   Gets a taxonomy by ID.
   """
   @spec get_taxonomy(integer()) :: Taxonomy.t() | nil

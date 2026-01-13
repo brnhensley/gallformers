@@ -91,22 +91,12 @@ defmodule GallformersWeb.Admin.PlaceLive.Form do
   def render(assigns) do
     ~H"""
     <Layouts.admin flash={@flash} current_user={@current_user} page_title={@page_title}>
-      <div class="max-w-2xl">
-        <%!-- Back link --%>
-        <div class="mb-6">
-          <.link navigate={~p"/admin/places"} class="text-gf-maroon hover:underline">
-            <.icon name="hero-arrow-left" class="h-4 w-4 inline" /> Back to Places
-          </.link>
-        </div>
-
-        <%!-- Form Card --%>
-        <div class="bg-white shadow rounded-lg overflow-hidden">
-          <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
-            <h2 class="text-xl font-semibold text-gf-maroon">
-              {if @mode == :new, do: "Add New Place", else: "Edit Place"}
-            </h2>
-          </div>
-
+      <Layouts.admin_form_container
+        back_path={~p"/admin/places"}
+        back_label="Back to Places"
+        max_width="max-w-2xl"
+      >
+        <Layouts.form_card title={if @mode == :new, do: "Add New Place"}>
           <.form for={@form} id="place-form" phx-change="validate" phx-submit="save" class="p-6">
             <div class="space-y-6">
               <div>
@@ -115,6 +105,7 @@ defmodule GallformersWeb.Admin.PlaceLive.Form do
                   type="text"
                   label="Name"
                   placeholder="e.g., California, Ontario"
+                  class="w-full input text-lg py-3"
                   required
                 />
               </div>
@@ -126,6 +117,7 @@ defmodule GallformersWeb.Admin.PlaceLive.Form do
                     type="text"
                     label="Code"
                     placeholder="e.g., CA, ON"
+                    class="w-full input text-lg py-3"
                     required
                   />
                   <p class="mt-1 text-sm text-gray-500">
@@ -139,6 +131,7 @@ defmodule GallformersWeb.Admin.PlaceLive.Form do
                     label="Type"
                     options={Place.place_types()}
                     prompt="Select type"
+                    class="w-full select text-lg py-3"
                     required
                   />
                 </div>
@@ -160,7 +153,7 @@ defmodule GallformersWeb.Admin.PlaceLive.Form do
               </div>
             </div>
           </.form>
-        </div>
+        </Layouts.form_card>
 
         <%!-- Help Card --%>
         <div class="mt-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
@@ -174,7 +167,7 @@ defmodule GallformersWeb.Admin.PlaceLive.Form do
             occur in which places (range data), use the Host admin page.
           </p>
         </div>
-      </div>
+      </Layouts.admin_form_container>
     </Layouts.admin>
     """
   end

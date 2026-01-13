@@ -27,10 +27,10 @@ defmodule GallformersWeb.AdminDashboardLive do
       <%!-- Stats Grid --%>
       <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
         <.stat_card
-          title="Species"
-          value={@stats.species_count}
+          title="Galls"
+          value={@stats.gall_count}
           icon="hero-bug-ant"
-          href="/admin/species"
+          href="/admin/galls"
         />
         <.stat_card title="Hosts" value={@stats.host_count} icon="hero-leaf" href="/admin/hosts" />
         <.stat_card
@@ -47,9 +47,9 @@ defmodule GallformersWeb.AdminDashboardLive do
         <h2 class="text-lg font-medium text-gray-900 mb-4">Quick Actions</h2>
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <.action_card
-            title="Add New Species"
-            description="Create a new gall-forming species entry"
-            href="/admin/species/new"
+            title="Add New Gall"
+            description="Create a new gall entry"
+            href="/admin/galls/new"
             icon="hero-plus-circle"
           />
           <.action_card
@@ -81,6 +81,18 @@ defmodule GallformersWeb.AdminDashboardLive do
             description="Add or edit glossary terms"
             href="/admin/glossary"
             icon="hero-book-open"
+          />
+          <.action_card
+            title="Add from Source"
+            description="Bulk-add species info from a paper"
+            href="/admin/species-sources/add"
+            icon="hero-document-plus"
+          />
+          <.action_card
+            title="Find & Edit Mappings"
+            description="Search and edit species-source links"
+            href="/admin/species-sources/find"
+            icon="hero-magnifying-glass"
           />
         </div>
       </div>
@@ -147,7 +159,7 @@ defmodule GallformersWeb.AdminDashboardLive do
 
   defp assign_stats(socket) do
     stats = %{
-      species_count: count_table("species"),
+      gall_count: count_galls(),
       host_count: count_table("host"),
       source_count: count_table("source"),
       image_count: count_table("image")
@@ -158,6 +170,15 @@ defmodule GallformersWeb.AdminDashboardLive do
 
   defp count_table(table_name) do
     query = "SELECT COUNT(*) FROM #{table_name}"
+
+    case Repo.query(query) do
+      {:ok, %{rows: [[count]]}} -> count
+      _ -> 0
+    end
+  end
+
+  defp count_galls do
+    query = "SELECT COUNT(*) FROM species WHERE taxoncode = 'gall'"
 
     case Repo.query(query) do
       {:ok, %{rows: [[count]]}} -> count

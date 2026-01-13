@@ -200,4 +200,150 @@ defmodule Gallformers.Sources do
   defp broadcast({:error, changeset}, _event) do
     {:error, changeset}
   end
+
+  # ============================================
+  # SpeciesSource (mapping) functions
+  # ============================================
+
+  @doc """
+  Returns a changeset for tracking species-source mapping changes.
+  """
+  def change_species_source(%SpeciesSource{} = species_source, attrs \\ %{}) do
+    SpeciesSource.changeset(species_source, attrs)
+  end
+
+  @doc """
+  Gets a species-source mapping by ID.
+  """
+  @spec get_species_source(integer()) :: SpeciesSource.t() | nil
+  def get_species_source(id) do
+    Repo.get(SpeciesSource, id)
+  end
+
+  @doc """
+  Gets a species-source mapping by ID, raising if not found.
+  """
+  @spec get_species_source!(integer()) :: SpeciesSource.t()
+  def get_species_source!(id) do
+    Repo.get!(SpeciesSource, id)
+  end
+
+  @doc """
+  Gets a species-source mapping by species_id and source_id.
+  """
+  @spec get_species_source_by_ids(integer(), integer()) :: SpeciesSource.t() | nil
+  def get_species_source_by_ids(species_id, source_id) do
+    from(ss in SpeciesSource,
+      where: ss.species_id == ^species_id and ss.source_id == ^source_id
+    )
+    |> Repo.one()
+  end
+
+  @doc """
+  Creates a species-source mapping.
+  """
+  def create_species_source(attrs \\ %{}) do
+    %SpeciesSource{}
+    |> SpeciesSource.changeset(attrs)
+    |> Repo.insert()
+    |> broadcast(:species_source_created)
+  end
+
+  @doc """
+  Updates a species-source mapping.
+  """
+  def update_species_source(%SpeciesSource{} = species_source, attrs) do
+    species_source
+    |> SpeciesSource.changeset(attrs)
+    |> Repo.update()
+    |> broadcast(:species_source_updated)
+  end
+
+  @doc """
+  Deletes a species-source mapping.
+  """
+  def delete_species_source(%SpeciesSource{} = species_source) do
+    Repo.delete(species_source)
+    |> broadcast(:species_source_deleted)
+  end
+
+  @doc """
+  Checks if a species is already linked to a source.
+  """
+  @spec species_source_exists?(integer(), integer()) :: boolean()
+  def species_source_exists?(species_id, source_id) do
+    from(ss in SpeciesSource,
+      where: ss.species_id == ^species_id and ss.source_id == ^source_id
+    )
+    |> Repo.exists?()
+  end
+
+  @doc """
+  Searches species-source mappings by species name, source title, or description.
+  Returns mappings with full species and source info for display.
+  """
+  @spec search_species_source_mappings(String.t(), integer()) :: [map()]
+  def search_species_source_mappings(query, limit \\ 50) do
+    search_term = "%#{String.downcase(query)}%"
+
+    alias Gallformers.Species.Species
+
+    from(ss in SpeciesSource,
+      join: sp in Species,
+      on: ss.species_id == sp.id,
+      join: src in Source,
+      on: ss.source_id == src.id,
+      where:
+        fragment("lower(?) LIKE ?", sp.name, ^search_term) or
+          fragment("lower(?) LIKE ?", src.title, ^search_term) or
+          fragment("lower(?) LIKE ?", src.author, ^search_term) or
+          fragment("lower(?) LIKE ?", ss.description, ^search_term),
+      order_by: [asc: sp.name, asc: src.title],
+      limit: ^limit,
+      select: %{
+        id: ss.id,
+        species_id: sp.id,
+        species_name: sp.name,
+        species_taxoncode: sp.taxoncode,
+        source_id: src.id,
+        source_title: src.title,
+        source_author: src.author,
+        source_pubyear: src.pubyear,
+        description: ss.description,
+        externallink: ss.externallink,
+        useasdefault: ss.useasdefault
+      }
+    )
+    |> Repo.all()
+  end
+
+  @doc """
+  Gets a species-source mapping with full details for editing.
+  """
+  @spec get_species_source_for_edit(integer()) :: map() | nil
+  def get_species_source_for_edit(id) do
+    alias Gallformers.Species.Species
+
+    from(ss in SpeciesSource,
+      join: sp in Species,
+      on: ss.species_id == sp.id,
+      join: src in Source,
+      on: ss.source_id == src.id,
+      where: ss.id == ^id,
+      select: %{
+        id: ss.id,
+        species_id: sp.id,
+        species_name: sp.name,
+        species_taxoncode: sp.taxoncode,
+        source_id: src.id,
+        source_title: src.title,
+        source_author: src.author,
+        source_pubyear: src.pubyear,
+        description: ss.description,
+        externallink: ss.externallink,
+        useasdefault: ss.useasdefault
+      }
+    )
+    |> Repo.one()
+  end
 end

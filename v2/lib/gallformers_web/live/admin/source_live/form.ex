@@ -91,22 +91,12 @@ defmodule GallformersWeb.Admin.SourceLive.Form do
   def render(assigns) do
     ~H"""
     <Layouts.admin flash={@flash} current_user={@current_user} page_title={@page_title}>
-      <div class="max-w-3xl">
-        <%!-- Back link --%>
-        <div class="mb-6">
-          <.link navigate={~p"/admin/sources"} class="text-gf-maroon hover:underline">
-            <.icon name="hero-arrow-left" class="h-4 w-4 inline" /> Back to Sources
-          </.link>
-        </div>
-
-        <%!-- Form Card --%>
-        <div class="bg-white shadow rounded-lg overflow-hidden">
-          <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
-            <h2 class="text-xl font-semibold text-gf-maroon">
-              {if @mode == :new, do: "Add New Source", else: "Edit Source"}
-            </h2>
-          </div>
-
+      <Layouts.admin_form_container
+        back_path={~p"/admin/sources"}
+        back_label="Back to Sources"
+        max_width="max-w-3xl"
+      >
+        <Layouts.form_card title={if @mode == :new, do: "Add New Source"}>
           <.form for={@form} id="source-form" phx-change="validate" phx-submit="save" class="p-6">
             <div class="space-y-6">
               <div>
@@ -115,6 +105,7 @@ defmodule GallformersWeb.Admin.SourceLive.Form do
                   type="text"
                   label="Title"
                   placeholder="Enter source title"
+                  class="w-full input text-lg py-3"
                   required
                 />
               </div>
@@ -126,6 +117,7 @@ defmodule GallformersWeb.Admin.SourceLive.Form do
                     type="text"
                     label="Author(s)"
                     placeholder="e.g., Smith, J. and Jones, M."
+                    class="w-full input text-lg py-3"
                     required
                   />
                 </div>
@@ -135,6 +127,7 @@ defmodule GallformersWeb.Admin.SourceLive.Form do
                     type="text"
                     label="Publication Year"
                     placeholder="e.g., 2023"
+                    class="w-full input text-lg py-3"
                     required
                   />
                 </div>
@@ -146,6 +139,7 @@ defmodule GallformersWeb.Admin.SourceLive.Form do
                   type="url"
                   label="Reference Link"
                   placeholder="https://..."
+                  class="w-full input text-lg py-3"
                   required
                 />
               </div>
@@ -158,6 +152,7 @@ defmodule GallformersWeb.Admin.SourceLive.Form do
                     label="License"
                     options={Source.license_types()}
                     prompt="Select license"
+                    class="w-full select text-lg py-3"
                     required
                   />
                 </div>
@@ -167,6 +162,7 @@ defmodule GallformersWeb.Admin.SourceLive.Form do
                     type="url"
                     label="License Link"
                     placeholder="https://creativecommons.org/..."
+                    class="w-full input text-lg py-3"
                   />
                   <p class="mt-1 text-xs text-gray-500">
                     Required when using CC BY license
@@ -181,6 +177,7 @@ defmodule GallformersWeb.Admin.SourceLive.Form do
                   label="Citation (MLA format)"
                   placeholder="Enter full citation in MLA format"
                   rows={4}
+                  class="w-full textarea text-lg py-3"
                   required
                 />
                 <p class="mt-1 text-sm text-gray-500">
@@ -202,6 +199,7 @@ defmodule GallformersWeb.Admin.SourceLive.Form do
                   field={@form[:datacomplete]}
                   type="checkbox"
                   label="All information from this source has been entered into the database"
+                  class="checkbox"
                 />
               </div>
 
@@ -221,8 +219,8 @@ defmodule GallformersWeb.Admin.SourceLive.Form do
               </div>
             </div>
           </.form>
-        </div>
-      </div>
+        </Layouts.form_card>
+      </Layouts.admin_form_container>
     </Layouts.admin>
     """
   end

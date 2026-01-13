@@ -125,22 +125,12 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
   def render(assigns) do
     ~H"""
     <Layouts.admin flash={@flash} current_user={@current_user} page_title={@page_title}>
-      <div class="max-w-2xl">
-        <%!-- Back link --%>
-        <div class="mb-6">
-          <.link navigate={~p"/admin/taxonomy"} class="text-gf-maroon hover:underline">
-            <.icon name="hero-arrow-left" class="h-4 w-4 inline" /> Back to Taxonomy
-          </.link>
-        </div>
-
-        <%!-- Form Card --%>
-        <div class="bg-white shadow rounded-lg overflow-hidden">
-          <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
-            <h2 class="text-xl font-semibold text-gf-maroon">
-              {if @mode == :new, do: "Create New Taxonomy Entry", else: "Edit Taxonomy Entry"}
-            </h2>
-          </div>
-
+      <Layouts.admin_form_container
+        back_path={~p"/admin/taxonomy"}
+        back_label="Back to Taxonomy"
+        max_width="max-w-2xl"
+      >
+        <Layouts.form_card title={if @mode == :new, do: "Create New Taxonomy Entry"}>
           <.form for={@form} id="taxonomy-form" phx-change="validate" phx-submit="save" class="p-6">
             <div class="space-y-6">
               <div>
@@ -149,6 +139,7 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
                   type="text"
                   label="Name"
                   placeholder="Enter taxonomy name"
+                  class="w-full input text-lg py-3"
                   required
                 />
               </div>
@@ -164,6 +155,7 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
                     {"Section", "section"}
                   ]}
                   prompt="Select type"
+                  class="w-full select text-lg py-3"
                   required
                 />
                 <p class="mt-1 text-sm text-gray-500">
@@ -177,6 +169,7 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
                   type="text"
                   label="Description"
                   placeholder="e.g., 'gall' or 'plant' for families"
+                  class="w-full input text-lg py-3"
                 />
                 <p class="mt-1 text-sm text-gray-500">
                   For families, use "gall" or "plant" to indicate the type of organisms
@@ -191,6 +184,7 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
                     label="Parent"
                     options={@parent_options}
                     prompt="Select parent (optional for families)"
+                    class="w-full select text-lg py-3"
                   />
                   <p class="mt-1 text-sm text-gray-500">
                     Genera belong to families (or sections). Sections belong to families.
@@ -225,7 +219,7 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
               </div>
             </div>
           </.form>
-        </div>
+        </Layouts.form_card>
 
         <%!-- Help Card --%>
         <div class="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -245,7 +239,7 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
             <li>Species are linked to genera through the speciestaxonomy table</li>
           </ul>
         </div>
-      </div>
+      </Layouts.admin_form_container>
     </Layouts.admin>
     """
   end
