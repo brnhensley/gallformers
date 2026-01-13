@@ -114,8 +114,12 @@ defmodule GallformersWeb.IDLive do
 
   # Apply filters from URL and load host/genus if specified
   defp apply_url_filters(socket, filters, params) do
-    # Load host from URL param
-    host_name = params[@url_params.host]
+    # Load host from URL param (decode URL encoding)
+    host_name =
+      case params[@url_params.host] do
+        nil -> nil
+        name -> URI.decode(name)
+      end
 
     selected_host =
       if host_name && host_name != "" do
@@ -124,9 +128,18 @@ defmodule GallformersWeb.IDLive do
         nil
       end
 
-    # Load genus from URL param
-    genus_name = params[@url_params.genus]
-    genus_type = params[@url_params.genus_type] || "genus"
+    # Load genus from URL param (decode URL encoding)
+    genus_name =
+      case params[@url_params.genus] do
+        nil -> nil
+        name -> URI.decode(name)
+      end
+
+    genus_type =
+      case params[@url_params.genus_type] do
+        nil -> "genus"
+        type -> URI.decode(type)
+      end
 
     selected_genus =
       if genus_name && genus_name != "" do

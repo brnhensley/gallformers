@@ -16,6 +16,7 @@ defmodule Gallformers.Search do
 
   @doc """
   Searches galls by name (partial match).
+  Returns the same fields as Species.list_galls for API compatibility.
   """
   @spec search_galls(String.t()) :: [map()]
   def search_galls(query) do
@@ -26,12 +27,19 @@ defmodule Gallformers.Search do
       on: gs.species_id == s.id,
       join: g in Gall,
       on: gs.gall_id == g.id,
+      left_join: a in Gallformers.Species.Abundance,
+      on: s.abundance_id == a.id,
       where: s.taxoncode == "gall" and fragment("lower(?) LIKE ?", s.name, ^search_term),
       order_by: s.name,
       select: %{
         id: s.id,
         name: s.name,
         taxoncode: s.taxoncode,
+        datacomplete: s.datacomplete,
+        abundance_id: s.abundance_id,
+        abundance_name: a.abundance,
+        gall_id: g.id,
+        detachable: g.detachable,
         undescribed: g.undescribed
       }
     )
@@ -40,6 +48,7 @@ defmodule Gallformers.Search do
 
   @doc """
   Searches galls by name with pagination.
+  Returns the same fields as Species.list_galls_paginated for API compatibility.
   """
   @spec search_galls_paginated(String.t(), integer(), integer()) :: [map()]
   def search_galls_paginated(query, limit, offset) do
@@ -50,6 +59,8 @@ defmodule Gallformers.Search do
       on: gs.species_id == s.id,
       join: g in Gall,
       on: gs.gall_id == g.id,
+      left_join: a in Gallformers.Species.Abundance,
+      on: s.abundance_id == a.id,
       where: s.taxoncode == "gall" and fragment("lower(?) LIKE ?", s.name, ^search_term),
       order_by: s.name,
       limit: ^limit,
@@ -58,6 +69,11 @@ defmodule Gallformers.Search do
         id: s.id,
         name: s.name,
         taxoncode: s.taxoncode,
+        datacomplete: s.datacomplete,
+        abundance_id: s.abundance_id,
+        abundance_name: a.abundance,
+        gall_id: g.id,
+        detachable: g.detachable,
         undescribed: g.undescribed
       }
     )
@@ -82,6 +98,7 @@ defmodule Gallformers.Search do
 
   @doc """
   Searches hosts by name (partial match).
+  Returns fields expected by the host API controller.
   """
   @spec search_hosts(String.t()) :: [map()]
   def search_hosts(query) do
@@ -93,7 +110,8 @@ defmodule Gallformers.Search do
       select: %{
         id: s.id,
         name: s.name,
-        taxoncode: s.taxoncode
+        taxoncode: s.taxoncode,
+        datacomplete: s.datacomplete
       }
     )
     |> Repo.all()
@@ -101,6 +119,7 @@ defmodule Gallformers.Search do
 
   @doc """
   Searches hosts by name with pagination.
+  Returns fields expected by the host API controller.
   """
   @spec search_hosts_paginated(String.t(), integer(), integer()) :: [map()]
   def search_hosts_paginated(query, limit, offset) do
@@ -114,7 +133,8 @@ defmodule Gallformers.Search do
       select: %{
         id: s.id,
         name: s.name,
-        taxoncode: s.taxoncode
+        taxoncode: s.taxoncode,
+        datacomplete: s.datacomplete
       }
     )
     |> Repo.all()
