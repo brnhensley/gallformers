@@ -216,13 +216,13 @@ Build one page at a time, deploy after each, verify visual parity.
 - [x] 11.1.4 Create admin layout with navigation
 - [x] 11.1.5 Create `AdminDashboardLive`
 
-### 11.2 Species Admin
-- [ ] 11.2.1 Create `Admin.SpeciesLive.Index` with listing and search
-- [ ] 11.2.2 Create `Admin.SpeciesLive.Form` for create/edit
-- [ ] 11.2.3 Implement changeset validation with error display
-- [ ] 11.2.4 Create alias/synonym editor (LiveView list management)
-- [ ] 11.2.5 Create host association editor
-- [ ] 11.2.6 Add PubSub broadcast on save
+### 11.2 Species Admin ✅
+- [x] 11.2.1 Create `Admin.SpeciesLive.Index` with listing and search
+- [x] 11.2.2 Create `Admin.SpeciesLive.Form` for create/edit
+- [x] 11.2.3 Implement changeset validation with error display
+- [x] 11.2.4 Create alias/synonym editor (LiveView list management)
+- [x] 11.2.5 Create host association editor
+- [x] 11.2.6 Add PubSub broadcast on save
 
 ### 11.3 Host Admin ✅
 - [x] 11.3.1 Create `Admin.HostLive.Index`

@@ -326,4 +326,273 @@ defmodule Gallformers.Species do
   def get_abundance(id) do
     Repo.get(Abundance, id)
   end
+
+  # Admin functions
+
+  @doc """
+  Lists all species with basic info for admin listing.
+  Includes species name, taxoncode, abundance, and datacomplete status.
+  """
+  @spec list_species_admin(integer(), integer()) :: [map()]
+  def list_species_admin(limit, offset) do
+    from(s in Species,
+      left_join: a in Abundance,
+      on: s.abundance_id == a.id,
+      order_by: s.name,
+      limit: ^limit,
+      offset: ^offset,
+      select: %{
+        id: s.id,
+        name: s.name,
+        taxoncode: s.taxoncode,
+        datacomplete: s.datacomplete,
+        abundance_name: a.abundance
+      }
+    )
+    |> Repo.all()
+  end
+
+  @doc """
+  Counts all species.
+  """
+  @spec count_species() :: integer()
+  def count_species do
+    from(s in Species, select: count(s.id))
+    |> Repo.one()
+  end
+
+  @doc """
+  Searches species by name or alias (case-insensitive).
+  Supports multi-word queries.
+  """
+  @spec search_species(String.t(), integer()) :: [map()]
+  def search_species(query, limit \\ 100) when is_binary(query) do
+    terms =
+      query
+      |> String.downcase()
+      |> String.split(~r/\s+/, trim: true)
+      |> Enum.map(&"%#{&1}%")
+
+    if terms == [] do
+      []
+    else
+      search_species_with_terms(terms, limit)
+    end
+  end
+
+  defp search_species_with_terms(terms, limit) do
+    base_query =
+      from(s in Species,
+        left_join: als in "aliasspecies",
+        on: als.species_id == s.id,
+        left_join: a in "alias",
+        on: a.id == als.alias_id,
+        left_join: ab in Abundance,
+        on: s.abundance_id == ab.id,
+        group_by: [s.id, s.name, s.taxoncode, s.datacomplete, ab.abundance],
+        order_by: s.name,
+        limit: ^limit,
+        select: %{
+          id: s.id,
+          name: s.name,
+          taxoncode: s.taxoncode,
+          datacomplete: s.datacomplete,
+          abundance_name: ab.abundance
+        }
+      )
+
+    # Add WHERE clause for each search term (all must match)
+    Enum.reduce(terms, base_query, fn term, q ->
+      from([s, als, a, ab] in q,
+        where:
+          fragment("lower(?) LIKE ?", s.name, ^term) or
+            fragment("lower(?) LIKE ?", a.name, ^term)
+      )
+    end)
+    |> Repo.all()
+  end
+
+  @doc """
+  Searches species by name (species only, no aliases).
+  Used for typeahead when selecting hosts.
+  """
+  @spec search_species_by_name(String.t(), String.t() | nil, integer()) :: [map()]
+  def search_species_by_name(query, taxoncode \\ nil, limit \\ 20) do
+    search_term = "%#{String.downcase(query)}%"
+
+    base_query =
+      from(s in Species,
+        where: fragment("lower(?) LIKE ?", s.name, ^search_term),
+        order_by: s.name,
+        limit: ^limit,
+        select: %{
+          id: s.id,
+          name: s.name,
+          taxoncode: s.taxoncode
+        }
+      )
+
+    query =
+      if taxoncode do
+        from(s in base_query, where: s.taxoncode == ^taxoncode)
+      else
+        base_query
+      end
+
+    Repo.all(query)
+  end
+
+  @doc """
+  Gets a species for editing with all related data.
+  """
+  @spec get_species_for_edit(integer()) :: map() | nil
+  def get_species_for_edit(id) do
+    species = get_species(id)
+
+    if species do
+      aliases = get_aliases_for_species(id)
+      hosts = Gallformers.Hosts.get_hosts_for_gall(id)
+      taxonomy = Gallformers.Taxonomy.get_taxonomy_for_species(id)
+
+      %{
+        species: species,
+        aliases: aliases,
+        hosts: hosts,
+        taxonomy: taxonomy
+      }
+    else
+      nil
+    end
+  end
+
+  @doc """
+  Returns a changeset for tracking species changes.
+  """
+  def change_species(%Species{} = species, attrs \\ %{}) do
+    Species.changeset(species, attrs)
+  end
+
+  @doc """
+  Creates a species.
+  """
+  def create_species(attrs \\ %{}) do
+    %Species{}
+    |> Species.changeset(attrs)
+    |> Repo.insert()
+    |> broadcast(:species_created)
+  end
+
+  @doc """
+  Updates a species.
+  """
+  def update_species(%Species{} = species, attrs) do
+    species
+    |> Species.changeset(attrs)
+    |> Repo.update()
+    |> broadcast(:species_updated)
+  end
+
+  @doc """
+  Deletes a species.
+  """
+  def delete_species(%Species{} = species) do
+    Repo.delete(species)
+    |> broadcast(:species_deleted)
+  end
+
+  # Alias management
+
+  @doc """
+  Creates an alias and associates it with a species.
+  """
+  def create_alias_for_species(species_id, alias_attrs) do
+    alias Gallformers.Species.Alias
+
+    Repo.transaction(fn ->
+      # Create the alias
+      alias_changeset =
+        %Alias{}
+        |> Ecto.Changeset.cast(alias_attrs, [:name, :type, :description])
+        |> Ecto.Changeset.validate_required([:name, :type])
+
+      case Repo.insert(alias_changeset) do
+        {:ok, new_alias} ->
+          # Link to species
+          Repo.insert_all("aliasspecies", [
+            %{alias_id: new_alias.id, species_id: species_id}
+          ])
+
+          new_alias
+
+        {:error, changeset} ->
+          Repo.rollback(changeset)
+      end
+    end)
+    |> broadcast(:species_updated)
+  end
+
+  @doc """
+  Removes an alias from a species.
+  """
+  def remove_alias_from_species(species_id, alias_id) do
+    from(als in "aliasspecies",
+      where: als.species_id == ^species_id and als.alias_id == ^alias_id
+    )
+    |> Repo.delete_all()
+
+    broadcast({:ok, %{id: species_id}}, :species_updated)
+  end
+
+  # Host association management
+
+  @doc """
+  Associates a host with a gall species.
+  """
+  def add_host_to_species(gall_species_id, host_species_id) do
+    alias Gallformers.Hosts.Host
+
+    attrs = %{gall_species_id: gall_species_id, host_species_id: host_species_id}
+
+    case %Host{} |> Host.changeset(attrs) |> Repo.insert() do
+      {:ok, host_relation} ->
+        broadcast({:ok, %{id: gall_species_id}}, :species_updated)
+        {:ok, host_relation}
+
+      {:error, changeset} ->
+        {:error, changeset}
+    end
+  end
+
+  @doc """
+  Removes a host association from a gall species.
+  """
+  def remove_host_from_species(host_relation_id) do
+    alias Gallformers.Hosts.Host
+
+    case Repo.get(Host, host_relation_id) do
+      nil ->
+        {:error, :not_found}
+
+      host_relation ->
+        species_id = host_relation.gall_species_id
+        Repo.delete(host_relation)
+        broadcast({:ok, %{id: species_id}}, :species_updated)
+    end
+  end
+
+  @doc """
+  Subscribes to species changes.
+  """
+  def subscribe do
+    Phoenix.PubSub.subscribe(Gallformers.PubSub, "species")
+  end
+
+  defp broadcast({:ok, species}, event) do
+    Phoenix.PubSub.broadcast(Gallformers.PubSub, "species", {event, species})
+    {:ok, species}
+  end
+
+  defp broadcast({:error, changeset}, _event) do
+    {:error, changeset}
+  end
 end

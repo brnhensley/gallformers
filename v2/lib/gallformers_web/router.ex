@@ -51,6 +51,11 @@ defmodule GallformersWeb.Router do
 
     live "/", AdminDashboardLive
 
+    # Species admin
+    live "/species", Admin.SpeciesLive.Index, :index
+    live "/species/new", Admin.SpeciesLive.Form, :new
+    live "/species/:id", Admin.SpeciesLive.Form, :edit
+
     # Host admin
     live "/hosts", Admin.HostLive.Index, :index
     live "/hosts/new", Admin.HostLive.Form, :new
