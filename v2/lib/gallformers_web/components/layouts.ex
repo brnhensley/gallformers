@@ -439,7 +439,18 @@ defmodule GallformersWeb.Layouts do
       %{href: "/admin/glossary", label: "Glossary", icon: "hero-book-open"}
     ]
 
-    assigns = assign(assigns, :admin_nav_links, admin_nav_links)
+    superadmin_nav_links = [
+      %{href: "/admin/places", label: "Places", icon: "hero-map-pin"},
+      %{href: "/admin/filter-terms", label: "Filter Terms", icon: "hero-funnel"}
+    ]
+
+    is_superadmin = Gallformers.Accounts.superadmin?(assigns.current_user)
+
+    assigns =
+      assigns
+      |> assign(:admin_nav_links, admin_nav_links)
+      |> assign(:superadmin_nav_links, superadmin_nav_links)
+      |> assign(:is_superadmin, is_superadmin)
 
     ~H"""
     <div class="flex min-h-screen">
@@ -466,6 +477,23 @@ defmodule GallformersWeb.Layouts do
             <.icon name={link.icon} class="mr-3 h-6 w-6 text-white" />
             {link.label}
           </a>
+
+          <%!-- Super Admin section - only shown to superadmins --%>
+          <%= if @is_superadmin do %>
+            <div class="mt-6 pt-4 border-t border-gray-500">
+              <p class="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
+                Super Admin
+              </p>
+              <a
+                :for={link <- @superadmin_nav_links}
+                href={link.href}
+                class="flex items-center px-3 py-3 text-xl font-semibold text-white rounded-md hover:bg-slate-600 group"
+              >
+                <.icon name={link.icon} class="mr-3 h-6 w-6 text-white" />
+                {link.label}
+              </a>
+            </div>
+          <% end %>
         </nav>
 
         <%!-- User Menu --%>
@@ -545,6 +573,23 @@ defmodule GallformersWeb.Layouts do
               <.icon name={link.icon} class="mr-3 h-6 w-6 text-white" />
               {link.label}
             </a>
+
+            <%!-- Super Admin section - only shown to superadmins --%>
+            <%= if @is_superadmin do %>
+              <div class="mt-6 pt-4 border-t border-gray-500">
+                <p class="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
+                  Super Admin
+                </p>
+                <a
+                  :for={link <- @superadmin_nav_links}
+                  href={link.href}
+                  class="flex items-center px-3 py-3 text-xl font-semibold text-white rounded-md hover:bg-slate-600"
+                >
+                  <.icon name={link.icon} class="mr-3 h-6 w-6 text-white" />
+                  {link.label}
+                </a>
+              </div>
+            <% end %>
           </nav>
 
           <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-white/20">
