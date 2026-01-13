@@ -217,10 +217,70 @@ defmodule Gallformers.Search do
   end
 
   @doc """
-  Searches galls by name or alias.
+  Searches galls by name or alias using FTS5 for fast prefix matching.
+  Falls back to LIKE search for mid-word matches.
   """
   @spec search_galls_with_aliases(String.t()) :: [map()]
   def search_galls_with_aliases(query) do
+    # Try FTS5 first for prefix matching
+    fts_results = search_galls_fts(query)
+
+    if Enum.empty?(fts_results) do
+      # Fall back to LIKE for mid-word matches
+      search_galls_with_aliases_like(query)
+    else
+      fts_results
+    end
+  end
+
+  # FTS5-based gall search
+  defp search_galls_fts(query) do
+    sanitized = Gallformers.Species.sanitize_fts_query(query)
+
+    if sanitized == "" do
+      []
+    else
+      fts_query =
+        sanitized
+        |> String.split(~r/\s+/, trim: true)
+        |> Enum.map(&"#{&1}*")
+        |> Enum.join(" ")
+
+      sql = """
+      SELECT f.species_id, s.name, g.undescribed, f.aliases
+      FROM species_fts f
+      JOIN species s ON s.id = f.species_id
+      JOIN gallspecies gs ON gs.species_id = s.id
+      JOIN gall g ON g.id = gs.gall_id
+      WHERE s.taxoncode = 'gall' AND species_fts MATCH ?
+      ORDER BY bm25(species_fts)
+      LIMIT 100
+      """
+
+      case Repo.query(sql, [fts_query]) do
+        {:ok, %{rows: rows}} ->
+          search_lower = String.downcase(query)
+
+          Enum.map(rows, fn [id, name, undescribed, aliases] ->
+            matching_aliases = find_matching_aliases(aliases, search_lower, name)
+
+            %{
+              id: id,
+              name: name,
+              type: "gall",
+              undescribed: undescribed == 1,
+              aliases: matching_aliases
+            }
+          end)
+
+        {:error, _} ->
+          []
+      end
+    end
+  end
+
+  # LIKE-based fallback for mid-word matches
+  defp search_galls_with_aliases_like(query) do
     search_term = "%#{String.downcase(query)}%"
 
     # Search by species name
@@ -267,10 +327,67 @@ defmodule Gallformers.Search do
   end
 
   @doc """
-  Searches hosts by name or alias.
+  Searches hosts by name or alias using FTS5 for fast prefix matching.
+  Falls back to LIKE search for mid-word matches.
   """
   @spec search_hosts_with_aliases(String.t()) :: [map()]
   def search_hosts_with_aliases(query) do
+    # Try FTS5 first for prefix matching
+    fts_results = search_hosts_fts(query)
+
+    if Enum.empty?(fts_results) do
+      # Fall back to LIKE for mid-word matches
+      search_hosts_with_aliases_like(query)
+    else
+      fts_results
+    end
+  end
+
+  # FTS5-based host search
+  defp search_hosts_fts(query) do
+    sanitized = Gallformers.Species.sanitize_fts_query(query)
+
+    if sanitized == "" do
+      []
+    else
+      fts_query =
+        sanitized
+        |> String.split(~r/\s+/, trim: true)
+        |> Enum.map(&"#{&1}*")
+        |> Enum.join(" ")
+
+      sql = """
+      SELECT f.species_id, s.name, f.aliases
+      FROM species_fts f
+      JOIN species s ON s.id = f.species_id
+      WHERE s.taxoncode = 'plant' AND species_fts MATCH ?
+      ORDER BY bm25(species_fts)
+      LIMIT 100
+      """
+
+      case Repo.query(sql, [fts_query]) do
+        {:ok, %{rows: rows}} ->
+          search_lower = String.downcase(query)
+
+          Enum.map(rows, fn [id, name, aliases] ->
+            matching_aliases = find_matching_aliases(aliases, search_lower, name)
+
+            %{
+              id: id,
+              name: name,
+              type: "host",
+              aliases: matching_aliases
+            }
+          end)
+
+        {:error, _} ->
+          []
+      end
+    end
+  end
+
+  # LIKE-based fallback for mid-word matches
+  defp search_hosts_with_aliases_like(query) do
     search_term = "%#{String.downcase(query)}%"
 
     # Search by species name
@@ -303,6 +420,26 @@ defmodule Gallformers.Search do
       |> Repo.all()
 
     merge_species_with_aliases(name_results, alias_results)
+  end
+
+  # Finds aliases that match the search query from a space-separated alias string
+  # Only returns matching aliases if name doesn't match (to show why result appeared)
+  defp find_matching_aliases(nil, _search, _name), do: []
+  defp find_matching_aliases("", _search, _name), do: []
+
+  defp find_matching_aliases(aliases_str, search, name) do
+    # If the name itself matches, don't show aliases
+    if String.contains?(String.downcase(name), search) do
+      []
+    else
+      # Find and deduplicate matching aliases
+      aliases_str
+      |> String.split(" ")
+      |> Enum.filter(fn alias_name ->
+        alias_name != "" and String.contains?(String.downcase(alias_name), search)
+      end)
+      |> Enum.uniq()
+    end
   end
 
   @doc """

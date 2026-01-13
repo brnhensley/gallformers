@@ -362,11 +362,26 @@ defmodule Gallformers.Species do
   end
 
   @doc """
-  Searches species by name or alias (case-insensitive).
-  Supports multi-word queries.
+  Searches species by name or alias using FTS5 for fast prefix matching.
+  Falls back to LIKE search for mid-word matches that FTS5 misses.
+
+  This is the primary search function - it tries FTS5 first for speed
+  and relevance ranking, then falls back to LIKE for edge cases.
   """
   @spec search_species(String.t(), integer()) :: [map()]
   def search_species(query, limit \\ 100) when is_binary(query) do
+    fts_results = search_species_fts(query, limit)
+
+    if Enum.empty?(fts_results) do
+      # Fall back to LIKE for mid-word matches
+      search_species_like_impl(query, limit)
+    else
+      fts_results
+    end
+  end
+
+  # LIKE-based search implementation (fallback for mid-word matches)
+  defp search_species_like_impl(query, limit) do
     terms =
       query
       |> String.downcase()
@@ -412,12 +427,212 @@ defmodule Gallformers.Species do
     |> Repo.all()
   end
 
+  # ============================================
+  # FTS5 Full-Text Search Functions
+  # ============================================
+
   @doc """
-  Searches species by name (species only, no aliases).
+  Searches species using FTS5 full-text search with bm25() ranking.
+
+  Supports prefix matching (e.g., "qu alba" matches "Quercus alba").
+  Returns results ranked by relevance.
+  """
+  @spec search_species_fts(String.t(), integer()) :: [map()]
+  def search_species_fts(query, limit \\ 100) when is_binary(query) do
+    sanitized = sanitize_fts_query(query)
+
+    if sanitized == "" do
+      []
+    else
+      # Add * suffix to each term for prefix matching
+      fts_query =
+        sanitized
+        |> String.split(~r/\s+/, trim: true)
+        |> Enum.map(&"#{&1}*")
+        |> Enum.join(" ")
+
+      sql = """
+      SELECT f.species_id, s.name, s.taxoncode, s.datacomplete, a.abundance as abundance_name
+      FROM species_fts f
+      JOIN species s ON s.id = f.species_id
+      LEFT JOIN abundance a ON s.abundance_id = a.id
+      WHERE species_fts MATCH ?
+      ORDER BY bm25(species_fts)
+      LIMIT ?
+      """
+
+      case Repo.query(sql, [fts_query, limit]) do
+        {:ok, %{rows: rows}} ->
+          Enum.map(rows, fn [id, name, taxoncode, datacomplete, abundance_name] ->
+            %{
+              id: id,
+              name: name,
+              taxoncode: taxoncode,
+              datacomplete: datacomplete == 1,
+              abundance_name: abundance_name
+            }
+          end)
+
+        {:error, _} ->
+          []
+      end
+    end
+  end
+
+  @doc """
+  Searches species using LIKE for mid-word matches.
+
+  Use this directly when you specifically need LIKE matching
+  (e.g., searching for a substring in the middle of a name).
+  """
+  @spec search_species_like(String.t(), integer()) :: [map()]
+  def search_species_like(query, limit \\ 100) when is_binary(query) do
+    search_species_like_impl(query, limit)
+  end
+
+  @doc """
+  Sanitizes a query string for FTS5 MATCH syntax.
+
+  Escapes special FTS5 characters: - " * : ^ ( )
+  """
+  @spec sanitize_fts_query(String.t()) :: String.t()
+  def sanitize_fts_query(query) when is_binary(query) do
+    query
+    |> String.replace(~r/["\-*:^()]+/, " ")
+    |> String.replace(~r/\s+/, " ")
+    |> String.trim()
+  end
+
+  @doc """
+  Updates the FTS index entry for a single species.
+
+  Call this after updating a species name or aliases.
+  """
+  @spec update_species_fts(integer()) :: :ok | {:error, any()}
+  def update_species_fts(species_id) do
+    # Execute as two separate statements since SQLite doesn't support multiple
+    # statements in a single query
+    with {:ok, _} <- Repo.query("DELETE FROM species_fts WHERE species_id = ?", [species_id]),
+         {:ok, _} <-
+           Repo.query(
+             """
+             INSERT INTO species_fts(species_id, name, aliases)
+             SELECT s.id, s.name, COALESCE(GROUP_CONCAT(a.name, ' '), '')
+             FROM species s
+             LEFT JOIN aliasspecies als ON als.species_id = s.id
+             LEFT JOIN alias a ON a.id = als.alias_id
+             WHERE s.id = ?
+             GROUP BY s.id
+             """,
+             [species_id]
+           ) do
+      :ok
+    end
+  end
+
+  @doc """
+  Removes a species from the FTS index.
+
+  Call this before deleting a species.
+  """
+  @spec delete_species_fts(integer()) :: :ok | {:error, any()}
+  def delete_species_fts(species_id) do
+    case Repo.query("DELETE FROM species_fts WHERE species_id = ?", [species_id]) do
+      {:ok, _} -> :ok
+      error -> error
+    end
+  end
+
+  @doc """
+  Rebuilds the entire FTS index from scratch.
+
+  Use this for maintenance or after bulk data changes.
+  """
+  @spec rebuild_species_fts() :: :ok | {:error, any()}
+  def rebuild_species_fts do
+    with {:ok, _} <- Repo.query("DELETE FROM species_fts", []),
+         {:ok, _} <-
+           Repo.query(
+             """
+             INSERT INTO species_fts(species_id, name, aliases)
+             SELECT s.id, s.name, COALESCE(GROUP_CONCAT(a.name, ' '), '')
+             FROM species s
+             LEFT JOIN aliasspecies als ON als.species_id = s.id
+             LEFT JOIN alias a ON a.id = als.alias_id
+             GROUP BY s.id
+             """,
+             []
+           ) do
+      :ok
+    end
+  end
+
+  @doc """
+  Searches species by name using FTS5 for fast prefix matching.
   Used for typeahead when selecting hosts.
+
+  Falls back to LIKE search for mid-word matches.
   """
   @spec search_species_by_name(String.t(), String.t() | nil, integer()) :: [map()]
   def search_species_by_name(query, taxoncode \\ nil, limit \\ 20) do
+    fts_results = search_species_by_name_fts(query, taxoncode, limit)
+
+    if Enum.empty?(fts_results) do
+      search_species_by_name_like(query, taxoncode, limit)
+    else
+      fts_results
+    end
+  end
+
+  # FTS5-based name search with optional taxoncode filter
+  defp search_species_by_name_fts(query, taxoncode, limit) do
+    sanitized = sanitize_fts_query(query)
+
+    if sanitized == "" do
+      []
+    else
+      fts_query =
+        sanitized
+        |> String.split(~r/\s+/, trim: true)
+        |> Enum.map(&"#{&1}*")
+        |> Enum.join(" ")
+
+      # Build SQL with optional taxoncode filter
+      {sql, params} =
+        if taxoncode do
+          {"""
+           SELECT f.species_id, s.name, s.taxoncode
+           FROM species_fts f
+           JOIN species s ON s.id = f.species_id
+           WHERE species_fts MATCH ? AND s.taxoncode = ?
+           ORDER BY bm25(species_fts)
+           LIMIT ?
+           """, [fts_query, taxoncode, limit]}
+        else
+          {"""
+           SELECT f.species_id, s.name, s.taxoncode
+           FROM species_fts f
+           JOIN species s ON s.id = f.species_id
+           WHERE species_fts MATCH ?
+           ORDER BY bm25(species_fts)
+           LIMIT ?
+           """, [fts_query, limit]}
+        end
+
+      case Repo.query(sql, params) do
+        {:ok, %{rows: rows}} ->
+          Enum.map(rows, fn [id, name, tc] ->
+            %{id: id, name: name, taxoncode: tc}
+          end)
+
+        {:error, _} ->
+          []
+      end
+    end
+  end
+
+  # LIKE-based fallback for mid-word matches
+  defp search_species_by_name_like(query, taxoncode, limit) do
     search_term = "%#{String.downcase(query)}%"
 
     base_query =
@@ -476,20 +691,38 @@ defmodule Gallformers.Species do
   Creates a species.
   """
   def create_species(attrs \\ %{}) do
-    %Species{}
-    |> Species.changeset(attrs)
-    |> Repo.insert()
-    |> broadcast(:species_created)
+    result =
+      %Species{}
+      |> Species.changeset(attrs)
+      |> Repo.insert()
+
+    case result do
+      {:ok, species} ->
+        update_species_fts(species.id)
+        broadcast(result, :species_created)
+
+      {:error, _} ->
+        result
+    end
   end
 
   @doc """
   Updates a species.
   """
   def update_species(%Species{} = species, attrs) do
-    species
-    |> Species.changeset(attrs)
-    |> Repo.update()
-    |> broadcast(:species_updated)
+    result =
+      species
+      |> Species.changeset(attrs)
+      |> Repo.update()
+
+    case result do
+      {:ok, updated_species} ->
+        update_species_fts(updated_species.id)
+        broadcast(result, :species_updated)
+
+      {:error, _} ->
+        result
+    end
   end
 
   @doc """
@@ -556,6 +789,9 @@ defmodule Gallformers.Species do
   Deletes a species.
   """
   def delete_species(%Species{} = species) do
+    # Delete from FTS index first
+    delete_species_fts(species.id)
+
     Repo.delete(species)
     |> broadcast(:species_deleted)
   end
@@ -568,27 +804,35 @@ defmodule Gallformers.Species do
   def create_alias_for_species(species_id, alias_attrs) do
     alias Gallformers.Species.Alias
 
-    Repo.transaction(fn ->
-      # Create the alias
-      alias_changeset =
-        %Alias{}
-        |> Ecto.Changeset.cast(alias_attrs, [:name, :type, :description])
-        |> Ecto.Changeset.validate_required([:name, :type])
+    result =
+      Repo.transaction(fn ->
+        # Create the alias
+        alias_changeset =
+          %Alias{}
+          |> Ecto.Changeset.cast(alias_attrs, [:name, :type, :description])
+          |> Ecto.Changeset.validate_required([:name, :type])
 
-      case Repo.insert(alias_changeset) do
-        {:ok, new_alias} ->
-          # Link to species
-          Repo.insert_all("aliasspecies", [
-            %{alias_id: new_alias.id, species_id: species_id}
-          ])
+        case Repo.insert(alias_changeset) do
+          {:ok, new_alias} ->
+            # Link to species
+            Repo.insert_all("aliasspecies", [
+              %{alias_id: new_alias.id, species_id: species_id}
+            ])
 
-          new_alias
+            new_alias
 
-        {:error, changeset} ->
-          Repo.rollback(changeset)
-      end
-    end)
-    |> broadcast(:species_updated)
+          {:error, changeset} ->
+            Repo.rollback(changeset)
+        end
+      end)
+
+    # Update FTS index after alias is added
+    case result do
+      {:ok, _} -> update_species_fts(species_id)
+      _ -> :ok
+    end
+
+    broadcast(result, :species_updated)
   end
 
   @doc """
@@ -599,6 +843,9 @@ defmodule Gallformers.Species do
       where: als.species_id == ^species_id and als.alias_id == ^alias_id
     )
     |> Repo.delete_all()
+
+    # Update FTS index after alias is removed
+    update_species_fts(species_id)
 
     broadcast({:ok, %{id: species_id}}, :species_updated)
   end

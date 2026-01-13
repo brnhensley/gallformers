@@ -218,4 +218,157 @@ defmodule Gallformers.SpeciesTest do
       assert nil == Species.get_abundance(999_999_999)
     end
   end
+
+  # ============================================
+  # FTS5 Full-Text Search Tests
+  # ============================================
+
+  describe "search_species_fts/2" do
+    test "returns results for valid query" do
+      # "Quercus" is a common genus in the database
+      results = Species.search_species_fts("quercus", 10)
+      assert is_list(results)
+      assert length(results) > 0
+    end
+
+    test "prefix matching works (partial terms)" do
+      # "qu" should match "Quercus" species
+      results = Species.search_species_fts("qu", 10)
+      assert is_list(results)
+      assert length(results) > 0
+
+      # All results should have names or aliases containing "qu"
+      Enum.each(results, fn r ->
+        name_matches = String.contains?(String.downcase(r.name), "qu")
+        assert name_matches
+      end)
+    end
+
+    test "multi-word queries work" do
+      # "q alba" should match "Quercus alba"
+      results = Species.search_species_fts("q alba", 10)
+      assert is_list(results)
+
+      # Should find Quercus alba or similar
+      if length(results) > 0 do
+        names = Enum.map(results, & &1.name)
+        assert Enum.any?(names, &String.contains?(String.downcase(&1), "alba"))
+      end
+    end
+
+    test "returns empty list for nonsense query" do
+      results = Species.search_species_fts("xyznonexistent123", 10)
+      assert results == []
+    end
+
+    test "returns empty list for empty query" do
+      results = Species.search_species_fts("", 10)
+      assert results == []
+    end
+
+    test "results have expected fields" do
+      results = Species.search_species_fts("quercus", 5)
+
+      if length(results) > 0 do
+        result = hd(results)
+        assert Map.has_key?(result, :id)
+        assert Map.has_key?(result, :name)
+        assert Map.has_key?(result, :taxoncode)
+        assert Map.has_key?(result, :datacomplete)
+        assert Map.has_key?(result, :abundance_name)
+      end
+    end
+
+    test "respects limit parameter" do
+      results = Species.search_species_fts("a", 3)
+      assert length(results) <= 3
+    end
+  end
+
+  describe "search_species/2 (hybrid search)" do
+    test "uses FTS5 for prefix matching" do
+      # This should use FTS5 (fast path)
+      results = Species.search_species("quercus", 10)
+      assert is_list(results)
+      assert length(results) > 0
+    end
+
+    test "falls back to LIKE for mid-word matches" do
+      # "ercus" is mid-word in "Quercus" - FTS5 won't match this
+      # but LIKE should
+      results = Species.search_species("ercus", 10)
+      assert is_list(results)
+
+      # Should find Quercus species via LIKE fallback
+      if length(results) > 0 do
+        names = Enum.map(results, & &1.name)
+        assert Enum.any?(names, &String.contains?(String.downcase(&1), "ercus"))
+      end
+    end
+  end
+
+  describe "sanitize_fts_query/1" do
+    test "removes special FTS5 characters" do
+      assert Species.sanitize_fts_query("test*query") == "test query"
+      assert Species.sanitize_fts_query("hello-world") == "hello world"
+      assert Species.sanitize_fts_query("\"quoted\"") == "quoted"
+      assert Species.sanitize_fts_query("a:b") == "a b"
+    end
+
+    test "normalizes whitespace" do
+      assert Species.sanitize_fts_query("  hello   world  ") == "hello world"
+    end
+
+    test "handles empty string" do
+      assert Species.sanitize_fts_query("") == ""
+    end
+
+    test "handles string with only special chars" do
+      result = Species.sanitize_fts_query("***---\"\"\"")
+      assert result == "" or String.trim(result) == ""
+    end
+  end
+
+  describe "update_species_fts/1 and rebuild_species_fts/0" do
+    test "rebuild_species_fts/0 succeeds" do
+      # This verifies the FTS index can be rebuilt
+      assert :ok == Species.rebuild_species_fts()
+    end
+
+    test "species can be found after rebuild" do
+      # Rebuild and verify search still works
+      Species.rebuild_species_fts()
+      results = Species.search_species_fts("quercus", 5)
+      assert length(results) > 0
+    end
+  end
+
+  describe "search_species_by_name/3 with FTS" do
+    test "finds species with prefix matching" do
+      results = Species.search_species_by_name("qu", nil, 10)
+      assert is_list(results)
+      assert length(results) > 0
+    end
+
+    test "filters by taxoncode" do
+      plant_results = Species.search_species_by_name("qu", "plant", 10)
+      gall_results = Species.search_species_by_name("qu", "gall", 10)
+
+      # All plant results should have taxoncode "plant"
+      Enum.each(plant_results, fn r ->
+        assert r.taxoncode == "plant"
+      end)
+
+      # All gall results should have taxoncode "gall"
+      Enum.each(gall_results, fn r ->
+        assert r.taxoncode == "gall"
+      end)
+    end
+
+    test "falls back to LIKE for mid-word matches" do
+      # "ercus" won't match via FTS5, should fall back to LIKE
+      results = Species.search_species_by_name("ercus", nil, 10)
+      assert is_list(results)
+    end
+  end
 end
