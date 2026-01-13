@@ -210,15 +210,51 @@ defmodule Gallformers.Search do
     if trimmed == "" do
       empty_results()
     else
+      search_terms = String.split(String.downcase(trimmed), ~r/\s+/, trim: true)
+
       %{
-        galls: search_galls_with_aliases(trimmed),
-        hosts: search_hosts_with_aliases(trimmed),
-        glossary: search_glossary(trimmed),
-        sources: search_sources(trimmed),
-        taxonomy: search_taxonomy(trimmed),
-        places: search_places(trimmed)
+        galls: search_galls_with_aliases(trimmed) |> add_match_scores(search_terms),
+        hosts: search_hosts_with_aliases(trimmed) |> add_match_scores(search_terms),
+        glossary: search_glossary(trimmed) |> add_match_scores(search_terms),
+        sources: search_sources(trimmed) |> add_match_scores(search_terms),
+        taxonomy: search_taxonomy(trimmed) |> add_match_scores(search_terms),
+        places: search_places(trimmed) |> add_match_scores(search_terms)
       }
     end
+  end
+
+  # Adds a match_score to each result for relevance sorting
+  # Lower score = better match (0 = best)
+  defp add_match_scores(results, search_terms) do
+    Enum.map(results, fn result ->
+      Map.put(result, :match_score, calculate_match_score(result.name, search_terms))
+    end)
+  end
+
+  defp calculate_match_score(name, search_terms) do
+    name_lower = String.downcase(name || "")
+    name_words = String.split(name_lower, ~r/\s+/, trim: true)
+
+    cond do
+      # Best: Name starts with first search term as a whole word
+      length(name_words) > 0 and length(search_terms) > 0 and
+          String.starts_with?(hd(name_words), hd(search_terms)) ->
+        0
+
+      # Good: All search terms match word prefixes in the name
+      all_terms_match_word_prefixes?(search_terms, name_words) ->
+        1
+
+      # OK: Name contains search terms but not as clean word matches
+      true ->
+        2
+    end
+  end
+
+  defp all_terms_match_word_prefixes?(search_terms, name_words) do
+    Enum.all?(search_terms, fn term ->
+      Enum.any?(name_words, &String.starts_with?(&1, term))
+    end)
   end
 
   @doc """
@@ -280,8 +316,10 @@ defmodule Gallformers.Search do
       case Repo.query(sql, [fts_query]) do
         {:ok, %{rows: rows}} ->
           search_lower = String.downcase(query)
+          search_terms = String.split(search_lower, ~r/\s+/, trim: true)
 
-          Enum.map(rows, fn [id, name, undescribed, aliases] ->
+          rows
+          |> Enum.map(fn [id, name, undescribed, aliases] ->
             matching_aliases = find_matching_aliases(aliases, search_lower, name)
 
             %{
@@ -292,6 +330,7 @@ defmodule Gallformers.Search do
               aliases: matching_aliases
             }
           end)
+          |> sort_by_match_quality(search_terms)
 
         {:error, _} ->
           []
@@ -388,8 +427,10 @@ defmodule Gallformers.Search do
       case Repo.query(sql, [fts_query]) do
         {:ok, %{rows: rows}} ->
           search_lower = String.downcase(query)
+          search_terms = String.split(search_lower, ~r/\s+/, trim: true)
 
-          Enum.map(rows, fn [id, name, aliases] ->
+          rows
+          |> Enum.map(fn [id, name, aliases] ->
             matching_aliases = find_matching_aliases(aliases, search_lower, name)
 
             %{
@@ -399,6 +440,7 @@ defmodule Gallformers.Search do
               aliases: matching_aliases
             }
           end)
+          |> sort_by_match_quality(search_terms)
 
         {:error, _} ->
           []
@@ -440,6 +482,39 @@ defmodule Gallformers.Search do
       |> Repo.all()
 
     merge_species_with_aliases(name_results, alias_results)
+  end
+
+  # Sorts FTS results by match quality to prioritize natural name matches over
+  # compound/hyphenated names. For "q alba", "Quercus alba" should rank higher
+  # than "q-alba-gall" even though FTS5's BM25 prefers shorter exact matches.
+  defp sort_by_match_quality(results, search_terms) do
+    Enum.sort_by(results, fn result ->
+      name_lower = String.downcase(result.name)
+      name_words = String.split(name_lower, ~r/\s+/, trim: true)
+
+      # Score based on match quality (lower is better for sort_by)
+      cond do
+        # Best: Name starts with first search term as a word (e.g., "Quercus" starts with "q")
+        length(name_words) > 0 and
+            String.starts_with?(hd(name_words), hd(search_terms)) ->
+          0
+
+        # Good: All search terms appear as word prefixes in the name
+        all_terms_match_words?(search_terms, name_words) ->
+          1
+
+        # OK: Name contains search terms but not as clean word matches
+        true ->
+          2
+      end
+    end)
+  end
+
+  # Checks if all search terms match the start of words in the name
+  defp all_terms_match_words?(search_terms, name_words) do
+    Enum.all?(search_terms, fn term ->
+      Enum.any?(name_words, &String.starts_with?(&1, term))
+    end)
   end
 
   # Finds aliases that match the search query from a space-separated alias string

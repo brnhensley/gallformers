@@ -27,7 +27,7 @@ defmodule GallformersWeb.SearchLive do
        query: "",
        results: [],
        total_count: 0,
-       sort_by: :name,
+       sort_by: :relevance,
        sort_dir: :asc,
        selected_index: -1,
        loading: false
@@ -171,6 +171,7 @@ defmodule GallformersWeb.SearchLive do
         case sort_by do
           :type -> result.category
           :name -> String.downcase(result.name || "")
+          :relevance -> {result.match_score || 2, String.downcase(result.name || "")}
           _ -> String.downcase(result.name || "")
         end
       end)

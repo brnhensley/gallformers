@@ -445,11 +445,8 @@ defmodule Gallformers.Species do
       []
     else
       # Add * suffix to each term for prefix matching
-      fts_query =
-        sanitized
-        |> String.split(~r/\s+/, trim: true)
-        |> Enum.map(&"#{&1}*")
-        |> Enum.join(" ")
+      search_terms = String.split(sanitized, ~r/\s+/, trim: true)
+      fts_query = search_terms |> Enum.map(&"#{&1}*") |> Enum.join(" ")
 
       sql = """
       SELECT f.species_id, s.name, s.taxoncode, s.datacomplete, a.abundance as abundance_name
@@ -463,7 +460,8 @@ defmodule Gallformers.Species do
 
       case Repo.query(sql, [fts_query, limit]) do
         {:ok, %{rows: rows}} ->
-          Enum.map(rows, fn [id, name, taxoncode, datacomplete, abundance_name] ->
+          rows
+          |> Enum.map(fn [id, name, taxoncode, datacomplete, abundance_name] ->
             %{
               id: id,
               name: name,
@@ -472,6 +470,7 @@ defmodule Gallformers.Species do
               abundance_name: abundance_name
             }
           end)
+          |> sort_by_match_quality(search_terms)
 
         {:error, _} ->
           []
@@ -1115,5 +1114,36 @@ defmodule Gallformers.Species do
       select: %{id: s.id, field: s.season}
     )
     |> Repo.all()
+  end
+
+  # Sorts FTS results by match quality to prioritize natural name matches over
+  # compound/hyphenated names. For "q alba", "Quercus alba" should rank higher
+  # than "q-alba-gall" even though FTS5's BM25 prefers shorter exact matches.
+  defp sort_by_match_quality(results, search_terms) do
+    Enum.sort_by(results, fn result ->
+      name_lower = String.downcase(result.name)
+      name_words = String.split(name_lower, ~r/\s+/, trim: true)
+
+      cond do
+        # Best: Name starts with first search term as a word
+        length(name_words) > 0 and
+            String.starts_with?(hd(name_words), hd(search_terms)) ->
+          0
+
+        # Good: All search terms appear as word prefixes in the name
+        all_terms_match_words?(search_terms, name_words) ->
+          1
+
+        # OK: Name contains search terms but not as clean word matches
+        true ->
+          2
+      end
+    end)
+  end
+
+  defp all_terms_match_words?(search_terms, name_words) do
+    Enum.all?(search_terms, fn term ->
+      Enum.any?(name_words, &String.starts_with?(&1, term))
+    end)
   end
 end
