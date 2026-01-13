@@ -6,6 +6,7 @@ defmodule Gallformers.Species.Species do
   that represents a taxon in the gallformers database.
   """
   use Ecto.Schema
+  import Ecto.Changeset
 
   @type t :: %__MODULE__{
           id: integer() | nil,
@@ -49,4 +50,21 @@ defmodule Gallformers.Species.Species do
       join_through: "speciesplace",
       join_keys: [species_id: :id, place_id: :id]
   end
+
+  @doc """
+  Creates a changeset for a species.
+  """
+  def changeset(species, attrs) do
+    species
+    |> cast(attrs, [:name, :taxoncode, :datacomplete, :abundance_id])
+    |> validate_required([:name, :taxoncode])
+    |> validate_length(:name, min: 1, max: 500)
+    |> validate_inclusion(:taxoncode, taxoncodes())
+    |> unique_constraint(:name)
+  end
+
+  @doc """
+  Returns the list of valid taxon codes.
+  """
+  def taxoncodes, do: ~w(gall plant undetermined)
 end
