@@ -238,6 +238,9 @@ Build one page at a time, deploy after each, verify visual parity.
 - [x] 11.5.1 Create source admin pages (index + form)
 - [x] 11.5.2 Create glossary admin pages (index + form)
 - [x] 11.5.3 Create place admin pages (index + form)
+- [x] 11.5.4 Create super admin filter terms pages (index + form)
+- [x] 11.5.5 Add superadmin authorization and nav separation
+- [x] 11.5.6 Move Places and Filter Terms to superadmin-only routes
 
 ### 11.6 Image Management ✅
 - [x] 11.6.1 Create `ImageUpload` hook for drag-drop upload

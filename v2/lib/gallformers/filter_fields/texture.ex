@@ -5,6 +5,7 @@ defmodule Gallformers.FilterFields.Texture do
   Textures that describe the surface of galls (e.g., "hairy", "smooth").
   """
   use Ecto.Schema
+  import Ecto.Changeset
 
   @type t :: %__MODULE__{
           id: integer() | nil,
@@ -19,5 +20,13 @@ defmodule Gallformers.FilterFields.Texture do
     many_to_many :galls, Gallformers.Species.Gall,
       join_through: "galltexture",
       join_keys: [texture_id: :id, gall_id: :id]
+  end
+
+  @doc false
+  def changeset(texture, attrs) do
+    texture
+    |> cast(attrs, [:texture, :description])
+    |> validate_required([:texture])
+    |> unique_constraint(:texture)
   end
 end

@@ -23,6 +23,10 @@ defmodule GallformersWeb.Router do
     plug GallformersWeb.Plugs.RequireAdmin
   end
 
+  pipeline :superadmin do
+    plug GallformersWeb.Plugs.RequireSuperAdmin
+  end
+
   defp fetch_current_user(conn, _opts) do
     FetchCurrentUser.call(conn, [])
   end
@@ -76,13 +80,23 @@ defmodule GallformersWeb.Router do
     live "/glossary/new", Admin.GlossaryLive.Form, :new
     live "/glossary/:id", Admin.GlossaryLive.Form, :edit
 
-    # Place admin
+    # Images admin
+    live "/images", AdminImagesLive
+  end
+
+  # Super admin routes (require superadmin role)
+  scope "/admin", GallformersWeb do
+    pipe_through [:browser, :superadmin]
+
+    # Place admin (superadmin only)
     live "/places", Admin.PlaceLive.Index, :index
     live "/places/new", Admin.PlaceLive.Form, :new
     live "/places/:id", Admin.PlaceLive.Form, :edit
 
-    # Images admin
-    live "/images", AdminImagesLive
+    # Filter terms admin (superadmin only)
+    live "/filter-terms", Admin.FilterTermsLive.Index, :index
+    live "/filter-terms/new", Admin.FilterTermsLive.Form, :new
+    live "/filter-terms/:id", Admin.FilterTermsLive.Form, :edit
   end
 
   # Public routes
