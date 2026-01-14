@@ -505,7 +505,7 @@ defmodule GallformersWeb.Admin.HostLive.Form do
                               phx-value-alias-id={a.id}
                               class="text-red-600 hover:text-red-800"
                             >
-                              <.icon name="hero-x-mark" class="h-4 w-4" />
+                              <.icon name="ph-x" class="h-4 w-4" />
                             </button>
                           </td>
                         </tr>
@@ -539,7 +539,7 @@ defmodule GallformersWeb.Admin.HostLive.Form do
                               phx-click="add_alias"
                               class="text-green-600 hover:text-green-800"
                             >
-                              <.icon name="hero-plus" class="h-4 w-4" />
+                              <.icon name="ph-plus" class="h-4 w-4" />
                             </button>
                           </td>
                         </tr>
@@ -620,7 +620,7 @@ defmodule GallformersWeb.Admin.HostLive.Form do
                   phx-click="close_rename_modal"
                   class="text-gray-400 hover:text-gray-600"
                 >
-                  <.icon name="hero-x-mark" class="h-6 w-6" />
+                  <.icon name="ph-x" class="h-6 w-6" />
                 </button>
               </div>
 

@@ -227,7 +227,9 @@ defmodule Gallformers.Species do
         license: i.license,
         licenselink: i.licenselink,
         caption: i.caption,
-        source_title: src.title
+        source_title: src.title,
+        uploader: i.uploader,
+        lastchangedby: i.lastchangedby
       }
     )
     |> Repo.all()

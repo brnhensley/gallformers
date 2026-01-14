@@ -105,6 +105,8 @@ defmodule Gallformers.Sources do
         pubyear: s.pubyear,
         link: s.link,
         citation: s.citation,
+        license: s.license,
+        licenselink: s.licenselink,
         description: ss.description,
         useasdefault: ss.useasdefault,
         externallink: ss.externallink

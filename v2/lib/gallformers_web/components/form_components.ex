@@ -117,7 +117,7 @@ defmodule GallformersWeb.FormComponents do
   def multi_select(assigns) do
     ~H"""
     <div id={@id} class={@class}>
-      <label :if={@label} class="block text-sm font-medium text-gray-700 mb-2">
+      <label :if={@label} class="block text-base font-medium text-gray-700 mb-2">
         {@label}
       </label>
       <div class="flex flex-wrap gap-2">
@@ -165,7 +165,7 @@ defmodule GallformersWeb.FormComponents do
     ~H"""
     <div class={["relative", @class]}>
       <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-        <.icon name="hero-magnifying-glass" class="size-5 text-gray-400" />
+        <.icon name="ph-magnifying-glass" class="size-5 text-gray-400" />
       </div>
       <input
         type="search"
@@ -203,7 +203,7 @@ defmodule GallformersWeb.FormComponents do
   def field_wrapper(assigns) do
     ~H"""
     <div class={["mb-4", @class]}>
-      <label class="block text-sm font-medium text-gray-700 mb-1">
+      <label class="block text-base font-medium text-gray-700 mb-1">
         {@label}
         <span :if={@required} class="text-red-500">*</span>
       </label>
@@ -212,7 +212,7 @@ defmodule GallformersWeb.FormComponents do
         {@hint}
       </p>
       <p :if={@error} class="mt-1 text-sm text-red-500 flex items-center gap-1">
-        <.icon name="hero-exclamation-circle" class="size-4" />
+        <.icon name="ph-warning-circle" class="size-4" />
         {@error}
       </p>
     </div>
@@ -257,7 +257,7 @@ defmodule GallformersWeb.FormComponents do
         <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-gf-maroon/50 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gf-maroon">
         </div>
       </div>
-      <span :if={@label} class="ml-3 text-sm font-medium text-gray-700">{@label}</span>
+      <span :if={@label} class="ml-3 text-base font-medium text-gray-700">{@label}</span>
     </label>
     """
   end
@@ -286,7 +286,7 @@ defmodule GallformersWeb.FormComponents do
   def radio_group(assigns) do
     ~H"""
     <fieldset id={@id} class={@class}>
-      <legend :if={@label} class="text-sm font-medium text-gray-700 mb-2">{@label}</legend>
+      <legend :if={@label} class="text-base font-medium text-gray-700 mb-2">{@label}</legend>
       <div class="space-y-2">
         <label :for={option <- @options} class="flex items-center">
           <input
@@ -337,7 +337,7 @@ defmodule GallformersWeb.FormComponents do
       phx-drop-target={@upload.ref}
     >
       <div class="space-y-1 text-center">
-        <.icon name="hero-cloud-arrow-up" class="mx-auto size-12 text-gray-400" />
+        <.icon name="ph-cloud-arrow-up" class="mx-auto size-12 text-gray-400" />
         <div class="flex text-sm text-gray-600">
           <label class="relative cursor-pointer rounded-md font-medium text-gf-maroon hover:text-gf-maroon/80">
             <span>{gettext("Upload a file")}</span>
@@ -387,7 +387,7 @@ defmodule GallformersWeb.FormComponents do
       {@rest}
     >
       <.icon
-        name="hero-arrow-path"
+        name="ph-arrows-clockwise"
         class="size-4 mr-2 animate-spin hidden phx-submit-loading:inline-block"
       />
       {render_slot(@inner_block)}

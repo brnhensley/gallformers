@@ -11,6 +11,8 @@ defmodule GallformersWeb.HostLive do
   alias GallformersWeb.SEO
 
   @page_size 10
+  # Gallformers Notes source ID (same as V1)
+  @gallformers_notes_source_id 58
 
   @impl true
   def mount(%{"id" => id}, _session, socket) do
@@ -56,8 +58,9 @@ defmodule GallformersWeb.HostLive do
         taxonomy = get_taxonomy_info(host_id)
         range = Hosts.get_places_for_host(host_id) |> MapSet.new()
 
-        default_source = Enum.find(sources, fn s -> s.useasdefault end)
-        default_source_id = if default_source, do: default_source.id, else: nil
+        # Check if Gallformers notes exist for this species
+        gallformers_notes = Enum.find(sources, fn s -> s.id == @gallformers_notes_source_id end)
+        has_gallformers_notes = gallformers_notes != nil
 
         # Build SEO data
         page_url = "/host/#{host_id}"
@@ -87,9 +90,12 @@ defmodule GallformersWeb.HostLive do
            sources: sources,
            taxonomy: taxonomy,
            range: range,
-           selected_source_id: default_source_id,
+           has_gallformers_notes: has_gallformers_notes,
+           notes_alert_dismissed: false,
            current_page: 1,
            page_size: @page_size,
+           sort_by: :name,
+           sort_dir: :asc,
            error: nil
          )}
     end
@@ -120,10 +126,13 @@ defmodule GallformersWeb.HostLive do
     Enum.map(images, fn img ->
       # Replace "original" with size name in the path
       small_path = String.replace(img.path, "original", "small")
+      full_url = "#{base_url}/#{img.path}"
 
       Map.merge(img, %{
-        url: "#{base_url}/#{img.path}",
-        small_url: "#{base_url}/#{small_path}"
+        url: full_url,
+        src: full_url,
+        small_url: "#{base_url}/#{small_path}",
+        alt: "Host plant image"
       })
     end)
   end
@@ -141,6 +150,44 @@ defmodule GallformersWeb.HostLive do
     {:noreply, assign(socket, current_page: new_page)}
   end
 
+  @impl true
+  def handle_event("dismiss_notes_alert", _params, socket) do
+    {:noreply, assign(socket, notes_alert_dismissed: true)}
+  end
+
+  @impl true
+  def handle_event("gallery_index_changed", _params, socket) do
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("sort", %{"field" => field}, socket) do
+    field = String.to_existing_atom(field)
+
+    {sort_by, sort_dir} =
+      if socket.assigns.sort_by == field do
+        # Toggle direction if same field
+        new_dir = if socket.assigns.sort_dir == :asc, do: :desc, else: :asc
+        {field, new_dir}
+      else
+        # New field, default to ascending
+        {field, :asc}
+      end
+
+    {:noreply, assign(socket, sort_by: sort_by, sort_dir: sort_dir, current_page: 1)}
+  end
+
+  defp sorted_galls(galls, sort_by, sort_dir) do
+    sorted =
+      case sort_by do
+        :name -> Enum.sort_by(galls, & &1.name)
+        :datacomplete -> Enum.sort_by(galls, & &1.datacomplete)
+        _ -> galls
+      end
+
+    if sort_dir == :desc, do: Enum.reverse(sorted), else: sorted
+  end
+
   defp paginated_galls(galls, current_page, page_size) do
     galls
     |> Enum.drop((current_page - 1) * page_size)
@@ -149,6 +196,24 @@ defmodule GallformersWeb.HostLive do
 
   defp total_pages(galls, page_size) do
     ceil(length(galls) / page_size)
+  end
+
+  attr :field, :atom, required: true
+  attr :sort_by, :atom, required: true
+  attr :sort_dir, :atom, required: true
+
+  defp sort_indicator(assigns) do
+    ~H"""
+    <span class="text-gray-400 text-xs">
+      <%= if @sort_by == @field do %>
+        <%= if @sort_dir == :asc do %>
+          ▲
+        <% else %>
+          ▼
+        <% end %>
+      <% end %>
+    </span>
+    """
   end
 
   @impl true
@@ -163,14 +228,24 @@ defmodule GallformersWeb.HostLive do
             <%!-- Details column (wider) --%>
             <div class="md:col-span-1 lg:col-span-2 space-y-3">
               <div class="flex items-start justify-between gap-4">
-                <h2 class="text-2xl font-bold">
+                <div class="flex items-center gap-2">
+                  <h2 class="text-2xl font-bold">
+                    <.link
+                      href={"/id?hostOrTaxon=#{URI.encode(@host.name)}&type=host"}
+                      class="hover:underline"
+                    >
+                      <em>{@host.name}</em>
+                    </.link>
+                  </h2>
                   <.link
-                    href={"/id?hostOrTaxon=#{URI.encode(@host.name)}&type=host"}
-                    class="hover:underline"
+                    :if={@current_user}
+                    href={~p"/admin/hosts/#{@host.id}"}
+                    class="text-gray-400 hover:text-gf-maroon"
+                    title="Edit in admin"
                   >
-                    <em>{@host.name}</em>
+                    <.icon name="ph-pencil-simple" class="h-5 w-5" />
                   </.link>
-                </h2>
+                </div>
                 <span
                   class={[
                     "inline-flex items-center px-2 py-1 text-xs font-medium rounded-full",
@@ -240,24 +315,56 @@ defmodule GallformersWeb.HostLive do
               <div class="pt-2">
                 <%= if length(@host.galls) > 0 do %>
                   <div class="overflow-hidden rounded border border-gray-200">
-                    <table class="min-w-full divide-y divide-gray-200">
-                      <thead class="bg-cadet-blue">
+                    <table class="gf-table gf-table-compact">
+                      <thead>
                         <tr>
-                          <th class="px-3 py-2 text-left text-sm font-medium text-gray-900">
-                            Gall
+                          <th
+                            class="cursor-pointer hover:bg-gray-100 select-none"
+                            phx-click="sort"
+                            phx-value-field="name"
+                          >
+                            <div class="flex items-center gap-1">
+                              Gall
+                              <.sort_indicator field={:name} sort_by={@sort_by} sort_dir={@sort_dir} />
+                            </div>
+                          </th>
+                          <th
+                            class="cursor-pointer hover:bg-gray-100 select-none w-24 text-center"
+                            phx-click="sort"
+                            phx-value-field="datacomplete"
+                          >
+                            <div class="flex items-center justify-center gap-1">
+                              Complete
+                              <.sort_indicator
+                                field={:datacomplete}
+                                sort_by={@sort_by}
+                                sort_dir={@sort_dir}
+                              />
+                            </div>
                           </th>
                         </tr>
                       </thead>
-                      <tbody class="bg-white divide-y divide-gray-200">
-                        <%= for {gall, i} <- Enum.with_index(paginated_galls(@host.galls, @current_page, @page_size)) do %>
-                          <tr class={"hover:bg-gray-50 #{if rem(i, 2) == 1, do: "bg-gray-50"}"}>
-                            <td class="px-3 py-2 text-sm">
+                      <tbody>
+                        <%= for gall <- paginated_galls(sorted_galls(@host.galls, @sort_by, @sort_dir), @current_page, @page_size) do %>
+                          <tr>
+                            <td>
                               <.link
                                 href={"/gall/#{gall.id}"}
                                 class="text-gf-maroon hover:underline"
                               >
                                 <em>{gall.name}</em>
                               </.link>
+                            </td>
+                            <td class="text-center">
+                              <%= if gall.datacomplete in [true, 1] do %>
+                                <span class="text-green-600">
+                                  <.icon name="ph-check" class="size-5 inline-block" />
+                                </span>
+                              <% else %>
+                                <span class="text-red-500">
+                                  <.icon name="ph-x" class="size-5 inline-block" />
+                                </span>
+                              <% end %>
                             </td>
                           </tr>
                         <% end %>
@@ -301,27 +408,12 @@ defmodule GallformersWeb.HostLive do
 
             <%!-- Images and range column --%>
             <div class="md:col-span-1 lg:col-span-1 border rounded p-2 flex flex-col gap-4">
-              <div>
-                <%= if length(@images) > 0 do %>
-                  <div class="bg-white rounded overflow-hidden">
-                    <img
-                      src={hd(@images).url}
-                      alt="Host image"
-                      class="w-full object-cover max-h-64"
-                    />
-                  </div>
-                  <%= if hd(@images).creator do %>
-                    <p class="text-xs text-gray-500 mt-1">
-                      Photo: {hd(@images).creator}{if hd(@images).license,
-                        do: " (#{hd(@images).license})"}
-                    </p>
-                  <% end %>
-                <% else %>
-                  <div class="bg-gray-100 rounded p-6 text-center text-gray-500">
-                    No images available
-                  </div>
-                <% end %>
-              </div>
+              <.image_gallery
+                images={@images}
+                id="host-images"
+                species_id={@host.id}
+                current_user={@current_user}
+              />
 
               <div class="mt-auto">
                 <div class="mb-1"><strong>Range:</strong></div>
@@ -332,46 +424,94 @@ defmodule GallformersWeb.HostLive do
 
           <hr class="border-gray-200 my-4" />
 
+          <%= if @has_gallformers_notes && !@notes_alert_dismissed do %>
+            <div
+              class="flex items-center gap-3 p-3 mb-4 bg-white border border-blue-200 border-l-4 border-l-blue-400 rounded text-sm text-gray-700"
+              role="alert"
+            >
+              <.icon name="ph-info" class="h-5 w-5 text-blue-500 shrink-0" />
+              <p class="flex-1">
+                Our ID Notes may contain important tips necessary for distinguishing this host
+                from similar plants and/or important information about its taxonomy.
+              </p>
+              <button
+                type="button"
+                class="text-gray-400 hover:text-gray-600"
+                phx-click="dismiss_notes_alert"
+                aria-label="Dismiss"
+              >
+                <.icon name="ph-x" class="h-4 w-4" />
+              </button>
+            </div>
+          <% end %>
+
           <%= if length(@sources) > 0 do %>
-            <h3 class="font-semibold mb-2">Sources ({length(@sources)})</h3>
+            <h3 class="font-semibold mb-2">Further Information ({length(@sources)})</h3>
             <div class="space-y-2">
               <%= for source <- @sources do %>
-                <div class={"p-3 rounded border #{if source.id == @selected_source_id, do: "border-gf-maroon bg-canary", else: "border-gray-200 bg-white"}"}>
-                  <.link
-                    href={"/source/#{source.id}"}
-                    class="font-medium text-gf-maroon hover:underline"
-                  >
-                    {source.title}
-                  </.link>
-                  {if source.author, do: " - #{source.author}"}
-                  {if source.pubyear, do: " (#{source.pubyear})"}
+                <div class={"p-3 rounded border bg-white #{if source.id == 58, do: "border-blue-200 border-l-4 border-l-blue-400", else: "border-gray-200"}"}>
+                  <div>
+                    <%= if source.id == 58 do %>
+                      <.icon
+                        name="ph-info"
+                        class="h-5 w-5 text-blue-500 inline-block align-text-bottom mr-1"
+                      />
+                    <% end %>
+                    <.link
+                      href={"/source/#{source.id}"}
+                      class="font-medium text-gf-maroon hover:underline"
+                    >
+                      {source.title}
+                    </.link>
+                    {if source.author, do: " - #{source.author}"}
+                    {if source.pubyear, do: " (#{source.pubyear})"}
+                    <%= if source.externallink do %>
+                      <.link
+                        href={source.externallink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="ml-2 text-gf-maroon hover:underline"
+                      >
+                        [Link]
+                      </.link>
+                    <% end %>
+                    <.link
+                      :if={@current_user}
+                      href={~p"/admin/species-sources/find?species_id=#{@host.id}&source_id=#{source.id}"}
+                      class="ml-2 text-gray-400 hover:text-gf-maroon"
+                      title="Edit species-source mapping"
+                    >
+                      <.icon name="ph-pencil-simple" class="h-4 w-4 inline-block align-text-bottom" />
+                    </.link>
+                  </div>
+                  <%= if source.description do %>
+                    <p class="mt-1 text-gray-700">{source.description}</p>
+                  <% end %>
+                  <%= if source.license do %>
+                    <p class="mt-1 text-sm text-gray-500">
+                      License:
+                      <%= if source.licenselink do %>
+                        <.link
+                          href={source.licenselink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          class="text-gf-maroon hover:underline"
+                        >
+                          {source.license}
+                        </.link>
+                      <% else %>
+                        {source.license}
+                      <% end %>
+                    </p>
+                  <% end %>
                 </div>
               <% end %>
             </div>
           <% else %>
-            <p class="italic">No sources available for this species.</p>
+            <p class="italic">No further information available for this species.</p>
           <% end %>
 
-          <hr class="border-gray-200 my-4" />
-          <div class="mb-2"><strong>See Also:</strong></div>
-          <div class="flex flex-wrap gap-4 text-sm">
-            <.link
-              href={"https://www.inaturalist.org/taxa/search?q=#{URI.encode(@host.name)}"}
-              target="_blank"
-              rel="noreferrer"
-              class="text-gf-maroon hover:underline"
-            >
-              iNaturalist
-            </.link>
-            <.link
-              href={"https://scholar.google.com/scholar?q=#{URI.encode(@host.name)}"}
-              target="_blank"
-              rel="noreferrer"
-              class="text-gf-maroon hover:underline"
-            >
-              Google Scholar
-            </.link>
-          </div>
+          <.see_also name={@host.name} type={:host} />
         <% else %>
           <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
             Host not found

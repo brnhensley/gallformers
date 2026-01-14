@@ -11,29 +11,42 @@ defmodule GallformersWeb.DataDisplayComponents do
   import GallformersWeb.CoreComponents, only: [icon: 1]
 
   @doc """
-  Renders an image gallery with lightbox support.
+  Renders an image gallery with lightbox support and V1-style attribution.
 
   ## Examples
 
       <.image_gallery images={@images} />
 
-      <.image_gallery images={@images} show_attribution />
+      <.image_gallery images={@images} species_id={123} current_user={@current_user} />
   """
   attr :images, :list,
     required: true,
-    doc: "list of image maps with :src, :alt, :creator, :license keys"
+    doc:
+      "list of image maps with :src, :alt, :creator, :license, :licenselink, :sourcelink, :caption keys"
 
-  attr :show_attribution, :boolean, default: true, doc: "whether to show attribution info"
+  attr :species_id, :integer, default: nil, doc: "species ID for admin edit link"
+  attr :current_user, :any, default: nil, doc: "current user for showing admin controls"
   attr :class, :any, default: nil, doc: "additional CSS classes"
   attr :id, :string, default: "image-gallery", doc: "unique id for the gallery"
 
   def image_gallery(assigns) do
+    # Pass all image data to JS for dynamic updates
     images_json =
       assigns.images
       |> Enum.map(fn img ->
         %{
+          id: Map.get(img, :id) || Map.get(img, "id"),
           src: Map.get(img, :src) || Map.get(img, "src"),
-          alt: Map.get(img, :alt) || Map.get(img, "alt") || ""
+          alt: Map.get(img, :alt) || Map.get(img, "alt") || "",
+          caption: Map.get(img, :caption) || Map.get(img, "caption") || "",
+          creator: Map.get(img, :creator) || Map.get(img, "creator") || "",
+          license: Map.get(img, :license) || Map.get(img, "license") || "",
+          licenselink: Map.get(img, :licenselink) || Map.get(img, "licenselink") || "",
+          sourcelink: Map.get(img, :sourcelink) || Map.get(img, "sourcelink") || "",
+          attribution: Map.get(img, :attribution) || Map.get(img, "attribution") || "",
+          source_title: Map.get(img, :source_title) || Map.get(img, "source_title"),
+          uploader: Map.get(img, :uploader) || Map.get(img, "uploader") || "",
+          lastchangedby: Map.get(img, :lastchangedby) || Map.get(img, "lastchangedby") || ""
         }
       end)
       |> Jason.encode!()
@@ -70,20 +83,20 @@ defmodule GallformersWeb.DataDisplayComponents do
           :if={@image_count > 1}
           type="button"
           data-prev
-          class="absolute left-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/40 hover:bg-black/60 text-white transition-colors"
+          class="absolute left-1 top-1/2 -translate-y-1/2 px-3 py-4 rounded bg-black/50 hover:bg-black/70 text-white text-2xl font-bold transition-colors"
           aria-label={gettext("Previous image")}
         >
-          <.icon name="hero-chevron-left" class="size-5" />
+          &lt;
         </button>
 
         <button
           :if={@image_count > 1}
           type="button"
           data-next
-          class="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/40 hover:bg-black/60 text-white transition-colors"
+          class="absolute right-1 top-1/2 -translate-y-1/2 px-3 py-4 rounded bg-black/50 hover:bg-black/70 text-white text-2xl font-bold transition-colors"
           aria-label={gettext("Next image")}
         >
-          <.icon name="hero-chevron-right" class="size-5" />
+          &gt;
         </button>
 
         <div
@@ -95,21 +108,170 @@ defmodule GallformersWeb.DataDisplayComponents do
         </div>
       </div>
 
-      <div
-        :if={@show_attribution}
-        class="mt-2 flex items-center justify-between text-sm text-gray-600"
+      <%!-- Caption (updated by JS) --%>
+      <p
+        data-caption
+        class={[
+          "mt-1 text-sm text-gray-600 italic",
+          if(get_img_field(@first_image, :caption) == "", do: "hidden")
+        ]}
       >
-        <span :if={@first_image[:creator] || @first_image["creator"]}>
-          {gettext("Photo by")} {@first_image[:creator] || @first_image["creator"]}
+        {get_img_field(@first_image, :caption)}
+      </p>
+
+      <%!-- Attribution line (updated by JS) --%>
+      <div class="mt-1 text-sm text-gray-600">
+        <span :if={get_img_field(@first_image, :sourcelink) != ""}>
+          <a
+            data-source-link
+            href={get_img_field(@first_image, :sourcelink)}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-gf-maroon hover:underline"
+          >
+            Image
+          </a>
+          {" "}by{" "}
         </span>
-        <span :if={@first_image[:license] || @first_image["license"]}>
-          {@first_image[:license] || @first_image["license"]}
+        <span data-creator>{get_img_field(@first_image, :creator)}</span>
+        <span :if={get_img_field(@first_image, :license) != ""}>{" © "}</span>
+        <a
+          :if={get_img_field(@first_image, :licenselink) != ""}
+          data-license-link
+          href={get_img_field(@first_image, :licenselink)}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="text-gf-maroon hover:underline"
+        >
+          <span data-license>{get_img_field(@first_image, :license)}</span>
+        </a>
+        <span
+          :if={
+            get_img_field(@first_image, :licenselink) == "" &&
+              get_img_field(@first_image, :license) != ""
+          }
+          data-license
+        >
+          {get_img_field(@first_image, :license)}
         </span>
       </div>
 
+      <%!-- Action buttons --%>
+      <div class="mt-2 flex justify-center gap-1">
+        <div class="relative group">
+          <button
+            type="button"
+            class="px-2 py-1 text-sm border border-gray-300 rounded bg-white hover:bg-gray-50"
+            aria-label={gettext("Copyright info")}
+          >
+            ©
+          </button>
+          <div
+            class="absolute z-50 hidden group-hover:block bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 text-xs bg-gray-900 text-white rounded whitespace-nowrap"
+            role="tooltip"
+          >
+            <span data-license-tooltip>{get_img_field(@first_image, :license) || "No license"}</span>
+          </div>
+        </div>
+        <button
+          type="button"
+          data-open-info
+          class="px-2 py-1 text-sm font-bold border border-gray-300 rounded bg-white hover:bg-gray-50"
+          aria-label={gettext("Image details")}
+        >
+          ⓘ
+        </button>
+        <.link
+          :if={@current_user && @species_id}
+          href={"/admin/images?speciesid=#{@species_id}"}
+          class="px-2 py-1 text-sm border border-gray-300 rounded bg-white hover:bg-gray-50"
+          aria-label={gettext("Edit images")}
+        >
+          ✎
+        </.link>
+      </div>
+
+      <%!-- Info dialog --%>
+      <dialog
+        data-info-dialog
+        class="rounded-lg shadow-xl max-w-4xl w-full p-0 m-auto backdrop:bg-black/50"
+      >
+        <div class="p-8">
+          <div class="flex justify-between items-center mb-6">
+            <h3 class="text-2xl font-semibold">{gettext("Image Details")}</h3>
+            <button
+              type="button"
+              data-close-info
+              class="text-gray-400 hover:text-gray-600"
+              aria-label={gettext("Close")}
+            >
+              <.icon name="ph-x" class="size-7" />
+            </button>
+          </div>
+          <div class="flex gap-8">
+            <div class="flex-shrink-0">
+              <img
+                data-info-image
+                src={@first_image[:src] || @first_image["src"]}
+                alt=""
+                class="w-80 h-80 object-contain rounded border border-gray-200 bg-gray-50"
+              />
+            </div>
+            <div class="flex-1 space-y-4 text-lg">
+              <div>
+                <strong>{gettext("Source:")}</strong>{" "}
+                <a
+                  data-info-source
+                  href={get_img_field(@first_image, :sourcelink)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="text-gf-maroon hover:underline"
+                >
+                  {get_img_field(@first_image, :source_title) ||
+                    get_img_field(@first_image, :sourcelink)}
+                </a>
+              </div>
+              <div>
+                <strong>{gettext("License:")}</strong>{" "}
+                <a
+                  data-info-license
+                  href={get_img_field(@first_image, :licenselink)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="text-gf-maroon hover:underline"
+                >
+                  {get_img_field(@first_image, :license)}
+                </a>
+              </div>
+              <div>
+                <strong>{gettext("Attribution:")}</strong>{" "}
+                <span data-info-attribution>{get_img_field(@first_image, :attribution)}</span>
+              </div>
+              <div>
+                <strong>{gettext("Creator:")}</strong>{" "}
+                <span data-info-creator>{get_img_field(@first_image, :creator)}</span>
+              </div>
+              <div>
+                <strong>{gettext("Uploader:")}</strong>{" "}
+                <span data-info-uploader>{get_img_field(@first_image, :uploader)}</span>
+              </div>
+              <div>
+                <strong>{gettext("Last Modified:")}</strong>{" "}
+                <span data-info-lastchangedby>{get_img_field(@first_image, :lastchangedby)}</span>
+              </div>
+              <div>
+                <strong>{gettext("Caption:")}</strong>{" "}
+                <span data-info-caption>{get_img_field(@first_image, :caption)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </dialog>
+
+      <%!-- Lightbox --%>
       <dialog
         data-lightbox
-        class="w-screen h-screen max-w-none p-0 bg-black/90 backdrop:bg-transparent"
+        class="w-screen h-screen max-w-none m-0 p-0 bg-black/90 backdrop:bg-transparent"
       >
         <div class="w-full h-full flex flex-col items-center justify-center p-4">
           <button
@@ -118,33 +280,58 @@ defmodule GallformersWeb.DataDisplayComponents do
             class="absolute top-4 right-4 p-2 rounded-full bg-white/20 hover:bg-white/30 text-white"
             aria-label={gettext("Close")}
           >
-            <.icon name="hero-x-mark" class="size-6" />
+            <.icon name="ph-x" class="size-6" />
           </button>
 
           <img
             data-lightbox-image
             src={@first_image[:src] || @first_image["src"]}
             alt={@first_image[:alt] || @first_image["alt"] || ""}
-            class="max-w-full max-h-[80vh] object-contain"
+            class="max-w-full max-h-[70vh] object-contain"
           />
 
-          <div :if={@image_count > 1} class="mt-4 flex items-center gap-4">
+          <%!-- Lightbox attribution --%>
+          <div class="mt-2 text-sm text-white/80" data-lightbox-attribution>
+            <a
+              data-lightbox-source-link
+              href={get_img_field(@first_image, :sourcelink)}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-white hover:underline"
+            >
+              Image
+            </a>
+            {" "}by{" "}
+            <span data-lightbox-creator>{get_img_field(@first_image, :creator)}</span>
+            {" © "}
+            <a
+              data-lightbox-license-link
+              href={get_img_field(@first_image, :licenselink)}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-white hover:underline"
+            >
+              <span data-lightbox-license>{get_img_field(@first_image, :license)}</span>
+            </a>
+          </div>
+
+          <div :if={@image_count > 1} class="mt-4 flex items-center gap-6">
             <button
               type="button"
               data-prev
-              class="p-3 rounded-full bg-white/20 hover:bg-white/30 text-white"
+              class="px-5 py-3 rounded bg-white/20 hover:bg-white/30 text-white text-3xl font-bold"
               aria-label={gettext("Previous image")}
             >
-              <.icon name="hero-chevron-left" class="size-6" />
+              &lt;
             </button>
             <span data-counter class="text-white text-lg">1 / {@image_count}</span>
             <button
               type="button"
               data-next
-              class="p-3 rounded-full bg-white/20 hover:bg-white/30 text-white"
+              class="px-5 py-3 rounded bg-white/20 hover:bg-white/30 text-white text-3xl font-bold"
               aria-label={gettext("Next image")}
             >
-              <.icon name="hero-chevron-right" class="size-6" />
+              &gt;
             </button>
           </div>
         </div>
@@ -156,12 +343,19 @@ defmodule GallformersWeb.DataDisplayComponents do
       class="aspect-[4/3] bg-gray-100 rounded-lg flex items-center justify-center"
     >
       <div class="text-gray-400 text-center">
-        <.icon name="hero-photo" class="size-12 mx-auto mb-2" />
+        <.icon name="ph-image" class="size-12 mx-auto mb-2" />
         <p>{gettext("No images available")}</p>
       </div>
     </div>
     """
   end
+
+  # Helper to safely get image field with fallback
+  defp get_img_field(img, field) when is_map(img) do
+    Map.get(img, field) || Map.get(img, to_string(field)) || ""
+  end
+
+  defp get_img_field(_, _), do: ""
 
   @doc """
   Renders a species card for list views.
@@ -196,7 +390,7 @@ defmodule GallformersWeb.DataDisplayComponents do
             :if={!(@species[:image] || @species["image"])}
             class="w-full h-full flex items-center justify-center text-gray-400"
           >
-            <.icon name="hero-photo" class="size-12" />
+            <.icon name="ph-image" class="size-12" />
           </div>
         </div>
         <div class="p-4">
@@ -224,7 +418,7 @@ defmodule GallformersWeb.DataDisplayComponents do
             :if={!(@species[:image] || @species["image"])}
             class="w-full h-full flex items-center justify-center text-gray-400"
           >
-            <.icon name="hero-photo" class="size-12" />
+            <.icon name="ph-image" class="size-12" />
           </div>
         </div>
         <div class="p-4">
@@ -257,7 +451,7 @@ defmodule GallformersWeb.DataDisplayComponents do
     ~H"""
     <ul :if={@hosts != []} class={["space-y-1", @class]}>
       <li :for={host <- @hosts} class="flex items-center gap-2">
-        <.icon name="hero-leaf" class="size-4 text-green-600 flex-shrink-0" />
+        <.icon name="ph-leaf" class="size-4 text-green-600 flex-shrink-0" />
         <.link
           :if={host[:id] || host["id"]}
           navigate={"/host/#{host[:id] || host["id"]}"}
@@ -310,7 +504,7 @@ defmodule GallformersWeb.DataDisplayComponents do
           class="text-blue-600 hover:underline"
         >
           {@source[:title] || @source["title"]}
-          <.icon name="hero-arrow-top-right-on-square" class="size-3 inline ml-0.5" />
+          <.icon name="ph-arrow-square-out" class="size-3 inline ml-0.5" />
         </.link>
         <span :if={!(@source[:url] || @source["url"])}>
           {@source[:title] || @source["title"]}
@@ -459,7 +653,7 @@ defmodule GallformersWeb.DataDisplayComponents do
         @class
       ]}
     >
-      <.icon name="hero-pencil-square" class="size-4" />
+      <.icon name="ph-pencil-simple" class="size-4" />
       <span :if={@label}>{@label}</span>
       <span :if={!@label}>{gettext("Edit")}</span>
     </.link>
@@ -487,7 +681,7 @@ defmodule GallformersWeb.DataDisplayComponents do
         class="inline-flex items-center gap-1 px-3 py-1.5 text-sm rounded-full border border-gray-300 hover:bg-gray-50 transition-colors"
       >
         {link[:name] || link["name"]}
-        <.icon name="hero-arrow-top-right-on-square" class="size-3" />
+        <.icon name="ph-arrow-square-out" class="size-3" />
       </.link>
     </div>
     """
@@ -577,6 +771,115 @@ defmodule GallformersWeb.DataDisplayComponents do
   end
 
   @doc """
+  Renders a container for table row actions.
+
+  Groups action buttons with consistent spacing.
+
+  ## Examples
+
+      <.table_actions>
+        <.action_button icon="ph-arrow-square-out" label="View" href="/gall/123" />
+        <.action_button icon="ph-pencil-simple" label="Edit" href="/admin/galls/123" />
+        <.action_button icon="ph-trash" label="Delete" variant="danger" phx-click="delete" phx-value-id="123" />
+      </.table_actions>
+  """
+  attr :class, :any, default: nil, doc: "additional CSS classes"
+  slot :inner_block, required: true
+
+  def table_actions(assigns) do
+    ~H"""
+    <div class={["flex items-center justify-end gap-1", @class]}>
+      {render_slot(@inner_block)}
+    </div>
+    """
+  end
+
+  @doc """
+  Renders an icon button with tooltip for table actions.
+
+  ## Examples
+
+      <.action_button icon="ph-arrow-square-out" label="View" href="/gall/123" />
+      <.action_button icon="ph-pencil-simple" label="Edit" navigate="/admin/galls/123" />
+      <.action_button icon="ph-trash" label="Delete" variant="danger" phx-click="delete" />
+  """
+  attr :icon, :string, required: true, doc: "Phosphor icon name"
+  attr :label, :string, required: true, doc: "tooltip text and aria-label"
+
+  attr :variant, :string,
+    default: "default",
+    values: ~w(default primary danger),
+    doc: "button style variant"
+
+  attr :href, :string, default: nil, doc: "external link URL"
+  attr :navigate, :string, default: nil, doc: "LiveView navigation path"
+  attr :confirm, :string, default: nil, doc: "confirmation message"
+  attr :class, :any, default: nil, doc: "additional CSS classes"
+  attr :rest, :global, include: ~w(phx-click phx-value-id disabled)
+
+  def action_button(assigns) do
+    variant_classes = %{
+      "default" => "text-gray-600 hover:text-gray-900 hover:bg-gray-100",
+      "primary" => "text-gf-maroon hover:text-gf-autumn hover:bg-gf-maroon/10",
+      "danger" => "text-red-600 hover:text-red-900 hover:bg-red-50"
+    }
+
+    assigns = assign(assigns, :variant_class, Map.fetch!(variant_classes, assigns.variant))
+
+    ~H"""
+    <div class="relative group">
+      <.link
+        :if={@href}
+        href={@href}
+        class={[
+          "inline-flex items-center justify-center p-1.5 rounded transition-colors",
+          @variant_class,
+          @class
+        ]}
+        aria-label={@label}
+        {@rest}
+      >
+        <.icon name={@icon} class="size-5" />
+      </.link>
+      <.link
+        :if={@navigate}
+        navigate={@navigate}
+        class={[
+          "inline-flex items-center justify-center p-1.5 rounded transition-colors",
+          @variant_class,
+          @class
+        ]}
+        aria-label={@label}
+        {@rest}
+      >
+        <.icon name={@icon} class="size-5" />
+      </.link>
+      <button
+        :if={!@href && !@navigate}
+        type="button"
+        class={[
+          "inline-flex items-center justify-center p-1.5 rounded transition-colors",
+          @variant_class,
+          @class
+        ]}
+        aria-label={@label}
+        data-confirm={@confirm}
+        {@rest}
+      >
+        <.icon name={@icon} class="size-5" />
+      </button>
+      <div
+        class="absolute z-50 hidden group-hover:block bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 text-xs bg-gray-900 text-white rounded whitespace-nowrap"
+        role="tooltip"
+      >
+        {@label}
+        <div class="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-4 border-t-gray-900 border-x-transparent border-b-transparent" />
+      </div>
+    </div>
+    """
+  end
+
+  @doc """
   Renders a geographic range map showing US and Canadian states/provinces.
 
   Uses D3.js for SVG-based choropleth rendering. Displays regions in green if
@@ -630,7 +933,7 @@ defmodule GallformersWeb.DataDisplayComponents do
       data-editable={to_string(@editable)}
     >
       <div class="flex items-center justify-center p-8 text-gray-500">
-        <.icon name="hero-map" class="size-8 animate-pulse" />
+        <.icon name="ph-map-trifold" class="size-8 animate-pulse" />
         <span class="ml-2">{gettext("Loading map...")}</span>
       </div>
     </div>

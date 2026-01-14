@@ -130,19 +130,17 @@ defmodule GallformersWeb.SectionLive do
                 Species ({length(@species)})
               </h2>
               <%= if length(@species) > 0 do %>
-                <div class="bg-white rounded border border-gray-200">
-                  <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
+                <div class="bg-white rounded border border-gray-200 overflow-hidden">
+                  <table class="gf-table">
+                    <thead>
                       <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Species Name
-                        </th>
+                        <th>Species Name</th>
                       </tr>
                     </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
+                    <tbody>
                       <%= for species <- @species do %>
-                        <tr class="hover:bg-gray-50">
-                          <td class="px-6 py-4 whitespace-nowrap text-sm">
+                        <tr>
+                          <td>
                             <%!-- Sections are for hosts (plants) --%>
                             <.link
                               href={"/host/#{species.id}"}

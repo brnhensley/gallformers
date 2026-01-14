@@ -576,7 +576,7 @@ defmodule GallformersWeb.IDLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_user={@current_user} fluid>
+    <Layouts.app flash={@flash} current_user={@current_user}>
       <div class="py-4">
         <%!-- Host/Genus Pickers --%>
         <div class="mb-2">
@@ -706,7 +706,7 @@ defmodule GallformersWeb.IDLive do
             class="text-gray-400 hover:text-gray-600"
             aria-label="Clear host selection"
           >
-            <.icon name="hero-x-mark" class="size-4" />
+            <.icon name="ph-x" class="size-4" />
           </button>
         </div>
       <% else %>
@@ -760,7 +760,7 @@ defmodule GallformersWeb.IDLive do
             class="text-gray-400 hover:text-gray-600"
             aria-label="Clear genus selection"
           >
-            <.icon name="hero-x-mark" class="size-4" />
+            <.icon name="ph-x" class="size-4" />
           </button>
         </div>
       <% else %>
@@ -1059,8 +1059,8 @@ defmodule GallformersWeb.IDLive do
     ~H"""
     <div>
       <%= if !@has_selection do %>
-        <div class="text-center py-8 text-gray-500 bg-blue-50 rounded border border-blue-200">
-          <p class="text-sm">
+        <div class="text-center py-8 text-gray-600 bg-blue-50 rounded border border-blue-200">
+          <p class="text-base">
             Select a Host or Genus to see matching galls. Then you can use the filters to narrow down the list.
           </p>
         </div>

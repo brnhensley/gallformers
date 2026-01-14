@@ -28,10 +28,6 @@ defmodule GallformersWeb.Layouts do
     default: nil,
     doc: "the currently logged in user, if any"
 
-  attr :fluid, :boolean,
-    default: false,
-    doc: "if true, content spans full width without max-width constraint"
-
   slot :inner_block, required: true
 
   def app(assigns) do
@@ -40,10 +36,7 @@ defmodule GallformersWeb.Layouts do
       <.site_header current_user={@current_user} />
 
       <main class="flex-1 pb-32">
-        <div class={[
-          "px-4 sm:px-6 lg:px-8",
-          !@fluid && "mx-auto max-w-screen-2xl py-8"
-        ]}>
+        <div class="px-6 sm:px-10 lg:px-16 py-8">
           {render_slot(@inner_block)}
         </div>
       </main>
@@ -430,18 +423,18 @@ defmodule GallformersWeb.Layouts do
 
   def admin(assigns) do
     admin_nav_links = [
-      %{href: "/admin", label: "Dashboard", icon: "hero-home"},
-      %{href: "/admin/galls", label: "Galls", icon: "hero-bug-ant"},
-      %{href: "/admin/hosts", label: "Hosts", icon: "hero-globe-americas"},
-      %{href: "/admin/taxonomy", label: "Taxonomy", icon: "hero-share"},
-      %{href: "/admin/sources", label: "Sources", icon: "hero-book-open"},
-      %{href: "/admin/images", label: "Images", icon: "hero-photo"},
-      %{href: "/admin/glossary", label: "Glossary", icon: "hero-book-open"}
+      %{href: "/admin", label: "Dashboard", icon: "ph-house"},
+      %{href: "/admin/galls", label: "Galls", icon: "gf-gall"},
+      %{href: "/admin/hosts", label: "Hosts", icon: "gf-host"},
+      %{href: "/admin/taxonomy", label: "Taxonomy", icon: "gf-taxon"},
+      %{href: "/admin/sources", label: "Sources", icon: "gf-source"},
+      %{href: "/admin/images", label: "Images", icon: "ph-image"},
+      %{href: "/admin/glossary", label: "Glossary", icon: "ph-article"}
     ]
 
     superadmin_nav_links = [
-      %{href: "/admin/places", label: "Places", icon: "hero-map-pin"},
-      %{href: "/admin/filter-terms", label: "Filter Terms", icon: "hero-funnel"}
+      %{href: "/admin/places", label: "Places", icon: "gf-place"},
+      %{href: "/admin/filter-terms", label: "Filter Terms", icon: "ph-funnel"}
     ]
 
     is_superadmin = Gallformers.Accounts.superadmin?(assigns.current_user)
@@ -457,12 +450,12 @@ defmodule GallformersWeb.Layouts do
       <%!-- Admin Sidebar --%>
       <aside class="hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 bg-slate-700">
         <%!-- Logo/Brand --%>
-        <div class="flex items-center justify-center h-16 px-2 bg-gf-sky-blue">
-          <a href="/" class="flex items-center gap-2">
+        <div class="flex items-center h-20 px-3 bg-gf-sky-blue">
+          <a href="/" class="flex items-center">
             <img
               src="/branding/Wide Logo Versions/gallformers_logo_wide_color.png"
               alt="Gallformers"
-              class="h-14"
+              class="h-[70px]"
             />
           </a>
         </div>
@@ -504,7 +497,7 @@ defmodule GallformersWeb.Layouts do
                 <img class="h-8 w-8 rounded-full" src={@current_user.picture} alt="" />
               <% else %>
                 <div class="h-8 w-8 rounded-full bg-white/20 flex items-center justify-center">
-                  <.icon name="hero-user" class="h-5 w-5 text-white" />
+                  <.icon name="ph-user" class="h-5 w-5 text-white" />
                 </div>
               <% end %>
             </div>
@@ -538,7 +531,7 @@ defmodule GallformersWeb.Layouts do
             phx-click={toggle_admin_menu()}
             class="p-2 text-white hover:bg-white/10 rounded-md"
           >
-            <.icon name="hero-bars-3" class="h-6 w-6" />
+            <.icon name="ph-list" class="h-6 w-6" />
           </button>
         </div>
       </div>
@@ -560,7 +553,7 @@ defmodule GallformersWeb.Layouts do
               phx-click={toggle_admin_menu()}
               class="p-2 text-white hover:bg-white/10 rounded-md"
             >
-              <.icon name="hero-x-mark" class="h-6 w-6" />
+              <.icon name="ph-x" class="h-6 w-6" />
             </button>
           </div>
 
@@ -599,7 +592,7 @@ defmodule GallformersWeb.Layouts do
                   <img class="h-8 w-8 rounded-full" src={@current_user.picture} alt="" />
                 <% else %>
                   <div class="h-8 w-8 rounded-full bg-white/20 flex items-center justify-center">
-                    <.icon name="hero-user" class="h-5 w-5 text-white" />
+                    <.icon name="ph-user" class="h-5 w-5 text-white" />
                   </div>
                 <% end %>
               </div>
@@ -621,7 +614,7 @@ defmodule GallformersWeb.Layouts do
         <main class="pt-14 lg:pt-0">
           <%!-- Page header --%>
           <%= if @page_title do %>
-            <div class="flex items-center h-16 px-4 sm:px-6 lg:px-8 bg-gf-sky-blue border-l border-slate-400/50">
+            <div class="flex items-center h-20 px-4 sm:px-6 lg:px-8 bg-gf-sky-blue border-l border-slate-400/50">
               <span class="text-2xl font-bold text-gf-maroon">{@page_title}</span>
             </div>
           <% end %>
@@ -667,7 +660,7 @@ defmodule GallformersWeb.Layouts do
         hidden
       >
         {gettext("Attempting to reconnect")}
-        <.icon name="hero-arrow-path" class="ml-1 size-3 motion-safe:animate-spin" />
+        <.icon name="ph-arrows-clockwise" class="ml-1 size-3 motion-safe:animate-spin" />
       </.flash>
 
       <.flash
@@ -679,7 +672,7 @@ defmodule GallformersWeb.Layouts do
         hidden
       >
         {gettext("Attempting to reconnect")}
-        <.icon name="hero-arrow-path" class="ml-1 size-3 motion-safe:animate-spin" />
+        <.icon name="ph-arrows-clockwise" class="ml-1 size-3 motion-safe:animate-spin" />
       </.flash>
     </div>
     """
@@ -699,7 +692,7 @@ defmodule GallformersWeb.Layouts do
     ~H"""
     <div class="mb-6">
       <.link navigate={@navigate} class="text-gf-maroon hover:underline">
-        <.icon name="hero-arrow-left" class="h-4 w-4 inline" /> {@label}
+        <.icon name="ph-arrow-left" class="h-4 w-4 inline" /> {@label}
       </.link>
     </div>
     """

@@ -32,6 +32,7 @@ defmodule GallformersWeb.ExploreLive do
        page_json_ld: nil,
        tabs: @tabs,
        active_tab: "galls",
+       search_query: "",
        galls_tree: galls_tree,
        undescribed_tree: undescribed_tree,
        hosts_tree: hosts_tree,
@@ -81,6 +82,20 @@ defmodule GallformersWeb.ExploreLive do
     {:noreply, assign(socket, [{expanded_key, MapSet.new()}])}
   end
 
+  @impl true
+  def handle_event("search", %{"query" => query}, socket) do
+    # When searching, auto-expand matching branches
+    if String.trim(query) != "" do
+      tree = tree_for_tab(socket.assigns, socket.assigns.active_tab)
+      matching_keys = collect_matching_branch_keys(tree, query)
+      expanded_key = expanded_key_for_tab(socket.assigns.active_tab)
+      socket = assign(socket, :search_query, query)
+      {:noreply, assign(socket, [{expanded_key, MapSet.new(matching_keys)}])}
+    else
+      {:noreply, assign(socket, search_query: query)}
+    end
+  end
+
   defp expanded_key_for_tab("galls"), do: :galls_expanded
   defp expanded_key_for_tab("undescribed"), do: :undescribed_expanded
   defp expanded_key_for_tab("hosts"), do: :hosts_expanded
@@ -97,6 +112,60 @@ defmodule GallformersWeb.ExploreLive do
         []
       end
     end)
+  end
+
+  defp collect_matching_branch_keys(nodes, query) do
+    query_lower = String.downcase(query)
+
+    Enum.flat_map(nodes, fn node ->
+      if Map.has_key?(node, :nodes) and node.nodes != [] do
+        # Check if any children match
+        child_keys = collect_matching_branch_keys(node.nodes, query)
+        child_matches = child_keys != []
+
+        # Check if this branch's label matches
+        label_matches = String.contains?(String.downcase(node.label), query_lower)
+
+        if child_matches or label_matches do
+          [node.key | child_keys]
+        else
+          []
+        end
+      else
+        # Leaf node - check if it matches
+        if String.contains?(String.downcase(node.label), query_lower), do: [:match], else: []
+      end
+    end)
+    |> Enum.filter(&(&1 != :match))
+  end
+
+  defp filter_tree(nodes, ""), do: nodes
+
+  defp filter_tree(nodes, query) do
+    query_lower = String.downcase(query)
+
+    nodes
+    |> Enum.map(fn node ->
+      if Map.has_key?(node, :nodes) and node.nodes != [] do
+        # Branch node - filter children recursively
+        filtered_children = filter_tree(node.nodes, query)
+        label_matches = String.contains?(String.downcase(node.label), query_lower)
+
+        if filtered_children != [] or label_matches do
+          %{node | nodes: filtered_children}
+        else
+          nil
+        end
+      else
+        # Leaf node - keep if matches
+        if String.contains?(String.downcase(node.label), query_lower) do
+          node
+        else
+          nil
+        end
+      end
+    end)
+    |> Enum.reject(&is_nil/1)
   end
 
   defp tab_label("galls"), do: "Galls"
@@ -120,7 +189,7 @@ defmodule GallformersWeb.ExploreLive do
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} current_user={@current_user}>
-      <div class="mx-auto max-w-5xl" id="explore-container">
+      <div id="explore-container">
         <h1 class="text-3xl font-bold text-gf-maroon mb-6">Explore</h1>
 
         <p class="text-gray-600 mb-6">
@@ -159,56 +228,78 @@ defmodule GallformersWeb.ExploreLive do
           </nav>
         </div>
 
-        <%!-- Expand/Collapse controls --%>
-        <div class="flex justify-end gap-2 mb-4">
-          <button
-            phx-click="expand_all"
-            phx-value-tab={@active_tab}
-            class="text-sm text-gf-maroon hover:underline"
-          >
-            Expand All
-          </button>
-          <span class="text-gray-300">|</span>
-          <button
-            phx-click="collapse_all"
-            phx-value-tab={@active_tab}
-            class="text-sm text-gf-maroon hover:underline"
-          >
-            Collapse All
-          </button>
+        <%!-- Search and controls --%>
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+          <div class="flex-1 max-w-md">
+            <form phx-change="search" phx-submit="search" id="explore-search-form">
+              <.search_input
+                id="explore-search"
+                name="query"
+                value={@search_query}
+                placeholder="Filter by name..."
+                phx-debounce="300"
+              />
+            </form>
+          </div>
+          <div class="flex gap-2">
+            <button
+              phx-click="expand_all"
+              phx-value-tab={@active_tab}
+              class="text-sm text-gf-maroon hover:underline"
+            >
+              Expand All
+            </button>
+            <span class="text-gray-300">|</span>
+            <button
+              phx-click="collapse_all"
+              phx-value-tab={@active_tab}
+              class="text-sm text-gf-maroon hover:underline"
+            >
+              Collapse All
+            </button>
+          </div>
         </div>
 
         <%!-- Tree content --%>
         <div class="bg-white rounded-lg border border-gray-200 p-4">
           <%= case @active_tab do %>
             <% "galls" -> %>
-              <%= if @galls_tree == [] do %>
-                <p class="text-gray-500 italic">No gall species found.</p>
+              <% filtered = filter_tree(@galls_tree, @search_query) %>
+              <%= if filtered == [] do %>
+                <p class="text-gray-500 italic">
+                  <%= if @search_query != "", do: "No matching gall species found.", else: "No gall species found." %>
+                </p>
               <% else %>
                 <.tree_menu
-                  nodes={@galls_tree}
+                  nodes={filtered}
                   expanded={@galls_expanded}
                   tab="galls"
                   level={0}
                 />
               <% end %>
             <% "undescribed" -> %>
-              <%= if @undescribed_tree == [] do %>
-                <p class="text-gray-500 italic">No undescribed gall species found.</p>
+              <% filtered = filter_tree(@undescribed_tree, @search_query) %>
+              <%= if filtered == [] do %>
+                <p class="text-gray-500 italic">
+                  <%= if @search_query != "", do: "No matching undescribed gall species found.", else: "No undescribed gall species found." %>
+                </p>
               <% else %>
                 <.tree_menu
-                  nodes={@undescribed_tree}
+                  nodes={filtered}
                   expanded={@undescribed_expanded}
                   tab="undescribed"
                   level={0}
                 />
               <% end %>
             <% "hosts" -> %>
-              <%= if @hosts_tree == [] do %>
-                <p class="text-gray-500 italic">No host species found.</p>
+              <% filtered = filter_tree(@hosts_tree, @search_query) %>
+              <%= if filtered == [] do %>
+                <p class="text-gray-500 italic">
+                  <%= if @search_query != "", do: "No matching host species found.", else: "No host species found." %>
+                </p>
               <% else %>
                 <.tree_menu
-                  nodes={@hosts_tree}
+                  nodes={filtered}
                   expanded={@hosts_expanded}
                   tab="hosts"
                   level={0}
@@ -243,7 +334,7 @@ defmodule GallformersWeb.ExploreLive do
                 "inline-block w-4 h-4 transition-transform",
                 if(MapSet.member?(@expanded, node.key), do: "rotate-90", else: "")
               ]}>
-                <.icon name="hero-chevron-right" class="w-4 h-4" />
+                <.icon name="ph-caret-right" class="w-4 h-4" />
               </span>
               <span class={[
                 "font-medium",

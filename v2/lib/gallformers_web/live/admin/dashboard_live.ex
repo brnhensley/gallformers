@@ -29,17 +29,17 @@ defmodule GallformersWeb.AdminDashboardLive do
         <.stat_card
           title="Galls"
           value={@stats.gall_count}
-          icon="hero-bug-ant"
+          icon="gf-gall"
           href="/admin/galls"
         />
-        <.stat_card title="Hosts" value={@stats.host_count} icon="hero-leaf" href="/admin/hosts" />
+        <.stat_card title="Hosts" value={@stats.host_count} icon="ph-leaf" href="/admin/hosts" />
         <.stat_card
           title="Sources"
           value={@stats.source_count}
-          icon="hero-book-open"
+          icon="ph-book-open"
           href="/admin/sources"
         />
-        <.stat_card title="Images" value={@stats.image_count} icon="hero-photo" href="/admin/images" />
+        <.stat_card title="Images" value={@stats.image_count} icon="ph-image" href="/admin/images" />
       </div>
 
       <%!-- Quick Actions --%>
@@ -50,49 +50,49 @@ defmodule GallformersWeb.AdminDashboardLive do
             title="Add New Gall"
             description="Create a new gall entry"
             href="/admin/galls/new"
-            icon="hero-plus-circle"
+            icon="ph-plus-circle"
           />
           <.action_card
             title="Add New Host"
             description="Add a new host plant to the database"
             href="/admin/hosts/new"
-            icon="hero-plus-circle"
+            icon="ph-plus-circle"
           />
           <.action_card
             title="Add New Source"
             description="Add a new reference or citation"
             href="/admin/sources/new"
-            icon="hero-plus-circle"
+            icon="ph-plus-circle"
           />
           <.action_card
             title="Upload Images"
             description="Upload images for species or hosts"
             href="/admin/images/upload"
-            icon="hero-arrow-up-tray"
+            icon="ph-arrow-line-up"
           />
           <.action_card
             title="Manage Taxonomy"
             description="Edit taxonomic classifications"
             href="/admin/taxonomy"
-            icon="hero-folder-tree"
+            icon="ph-tree-structure"
           />
           <.action_card
             title="Edit Glossary"
             description="Add or edit glossary terms"
             href="/admin/glossary"
-            icon="hero-book-open"
+            icon="ph-book-open"
           />
           <.action_card
             title="Add from Source"
             description="Bulk-add species info from a paper"
             href="/admin/species-sources/add"
-            icon="hero-document-plus"
+            icon="ph-file-plus"
           />
           <.action_card
             title="Find & Edit Mappings"
             description="Search and edit species-source links"
             href="/admin/species-sources/find"
-            icon="hero-magnifying-glass"
+            icon="ph-magnifying-glass"
           />
         </div>
       </div>

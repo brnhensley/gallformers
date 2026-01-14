@@ -89,11 +89,11 @@ defmodule GallformersWeb.GlossaryLive do
           </div>
         <% else %>
           <div class="bg-white rounded-lg shadow overflow-hidden">
-            <table class="min-w-full divide-y divide-gray-200">
-              <thead class="bg-gray-50">
+            <table class="gf-table">
+              <thead>
                 <tr>
                   <th
-                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 w-1/4"
+                    class="cursor-pointer hover:bg-gray-100 w-1/4"
                     phx-click="sort"
                     phx-value-column="word"
                   >
@@ -103,7 +103,7 @@ defmodule GallformersWeb.GlossaryLive do
                     <% end %>
                   </th>
                   <th
-                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    class="cursor-pointer hover:bg-gray-100"
                     phx-click="sort"
                     phx-value-column="definition"
                   >
@@ -112,21 +112,21 @@ defmodule GallformersWeb.GlossaryLive do
                       <span class="ml-1">{if @sort_dir == :asc, do: "↑", else: "↓"}</span>
                     <% end %>
                   </th>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
+                  <th class="w-24">
                     Refs
                   </th>
                 </tr>
               </thead>
-              <tbody class="bg-white divide-y divide-gray-200">
+              <tbody>
                 <%= for entry <- @sorted_entries do %>
-                  <tr class="hover:bg-gray-50 transition-colors" id={String.downcase(entry.word)}>
-                    <td class="px-6 py-4 text-sm font-medium text-gray-900 align-top">
-                      <span class="font-bold">{entry.word}</span>
+                  <tr id={String.downcase(entry.word)}>
+                    <td class="font-bold">
+                      {entry.word}
                     </td>
-                    <td class="px-6 py-4 text-sm text-gray-700 align-top">
+                    <td>
                       {entry.definition}
                     </td>
-                    <td class="px-6 py-4 text-sm text-gray-500 align-top">
+                    <td class="text-gray-500">
                       <%= for ref <- format_refs(entry.urls) do %>
                         <.link
                           href={ref.url}

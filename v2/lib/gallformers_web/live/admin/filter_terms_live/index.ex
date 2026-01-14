@@ -91,17 +91,13 @@ defmodule GallformersWeb.Admin.FilterTermsLive.Index do
     <Layouts.admin flash={@flash} current_user={@current_user} page_title="Filter Terms">
       <div class="space-y-6">
         <%!-- Info banner --%>
-        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <div class="flex">
-            <.icon name="hero-information-circle" class="h-5 w-5 text-blue-400 mr-2 flex-shrink-0" />
-            <div class="text-sm text-blue-700">
-              <p>
-                Filter terms are used in the ID tool to help users narrow down gall matches.
-                Each type represents a different characteristic (shape, color, texture, etc.).
-                Changes here affect all galls that use these terms.
-              </p>
-            </div>
-          </div>
+        <div class="gf-admin-info">
+          <.icon name="ph-info" class="h-5 w-5 text-blue-400 mr-2 flex-shrink-0" />
+          <p>
+            Filter terms are used in the ID tool to help users narrow down gall matches.
+            Each type represents a different characteristic (shape, color, texture, etc.).
+            Changes here affect all galls that use these terms.
+          </p>
         </div>
 
         <%!-- Type selector and New button --%>
@@ -114,7 +110,7 @@ defmodule GallformersWeb.Admin.FilterTermsLive.Index do
               id="filter-type"
               name="type"
               phx-change="change_type"
-              class="rounded-md border-gray-300 shadow-sm focus:border-gf-maroon focus:ring-gf-maroon"
+              class="gf-select w-auto"
             >
               <option
                 :for={type <- FilterFields.filter_types()}
@@ -127,34 +123,27 @@ defmodule GallformersWeb.Admin.FilterTermsLive.Index do
           </div>
           <.link
             navigate={~p"/admin/filter-terms/new?type=#{@filter_type}"}
-            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm !text-white !no-underline bg-gf-maroon hover:bg-gf-maroon/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gf-maroon"
+            class="gf-btn gf-btn-primary"
           >
-            <.icon name="hero-plus" class="h-5 w-5 mr-2" />
             New {FilterFields.singular_label(@filter_type)}
           </.link>
         </div>
 
         <%!-- Items table --%>
         <div class="bg-white shadow rounded-lg overflow-hidden">
-          <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-cadet-blue">
+          <table class="gf-table gf-table-dark">
+            <thead>
               <tr>
-                <th class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                  Term
-                </th>
+                <th>Term</th>
                 <%= if FilterFields.has_description?(@filter_type) do %>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                    Description
-                  </th>
+                  <th>Description</th>
                 <% end %>
-                <th class="px-6 py-3 text-right text-xs font-medium text-white uppercase tracking-wider">
-                  Actions
-                </th>
+                <th class="text-right">Actions</th>
               </tr>
             </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
-              <tr :for={item <- @items} class="hover:bg-gray-50">
-                <td class="px-6 py-4 whitespace-nowrap">
+            <tbody>
+              <tr :for={item <- @items}>
+                <td>
                   <.link
                     navigate={~p"/admin/filter-terms/#{item.id}?type=#{@filter_type}"}
                     class="text-gf-maroon hover:underline font-medium"
@@ -163,25 +152,27 @@ defmodule GallformersWeb.Admin.FilterTermsLive.Index do
                   </.link>
                 </td>
                 <%= if FilterFields.has_description?(@filter_type) do %>
-                  <td class="px-6 py-4 text-sm text-gray-500 max-w-md truncate">
+                  <td class="text-gray-500 max-w-md truncate">
                     {item.description || "-"}
                   </td>
                 <% end %>
-                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <.link
-                    navigate={~p"/admin/filter-terms/#{item.id}?type=#{@filter_type}"}
-                    class="text-gf-maroon hover:text-gf-autumn mr-4"
-                  >
-                    Edit
-                  </.link>
-                  <button
-                    phx-click="delete"
-                    phx-value-id={item.id}
-                    data-confirm="Are you sure? This may affect galls that use this term."
-                    class="text-red-600 hover:text-red-900"
-                  >
-                    Delete
-                  </button>
+                <td class="text-right">
+                  <.table_actions>
+                    <.action_button
+                      icon="ph-pencil-simple"
+                      label="Edit"
+                      navigate={~p"/admin/filter-terms/#{item.id}?type=#{@filter_type}"}
+                      variant="primary"
+                    />
+                    <.action_button
+                      icon="ph-trash"
+                      label="Delete"
+                      variant="danger"
+                      phx-click="delete"
+                      phx-value-id={item.id}
+                      confirm="Are you sure? This may affect galls that use this term."
+                    />
+                  </.table_actions>
                 </td>
               </tr>
               <tr :if={@items == []}>

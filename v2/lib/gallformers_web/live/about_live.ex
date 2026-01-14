@@ -74,7 +74,7 @@ defmodule GallformersWeb.AboutLive do
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} current_user={@current_user}>
-      <div class="mx-auto max-w-4xl">
+      <div>
         <h1 class="text-3xl font-bold text-gf-maroon mb-8">About Us</h1>
 
         <div class="prose prose-lg max-w-none">

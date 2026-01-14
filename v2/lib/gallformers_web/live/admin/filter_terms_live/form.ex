@@ -175,7 +175,7 @@ defmodule GallformersWeb.Admin.FilterTermsLive.Form do
         <%!-- Help Card --%>
         <div class="mt-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
           <h3 class="text-sm font-medium text-yellow-800 mb-2">
-            <.icon name="hero-exclamation-triangle" class="h-4 w-4 inline mr-1" /> Usage Note
+            <.icon name="ph-warning" class="h-4 w-4 inline mr-1" /> Usage Note
           </h3>
           <p class="text-sm text-yellow-700">
             Filter terms are used by the ID tool to help identify galls. Modifying or deleting

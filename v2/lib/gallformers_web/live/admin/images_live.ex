@@ -79,13 +79,12 @@ defmodule GallformersWeb.AdminImagesLive do
         <div class="bg-white rounded-lg border border-gray-200 p-6">
           <h2 class="text-lg font-medium text-gray-900 mb-4">Select Species</h2>
           <div class="relative">
-            <form phx-change="search" phx-submit="search" class="flex gap-2">
-              <input
-                type="text"
+            <form phx-change="search" phx-submit="search" id="images-species-search-form">
+              <.search_input
+                id="images-species-search"
                 name="query"
                 value={@search_query}
                 placeholder="Search for a species..."
-                class="flex-1 rounded-md border-gray-300 shadow-sm focus:border-gf-maroon focus:ring-gf-maroon"
                 phx-debounce="300"
               />
             </form>
@@ -121,7 +120,7 @@ defmodule GallformersWeb.AdminImagesLive do
                 phx-click="clear_selection"
                 class="text-gray-500 hover:text-gray-700"
               >
-                <.icon name="hero-x-mark" class="h-5 w-5" />
+                <.icon name="ph-x" class="h-5 w-5" />
               </button>
             </div>
           </div>
@@ -156,7 +155,7 @@ defmodule GallformersWeb.AdminImagesLive do
                 data-dropzone
                 class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-gf-maroon transition-colors"
               >
-                <.icon name="hero-cloud-arrow-up" class="h-12 w-12 mx-auto text-gray-400" />
+                <.icon name="ph-cloud-arrow-up" class="h-12 w-12 mx-auto text-gray-400" />
                 <p class="mt-2 text-sm text-gray-600">
                   Drag and drop images here, or click to select
                 </p>
@@ -244,7 +243,7 @@ defmodule GallformersWeb.AdminImagesLive do
                     class="p-1 bg-white rounded text-gray-700 hover:text-gf-maroon"
                     title="Edit"
                   >
-                    <.icon name="hero-pencil" class="h-4 w-4" />
+                    <.icon name="ph-pencil" class="h-4 w-4" />
                   </button>
                   <button
                     type="button"
@@ -253,7 +252,7 @@ defmodule GallformersWeb.AdminImagesLive do
                     class="p-1 bg-white rounded text-gray-700 hover:text-red-600"
                     title="Delete"
                   >
-                    <.icon name="hero-trash" class="h-4 w-4" />
+                    <.icon name="ph-trash" class="h-4 w-4" />
                   </button>
                 </div>
               </div>

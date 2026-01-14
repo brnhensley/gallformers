@@ -10,12 +10,17 @@ defmodule GallformersWeb.GallLive do
   alias Gallformers.{Hosts, Sources, Species, Taxonomy}
   alias GallformersWeb.SEO
 
+  @aliases_page_size 10
+
   @detachable_values %{
     0 => "",
     1 => "Integral",
     2 => "Detachable",
     3 => "Both"
   }
+
+  # Gallformers Notes source ID (same as V1)
+  @gallformers_notes_source_id 58
 
   @impl true
   def mount(%{"id" => id}, _session, socket) do
@@ -63,8 +68,9 @@ defmodule GallformersWeb.GallLive do
         excluded_range = Hosts.get_excluded_places_for_gall(gall_id) |> MapSet.new()
         gall_filters = get_gall_filter_fields(gall.gall_id)
 
-        default_source = Enum.find(sources, fn s -> s.useasdefault end)
-        default_source_id = if default_source, do: default_source.id, else: nil
+        # Check if Gallformers notes exist for this species
+        gallformers_notes = Enum.find(sources, fn s -> s.id == @gallformers_notes_source_id end)
+        has_gallformers_notes = gallformers_notes != nil
 
         # Build SEO data
         page_url = "/gall/#{gall_id}"
@@ -100,7 +106,10 @@ defmodule GallformersWeb.GallLive do
            taxonomy: taxonomy,
            range: range,
            excluded_range: excluded_range,
-           selected_source_id: default_source_id,
+           has_gallformers_notes: has_gallformers_notes,
+           notes_alert_dismissed: false,
+           aliases_page: 1,
+           aliases_page_size: @aliases_page_size,
            error: nil
          )}
     end
@@ -131,10 +140,13 @@ defmodule GallformersWeb.GallLive do
     Enum.map(images, fn img ->
       # Replace "original" with size name in the path
       small_path = String.replace(img.path, "original", "small")
+      full_url = "#{base_url}/#{img.path}"
 
       Map.merge(img, %{
-        url: "#{base_url}/#{img.path}",
-        small_url: "#{base_url}/#{small_path}"
+        url: full_url,
+        src: full_url,
+        small_url: "#{base_url}/#{small_path}",
+        alt: "Gall image"
       })
     end)
   end
@@ -229,6 +241,33 @@ defmodule GallformersWeb.GallLive do
   defp format_fields(fields), do: Enum.join(fields, ", ")
 
   @impl true
+  def handle_event("dismiss_notes_alert", _params, socket) do
+    {:noreply, assign(socket, notes_alert_dismissed: true)}
+  end
+
+  @impl true
+  def handle_event("gallery_index_changed", _params, socket) do
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("aliases_page", %{"page" => page}, socket) do
+    aliases = socket.assigns.gall.aliases
+    page = max(1, min(page, aliases_total_pages(aliases, socket.assigns.aliases_page_size)))
+    {:noreply, assign(socket, aliases_page: page)}
+  end
+
+  defp paginated_aliases(aliases, current_page, page_size) do
+    aliases
+    |> Enum.drop((current_page - 1) * page_size)
+    |> Enum.take(page_size)
+  end
+
+  defp aliases_total_pages(aliases, page_size) do
+    max(1, ceil(length(aliases) / page_size))
+  end
+
+  @impl true
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} current_user={@current_user}>
@@ -239,7 +278,17 @@ defmodule GallformersWeb.GallLive do
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <div class="lg:col-span-2 space-y-2">
               <div class="flex items-start justify-between gap-4">
-                <h2 class="text-2xl font-bold"><em>{@gall.name}</em></h2>
+                <div class="flex items-center gap-2">
+                  <h2 class="text-2xl font-bold"><em>{@gall.name}</em></h2>
+                  <.link
+                    :if={@current_user}
+                    href={~p"/admin/galls/#{@gall.id}"}
+                    class="text-gray-400 hover:text-gf-maroon"
+                    title="Edit in admin"
+                  >
+                    <.icon name="ph-pencil-simple" class="h-5 w-5" />
+                  </.link>
+                </div>
                 <span class={[
                   "inline-flex items-center px-2 py-1 text-xs font-medium rounded-full",
                   if(@gall.datacomplete,
@@ -256,7 +305,7 @@ defmodule GallformersWeb.GallLive do
               <% end %>
 
               <%= if @taxonomy do %>
-                <div class="text-sm text-gray-600">
+                <div class="text-gray-600">
                   {if @taxonomy.family, do: @taxonomy.family, else: ""}
                   {if @taxonomy.family && @taxonomy.genus, do: " > "}
                   {if @taxonomy.genus, do: @taxonomy.genus, else: ""}
@@ -312,86 +361,145 @@ defmodule GallformersWeb.GallLive do
               </div>
 
               <%= if @gall.aliases && length(@gall.aliases) > 0 do %>
-                <div class="mt-2">
-                  <strong>Also known as:</strong>
-                  <ul class="list-disc list-inside text-sm text-gray-700">
-                    <%= for a <- @gall.aliases do %>
-                      <li><em>{a.name}</em>{if a.type, do: " (#{a.type})"}</li>
-                    <% end %>
-                  </ul>
+                <div class="mt-4">
+                  <h3 class="font-semibold text-gray-800 mb-2">
+                    Synonymy ({length(@gall.aliases)})
+                  </h3>
+                  <div class="bg-white rounded border border-gray-200 overflow-hidden">
+                    <table class="gf-table gf-table-compact">
+                      <thead>
+                        <tr>
+                          <th>Name</th>
+                          <th>Type</th>
+                          <th>Notes</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <%= for a <- paginated_aliases(@gall.aliases, @aliases_page, @aliases_page_size) do %>
+                          <tr>
+                            <td><em>{a.name}</em></td>
+                            <td class="text-gray-600">{a.type || "—"}</td>
+                            <td class="text-gray-600">{a.description || "—"}</td>
+                          </tr>
+                        <% end %>
+                      </tbody>
+                    </table>
+                  </div>
+                  <%= if aliases_total_pages(@gall.aliases, @aliases_page_size) > 1 do %>
+                    <.pagination
+                      page={@aliases_page}
+                      total_pages={aliases_total_pages(@gall.aliases, @aliases_page_size)}
+                      total_items={length(@gall.aliases)}
+                      page_size={@aliases_page_size}
+                      on_page_change={fn page -> JS.push("aliases_page", value: %{page: page}) end}
+                      class="mt-4"
+                    />
+                  <% end %>
                 </div>
               <% end %>
             </div>
 
             <div class="lg:col-span-1">
-              <%= if length(@images) > 0 do %>
-                <div class="bg-white rounded border border-gray-200 overflow-hidden">
-                  <img src={hd(@images).url} alt="Gall image" class="w-full h-48 object-cover" />
-                </div>
-                <%= if hd(@images).creator do %>
-                  <p class="text-xs text-gray-500 mt-1">
-                    Photo: {hd(@images).creator}{if hd(@images).license,
-                      do: " (#{hd(@images).license})"}
-                  </p>
-                <% end %>
-              <% else %>
-                <div class="bg-gray-100 rounded p-6 text-center text-gray-500">
-                  No images available
-                </div>
-              <% end %>
+              <.image_gallery
+                images={@images}
+                id="gall-images"
+                species_id={@gall.id}
+                current_user={@current_user}
+              />
             </div>
           </div>
 
           <hr class="border-gray-200 my-4" />
 
+          <%= if @has_gallformers_notes && !@notes_alert_dismissed do %>
+            <div
+              class="flex items-center gap-3 p-3 mb-4 bg-white border border-blue-200 border-l-4 border-l-blue-400 rounded text-sm text-gray-700"
+              role="alert"
+            >
+              <.icon name="ph-info" class="h-5 w-5 text-blue-500 shrink-0" />
+              <p class="flex-1">
+                Our ID Notes may contain important tips necessary for distinguishing this gall
+                from similar galls and/or important information about the taxonomic status of
+                this gall inducer.
+              </p>
+              <button
+                type="button"
+                class="text-gray-400 hover:text-gray-600"
+                phx-click="dismiss_notes_alert"
+                aria-label="Dismiss"
+              >
+                <.icon name="ph-x" class="h-4 w-4" />
+              </button>
+            </div>
+          <% end %>
+
           <%= if length(@sources) > 0 do %>
-            <h3 class="font-semibold mb-2">Sources ({length(@sources)})</h3>
+            <h3 class="font-semibold mb-2">Further Information ({length(@sources)})</h3>
             <div class="space-y-2">
               <%= for source <- @sources do %>
-                <div class={"p-3 rounded border #{if source.id == @selected_source_id, do: "border-gf-maroon bg-canary", else: "border-gray-200 bg-white"}"}>
-                  <.link
-                    href={"/source/#{source.id}"}
-                    class="font-medium text-gf-maroon hover:underline"
-                  >
-                    {source.title}
-                  </.link>
-                  {if source.author, do: " - #{source.author}"}
-                  {if source.pubyear, do: " (#{source.pubyear})"}
+                <div class={"p-3 rounded border bg-white #{if source.id == 58, do: "border-blue-200 border-l-4 border-l-blue-400", else: "border-gray-200"}"}>
+                  <div>
+                    <%= if source.id == 58 do %>
+                      <.icon
+                        name="ph-info"
+                        class="h-5 w-5 text-blue-500 inline-block align-text-bottom mr-1"
+                      />
+                    <% end %>
+                    <.link
+                      href={"/source/#{source.id}"}
+                      class="font-medium text-gf-maroon hover:underline"
+                    >
+                      {source.title}
+                    </.link>
+                    {if source.author, do: " - #{source.author}"}
+                    {if source.pubyear, do: " (#{source.pubyear})"}
+                    <%= if source.externallink do %>
+                      <.link
+                        href={source.externallink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="ml-2 text-gf-maroon hover:underline"
+                      >
+                        [Link]
+                      </.link>
+                    <% end %>
+                    <.link
+                      :if={@current_user}
+                      href={~p"/admin/species-sources/find?species_id=#{@gall.id}&source_id=#{source.id}"}
+                      class="ml-2 text-gray-400 hover:text-gf-maroon"
+                      title="Edit species-source mapping"
+                    >
+                      <.icon name="ph-pencil-simple" class="h-4 w-4 inline-block align-text-bottom" />
+                    </.link>
+                  </div>
+                  <%= if source.description do %>
+                    <p class="mt-1 text-gray-700">{source.description}</p>
+                  <% end %>
+                  <%= if source.license do %>
+                    <p class="mt-1 text-sm text-gray-500">
+                      License:
+                      <%= if source.licenselink do %>
+                        <.link
+                          href={source.licenselink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          class="text-gf-maroon hover:underline"
+                        >
+                          {source.license}
+                        </.link>
+                      <% else %>
+                        {source.license}
+                      <% end %>
+                    </p>
+                  <% end %>
                 </div>
               <% end %>
             </div>
           <% else %>
-            <p class="italic">No sources available for this species.</p>
+            <p class="italic">No further information available for this species.</p>
           <% end %>
 
-          <hr class="border-gray-200 my-4" />
-          <div class="mb-2"><strong>See Also:</strong></div>
-          <div class="flex flex-wrap gap-4 text-sm">
-            <.link
-              href={"https://www.inaturalist.org/taxa/search?q=#{URI.encode(@gall.name)}"}
-              target="_blank"
-              rel="noreferrer"
-              class="text-gf-maroon hover:underline"
-            >
-              iNaturalist
-            </.link>
-            <.link
-              href={"https://bugguide.net/index.php?q=search&keys=#{URI.encode(@gall.name)}"}
-              target="_blank"
-              rel="noreferrer"
-              class="text-gf-maroon hover:underline"
-            >
-              BugGuide
-            </.link>
-            <.link
-              href={"https://scholar.google.com/scholar?q=#{URI.encode(@gall.name)}"}
-              target="_blank"
-              rel="noreferrer"
-              class="text-gf-maroon hover:underline"
-            >
-              Google Scholar
-            </.link>
-          </div>
+          <.see_also name={@gall.name} type={:gall} undescribed={@gall.undescribed} />
         <% else %>
           <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
             Gall not found

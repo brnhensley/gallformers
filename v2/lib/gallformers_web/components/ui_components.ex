@@ -46,7 +46,7 @@ defmodule GallformersWeb.UIComponents do
       class={[
         "bg-white rounded-lg shadow-sm border border-gray-200",
         @title && "overflow-hidden",
-        !@title && "p-6",
+        !@title && "p-4",
         @class
       ]}
       {@rest}
@@ -147,7 +147,7 @@ defmodule GallformersWeb.UIComponents do
         title_color: "text-red-800",
         text_color: "text-red-700",
         button_bg: "bg-red-100 hover:bg-red-200 text-red-800",
-        icon: "hero-exclamation-circle"
+        icon: "ph-warning-circle"
       },
       "warning" => %{
         bg: "bg-yellow-50",
@@ -156,7 +156,7 @@ defmodule GallformersWeb.UIComponents do
         title_color: "text-yellow-800",
         text_color: "text-yellow-700",
         button_bg: "bg-yellow-100 hover:bg-yellow-200 text-yellow-800",
-        icon: "hero-exclamation-triangle"
+        icon: "ph-warning"
       },
       "info" => %{
         bg: "bg-blue-50",
@@ -165,7 +165,7 @@ defmodule GallformersWeb.UIComponents do
         title_color: "text-blue-800",
         text_color: "text-blue-700",
         button_bg: "bg-blue-100 hover:bg-blue-200 text-blue-800",
-        icon: "hero-information-circle"
+        icon: "ph-info"
       }
     }
 
@@ -199,7 +199,7 @@ defmodule GallformersWeb.UIComponents do
             @styles.button_bg
           ]}
         >
-          <.icon name="hero-arrow-path" class="size-4" />
+          <.icon name="ph-arrows-clockwise" class="size-4" />
           {gettext("Retry")}
         </button>
       </div>
@@ -323,25 +323,25 @@ defmodule GallformersWeb.UIComponents do
         bg: "bg-blue-50",
         border: "border-blue-200",
         text: "text-blue-800",
-        icon: "hero-information-circle"
+        icon: "ph-info"
       },
       "success" => %{
         bg: "bg-green-50",
         border: "border-green-200",
         text: "text-green-800",
-        icon: "hero-check-circle"
+        icon: "ph-check-circle"
       },
       "warning" => %{
         bg: "bg-yellow-50",
         border: "border-yellow-200",
         text: "text-yellow-800",
-        icon: "hero-exclamation-triangle"
+        icon: "ph-warning"
       },
       "error" => %{
         bg: "bg-red-50",
         border: "border-red-200",
         text: "text-red-800",
-        icon: "hero-exclamation-circle"
+        icon: "ph-warning-circle"
       }
     }
 
@@ -386,7 +386,7 @@ defmodule GallformersWeb.UIComponents do
             ]}
           >
             <span class="sr-only">{gettext("Dismiss")}</span>
-            <.icon name="hero-x-mark" class="size-5" />
+            <.icon name="ph-x" class="size-5" />
           </button>
         </div>
       </div>
@@ -648,7 +648,7 @@ defmodule GallformersWeb.UIComponents do
               class="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
               aria-label={gettext("Close")}
             >
-              <.icon name="hero-x-mark" class="size-5" />
+              <.icon name="ph-x" class="size-5" />
             </button>
             <h2
               :if={@title != []}
@@ -699,5 +699,113 @@ defmodule GallformersWeb.UIComponents do
     )
     |> JS.hide(to: "##{id}", transition: {"block", "block", "hidden"})
     |> JS.pop_focus()
+  end
+
+  @doc """
+  Renders "See Also" links to external resources with logo images.
+
+  For galls: iNaturalist, BugGuide, Google Scholar, BHL
+  For hosts: iNaturalist, Google Scholar, BHL
+
+  ## Examples
+
+      <.see_also name="Andricus quercuscalifornicus" type={:gall} />
+      <.see_also name="Quercus lobata" type={:host} />
+      <.see_also name="Undescribed ABC123" type={:gall} undescribed={true} />
+  """
+  attr :name, :string, required: true, doc: "species name for search queries"
+  attr :type, :atom, values: [:gall, :host], required: true, doc: "type of entity"
+  attr :undescribed, :boolean, default: false, doc: "whether the species is undescribed"
+
+  def see_also(assigns) do
+    # Parse species name: "Genus species subspecies" -> "Genus species"
+    search_name =
+      assigns.name
+      |> String.split(" ")
+      |> Enum.take(2)
+      |> Enum.join(" ")
+      |> URI.encode()
+
+    # For undescribed species, extract the code (second word)
+    undescribed_code =
+      if assigns.undescribed do
+        assigns.name |> String.split(" ") |> Enum.at(1) |> URI.encode()
+      else
+        nil
+      end
+
+    assigns =
+      assigns
+      |> assign(:search_name, search_name)
+      |> assign(:undescribed_code, undescribed_code)
+
+    ~H"""
+    <div>
+      <hr class="border-gray-200 my-4" />
+      <div class="mb-4 font-semibold text-gray-700">See Also:</div>
+      <%= if @undescribed do %>
+        <div class="mb-3 text-sm text-gray-600">
+          Unless noted otherwise in the ID Notes, observations of this gall are collected in the
+          Observation Field <em>Gallformers Code</em> with value <em>{@undescribed_code}</em> on
+          iNaturalist. You can view them here:
+        </div>
+        <div>
+          <a
+            href={"https://www.inaturalist.org/observations?verifiable=any&place_id=any&field:Gallformers%20Code=#{@undescribed_code}"}
+            target="_blank"
+            rel="noreferrer"
+            aria-label="Search for observations of this species on iNaturalist"
+            class="hover:opacity-80 transition-opacity"
+          >
+            <img src="/images/inatlogo-small.png" alt="iNaturalist" />
+          </a>
+        </div>
+      <% else %>
+        <div class={[
+          "grid items-center",
+          @type == :gall && "grid-cols-2 md:grid-cols-4",
+          @type == :host && "grid-cols-3"
+        ]}>
+          <a
+            href={"https://www.inaturalist.org/taxa/search?q=#{@search_name}"}
+            target="_blank"
+            rel="noreferrer"
+            aria-label="Search for this species on iNaturalist"
+            class="hover:opacity-80 transition-opacity"
+          >
+            <img src="/images/inatlogo-small.png" alt="iNaturalist" />
+          </a>
+          <a
+            :if={@type == :gall}
+            href={"https://bugguide.net/index.php?q=search&keys=#{@search_name}&search=Search"}
+            target="_blank"
+            rel="noreferrer"
+            aria-label="Search for this species on BugGuide"
+            class="hover:opacity-80 transition-opacity"
+          >
+            <img src="/images/bugguide-small.png" alt="BugGuide" />
+          </a>
+          <a
+            href={"https://scholar.google.com/scholar?hl=en&q=#{@search_name}"}
+            target="_blank"
+            rel="noreferrer"
+            aria-label="Search for this species on Google Scholar"
+            class="hover:opacity-80 transition-opacity"
+          >
+            <img src="/images/gscholar-small.png" alt="Google Scholar" />
+          </a>
+          <a
+            href={"https://www.biodiversitylibrary.org/search?SearchTerm=#{@search_name}&SearchCat=M#/names"}
+            target="_blank"
+            rel="noreferrer"
+            aria-label="Search for this species at the Biodiversity Heritage Library"
+            class="hover:opacity-80 transition-opacity"
+          >
+            <img src="/images/bhllogo.png" alt="Biodiversity Heritage Library" />
+          </a>
+        </div>
+      <% end %>
+    </div>
+    """
   end
 end

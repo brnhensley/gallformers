@@ -31,28 +31,8 @@ defmodule GallformersWeb.FilterGuideLive do
        page_url: "/filterguide",
        page_image: nil,
        page_json_ld: nil,
-       filter_fields: filter_fields,
-       open_sections: MapSet.new()
+       filter_fields: filter_fields
      )}
-  end
-
-  @impl true
-  def handle_event("toggle_section", %{"section" => section}, socket) do
-    section_atom = String.to_existing_atom(section)
-    open_sections = socket.assigns.open_sections
-
-    new_open_sections =
-      if MapSet.member?(open_sections, section_atom) do
-        MapSet.delete(open_sections, section_atom)
-      else
-        MapSet.put(open_sections, section_atom)
-      end
-
-    {:noreply, assign(socket, open_sections: new_open_sections)}
-  end
-
-  defp section_open?(open_sections, section) do
-    MapSet.member?(open_sections, section)
   end
 
   defp sort_by_field(items) do
@@ -63,161 +43,129 @@ defmodule GallformersWeb.FilterGuideLive do
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} current_user={@current_user}>
-      <div class="mx-auto max-w-4xl">
-        <h1 class="text-3xl font-bold text-gf-maroon mb-4">ID Tool Filter Guide</h1>
-        <p class="text-gray-600 mb-8">
+      <div class="max-w-4xl">
+        <h1 class="text-3xl font-bold text-gf-maroon mb-2">ID Tool Filter Guide</h1>
+        <p class="text-gray-600 mb-6">
           This guide explains the filter terms used in our gall identification tool.
-          Click on each section to expand and see the definitions.
         </p>
 
-        <div class="space-y-4">
+        <%!-- Jump links --%>
+        <nav class="mb-8 flex flex-wrap gap-2">
+          <.jump_link href="#alignment">Alignment</.jump_link>
+          <.jump_link href="#cells">Cells</.jump_link>
+          <.jump_link href="#detachable">Detachable</.jump_link>
+          <.jump_link href="#forms">Forms</.jump_link>
+          <.jump_link href="#location">Location</.jump_link>
+          <.jump_link href="#shape">Shape</.jump_link>
+          <.jump_link href="#texture">Texture</.jump_link>
+          <.jump_link href="#walls">Walls</.jump_link>
+        </nav>
+
+        <div class="space-y-8">
           <%!-- Alignment --%>
           <.filter_section
+            id="alignment"
             title="Alignment"
-            section={:alignment}
             items={sort_by_field(@filter_fields.alignment)}
-            open_sections={@open_sections}
           />
 
           <%!-- Cells --%>
           <.filter_section
+            id="cells"
             title="Cells"
-            section={:cells}
             items={sort_by_field(@filter_fields.cells)}
-            open_sections={@open_sections}
-            note="NOTE: If multiple larvae are found in one space, these may be inquilines rather than gall-inducers."
+            note="If multiple larvae are found in one space, these may be inquilines rather than gall-inducers."
           />
 
-          <%!-- Detachable (hardcoded) --%>
-          <div class="bg-white rounded-lg shadow-md overflow-hidden">
-            <button
-              phx-click="toggle_section"
-              phx-value-section="detachable"
-              class="w-full px-4 py-3 text-left bg-gray-50 hover:bg-gray-100 flex justify-between items-center"
-            >
-              <span class="font-semibold text-gray-800">Detachable</span>
-              <svg
-                class={"w-5 h-5 text-gray-500 transition-transform #{if section_open?(@open_sections, :detachable), do: "rotate-180"}"}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M19 9l-7 7-7-7"
-                />
-              </svg>
-            </button>
-            <%= if section_open?(@open_sections, :detachable) do %>
-              <div class="p-4 border-t">
-                <ul class="space-y-2">
-                  <li class="text-gray-700">
-                    <span class="font-medium">Yes</span>
-                    - the gall could be removed from the plant without destroying the tissue it's attached to (detachable).
-                  </li>
-                  <li class="text-gray-700">
-                    <span class="font-medium">No</span>
-                    - the gall could only be removed from the plant by destroying the tissue it's attached to (integral).
-                  </li>
-                </ul>
-                <p class="mt-4 text-sm text-gray-600 italic">
-                  NOTE: Galls that have detachable parts but leave some galled tissue behind (more than a scar
-                  or blister), are only detachable in some parts of the season, or may be detachable or not, are
-                  included in both terms.
-                </p>
+          <%!-- Detachable (hardcoded values) --%>
+          <section id="detachable">
+            <h2 class="text-xl font-semibold text-gf-maroon mb-3 border-b border-gray-200 pb-2">
+              Detachable
+            </h2>
+            <dl class="space-y-2">
+              <div>
+                <dt class="inline font-medium text-gray-900">Yes</dt>
+                <dd class="inline text-gray-700">
+                  – the gall could be removed from the plant without destroying the tissue it's attached to (detachable).
+                </dd>
               </div>
-            <% end %>
-          </div>
+              <div>
+                <dt class="inline font-medium text-gray-900">No</dt>
+                <dd class="inline text-gray-700">
+                  – the gall could only be removed from the plant by destroying the tissue it's attached to (integral).
+                </dd>
+              </div>
+            </dl>
+            <p class="mt-3 text-sm text-gray-600 italic">
+              Note: Galls that have detachable parts but leave some galled tissue behind (more than a scar
+              or blister), are only detachable in some parts of the season, or may be detachable or not, are
+              included in both terms.
+            </p>
+          </section>
 
           <%!-- Forms --%>
-          <.filter_section
-            title="Forms"
-            section={:form}
-            items={sort_by_field(@filter_fields.form)}
-            open_sections={@open_sections}
-          />
+          <.filter_section id="forms" title="Forms" items={sort_by_field(@filter_fields.form)} />
 
           <%!-- Location --%>
           <.filter_section
+            id="location"
             title="Location"
-            section={:location}
             items={sort_by_field(@filter_fields.location)}
-            open_sections={@open_sections}
           />
 
           <%!-- Shape --%>
-          <.filter_section
-            title="Shape"
-            section={:shape}
-            items={sort_by_field(@filter_fields.shape)}
-            open_sections={@open_sections}
-          />
+          <.filter_section id="shape" title="Shape" items={sort_by_field(@filter_fields.shape)} />
 
           <%!-- Texture --%>
-          <.filter_section
-            title="Texture"
-            section={:texture}
-            items={sort_by_field(@filter_fields.texture)}
-            open_sections={@open_sections}
-          />
+          <.filter_section id="texture" title="Texture" items={sort_by_field(@filter_fields.texture)} />
 
           <%!-- Walls --%>
-          <.filter_section
-            title="Walls"
-            section={:walls}
-            items={sort_by_field(@filter_fields.walls)}
-            open_sections={@open_sections}
-          />
+          <.filter_section id="walls" title="Walls" items={sort_by_field(@filter_fields.walls)} />
         </div>
       </div>
     </Layouts.app>
     """
   end
 
+  attr :href, :string, required: true
+  slot :inner_block, required: true
+
+  defp jump_link(assigns) do
+    ~H"""
+    <a
+      href={@href}
+      class="px-3 py-1.5 text-sm font-medium bg-gray-100 text-gray-700 rounded-full border border-gray-200 hover:bg-gf-maroon hover:border-gf-maroon hover:!text-white transition-colors"
+    >
+      {render_slot(@inner_block)}
+    </a>
+    """
+  end
+
+  attr :id, :string, required: true
   attr :title, :string, required: true
-  attr :section, :atom, required: true
   attr :items, :list, required: true
-  attr :open_sections, MapSet, required: true
   attr :note, :string, default: nil
 
   defp filter_section(assigns) do
     ~H"""
-    <div class="bg-white rounded-lg shadow-md overflow-hidden">
-      <button
-        phx-click="toggle_section"
-        phx-value-section={@section}
-        class="w-full px-4 py-3 text-left bg-gray-50 hover:bg-gray-100 flex justify-between items-center"
-      >
-        <span class="font-semibold text-gray-800">{@title}</span>
-        <svg
-          class={"w-5 h-5 text-gray-500 transition-transform #{if section_open?(@open_sections, @section), do: "rotate-180"}"}
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
-      <%= if section_open?(@open_sections, @section) do %>
-        <div class="p-4 border-t">
-          <ul class="space-y-2">
-            <%= for item <- @items do %>
-              <li class="text-gray-700">
-                <span class="font-medium">{item.field}</span>
-                <%= if item.description do %>
-                  <span>&nbsp;- {item.description}</span>
-                <% end %>
-              </li>
+    <section id={@id}>
+      <h2 class="text-xl font-semibold text-gf-maroon mb-3 border-b border-gray-200 pb-2">
+        {@title}
+      </h2>
+      <dl class="space-y-2">
+        <%= for item <- @items do %>
+          <div>
+            <dt class="inline font-medium text-gray-900">{item.field}</dt>
+            <%= if item.description do %>
+              <dd class="inline text-gray-700">– {item.description}</dd>
             <% end %>
-          </ul>
-          <%= if @note do %>
-            <p class="mt-4 text-sm text-gray-600 italic">{@note}</p>
-          <% end %>
-        </div>
+          </div>
+        <% end %>
+      </dl>
+      <%= if @note do %>
+        <p class="mt-3 text-sm text-gray-600 italic">Note: {@note}</p>
       <% end %>
-    </div>
+    </section>
     """
   end
 end

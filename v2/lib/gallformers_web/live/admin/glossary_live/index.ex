@@ -79,12 +79,21 @@ defmodule GallformersWeb.Admin.GlossaryLive.Index do
     ~H"""
     <Layouts.admin flash={@flash} current_user={@current_user} page_title="Glossary">
       <div class="space-y-6">
+        <%!-- Info banner --%>
+        <div class="gf-admin-info">
+          <.icon name="ph-info" class="h-5 w-5 text-blue-400 mr-2 flex-shrink-0" />
+          <p>
+            Glossary terms define scientific vocabulary used throughout the site.
+            Terms are automatically linked when they appear in descriptions.
+          </p>
+        </div>
+
         <%!-- Header with search and new button --%>
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div class="flex-1 max-w-lg">
+          <div class="flex-1 max-w-xl">
             <form phx-change="search" phx-submit="search" id="glossary-search-form">
-              <.input
-                type="text"
+              <.search_input
+                id="glossary-search"
                 name="query"
                 value={@search_query}
                 placeholder="Filter glossary terms..."
@@ -92,33 +101,24 @@ defmodule GallformersWeb.Admin.GlossaryLive.Index do
               />
             </form>
           </div>
-          <.link
-            navigate={~p"/admin/glossary/new"}
-            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm !text-white !no-underline bg-gf-maroon hover:bg-gf-maroon/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gf-maroon"
-          >
-            <.icon name="hero-plus" class="h-5 w-5 mr-2" /> New Entry
+          <.link navigate={~p"/admin/glossary/new"} class="gf-btn gf-btn-primary">
+            New Entry
           </.link>
         </div>
 
         <%!-- Glossary list table --%>
         <div class="bg-white shadow rounded-lg overflow-hidden">
-          <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-cadet-blue">
+          <table class="gf-table gf-table-dark">
+            <thead>
               <tr>
-                <th class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                  Word
-                </th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                  Definition
-                </th>
-                <th class="px-6 py-3 text-right text-xs font-medium text-white uppercase tracking-wider">
-                  Actions
-                </th>
+                <th>Word</th>
+                <th>Definition</th>
+                <th class="text-right">Actions</th>
               </tr>
             </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
-              <tr :for={entry <- @entries} class="hover:bg-gray-50">
-                <td class="px-6 py-4 whitespace-nowrap">
+            <tbody>
+              <tr :for={entry <- @entries}>
+                <td>
                   <.link
                     navigate={~p"/admin/glossary/#{entry.id}"}
                     class="text-gf-maroon hover:underline font-medium"
@@ -126,24 +126,26 @@ defmodule GallformersWeb.Admin.GlossaryLive.Index do
                     {entry.word}
                   </.link>
                 </td>
-                <td class="px-6 py-4 text-sm text-gray-500">
+                <td class="text-gray-500">
                   {truncate(entry.definition, 80)}
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <.link
-                    navigate={~p"/admin/glossary/#{entry.id}"}
-                    class="text-gf-maroon hover:text-gf-autumn mr-4"
-                  >
-                    Edit
-                  </.link>
-                  <button
-                    phx-click="delete"
-                    phx-value-id={entry.id}
-                    data-confirm="Are you sure you want to delete this glossary entry?"
-                    class="text-red-600 hover:text-red-900"
-                  >
-                    Delete
-                  </button>
+                <td class="text-right">
+                  <.table_actions>
+                    <.action_button
+                      icon="ph-pencil-simple"
+                      label="Edit"
+                      navigate={~p"/admin/glossary/#{entry.id}"}
+                      variant="primary"
+                    />
+                    <.action_button
+                      icon="ph-trash"
+                      label="Delete"
+                      variant="danger"
+                      phx-click="delete"
+                      phx-value-id={entry.id}
+                      confirm="Are you sure you want to delete this glossary entry?"
+                    />
+                  </.table_actions>
                 </td>
               </tr>
               <tr :if={@entries == []}>

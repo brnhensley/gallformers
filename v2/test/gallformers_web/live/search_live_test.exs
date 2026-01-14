@@ -152,11 +152,10 @@ defmodule GallformersWeb.SearchLiveTest do
       {:ok, view, html} = live(conn, ~p"/globalsearch?q=oak")
 
       if not (html =~ "No results") do
-        # Results should have icon elements
-        assert has_element?(view, ".hero-bug-ant") or
-                 has_element?(view, ".hero-beaker") or
-                 has_element?(view, ".hero-book-open") or
-                 has_element?(view, "[class*='hero-']")
+        # Results should have icon elements (gf-gall, gf-host, or ph-* phosphor icons)
+        assert has_element?(view, "[class*='gf-']") or
+                 has_element?(view, "[class*='ph-']") or
+                 has_element?(view, "svg")
       end
     end
 

@@ -137,7 +137,8 @@ defmodule Gallformers.Hosts do
       select: %{
         id: s.id,
         name: s.name,
-        undescribed: g.undescribed
+        undescribed: g.undescribed,
+        datacomplete: s.datacomplete
       }
     )
     |> Repo.all()

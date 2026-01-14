@@ -32,9 +32,37 @@ defmodule GallformersWeb.Admin.SpeciesSourceLive.QuickFind do
 
   @impl true
   def handle_params(params, _url, socket) do
-    # Allow pre-populating search via query param
     socket =
       case params do
+        # Pre-select a specific mapping by species_id and source_id
+        %{"species_id" => species_id_str, "source_id" => source_id_str} ->
+          with {species_id, ""} <- Integer.parse(species_id_str),
+               {source_id, ""} <- Integer.parse(source_id_str),
+               %{id: mapping_id} <- Sources.get_species_source_by_ids(species_id, source_id),
+               mapping when not is_nil(mapping) <- Sources.get_species_source_for_edit(mapping_id) do
+            # Include this mapping in results and auto-open edit form
+            species_source = %SpeciesSource{
+              id: mapping.id,
+              species_id: mapping.species_id,
+              source_id: mapping.source_id,
+              description: mapping.description || "",
+              externallink: mapping.externallink || "",
+              useasdefault: mapping.useasdefault || 0
+            }
+
+            changeset = Sources.change_species_source(species_source)
+
+            socket
+            |> assign(:search_query, mapping.species_name)
+            |> assign(:results, [mapping])
+            |> assign(:searched, true)
+            |> assign(:editing_id, mapping_id)
+            |> assign(:form, to_form(changeset))
+          else
+            _ -> socket
+          end
+
+        # Allow pre-populating search via query param
         %{"q" => query} when query != "" ->
           results = Sources.search_species_source_mappings(query)
 
@@ -215,21 +243,14 @@ defmodule GallformersWeb.Admin.SpeciesSourceLive.QuickFind do
           <div class="p-4">
             <%!-- Search Box --%>
             <div class="mb-6">
-              <form phx-change="search" phx-submit="search">
-                <div class="relative">
-                  <input
-                    type="text"
-                    name="query"
-                    value={@search_query}
-                    placeholder="Search mappings..."
-                    phx-debounce="300"
-                    class="w-full px-4 py-3 text-lg border border-gray-300 rounded-lg focus:ring-gf-maroon focus:border-gf-maroon"
-                    autofocus
-                  />
-                  <div class="absolute inset-y-0 right-0 flex items-center pr-4">
-                    <.icon name="hero-magnifying-glass" class="h-5 w-5 text-gray-400" />
-                  </div>
-                </div>
+              <form phx-change="search" phx-submit="search" id="quick-find-search-form">
+                <.search_input
+                  id="quick-find-search"
+                  name="query"
+                  value={@search_query}
+                  placeholder="Search mappings..."
+                  phx-debounce="300"
+                />
               </form>
             </div>
 

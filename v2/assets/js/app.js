@@ -104,12 +104,13 @@ const AutoDismiss = {
   }
 }
 
-// ImageGallery hook for keyboard navigation and lightbox
+// ImageGallery hook for keyboard navigation, lightbox, and attribution updates
 const ImageGallery = {
   mounted() {
     this.currentIndex = 0
     this.images = JSON.parse(this.el.dataset.images || "[]")
     this.lightboxOpen = false
+    this.infoOpen = false
 
     // Keyboard navigation
     this.keyHandler = (e) => {
@@ -117,8 +118,9 @@ const ImageGallery = {
         this.prevImage()
       } else if (e.key === "ArrowRight") {
         this.nextImage()
-      } else if (e.key === "Escape" && this.lightboxOpen) {
-        this.closeLightbox()
+      } else if (e.key === "Escape") {
+        if (this.lightboxOpen) this.closeLightbox()
+        if (this.infoOpen) this.closeInfo()
       }
     }
 
@@ -139,6 +141,14 @@ const ImageGallery = {
     this.el.querySelectorAll("[data-close-lightbox]").forEach(btn => {
       btn.addEventListener("click", () => this.closeLightbox())
     })
+
+    // Info dialog handlers
+    this.el.querySelectorAll("[data-open-info]").forEach(btn => {
+      btn.addEventListener("click", () => this.openInfo())
+    })
+    this.el.querySelectorAll("[data-close-info]").forEach(btn => {
+      btn.addEventListener("click", () => this.closeInfo())
+    })
   },
   destroyed() {
     this.el.removeEventListener("keydown", this.keyHandler)
@@ -152,25 +162,97 @@ const ImageGallery = {
     this.updateDisplay()
   },
   updateDisplay() {
+    const img = this.images[this.currentIndex]
+    if (!img) return
+
     // Update main image
     const mainImg = this.el.querySelector("[data-main-image]")
-    if (mainImg && this.images[this.currentIndex]) {
-      mainImg.src = this.images[this.currentIndex].src
-      mainImg.alt = this.images[this.currentIndex].alt || ""
+    if (mainImg) {
+      mainImg.src = img.src
+      mainImg.alt = img.alt || ""
     }
 
     // Update lightbox image
     const lightboxImg = this.el.querySelector("[data-lightbox-image]")
-    if (lightboxImg && this.images[this.currentIndex]) {
-      lightboxImg.src = this.images[this.currentIndex].src
-      lightboxImg.alt = this.images[this.currentIndex].alt || ""
+    if (lightboxImg) {
+      lightboxImg.src = img.src
+      lightboxImg.alt = img.alt || ""
     }
 
     // Update counter
-    const counter = this.el.querySelector("[data-counter]")
-    if (counter) {
+    this.el.querySelectorAll("[data-counter]").forEach(counter => {
       counter.textContent = `${this.currentIndex + 1} / ${this.images.length}`
+    })
+
+    // Update caption
+    const caption = this.el.querySelector("[data-caption]")
+    if (caption) {
+      caption.textContent = img.caption || ""
+      caption.classList.toggle("hidden", !img.caption)
     }
+
+    // Update attribution elements
+    const sourceLink = this.el.querySelector("[data-source-link]")
+    if (sourceLink) {
+      sourceLink.href = img.sourcelink || "#"
+      sourceLink.parentElement.classList.toggle("hidden", !img.sourcelink)
+    }
+
+    const creator = this.el.querySelector("[data-creator]")
+    if (creator) creator.textContent = img.creator || ""
+
+    const license = this.el.querySelector("[data-license]")
+    if (license) license.textContent = img.license || ""
+
+    const licenseLink = this.el.querySelector("[data-license-link]")
+    if (licenseLink) licenseLink.href = img.licenselink || "#"
+
+    const licenseTooltip = this.el.querySelector("[data-license-tooltip]")
+    if (licenseTooltip) licenseTooltip.textContent = img.license || "No license"
+
+    // Update info dialog elements
+    const infoImage = this.el.querySelector("[data-info-image]")
+    if (infoImage) infoImage.src = img.src
+
+    const infoSource = this.el.querySelector("[data-info-source]")
+    if (infoSource) {
+      infoSource.href = img.sourcelink || "#"
+      infoSource.textContent = img.source_title || img.sourcelink || ""
+    }
+
+    const infoLicense = this.el.querySelector("[data-info-license]")
+    if (infoLicense) {
+      infoLicense.href = img.licenselink || "#"
+      infoLicense.textContent = img.license || ""
+    }
+
+    const infoAttribution = this.el.querySelector("[data-info-attribution]")
+    if (infoAttribution) infoAttribution.textContent = img.attribution || ""
+
+    const infoCreator = this.el.querySelector("[data-info-creator]")
+    if (infoCreator) infoCreator.textContent = img.creator || ""
+
+    const infoUploader = this.el.querySelector("[data-info-uploader]")
+    if (infoUploader) infoUploader.textContent = img.uploader || ""
+
+    const infoLastchangedby = this.el.querySelector("[data-info-lastchangedby]")
+    if (infoLastchangedby) infoLastchangedby.textContent = img.lastchangedby || ""
+
+    const infoCaption = this.el.querySelector("[data-info-caption]")
+    if (infoCaption) infoCaption.textContent = img.caption || ""
+
+    // Update lightbox attribution elements
+    const lightboxSourceLink = this.el.querySelector("[data-lightbox-source-link]")
+    if (lightboxSourceLink) lightboxSourceLink.href = img.sourcelink || "#"
+
+    const lightboxCreator = this.el.querySelector("[data-lightbox-creator]")
+    if (lightboxCreator) lightboxCreator.textContent = img.creator || ""
+
+    const lightboxLicense = this.el.querySelector("[data-lightbox-license]")
+    if (lightboxLicense) lightboxLicense.textContent = img.license || ""
+
+    const lightboxLicenseLink = this.el.querySelector("[data-lightbox-license-link]")
+    if (lightboxLicenseLink) lightboxLicenseLink.href = img.licenselink || "#"
 
     // Push event to server if needed
     this.pushEvent("gallery_index_changed", {index: this.currentIndex})
@@ -178,16 +260,22 @@ const ImageGallery = {
   openLightbox() {
     this.lightboxOpen = true
     const lightbox = this.el.querySelector("[data-lightbox]")
-    if (lightbox) {
-      lightbox.showModal()
-    }
+    if (lightbox) lightbox.showModal()
   },
   closeLightbox() {
     this.lightboxOpen = false
     const lightbox = this.el.querySelector("[data-lightbox]")
-    if (lightbox) {
-      lightbox.close()
-    }
+    if (lightbox) lightbox.close()
+  },
+  openInfo() {
+    this.infoOpen = true
+    const info = this.el.querySelector("[data-info-dialog]")
+    if (info) info.showModal()
+  },
+  closeInfo() {
+    this.infoOpen = false
+    const info = this.el.querySelector("[data-info-dialog]")
+    if (info) info.close()
   }
 }
 

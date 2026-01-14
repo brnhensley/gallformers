@@ -132,7 +132,7 @@ defmodule GallformersWeb.GallLiveTest do
       if gall_with_alias do
         {:ok, _view, html} = live(conn, ~p"/gall/#{gall_with_alias.id}")
 
-        assert html =~ "Also known as" or html =~ "alias"
+        assert html =~ "Synonymy" or html =~ "alias"
       end
     end
   end

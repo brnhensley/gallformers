@@ -224,8 +224,7 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
         <%!-- Help Card --%>
         <div class="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
           <h3 class="text-sm font-medium text-blue-800 mb-2">
-            <.icon name="hero-information-circle" class="h-4 w-4 inline mr-1" />
-            About Taxonomy Hierarchy
+            <.icon name="ph-info" class="h-4 w-4 inline mr-1" /> About Taxonomy Hierarchy
           </h3>
           <ul class="text-sm text-blue-700 space-y-1">
             <li>

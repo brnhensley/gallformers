@@ -180,14 +180,14 @@ defmodule GallformersWeb.SearchLive do
   end
 
   @type_icons %{
-    "gall" => "hero-bug-ant",
-    "host" => "hero-beaker",
-    "glossary" => "hero-book-open",
-    "source" => "hero-document-text",
-    "genus" => "hero-folder",
-    "family" => "hero-folder",
-    "section" => "hero-folder",
-    "place" => "hero-map-pin"
+    "gall" => "gf-gall",
+    "host" => "gf-host",
+    "glossary" => "ph-book-open",
+    "source" => "ph-file-text",
+    "genus" => "ph-folder",
+    "family" => "ph-folder",
+    "section" => "ph-folder",
+    "place" => "ph-map-pin"
   }
 
   defp result_link(%{type: "glossary", name: name}), do: ~p"/glossary##{String.downcase(name)}"
@@ -199,7 +199,7 @@ defmodule GallformersWeb.SearchLive do
 
   defp build_entity_link(_type, _id), do: "/"
 
-  defp type_icon(type), do: Map.get(@type_icons, type, "hero-question-mark-circle")
+  defp type_icon(type), do: Map.get(@type_icons, type, "ph-question")
 
   defp format_name(result) do
     case result.type do
@@ -223,129 +223,127 @@ defmodule GallformersWeb.SearchLive do
 
     ~H"""
     <Layouts.app flash={@flash} current_user={@current_user}>
-      <div class="mx-auto max-w-6xl" id="search-container" phx-window-keydown="keydown">
+      <div id="search-container" phx-window-keydown="keydown">
         <h1 class="text-3xl font-bold text-gf-maroon mb-6">Search</h1>
 
         <form id="search-form" phx-submit="search" phx-change="search_input" class="mb-6">
-          <div class="flex gap-2">
-            <input
-              type="search"
-              name="q"
-              value={@query}
-              placeholder="Search for galls, hosts, sources, glossary terms..."
-              class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gf-maroon focus:border-transparent"
-              phx-debounce="300"
-              autocomplete="off"
-              autofocus
-            />
-            <button
-              type="submit"
-              class="px-6 py-2 bg-gf-maroon text-white rounded-lg hover:bg-opacity-90 transition-colors"
-            >
-              Search
-            </button>
-          </div>
+          <.search_input
+            id="global-search"
+            name="q"
+            value={@query}
+            placeholder="Search for galls, hosts, sources, glossary terms..."
+            phx-debounce="300"
+          />
         </form>
 
-        <%= if @query == "" do %>
-          <div class="bg-gray-50 rounded-lg p-8 text-center text-gray-600">
-            <.icon name="hero-magnifying-glass" class="w-12 h-12 mx-auto mb-4 text-gray-400" />
-            <p class="text-lg">
-              Enter a search term to find galls, hosts, sources, glossary entries, and more.
-            </p>
-          </div>
-        <% else %>
-          <%= if @total_count == 0 do %>
-            <div class="bg-gray-50 border border-gray-200 px-6 py-4 rounded-lg">
-              <p class="font-medium text-gray-900">No results for "{@query}"</p>
-              <p class="text-sm text-gray-600 mt-1">
-                Try adjusting your search terms or use fewer keywords.
+        <div id="search-results-area">
+          <%= if @query == "" do %>
+            <div id="search-empty-state" class="bg-gray-50 rounded-lg p-8 text-center text-gray-600">
+              <.icon name="ph-magnifying-glass" class="w-12 h-12 mx-auto mb-4 text-gray-400" />
+              <p class="text-lg">
+                Enter a search term to find galls, hosts, sources, glossary entries, and more.
               </p>
             </div>
           <% else %>
-            <div class="mb-4 text-sm text-gray-600">
-              Found {@total_count} result{if @total_count != 1, do: "s", else: ""} for "{@query}"
-            </div>
+            <%= if @total_count == 0 do %>
+              <div
+                id="search-no-results"
+                class="bg-gray-50 border border-gray-200 px-6 py-4 rounded-lg"
+              >
+                <p class="font-medium text-gray-900">No results for "{@query}"</p>
+                <p class="text-sm text-gray-600 mt-1">
+                  Try adjusting your search terms or use fewer keywords.
+                </p>
+              </div>
+            <% else %>
+              <div id="results-count" class="mb-4 text-sm text-gray-600">
+                Found {@total_count} result{if @total_count != 1, do: "s", else: ""} for "{@query}"
+              </div>
 
-            <div class="bg-white rounded-lg shadow overflow-hidden">
-              <table class="min-w-full divide-y divide-gray-200" id="results-table">
-                <thead class="bg-gray-50">
-                  <tr>
-                    <th
-                      class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 w-32"
-                      phx-click="sort"
-                      phx-value-column="type"
-                    >
-                      Type
-                      <%= if @sort_by == :type do %>
-                        <span class="ml-1">{if @sort_dir == :asc, do: "↑", else: "↓"}</span>
-                      <% end %>
-                    </th>
-                    <th
-                      class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                      phx-click="sort"
-                      phx-value-column="name"
-                    >
-                      Name
-                      <%= if @sort_by == :name do %>
-                        <span class="ml-1">{if @sort_dir == :asc, do: "↑", else: "↓"}</span>
-                      <% end %>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
-                  <%= for {result, index} <- Enum.with_index(@sorted_results) do %>
-                    <tr
-                      id={"result-#{index}"}
-                      class={[
-                        "transition-colors cursor-pointer",
-                        if(index == @selected_index, do: "bg-canary", else: "hover:bg-gray-50")
-                      ]}
-                      phx-click="select_result"
-                      phx-value-index={index}
-                    >
-                      <td class="px-6 py-4 whitespace-nowrap">
-                        <div class="flex items-center gap-2">
-                          <.icon name={type_icon(result.type)} class="w-5 h-5 text-gray-500" />
-                          <span class="text-sm text-gray-600">{result.category}</span>
-                        </div>
-                      </td>
-                      <td class="px-6 py-4">
-                        <.link
-                          href={result_link(result)}
-                          class="text-gf-maroon hover:underline"
-                        >
-                          <%= if italicized?(result.type) do %>
-                            <em>{format_name(result)}</em>
-                          <% else %>
-                            {format_name(result)}
-                          <% end %>
-                        </.link>
-                        <%= if Map.get(result, :aliases, []) != [] do %>
-                          <span class="text-sm text-gray-500 ml-2">
-                            (also: {Enum.join(result.aliases, ", ")})
-                          </span>
+              <div class="bg-white rounded-lg shadow overflow-hidden">
+                <table class="gf-table" id="results-table">
+                  <thead>
+                    <tr>
+                      <th
+                        class="cursor-pointer hover:bg-gray-100 w-32"
+                        phx-click="sort"
+                        phx-value-column="type"
+                      >
+                        Type
+                        <%= if @sort_by == :type do %>
+                          <span class="ml-1">{if @sort_dir == :asc, do: "↑", else: "↓"}</span>
                         <% end %>
-                      </td>
+                      </th>
+                      <th
+                        class="cursor-pointer hover:bg-gray-100"
+                        phx-click="sort"
+                        phx-value-column="name"
+                      >
+                        Name
+                        <%= if @sort_by == :name do %>
+                          <span class="ml-1">{if @sort_dir == :asc, do: "↑", else: "↓"}</span>
+                        <% end %>
+                      </th>
                     </tr>
-                  <% end %>
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    <%= for {result, index} <- Enum.with_index(@sorted_results) do %>
+                      <tr
+                        id={"result-#{index}"}
+                        class={[
+                          "cursor-pointer",
+                          if(index == @selected_index, do: "!bg-canary")
+                        ]}
+                        phx-click="select_result"
+                        phx-value-index={index}
+                      >
+                        <td>
+                          <div class="flex items-center gap-2">
+                            <.icon name={type_icon(result.type)} class="w-5 h-5 text-gray-500" />
+                            <span class="text-gray-600">{result.category}</span>
+                          </div>
+                        </td>
+                        <td>
+                          <.link
+                            href={result_link(result)}
+                            class="text-gf-maroon hover:underline"
+                          >
+                            <%= if italicized?(result.type) do %>
+                              <em>{format_name(result)}</em>
+                            <% else %>
+                              {format_name(result)}
+                            <% end %>
+                          </.link>
+                          <%= if Map.get(result, :aliases, []) != [] do %>
+                            <span class="text-sm text-gray-500 ml-2">
+                              (also: {Enum.join(result.aliases, ", ")})
+                            </span>
+                          <% end %>
+                        </td>
+                      </tr>
+                    <% end %>
+                  </tbody>
+                </table>
+              </div>
 
-            <div class="mt-4 text-xs text-gray-500">
-              <p>
-                <kbd class="px-1.5 py-0.5 bg-gray-100 border border-gray-300 rounded text-xs">↑</kbd>
-                <kbd class="px-1.5 py-0.5 bg-gray-100 border border-gray-300 rounded text-xs">↓</kbd>
-                to navigate,
-                <kbd class="px-1.5 py-0.5 bg-gray-100 border border-gray-300 rounded text-xs">
-                  Enter
-                </kbd>
-                to select
-              </p>
-            </div>
+              <div class="mt-4 text-xs text-gray-500">
+                <p>
+                  <kbd class="px-1.5 py-0.5 bg-gray-100 border border-gray-300 rounded text-xs">
+                    ↑
+                  </kbd>
+                  <kbd class="px-1.5 py-0.5 bg-gray-100 border border-gray-300 rounded text-xs">
+                    ↓
+                  </kbd>
+                  to navigate,
+                  <kbd class="px-1.5 py-0.5 bg-gray-100 border border-gray-300 rounded text-xs">
+                    Enter
+                  </kbd>
+                  to select
+                </p>
+              </div>
+            <% end %>
           <% end %>
-        <% end %>
+        </div>
       </div>
     </Layouts.app>
     """

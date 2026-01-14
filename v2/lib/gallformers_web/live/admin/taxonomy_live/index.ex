@@ -8,6 +8,8 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Index do
 
   alias Gallformers.Taxonomy
 
+  @page_size 50
+
   @impl true
   def mount(_params, session, socket) do
     current_user = session["current_user"]
@@ -20,6 +22,8 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Index do
       |> assign(:page_title, "Taxonomy")
       |> assign(:search_query, "")
       |> assign(:filter_type, nil)
+      |> assign(:current_page, 1)
+      |> assign(:page_size, @page_size)
       |> load_taxonomies()
 
     {:ok, socket}
@@ -40,6 +44,7 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Index do
     socket =
       socket
       |> assign(:search_query, query)
+      |> assign(:current_page, 1)
       |> load_taxonomies()
 
     {:noreply, socket}
@@ -52,9 +57,16 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Index do
     socket =
       socket
       |> assign(:filter_type, filter_type)
+      |> assign(:current_page, 1)
       |> load_taxonomies()
 
     {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("page", %{"page" => page}, socket) do
+    page = max(1, min(page, total_pages(socket.assigns.taxonomies, socket.assigns.page_size)))
+    {:noreply, assign(socket, current_page: page)}
   end
 
   @impl true
@@ -91,7 +103,7 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Index do
   end
 
   defp search_and_filter(query, type) do
-    Taxonomy.search_taxonomies(query, type, 100)
+    Taxonomy.search_taxonomies(query, type, 500)
     |> Enum.map(fn t ->
       parent = if t.parent_id, do: Taxonomy.get_taxonomy(t.parent_id), else: nil
 
@@ -107,70 +119,69 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Index do
     end)
   end
 
+  defp paginated_taxonomies(taxonomies, current_page, page_size) do
+    taxonomies
+    |> Enum.drop((current_page - 1) * page_size)
+    |> Enum.take(page_size)
+  end
+
+  defp total_pages(taxonomies, page_size) do
+    max(1, ceil(length(taxonomies) / page_size))
+  end
+
   @impl true
   def render(assigns) do
     ~H"""
     <Layouts.admin flash={@flash} current_user={@current_user} page_title="Taxonomy">
       <div class="space-y-6">
+        <%!-- Info banner --%>
+        <div class="gf-admin-info">
+          <.icon name="ph-info" class="h-5 w-5 text-blue-400 mr-2 flex-shrink-0" />
+          <p>
+            Taxonomy entries organize species into families, genera, and sections.
+            Each entry can have a parent to form the taxonomic hierarchy.
+          </p>
+        </div>
+
         <%!-- Header with search, filter, and new button --%>
-        <div class="flex flex-col sm:flex-row sm:items-center gap-4">
-          <div class="flex-1 max-w-md">
-            <form phx-change="search" phx-submit="search" id="taxonomy-search-form">
-              <.input
-                type="text"
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div class="flex items-center gap-4 flex-1 max-w-2xl">
+            <form phx-change="search" phx-submit="search" id="taxonomy-search-form" class="flex-1">
+              <.search_input
+                id="taxonomy-search"
                 name="query"
                 value={@search_query}
                 placeholder="Search taxonomy..."
                 phx-debounce="300"
               />
             </form>
+            <select name="type" phx-change="filter_type" class="gf-select !w-auto">
+              <option value="">All Types</option>
+              <option value="family" selected={@filter_type == "family"}>Families</option>
+              <option value="genus" selected={@filter_type == "genus"}>Genera</option>
+              <option value="section" selected={@filter_type == "section"}>Sections</option>
+            </select>
           </div>
-          <div>
-            <form phx-change="filter_type" id="taxonomy-filter-form">
-              <select
-                name="type"
-                class="block w-full rounded-md border-gray-300 shadow-sm focus:border-gf-maroon focus:ring-gf-maroon"
-              >
-                <option value="">All Types</option>
-                <option value="family" selected={@filter_type == "family"}>Families</option>
-                <option value="genus" selected={@filter_type == "genus"}>Genera</option>
-                <option value="section" selected={@filter_type == "section"}>Sections</option>
-              </select>
-            </form>
-          </div>
-          <.link
-            navigate={~p"/admin/taxonomy/new"}
-            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm !text-white !no-underline bg-gf-maroon hover:bg-gf-maroon/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gf-maroon"
-          >
-            <.icon name="hero-plus" class="h-5 w-5 mr-2" /> New Entry
+          <.link navigate={~p"/admin/taxonomy/new"} class="gf-btn gf-btn-primary">
+            New Entry
           </.link>
         </div>
 
         <%!-- Taxonomy list table --%>
         <div class="bg-white shadow rounded-lg overflow-hidden">
-          <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-cadet-blue">
+          <table class="gf-table gf-table-dark">
+            <thead>
               <tr>
-                <th class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                  Name
-                </th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                  Type
-                </th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                  Description
-                </th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                  Parent
-                </th>
-                <th class="px-6 py-3 text-right text-xs font-medium text-white uppercase tracking-wider">
-                  Actions
-                </th>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Description</th>
+                <th>Parent</th>
+                <th class="text-right">Actions</th>
               </tr>
             </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
-              <tr :for={taxonomy <- @taxonomies} class="hover:bg-gray-50">
-                <td class="px-6 py-4 whitespace-nowrap">
+            <tbody>
+              <tr :for={taxonomy <- paginated_taxonomies(@taxonomies, @current_page, @page_size)}>
+                <td>
                   <.link
                     navigate={~p"/admin/taxonomy/#{taxonomy.id}"}
                     class="text-gf-maroon hover:underline font-medium"
@@ -178,13 +189,13 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Index do
                     {taxonomy.name}
                   </.link>
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap">
+                <td>
                   <.type_badge type={taxonomy.type} />
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-gray-500 text-sm">
+                <td class="text-gray-500">
                   {taxonomy.description || "—"}
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm">
+                <td>
                   <%= if taxonomy.parent_name do %>
                     <span class="text-gray-900">{taxonomy.parent_name}</span>
                     <span class="text-gray-500 text-xs ml-1">({taxonomy.parent_type})</span>
@@ -192,25 +203,27 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Index do
                     <span class="text-gray-400">—</span>
                   <% end %>
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <.link
-                    navigate={~p"/admin/taxonomy/#{taxonomy.id}"}
-                    class="text-gf-maroon hover:text-gf-autumn mr-4"
-                  >
-                    Edit
-                  </.link>
-                  <button
-                    phx-click="delete"
-                    phx-value-id={taxonomy.id}
-                    data-confirm="Are you sure? This will also affect species in this taxonomy."
-                    class="text-red-600 hover:text-red-900"
-                  >
-                    Delete
-                  </button>
+                <td class="text-right">
+                  <.table_actions>
+                    <.action_button
+                      icon="ph-pencil-simple"
+                      label="Edit"
+                      navigate={~p"/admin/taxonomy/#{taxonomy.id}"}
+                      variant="primary"
+                    />
+                    <.action_button
+                      icon="ph-trash"
+                      label="Delete"
+                      variant="danger"
+                      phx-click="delete"
+                      phx-value-id={taxonomy.id}
+                      confirm="Are you sure? This will also affect species in this taxonomy."
+                    />
+                  </.table_actions>
                 </td>
               </tr>
               <tr :if={@taxonomies == []}>
-                <td colspan="5" class="px-6 py-8 text-center text-gray-500">
+                <td colspan="5" class="text-center text-gray-500">
                   No taxonomy entries found.
                 </td>
               </tr>
@@ -218,9 +231,19 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Index do
           </table>
         </div>
 
-        <p class="text-sm text-gray-500">
-          Showing {@taxonomies |> length()} entries
-        </p>
+        <%= if total_pages(@taxonomies, @page_size) > 1 do %>
+          <.pagination
+            page={@current_page}
+            total_pages={total_pages(@taxonomies, @page_size)}
+            total_items={length(@taxonomies)}
+            page_size={@page_size}
+            on_page_change={fn page -> JS.push("page", value: %{page: page}) end}
+          />
+        <% else %>
+          <p class="text-sm text-gray-500">
+            Showing {length(@taxonomies)} entries
+          </p>
+        <% end %>
       </div>
     </Layouts.admin>
     """

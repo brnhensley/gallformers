@@ -308,6 +308,7 @@ defmodule Gallformers.Search do
   # LIKE-based fallback for mid-word matches
   defp search_galls_with_aliases_like(query) do
     search_term = "%#{String.downcase(query)}%"
+    search_terms = Ranking.parse_query(query)
 
     # Search by species name
     name_results =
@@ -349,7 +350,9 @@ defmodule Gallformers.Search do
       |> Repo.all()
 
     # Merge results, adding aliases to species that were found via alias
-    merge_species_with_aliases(name_results, alias_results)
+    name_results
+    |> merge_species_with_aliases(alias_results)
+    |> Ranking.add_scores_and_sort(search_terms)
   end
 
   @doc """
@@ -418,6 +421,7 @@ defmodule Gallformers.Search do
   # LIKE-based fallback for mid-word matches
   defp search_hosts_with_aliases_like(query) do
     search_term = "%#{String.downcase(query)}%"
+    search_terms = Ranking.parse_query(query)
 
     # Search by species name
     name_results =
@@ -448,7 +452,9 @@ defmodule Gallformers.Search do
       )
       |> Repo.all()
 
-    merge_species_with_aliases(name_results, alias_results)
+    name_results
+    |> merge_species_with_aliases(alias_results)
+    |> Ranking.add_scores_and_sort(search_terms)
   end
 
   # Finds aliases that match the search query from a space-separated alias string

@@ -122,9 +122,19 @@ defmodule GallformersWeb.PlaceLive do
             <%!-- Header --%>
             <div class="mb-6">
               <div class="flex items-center justify-between mb-2">
-                <h1 class="text-2xl font-bold text-gf-maroon">
-                  {@place.name} - {@place.code}
-                </h1>
+                <div class="flex items-center gap-2">
+                  <h1 class="text-2xl font-bold text-gf-maroon">
+                    {@place.name} - {@place.code}
+                  </h1>
+                  <.link
+                    :if={@current_user}
+                    href={~p"/admin/places/#{@place.id}"}
+                    class="text-gray-400 hover:text-gf-maroon"
+                    title="Edit in admin"
+                  >
+                    <.icon name="ph-pencil-simple" class="h-5 w-5" />
+                  </.link>
+                </div>
               </div>
 
               <%!-- Parent info --%>
@@ -141,19 +151,17 @@ defmodule GallformersWeb.PlaceLive do
                 Host Plants ({length(@hosts)})
               </h2>
               <%= if length(@hosts) > 0 do %>
-                <div class="bg-white rounded border border-gray-200">
-                  <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
+                <div class="bg-white rounded border border-gray-200 overflow-hidden">
+                  <table class="gf-table">
+                    <thead>
                       <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Species Name
-                        </th>
+                        <th>Species Name</th>
                       </tr>
                     </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
+                    <tbody>
                       <%= for host <- @hosts do %>
-                        <tr class="hover:bg-gray-50">
-                          <td class="px-6 py-4 whitespace-nowrap text-sm">
+                        <tr>
+                          <td>
                             <.link
                               href={"/host/#{host.id}"}
                               class="text-gf-maroon hover:underline"

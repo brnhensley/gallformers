@@ -79,12 +79,21 @@ defmodule GallformersWeb.Admin.SourceLive.Index do
     ~H"""
     <Layouts.admin flash={@flash} current_user={@current_user} page_title="Sources">
       <div class="space-y-6">
+        <%!-- Info banner --%>
+        <div class="gf-admin-info">
+          <.icon name="ph-info" class="h-5 w-5 text-blue-400 mr-2 flex-shrink-0" />
+          <p>
+            Sources are scientific references and citations linked to species.
+            Each source can be associated with multiple species to provide attribution.
+          </p>
+        </div>
+
         <%!-- Header with search and new button --%>
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div class="flex-1 max-w-lg">
+          <div class="flex-1 max-w-xl">
             <form phx-change="search" phx-submit="search" id="source-search-form">
-              <.input
-                type="text"
+              <.search_input
+                id="source-search"
                 name="query"
                 value={@search_query}
                 placeholder="Search sources by title or author..."
@@ -92,39 +101,26 @@ defmodule GallformersWeb.Admin.SourceLive.Index do
               />
             </form>
           </div>
-          <.link
-            navigate={~p"/admin/sources/new"}
-            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm !text-white !no-underline bg-gf-maroon hover:bg-gf-maroon/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gf-maroon"
-          >
-            <.icon name="hero-plus" class="h-5 w-5 mr-2" /> New Source
+          <.link navigate={~p"/admin/sources/new"} class="gf-btn gf-btn-primary">
+            New Source
           </.link>
         </div>
 
         <%!-- Source list table --%>
         <div class="bg-white shadow rounded-lg overflow-hidden">
-          <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-cadet-blue">
+          <table class="gf-table gf-table-dark">
+            <thead>
               <tr>
-                <th class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                  Title
-                </th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                  Author
-                </th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                  Year
-                </th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                  Complete
-                </th>
-                <th class="px-6 py-3 text-right text-xs font-medium text-white uppercase tracking-wider">
-                  Actions
-                </th>
+                <th>Title</th>
+                <th>Author</th>
+                <th>Year</th>
+                <th>Complete</th>
+                <th class="text-right">Actions</th>
               </tr>
             </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
-              <tr :for={source <- @sources} class="hover:bg-gray-50">
-                <td class="px-6 py-4">
+            <tbody>
+              <tr :for={source <- @sources}>
+                <td>
                   <.link
                     navigate={~p"/admin/sources/#{source.id}"}
                     class="text-gf-maroon hover:underline font-medium"
@@ -132,13 +128,13 @@ defmodule GallformersWeb.Admin.SourceLive.Index do
                     {truncate(source.title, 60)}
                   </.link>
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <td class="text-gray-500">
                   {truncate(source.author, 30)}
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <td class="text-gray-500">
                   {source.pubyear}
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap">
+                <td>
                   <%= if source.datacomplete do %>
                     <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                       Yes
@@ -149,21 +145,23 @@ defmodule GallformersWeb.Admin.SourceLive.Index do
                     </span>
                   <% end %>
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <.link
-                    navigate={~p"/admin/sources/#{source.id}"}
-                    class="text-gf-maroon hover:text-gf-autumn mr-4"
-                  >
-                    Edit
-                  </.link>
-                  <button
-                    phx-click="delete"
-                    phx-value-id={source.id}
-                    data-confirm="Are you sure? This will remove all species associations."
-                    class="text-red-600 hover:text-red-900"
-                  >
-                    Delete
-                  </button>
+                <td class="text-right">
+                  <.table_actions>
+                    <.action_button
+                      icon="ph-pencil-simple"
+                      label="Edit"
+                      navigate={~p"/admin/sources/#{source.id}"}
+                      variant="primary"
+                    />
+                    <.action_button
+                      icon="ph-trash"
+                      label="Delete"
+                      variant="danger"
+                      phx-click="delete"
+                      phx-value-id={source.id}
+                      confirm="Are you sure? This will remove all species associations."
+                    />
+                  </.table_actions>
                 </td>
               </tr>
               <tr :if={@sources == []}>

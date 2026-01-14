@@ -9,6 +9,8 @@ defmodule GallformersWeb.SourceLive do
 
   alias Gallformers.Sources
 
+  @page_size 20
+
   @impl true
   def mount(%{"id" => id}, _session, socket) do
     case Integer.parse(id) do
@@ -61,16 +63,34 @@ defmodule GallformersWeb.SourceLive do
            page_noindex: false,
            source: source,
            species: species,
+           current_page: 1,
+           page_size: @page_size,
            error: nil
          )}
     end
   end
 
   @impl true
+  def handle_event("page", %{"page" => page}, socket) do
+    page = max(1, min(page, total_pages(socket.assigns.species, socket.assigns.page_size)))
+    {:noreply, assign(socket, current_page: page)}
+  end
+
+  defp paginated_species(species, current_page, page_size) do
+    species
+    |> Enum.drop((current_page - 1) * page_size)
+    |> Enum.take(page_size)
+  end
+
+  defp total_pages(species, page_size) do
+    max(1, ceil(length(species) / page_size))
+  end
+
+  @impl true
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} current_user={@current_user}>
-      <div class="mx-auto max-w-7xl">
+      <div>
         <%= if @error do %>
           <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">{@error}</div>
         <% else %>
@@ -78,7 +98,17 @@ defmodule GallformersWeb.SourceLive do
             <%!-- Header --%>
             <div class="mb-6">
               <div class="flex items-start justify-between gap-4 mb-2">
-                <h1 class="text-2xl font-bold text-gf-maroon">{@source.title}</h1>
+                <div class="flex items-center gap-2">
+                  <h1 class="text-2xl font-bold text-gf-maroon">{@source.title}</h1>
+                  <.link
+                    :if={@current_user}
+                    href={~p"/admin/sources/#{@source.id}"}
+                    class="text-gray-400 hover:text-gf-maroon"
+                    title="Edit in admin"
+                  >
+                    <.icon name="ph-pencil-simple" class="h-5 w-5" />
+                  </.link>
+                </div>
                 <div class="flex items-center gap-2">
                   <%= if @source.datacomplete do %>
                     <span
@@ -151,19 +181,18 @@ defmodule GallformersWeb.SourceLive do
                 Connected Species ({length(@species)})
               </h2>
               <%= if length(@species) > 0 do %>
-                <div class="bg-white rounded border border-gray-200">
-                  <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
+                <div class="bg-white rounded border border-gray-200 overflow-hidden">
+                  <table class="gf-table gf-table-compact">
+                    <thead>
                       <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Species Name
-                        </th>
+                        <th>Species Name</th>
+                        <th>Type</th>
                       </tr>
                     </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
-                      <%= for species <- @species do %>
-                        <tr class="hover:bg-gray-50">
-                          <td class="px-6 py-4 whitespace-nowrap text-sm">
+                    <tbody>
+                      <%= for species <- paginated_species(@species, @current_page, @page_size) do %>
+                        <tr>
+                          <td>
                             <.link
                               href={"#{if species.taxoncode == "gall", do: "/gall", else: "/host"}/#{species.id}"}
                               class="text-gf-maroon hover:underline"
@@ -171,11 +200,24 @@ defmodule GallformersWeb.SourceLive do
                               <em>{species.name}</em>
                             </.link>
                           </td>
+                          <td class="text-gray-600">
+                            {if species.taxoncode == "gall", do: "Gall", else: "Host"}
+                          </td>
                         </tr>
                       <% end %>
                     </tbody>
                   </table>
                 </div>
+                <%= if total_pages(@species, @page_size) > 1 do %>
+                  <.pagination
+                    page={@current_page}
+                    total_pages={total_pages(@species, @page_size)}
+                    total_items={length(@species)}
+                    page_size={@page_size}
+                    on_page_change={fn page -> JS.push("page", value: %{page: page}) end}
+                    class="mt-4"
+                  />
+                <% end %>
               <% else %>
                 <p class="text-gray-500 italic">No species connected to this source.</p>
               <% end %>

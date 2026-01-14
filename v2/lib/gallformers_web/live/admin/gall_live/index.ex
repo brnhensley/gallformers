@@ -39,6 +39,22 @@ defmodule GallformersWeb.Admin.GallLive.Index do
   end
 
   @impl true
+  def handle_event("delete", %{"id" => id}, socket) do
+    species = Species.get_species!(String.to_integer(id))
+
+    case Species.delete_species(species) do
+      {:ok, _} ->
+        {:noreply,
+         socket
+         |> put_flash(:info, "Gall deleted successfully")
+         |> assign(:gall_list, list_galls(socket.assigns.search_query))}
+
+      {:error, _changeset} ->
+        {:noreply, put_flash(socket, :error, "Failed to delete gall")}
+    end
+  end
+
+  @impl true
   def handle_info({event, _species}, socket)
       when event in [:species_created, :species_updated, :species_deleted] do
     gall_list = list_galls(socket.assigns.search_query)
@@ -60,12 +76,21 @@ defmodule GallformersWeb.Admin.GallLive.Index do
     ~H"""
     <Layouts.admin flash={@flash} current_user={@current_user} page_title="Galls">
       <div class="space-y-6">
+        <%!-- Info banner --%>
+        <div class="gf-admin-info">
+          <.icon name="ph-info" class="h-5 w-5 text-blue-400 mr-2 flex-shrink-0" />
+          <p>
+            Galls are abnormal plant growths induced by insects, mites, or other organisms.
+            Each gall entry includes morphology, host plants, and range data.
+          </p>
+        </div>
+
         <%!-- Header with search and new button --%>
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div class="flex-1 max-w-xl">
             <form phx-change="search" phx-submit="search" id="gall-search-form">
-              <.input
-                type="text"
+              <.search_input
+                id="gall-search"
                 name="query"
                 value={@search_query}
                 placeholder="Filter galls by name or alias..."
@@ -73,32 +98,24 @@ defmodule GallformersWeb.Admin.GallLive.Index do
               />
             </form>
           </div>
-          <.link
-            navigate={~p"/admin/galls/new"}
-            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm !text-white !no-underline bg-gf-maroon hover:bg-gf-maroon/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gf-maroon"
-          >
-            <.icon name="hero-plus" class="h-5 w-5 mr-2" /> New Gall
+          <.link navigate={~p"/admin/galls/new"} class="gf-btn gf-btn-primary">
+            New Gall
           </.link>
         </div>
 
         <%!-- Gall list table --%>
         <div class="bg-white shadow rounded-lg overflow-hidden">
-          <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-cadet-blue">
+          <table class="gf-table gf-table-dark gf-table-compact">
+            <thead>
               <tr>
-                <th class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                  Name
-                </th>
-                <th class="px-6 py-3 text-center text-xs font-medium text-white uppercase tracking-wider w-32">
-                  Data Complete
-                </th>
-                <th class="px-6 py-3 text-right text-xs font-medium text-white uppercase tracking-wider w-24">
-                </th>
+                <th>Name</th>
+                <th class="text-center w-32">Data Complete</th>
+                <th class="text-right">Actions</th>
               </tr>
             </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
-              <tr :for={gall <- @gall_list} class="hover:bg-gray-50">
-                <td class="px-6 py-4 whitespace-nowrap">
+            <tbody>
+              <tr :for={gall <- @gall_list}>
+                <td>
                   <.link
                     navigate={~p"/admin/galls/#{gall.id}"}
                     class="text-gf-maroon hover:underline font-medium italic"
@@ -106,27 +123,39 @@ defmodule GallformersWeb.Admin.GallLive.Index do
                     {gall.name}
                   </.link>
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-center">
+                <td class="text-center">
                   <%= if gall.datacomplete in [true, 1] do %>
                     <span class="text-green-600">
-                      <.icon name="hero-check" class="size-5 inline-block" />
+                      <.icon name="ph-check" class="size-5 inline-block" />
                     </span>
                   <% else %>
                     <span class="text-red-500">
-                      <.icon name="hero-x-mark" class="size-5 inline-block" />
+                      <.icon name="ph-x" class="size-5 inline-block" />
                     </span>
                   <% end %>
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <.link
-                    navigate={~p"/admin/galls/#{gall.id}"}
-                    class="text-gf-maroon hover:text-gf-autumn mr-4"
-                  >
-                    Edit
-                  </.link>
-                  <.link navigate={~p"/gall/#{gall.id}"} class="text-gray-600 hover:text-gray-900">
-                    View
-                  </.link>
+                <td class="text-right">
+                  <.table_actions>
+                    <.action_button
+                      icon="ph-pencil-simple"
+                      label="Edit"
+                      navigate={~p"/admin/galls/#{gall.id}"}
+                      variant="primary"
+                    />
+                    <.action_button
+                      icon="ph-arrow-square-out"
+                      label="View"
+                      navigate={~p"/gall/#{gall.id}"}
+                    />
+                    <.action_button
+                      icon="ph-trash"
+                      label="Delete"
+                      variant="danger"
+                      phx-click="delete"
+                      phx-value-id={gall.id}
+                      confirm="Are you sure? This will delete the gall and all its associations."
+                    />
+                  </.table_actions>
                 </td>
               </tr>
               <tr :if={@gall_list == []}>

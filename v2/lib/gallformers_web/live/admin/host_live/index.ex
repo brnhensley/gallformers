@@ -39,6 +39,20 @@ defmodule GallformersWeb.Admin.HostLive.Index do
   end
 
   @impl true
+  def handle_event("delete", %{"id" => id}, socket) do
+    case Hosts.delete_host(String.to_integer(id)) do
+      {:ok, _} ->
+        {:noreply,
+         socket
+         |> put_flash(:info, "Host deleted successfully")
+         |> assign(:hosts, list_hosts(socket.assigns.search_query))}
+
+      {:error, _} ->
+        {:noreply, put_flash(socket, :error, "Failed to delete host")}
+    end
+  end
+
+  @impl true
   def handle_info({event, _host}, socket)
       when event in [:host_created, :host_updated, :host_deleted] do
     hosts = list_hosts(socket.assigns.search_query)
@@ -53,12 +67,21 @@ defmodule GallformersWeb.Admin.HostLive.Index do
     ~H"""
     <Layouts.admin flash={@flash} current_user={@current_user} page_title="Hosts">
       <div class="space-y-6">
+        <%!-- Info banner --%>
+        <div class="gf-admin-info">
+          <.icon name="ph-info" class="h-5 w-5 text-blue-400 mr-2 flex-shrink-0" />
+          <p>
+            Host plants are the species on which galls form.
+            Each host entry includes taxonomy, range data, and associated galls.
+          </p>
+        </div>
+
         <%!-- Header with search and new button --%>
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div class="flex-1 max-w-lg">
+          <div class="flex-1 max-w-xl">
             <form phx-change="search" phx-submit="search" id="host-search-form">
-              <.input
-                type="text"
+              <.search_input
+                id="host-search"
                 name="query"
                 value={@search_query}
                 placeholder="Search hosts by name..."
@@ -66,32 +89,24 @@ defmodule GallformersWeb.Admin.HostLive.Index do
               />
             </form>
           </div>
-          <.link
-            navigate={~p"/admin/hosts/new"}
-            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm !text-white !no-underline bg-gf-maroon hover:bg-gf-maroon/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gf-maroon"
-          >
-            <.icon name="hero-plus" class="h-5 w-5 mr-2" /> New Host
+          <.link navigate={~p"/admin/hosts/new"} class="gf-btn gf-btn-primary">
+            New Host
           </.link>
         </div>
 
         <%!-- Host list table --%>
         <div class="bg-white shadow rounded-lg overflow-hidden">
-          <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-cadet-blue">
+          <table class="gf-table gf-table-dark gf-table-compact">
+            <thead>
               <tr>
-                <th class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                  Name
-                </th>
-                <th class="px-6 py-3 text-center text-xs font-medium text-white uppercase tracking-wider w-32">
-                  Data Complete
-                </th>
-                <th class="px-6 py-3 text-right text-xs font-medium text-white uppercase tracking-wider w-24">
-                </th>
+                <th>Name</th>
+                <th class="text-center w-32">Data Complete</th>
+                <th class="text-right">Actions</th>
               </tr>
             </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
-              <tr :for={host <- @hosts} class="hover:bg-gray-50">
-                <td class="px-6 py-4 whitespace-nowrap">
+            <tbody>
+              <tr :for={host <- @hosts}>
+                <td>
                   <.link
                     navigate={~p"/admin/hosts/#{host.id}"}
                     class="text-gf-maroon hover:underline font-medium italic"
@@ -99,27 +114,39 @@ defmodule GallformersWeb.Admin.HostLive.Index do
                     {host.name}
                   </.link>
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-center">
+                <td class="text-center">
                   <%= if host.datacomplete in [true, 1] do %>
                     <span class="text-green-600">
-                      <.icon name="hero-check" class="size-5 inline-block" />
+                      <.icon name="ph-check" class="size-5 inline-block" />
                     </span>
                   <% else %>
                     <span class="text-red-500">
-                      <.icon name="hero-x-mark" class="size-5 inline-block" />
+                      <.icon name="ph-x" class="size-5 inline-block" />
                     </span>
                   <% end %>
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <.link
-                    navigate={~p"/admin/hosts/#{host.id}"}
-                    class="text-gf-maroon hover:text-gf-autumn mr-4"
-                  >
-                    Edit
-                  </.link>
-                  <.link navigate={~p"/host/#{host.id}"} class="text-gray-600 hover:text-gray-900">
-                    View
-                  </.link>
+                <td class="text-right">
+                  <.table_actions>
+                    <.action_button
+                      icon="ph-pencil-simple"
+                      label="Edit"
+                      navigate={~p"/admin/hosts/#{host.id}"}
+                      variant="primary"
+                    />
+                    <.action_button
+                      icon="ph-arrow-square-out"
+                      label="View"
+                      navigate={~p"/host/#{host.id}"}
+                    />
+                    <.action_button
+                      icon="ph-trash"
+                      label="Delete"
+                      variant="danger"
+                      phx-click="delete"
+                      phx-value-id={host.id}
+                      confirm="Are you sure? This will delete the host and all its gall associations."
+                    />
+                  </.table_actions>
                 </td>
               </tr>
               <tr :if={@hosts == []}>

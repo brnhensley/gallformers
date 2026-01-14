@@ -80,25 +80,21 @@ defmodule GallformersWeb.Admin.PlaceLive.Index do
     <Layouts.admin flash={@flash} current_user={@current_user} page_title="Places">
       <div class="space-y-6">
         <%!-- Info banner --%>
-        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <div class="flex">
-            <.icon name="hero-information-circle" class="h-5 w-5 text-blue-400 mr-2 flex-shrink-0" />
-            <div class="text-sm text-blue-700">
-              <p>
-                Places represent geographic locations (states, provinces) used for species range data.
-                Currently supports US states and Canadian provinces.
-                Range assignments are managed through the Host admin page.
-              </p>
-            </div>
-          </div>
+        <div class="gf-admin-info">
+          <.icon name="ph-info" class="h-5 w-5 text-blue-400 mr-2 flex-shrink-0" />
+          <p>
+            Places represent geographic locations (states, provinces) used for species range data.
+            Currently supports US states and Canadian provinces.
+            Range assignments are managed through the Host admin page.
+          </p>
         </div>
 
         <%!-- Header with search and new button --%>
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div class="flex-1 max-w-lg">
+          <div class="flex-1 max-w-xl">
             <form phx-change="search" phx-submit="search" id="place-search-form">
-              <.input
-                type="text"
+              <.search_input
+                id="place-search"
                 name="query"
                 value={@search_query}
                 placeholder="Search places..."
@@ -106,36 +102,25 @@ defmodule GallformersWeb.Admin.PlaceLive.Index do
               />
             </form>
           </div>
-          <.link
-            navigate={~p"/admin/places/new"}
-            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm !text-white !no-underline bg-gf-maroon hover:bg-gf-maroon/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gf-maroon"
-          >
-            <.icon name="hero-plus" class="h-5 w-5 mr-2" /> New Place
+          <.link navigate={~p"/admin/places/new"} class="gf-btn gf-btn-primary">
+            New Place
           </.link>
         </div>
 
         <%!-- Place list table --%>
         <div class="bg-white shadow rounded-lg overflow-hidden">
-          <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-cadet-blue">
+          <table class="gf-table gf-table-dark">
+            <thead>
               <tr>
-                <th class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                  Name
-                </th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                  Code
-                </th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                  Type
-                </th>
-                <th class="px-6 py-3 text-right text-xs font-medium text-white uppercase tracking-wider">
-                  Actions
-                </th>
+                <th>Name</th>
+                <th>Code</th>
+                <th>Type</th>
+                <th class="text-right">Actions</th>
               </tr>
             </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
-              <tr :for={place <- @places} class="hover:bg-gray-50">
-                <td class="px-6 py-4 whitespace-nowrap">
+            <tbody>
+              <tr :for={place <- @places}>
+                <td>
                   <.link
                     navigate={~p"/admin/places/#{place.id}"}
                     class="text-gf-maroon hover:underline font-medium"
@@ -143,29 +128,31 @@ defmodule GallformersWeb.Admin.PlaceLive.Index do
                     {place.name}
                   </.link>
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap">
+                <td>
                   <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                     {place.code}
                   </span>
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <td class="text-gray-500">
                   {place.type}
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <.link
-                    navigate={~p"/admin/places/#{place.id}"}
-                    class="text-gf-maroon hover:text-gf-autumn mr-4"
-                  >
-                    Edit
-                  </.link>
-                  <button
-                    phx-click="delete"
-                    phx-value-id={place.id}
-                    data-confirm="Are you sure? This will remove all species range associations for this place."
-                    class="text-red-600 hover:text-red-900"
-                  >
-                    Delete
-                  </button>
+                <td class="text-right">
+                  <.table_actions>
+                    <.action_button
+                      icon="ph-pencil-simple"
+                      label="Edit"
+                      navigate={~p"/admin/places/#{place.id}"}
+                      variant="primary"
+                    />
+                    <.action_button
+                      icon="ph-trash"
+                      label="Delete"
+                      variant="danger"
+                      phx-click="delete"
+                      phx-value-id={place.id}
+                      confirm="Are you sure? This will remove all species range associations for this place."
+                    />
+                  </.table_actions>
                 </td>
               </tr>
               <tr :if={@places == []}>
