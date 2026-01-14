@@ -220,7 +220,15 @@ defmodule GallformersWeb.IDLive do
 
     socket =
       socket
-      |> assign(selected_host: host, host_query: "", host_results: [])
+      |> assign(
+        selected_host: host,
+        host_query: "",
+        host_results: [],
+        # Clear genus when selecting host (mutually exclusive)
+        selected_genus: nil,
+        genus_query: "",
+        genus_results: []
+      )
       |> push_filter_patch()
 
     {:noreply, socket}
@@ -255,7 +263,15 @@ defmodule GallformersWeb.IDLive do
 
     socket =
       socket
-      |> assign(selected_genus: genus, genus_query: "", genus_results: [])
+      |> assign(
+        selected_genus: genus,
+        genus_query: "",
+        genus_results: [],
+        # Clear host when selecting genus (mutually exclusive)
+        selected_host: nil,
+        host_query: "",
+        host_results: []
+      )
       |> push_filter_patch()
 
     {:noreply, socket}
@@ -582,21 +598,52 @@ defmodule GallformersWeb.IDLive do
         <div class="mb-2">
           <div class="grid grid-cols-1 md:grid-cols-11 gap-2 items-end">
             <div class="md:col-span-5">
-              <.host_picker
+              <.typeahead
+                id="host-picker"
+                label="Host:"
+                placeholder="Search hosts..."
                 query={@host_query}
                 results={@host_results}
                 selected={@selected_host}
-              />
+                search_event="search_host"
+                select_event="select_host"
+                clear_event="clear_host"
+                display_fn={&format_host_display/1}
+              >
+                <:result :let={host}>
+                  <span class="italic">{format_host_display(host)}</span>
+                  <span :if={!host.datacomplete} class="ml-2 text-xs text-yellow-600">
+                    (incomplete)
+                  </span>
+                </:result>
+              </.typeahead>
             </div>
             <div class="md:col-span-1 text-center text-sm text-gray-500 pb-2">
               OR
             </div>
             <div class="md:col-span-5">
-              <.genus_picker
+              <.typeahead
+                id="genus-picker"
+                label="Genus / Section:"
+                placeholder="Search genera..."
                 query={@genus_query}
                 results={@genus_results}
                 selected={@selected_genus}
-              />
+                search_event="search_genus"
+                select_event="select_genus"
+                clear_event="clear_genus"
+                display_fn={&format_genus_display/1}
+              >
+                <:result :let={genus}>
+                  <span class="italic">{genus.name}</span>
+                  <span :if={genus.type == "section"} class="ml-1 text-xs text-gray-500">
+                    [Section]
+                  </span>
+                  <span :if={genus.description} class="block text-xs text-gray-500 truncate">
+                    {genus.description}
+                  </span>
+                </:result>
+              </.typeahead>
             </div>
           </div>
         </div>
@@ -685,115 +732,6 @@ defmodule GallformersWeb.IDLive do
         />
       </div>
     </Layouts.app>
-    """
-  end
-
-  # Component: Host Picker Typeahead
-  attr :query, :string, required: true
-  attr :results, :list, required: true
-  attr :selected, :any, required: true
-
-  defp host_picker(assigns) do
-    ~H"""
-    <div>
-      <label class="block text-base font-medium text-gray-700 mb-1">Host:</label>
-      <%= if @selected do %>
-        <div class="flex items-center gap-2 p-2 bg-gray-50 rounded border">
-          <span class="flex-1 text-base italic">{@selected.name}</span>
-          <button
-            type="button"
-            phx-click="clear_host"
-            class="text-gray-400 hover:text-gray-600"
-            aria-label="Clear host selection"
-          >
-            <.icon name="ph-x" class="size-4" />
-          </button>
-        </div>
-      <% else %>
-        <div class="relative">
-          <input
-            type="text"
-            value={@query}
-            phx-keyup="search_host"
-            phx-debounce="200"
-            placeholder="Search hosts..."
-            class="w-full px-3 py-2 border border-gray-300 rounded-md text-base focus:ring-gf-maroon focus:border-gf-maroon"
-          />
-          <div
-            :if={length(@results) > 0}
-            class="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto"
-          >
-            <button
-              :for={host <- @results}
-              type="button"
-              phx-click="select_host"
-              phx-value-id={host.id}
-              class="w-full text-left px-3 py-2 text-base hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
-            >
-              <span class="italic">{format_host_display(host)}</span>
-              <span :if={!host.datacomplete} class="ml-2 text-xs text-yellow-600">
-                (incomplete)
-              </span>
-            </button>
-          </div>
-        </div>
-      <% end %>
-    </div>
-    """
-  end
-
-  # Component: Genus Picker Typeahead
-  attr :query, :string, required: true
-  attr :results, :list, required: true
-  attr :selected, :any, required: true
-
-  defp genus_picker(assigns) do
-    ~H"""
-    <div>
-      <label class="block text-base font-medium text-gray-700 mb-1">Genus / Section:</label>
-      <%= if @selected do %>
-        <div class="flex items-center gap-2 p-2 bg-gray-50 rounded border">
-          <span class="flex-1 text-base italic">{format_genus_display(@selected)}</span>
-          <button
-            type="button"
-            phx-click="clear_genus"
-            class="text-gray-400 hover:text-gray-600"
-            aria-label="Clear genus selection"
-          >
-            <.icon name="ph-x" class="size-4" />
-          </button>
-        </div>
-      <% else %>
-        <div class="relative">
-          <input
-            type="text"
-            value={@query}
-            phx-keyup="search_genus"
-            phx-debounce="200"
-            placeholder="Search genera..."
-            class="w-full px-3 py-2 border border-gray-300 rounded-md text-base focus:ring-gf-maroon focus:border-gf-maroon"
-          />
-          <div
-            :if={length(@results) > 0}
-            class="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto"
-          >
-            <button
-              :for={genus <- @results}
-              type="button"
-              phx-click="select_genus"
-              phx-value-id={genus.id}
-              class="w-full text-left px-3 py-2 text-base hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
-            >
-              <span class="italic">{genus.name}</span>
-              <span :if={genus.type == "section"} class="ml-1 text-xs text-gray-500">[Section]</span>
-              <span :if={genus.description} class="block text-xs text-gray-500 truncate">
-                {genus.description}
-              </span>
-            </button>
-          </div>
-        </div>
-      <% end %>
-    </div>
     """
   end
 
@@ -1117,7 +1055,10 @@ defmodule GallformersWeb.IDLive do
           <img
             src={@gall.image_url || ~p"/images/noimage.jpg"}
             alt={@gall.name}
-            class="w-full h-full object-cover"
+            class={[
+              "w-full h-full object-cover",
+              !@gall.image_url && "opacity-60"
+            ]}
             loading="lazy"
           />
         </div>

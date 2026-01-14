@@ -65,6 +65,12 @@ defmodule GallformersWeb.AdminDashboardLive do
             icon="ph-plus-circle"
           />
           <.action_card
+            title="Gall-Host Mappings"
+            description="Manage gall-host associations and range"
+            href="/admin/gallhost"
+            icon="ph-arrows-left-right"
+          />
+          <.action_card
             title="Upload Images"
             description="Upload images for species or hosts"
             href="/admin/images/upload"

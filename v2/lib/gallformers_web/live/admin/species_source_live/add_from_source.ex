@@ -357,8 +357,15 @@ defmodule GallformersWeb.Admin.SpeciesSourceLive.AddFromSource do
                   </button>
                 </div>
               <% else %>
-                <div class="relative">
+                <div
+                  id="source-picker"
+                  phx-hook="Typeahead"
+                  data-input-id="source-search-input"
+                  class="relative"
+                >
                   <input
+                    id="source-search-input"
+                    data-typeahead-input
                     type="text"
                     value={@source_search_query}
                     placeholder="Search sources by title or author..."
@@ -368,10 +375,15 @@ defmodule GallformersWeb.Admin.SpeciesSourceLive.AddFromSource do
                     autofocus
                   />
                   <%= if @source_search_results != [] do %>
-                    <div class="absolute z-20 mt-1 w-full bg-white shadow-lg rounded border border-gray-200 max-h-64 overflow-auto">
+                    <div
+                      id="source-search-results"
+                      data-typeahead-results
+                      class="absolute z-20 mt-1 w-full bg-white shadow-lg rounded border border-gray-200 max-h-64 overflow-auto"
+                    >
                       <button
                         :for={source <- @source_search_results}
                         type="button"
+                        data-typeahead-option
                         phx-click="select_source"
                         phx-value-id={source.id}
                         class="w-full px-3 py-2 text-left hover:bg-gray-100 border-b border-gray-100 last:border-0"
@@ -421,8 +433,15 @@ defmodule GallformersWeb.Admin.SpeciesSourceLive.AddFromSource do
                 <label class="block text-sm font-medium text-gray-700 mb-2">
                   Add species:
                 </label>
-                <div class="relative">
+                <div
+                  id="species-picker"
+                  phx-hook="Typeahead"
+                  data-input-id="species-search-input"
+                  class="relative"
+                >
                   <input
+                    id="species-search-input"
+                    data-typeahead-input
                     type="text"
                     value={@species_search_query}
                     placeholder="Search species by name..."
@@ -431,10 +450,15 @@ defmodule GallformersWeb.Admin.SpeciesSourceLive.AddFromSource do
                     class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-gf-maroon focus:border-gf-maroon"
                   />
                   <%= if @species_search_results != [] do %>
-                    <div class="absolute z-20 mt-1 w-full bg-white shadow-lg rounded border border-gray-200 max-h-48 overflow-auto">
+                    <div
+                      id="species-search-results"
+                      data-typeahead-results
+                      class="absolute z-20 mt-1 w-full bg-white shadow-lg rounded border border-gray-200 max-h-48 overflow-auto"
+                    >
                       <button
                         :for={species <- @species_search_results}
                         type="button"
+                        data-typeahead-option
                         phx-click="select_species"
                         phx-value-id={species.id}
                         class="w-full px-3 py-2 text-left hover:bg-gray-100 flex justify-between items-center"

@@ -28,6 +28,7 @@ defmodule GallformersWeb.DataDisplayComponents do
   attr :current_user, :any, default: nil, doc: "current user for showing admin controls"
   attr :class, :any, default: nil, doc: "additional CSS classes"
   attr :id, :string, default: "image-gallery", doc: "unique id for the gallery"
+  attr :no_image_src, :string, default: nil, doc: "optional placeholder image when no images"
 
   def image_gallery(assigns) do
     # Pass all image data to JS for dynamic updates
@@ -69,12 +70,12 @@ defmodule GallformersWeb.DataDisplayComponents do
       data-images={@images_json}
       tabindex="0"
     >
-      <div class="relative aspect-[4/3] bg-gray-100 rounded-lg overflow-hidden">
+      <div class="relative bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center">
         <img
           data-main-image
           src={@first_image[:src] || @first_image["src"]}
           alt={@first_image[:alt] || @first_image["alt"] || ""}
-          class="w-full h-full object-contain cursor-pointer"
+          class="max-h-[400px] max-w-full object-contain cursor-pointer"
           loading="lazy"
           data-open-lightbox
         />
@@ -339,7 +340,18 @@ defmodule GallformersWeb.DataDisplayComponents do
     </div>
 
     <div
-      :if={@image_count == 0}
+      :if={@image_count == 0 && @no_image_src}
+      class="aspect-[4/3] bg-gray-100 rounded-lg overflow-hidden"
+    >
+      <img
+        src={@no_image_src}
+        alt="No image available for this species"
+        class="w-full h-full object-contain"
+      />
+    </div>
+
+    <div
+      :if={@image_count == 0 && !@no_image_src}
       class="aspect-[4/3] bg-gray-100 rounded-lg flex items-center justify-center"
     >
       <div class="text-gray-400 text-center">

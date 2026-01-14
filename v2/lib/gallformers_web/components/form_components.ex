@@ -159,7 +159,7 @@ defmodule GallformersWeb.FormComponents do
   attr :value, :string, default: "", doc: "current value"
   attr :placeholder, :string, default: "Search...", doc: "placeholder text"
   attr :class, :any, default: nil, doc: "additional CSS classes"
-  attr :rest, :global, include: ~w(phx-change phx-submit phx-debounce form)
+  attr :rest, :global, include: ~w(phx-change phx-submit phx-debounce form data-typeahead-input)
 
   def search_input(assigns) do
     ~H"""

@@ -109,23 +109,11 @@ defmodule GallformersWeb.SourceLive do
                     <.icon name="ph-pencil-simple" class="h-5 w-5" />
                   </.link>
                 </div>
-                <div class="flex items-center gap-2">
-                  <%= if @source.datacomplete do %>
-                    <span
-                      class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800"
-                      title="This source has been comprehensively reviewed and all relevant information entered."
-                    >
-                      Complete
-                    </span>
-                  <% else %>
-                    <span
-                      class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800"
-                      title="We are still working on this source so information from the source is potentially still missing."
-                    >
-                      In Progress
-                    </span>
-                  <% end %>
-                </div>
+                <.data_complete_badge
+                  complete={@source.datacomplete}
+                  complete_tooltip="This source has been comprehensively reviewed and all relevant information entered."
+                  incomplete_tooltip="We are still working on this source so information from the source is potentially still missing."
+                />
               </div>
 
               <%= if @source.link do %>

@@ -60,6 +60,9 @@ defmodule GallformersWeb.Router do
     live "/galls/new", Admin.GallLive.Form, :new
     live "/galls/:id", Admin.GallLive.Form, :edit
 
+    # Gall-Host mapping admin
+    live "/gallhost", Admin.GallhostLive, :index
+
     # Host admin
     live "/hosts", Admin.HostLive.Index, :index
     live "/hosts/new", Admin.HostLive.Form, :new

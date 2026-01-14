@@ -7,7 +7,7 @@ defmodule GallformersWeb.HostLive do
   """
   use GallformersWeb, :live_view
 
-  alias Gallformers.{Hosts, Sources, Species, Taxonomy}
+  alias Gallformers.{Hosts, Markdown, Sources, Species, Taxonomy}
   alias GallformersWeb.SEO
 
   @page_size 10
@@ -231,7 +231,7 @@ defmodule GallformersWeb.HostLive do
                 <div class="flex items-center gap-2">
                   <h2 class="text-2xl font-bold">
                     <.link
-                      href={"/id?hostOrTaxon=#{URI.encode(@host.name)}&type=host"}
+                      href={"/id?h=#{URI.encode(@host.name)}"}
                       class="hover:underline"
                     >
                       <em>{@host.name}</em>
@@ -246,23 +246,11 @@ defmodule GallformersWeb.HostLive do
                     <.icon name="ph-pencil-simple" class="h-5 w-5" />
                   </.link>
                 </div>
-                <span
-                  class={[
-                    "inline-flex items-center px-2 py-1 text-xs font-medium rounded-full",
-                    if(@host.datacomplete,
-                      do: "bg-green-100 text-green-800",
-                      else: "bg-yellow-100 text-yellow-800"
-                    )
-                  ]}
-                  title={
-                    if @host.datacomplete,
-                      do:
-                        "All galls known to occur on this plant have been added to the database. However, sources and images may be incomplete.",
-                      else: "We are still working on this species so data might be missing."
-                  }
-                >
-                  {if @host.datacomplete, do: "💯 Complete", else: "❓ In Progress"}
-                </span>
+                <.data_complete_badge
+                  complete={@host.datacomplete}
+                  complete_tooltip="All galls known to occur on this plant have been added to the database. However, sources and images may be incomplete."
+                  incomplete_tooltip="We are still working on this species so data might be missing."
+                />
               </div>
 
               <%= if @taxonomy do %>
@@ -342,6 +330,7 @@ defmodule GallformersWeb.HostLive do
                               />
                             </div>
                           </th>
+                          <th :if={@current_user} class="w-10"></th>
                         </tr>
                       </thead>
                       <tbody>
@@ -365,6 +354,15 @@ defmodule GallformersWeb.HostLive do
                                   <.icon name="ph-x" class="size-5 inline-block" />
                                 </span>
                               <% end %>
+                            </td>
+                            <td :if={@current_user} class="text-center">
+                              <.link
+                                href={~p"/admin/gallhost?id=#{gall.id}"}
+                                class="text-gray-400 hover:text-gf-maroon"
+                                title="Edit gall-host mappings"
+                              >
+                                <.icon name="ph-pencil-simple" class="h-4 w-4" />
+                              </.link>
                             </td>
                           </tr>
                         <% end %>
@@ -413,6 +411,7 @@ defmodule GallformersWeb.HostLive do
                 id="host-images"
                 species_id={@host.id}
                 current_user={@current_user}
+                no_image_src="/images/noimagehost.jpg"
               />
 
               <div class="mt-auto">
@@ -477,7 +476,9 @@ defmodule GallformersWeb.HostLive do
                     <% end %>
                     <.link
                       :if={@current_user}
-                      href={~p"/admin/species-sources/find?species_id=#{@host.id}&source_id=#{source.id}"}
+                      href={
+                        ~p"/admin/species-sources/find?species_id=#{@host.id}&source_id=#{source.id}"
+                      }
                       class="ml-2 text-gray-400 hover:text-gf-maroon"
                       title="Edit species-source mapping"
                     >
@@ -485,7 +486,9 @@ defmodule GallformersWeb.HostLive do
                     </.link>
                   </div>
                   <%= if source.description do %>
-                    <p class="mt-1 text-gray-700">{source.description}</p>
+                    <div class="mt-1 text-gray-700 [&_p]:mb-2 [&_a]:text-gf-maroon [&_a]:underline">
+                      {Phoenix.HTML.raw(Markdown.render!(source.description))}
+                    </div>
                   <% end %>
                   <%= if source.license do %>
                     <p class="mt-1 text-sm text-gray-500">

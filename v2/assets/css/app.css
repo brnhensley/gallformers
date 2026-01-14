@@ -133,6 +133,13 @@ blockquote {
   border-left: 3px solid #ccc;
 }
 
+/* Typeahead component styles */
+[data-typeahead-option][data-highlighted] {
+  background-color: #f3f4f6; /* gray-100 */
+  outline: 2px solid var(--color-gf-maroon);
+  outline-offset: -2px;
+}
+
 /* Jargon/glossary term styling */
 .jargon-term {
   text-decoration: underline dotted #228be6;

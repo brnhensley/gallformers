@@ -267,7 +267,9 @@ defmodule GallformersWeb.ExploreLive do
               <% filtered = filter_tree(@galls_tree, @search_query) %>
               <%= if filtered == [] do %>
                 <p class="text-gray-500 italic">
-                  <%= if @search_query != "", do: "No matching gall species found.", else: "No gall species found." %>
+                  {if @search_query != "",
+                    do: "No matching gall species found.",
+                    else: "No gall species found."}
                 </p>
               <% else %>
                 <.tree_menu
@@ -281,7 +283,9 @@ defmodule GallformersWeb.ExploreLive do
               <% filtered = filter_tree(@undescribed_tree, @search_query) %>
               <%= if filtered == [] do %>
                 <p class="text-gray-500 italic">
-                  <%= if @search_query != "", do: "No matching undescribed gall species found.", else: "No undescribed gall species found." %>
+                  {if @search_query != "",
+                    do: "No matching undescribed gall species found.",
+                    else: "No undescribed gall species found."}
                 </p>
               <% else %>
                 <.tree_menu
@@ -295,7 +299,9 @@ defmodule GallformersWeb.ExploreLive do
               <% filtered = filter_tree(@hosts_tree, @search_query) %>
               <%= if filtered == [] do %>
                 <p class="text-gray-500 italic">
-                  <%= if @search_query != "", do: "No matching host species found.", else: "No host species found." %>
+                  {if @search_query != "",
+                    do: "No matching host species found.",
+                    else: "No host species found."}
                 </p>
               <% else %>
                 <.tree_menu

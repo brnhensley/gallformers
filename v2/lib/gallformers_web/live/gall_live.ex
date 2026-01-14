@@ -7,7 +7,7 @@ defmodule GallformersWeb.GallLive do
   """
   use GallformersWeb, :live_view
 
-  alias Gallformers.{Hosts, Sources, Species, Taxonomy}
+  alias Gallformers.{Hosts, Markdown, Sources, Species, Taxonomy}
   alias GallformersWeb.SEO
 
   @aliases_page_size 10
@@ -289,68 +289,99 @@ defmodule GallformersWeb.GallLive do
                     <.icon name="ph-pencil-simple" class="h-5 w-5" />
                   </.link>
                 </div>
-                <span class={[
-                  "inline-flex items-center px-2 py-1 text-xs font-medium rounded-full",
-                  if(@gall.datacomplete,
-                    do: "bg-green-100 text-green-800",
-                    else: "bg-yellow-100 text-yellow-800"
-                  )
-                ]}>
-                  {if @gall.datacomplete, do: "Complete", else: "In Progress"}
-                </span>
+                <.data_complete_badge
+                  complete={@gall.datacomplete}
+                  complete_tooltip="All sources containing unique information relevant to this gall have been added and are reflected in its associated data."
+                  incomplete_tooltip="We are still working on this gall so data might be missing."
+                />
               </div>
 
               <%= if @gall.undescribed do %>
                 <div class="text-red-600">The inducer of this gall is unknown or undescribed.</div>
               <% end %>
 
-              <%= if @taxonomy do %>
-                <div class="text-gray-600">
-                  {if @taxonomy.family, do: @taxonomy.family, else: ""}
-                  {if @taxonomy.family && @taxonomy.genus, do: " > "}
-                  {if @taxonomy.genus, do: @taxonomy.genus, else: ""}
-                </div>
-              <% end %>
+              <div class="flex flex-col md:flex-row md:items-start gap-4">
+                <div class="flex-1 space-y-2">
+                  <%= if @taxonomy do %>
+                    <p>
+                      <%= if @taxonomy.family do %>
+                        <strong>Family:</strong>
+                        <.link
+                          href={"/family/#{@taxonomy.family_id}"}
+                          class="text-gf-maroon hover:underline"
+                        >
+                          {@taxonomy.family}
+                        </.link>
+                      <% end %>
+                      <%= if @taxonomy.family && @taxonomy.genus do %>
+                        <span class="mx-1">|</span>
+                      <% end %>
+                      <%= if @taxonomy.genus do %>
+                        <strong>Genus:</strong>
+                        <.link
+                          href={"/genus/#{@taxonomy.genus_id}"}
+                          class="text-gf-maroon hover:underline"
+                        >
+                          <em>{@taxonomy.genus}</em>
+                        </.link>
+                      <% end %>
+                    </p>
+                  <% end %>
 
-              <%= if @gall.hosts && length(@gall.hosts) > 0 do %>
-                <div>
-                  <strong>Hosts:</strong>
-                  <em>
-                    <%= for {host, i} <- Enum.with_index(@gall.hosts) do %>
+                  <%= if @gall.hosts && length(@gall.hosts) > 0 do %>
+                    <div class="flex items-center gap-1">
+                      <div>
+                        <strong>Hosts:</strong>
+                        <em>
+                          <%= for {host, i} <- Enum.with_index(@gall.hosts) do %>
+                            <.link
+                              href={"/host/#{host.host_species_id}"}
+                              class="hover:underline text-gf-maroon"
+                            >
+                              {host.host_name}
+                            </.link>{if i <
+                                                                                                               length(
+                                                                                                                 @gall.hosts
+                                                                                                               ) -
+                                                                                                                 1,
+                                                                                                             do:
+                                                                                                               " / "}
+                          <% end %>
+                        </em>
+                      </div>
                       <.link
-                        href={"/host/#{host.host_species_id}"}
-                        class="hover:underline text-gf-maroon"
+                        :if={@current_user}
+                        href={~p"/admin/gallhost?id=#{@gall.id}"}
+                        class="text-gray-400 hover:text-gf-maroon"
+                        title="Edit gall-host mappings"
                       >
-                          {host.host_name}
-                        </.link>{if i <
-                                                                                                 length(
-                                                                                                   @gall.hosts
-                                                                                                 ) -
-                                                                                                   1,
-                                                                                               do:
-                                                                                                 " / "}
-                    <% end %>
-                  </em>
-                </div>
-              <% end %>
+                        <.icon name="ph-pencil-simple" class="h-4 w-4" />
+                      </.link>
+                    </div>
+                  <% end %>
 
-              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-4">
-                <div class="space-y-1">
-                  <div><strong>Detachable:</strong> {get_detachable_display(@gall.detachable)}</div>
-                  <div><strong>Color:</strong> {format_fields(@gall_filters.colors)}</div>
-                  <div><strong>Texture:</strong> {format_fields(@gall_filters.textures)}</div>
-                  <div><strong>Abundance:</strong> {@gall.abundance_name || ""}</div>
-                  <div><strong>Shape:</strong> {format_fields(@gall_filters.shapes)}</div>
-                  <div><strong>Season:</strong> {format_fields(@gall_filters.seasons)}</div>
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-x-4">
+                    <div class="space-y-1">
+                      <div>
+                        <strong>Detachable:</strong> {get_detachable_display(@gall.detachable)}
+                      </div>
+                      <div><strong>Color:</strong> {format_fields(@gall_filters.colors)}</div>
+                      <div><strong>Texture:</strong> {format_fields(@gall_filters.textures)}</div>
+                      <div><strong>Abundance:</strong> {@gall.abundance_name || ""}</div>
+                      <div><strong>Shape:</strong> {format_fields(@gall_filters.shapes)}</div>
+                      <div><strong>Season:</strong> {format_fields(@gall_filters.seasons)}</div>
+                    </div>
+                    <div class="space-y-1">
+                      <div><strong>Alignment:</strong> {format_fields(@gall_filters.alignments)}</div>
+                      <div><strong>Walls:</strong> {format_fields(@gall_filters.walls)}</div>
+                      <div><strong>Location:</strong> {format_fields(@gall_filters.locations)}</div>
+                      <div><strong>Form:</strong> {format_fields(@gall_filters.forms)}</div>
+                      <div><strong>Cells:</strong> {format_fields(@gall_filters.cells)}</div>
+                    </div>
+                  </div>
                 </div>
-                <div class="space-y-1">
-                  <div><strong>Alignment:</strong> {format_fields(@gall_filters.alignments)}</div>
-                  <div><strong>Walls:</strong> {format_fields(@gall_filters.walls)}</div>
-                  <div><strong>Location:</strong> {format_fields(@gall_filters.locations)}</div>
-                  <div><strong>Form:</strong> {format_fields(@gall_filters.forms)}</div>
-                  <div><strong>Cells:</strong> {format_fields(@gall_filters.cells)}</div>
-                </div>
-                <div class="space-y-1">
+
+                <div class="md:w-64 lg:w-80 shrink-0">
                   <div><strong>Possible Range:</strong></div>
                   <.range_map
                     id="gall-range-map"
@@ -465,7 +496,9 @@ defmodule GallformersWeb.GallLive do
                     <% end %>
                     <.link
                       :if={@current_user}
-                      href={~p"/admin/species-sources/find?species_id=#{@gall.id}&source_id=#{source.id}"}
+                      href={
+                        ~p"/admin/species-sources/find?species_id=#{@gall.id}&source_id=#{source.id}"
+                      }
                       class="ml-2 text-gray-400 hover:text-gf-maroon"
                       title="Edit species-source mapping"
                     >
@@ -473,7 +506,9 @@ defmodule GallformersWeb.GallLive do
                     </.link>
                   </div>
                   <%= if source.description do %>
-                    <p class="mt-1 text-gray-700">{source.description}</p>
+                    <div class="mt-1 text-gray-700 [&_p]:mb-2 [&_a]:text-gf-maroon [&_a]:underline">
+                      {Phoenix.HTML.raw(Markdown.render!(source.description))}
+                    </div>
                   <% end %>
                   <%= if source.license do %>
                     <p class="mt-1 text-sm text-gray-500">

@@ -349,10 +349,17 @@ defmodule Gallformers.IDTool do
 
   defp apply_genus_filter(query, nil), do: query
 
+  # Filter galls by host plant taxonomy (genus or section)
+  # The selected genus_id is the taxonomy ID of a host plant genus/section,
+  # so we need to find galls that occur on hosts belonging to that taxonomy
   defp apply_genus_filter(query, genus_id) do
     from [s, _gs, _g] in query,
+      join: h in Host,
+      on: h.gall_species_id == s.id,
+      join: host_species in SpeciesSchema,
+      on: h.host_species_id == host_species.id,
       join: st in "speciestaxonomy",
-      on: st.species_id == s.id,
+      on: st.species_id == host_species.id,
       where: st.taxonomy_id == ^genus_id
   end
 

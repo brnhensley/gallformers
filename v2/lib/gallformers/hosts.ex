@@ -531,4 +531,116 @@ defmodule Gallformers.Hosts do
   defp broadcast({:error, changeset}, _event) do
     {:error, changeset}
   end
+
+  # ============================================
+  # Gall Range Exclusion Management
+  # ============================================
+  #
+  # NOTE: For galls, the speciesplace table stores EXCLUSIONS (places where
+  # the gall does NOT occur even though hosts exist there). This is different
+  # from hosts, where speciesplace stores places where the host EXISTS.
+  #
+  # Gall effective range = (union of all host places) - (excluded places)
+  #
+
+  @doc """
+  Gets excluded place IDs (not codes) for a gall species.
+  """
+  @spec get_excluded_place_ids_for_gall(integer()) :: [integer()]
+  def get_excluded_place_ids_for_gall(gall_species_id) do
+    from(sp in "speciesplace",
+      where: sp.species_id == ^gall_species_id,
+      select: sp.place_id
+    )
+    |> Repo.all()
+  end
+
+  @doc """
+  Bulk updates all range exclusions for a gall (replaces existing).
+
+  Takes a list of place IDs that should be excluded from the gall's range.
+  """
+  @spec set_range_exclusions_for_gall(integer(), [integer()]) :: :ok
+  def set_range_exclusions_for_gall(gall_species_id, place_ids) do
+    Repo.transaction(fn ->
+      # Delete existing exclusions
+      from(sp in "speciesplace",
+        where: sp.species_id == ^gall_species_id
+      )
+      |> Repo.delete_all()
+
+      # Insert new exclusions
+      if place_ids != [] do
+        entries = Enum.map(place_ids, &%{species_id: gall_species_id, place_id: &1})
+        Repo.insert_all("speciesplace", entries)
+      end
+
+      :ok
+    end)
+
+    :ok
+  end
+
+  @doc """
+  Toggles a place exclusion for a gall (add if not excluded, remove if excluded).
+  Returns {:added, place_id} or {:removed, place_id}.
+
+  Note: "added" means the place is now EXCLUDED from the gall's range.
+  """
+  @spec toggle_exclusion_for_gall(integer(), integer()) :: {:added | :removed, integer()}
+  def toggle_exclusion_for_gall(gall_species_id, place_id) do
+    existing =
+      from(sp in "speciesplace",
+        where: sp.species_id == ^gall_species_id and sp.place_id == ^place_id,
+        select: count()
+      )
+      |> Repo.one()
+
+    if existing > 0 do
+      # Remove exclusion (place is now in range)
+      from(sp in "speciesplace",
+        where: sp.species_id == ^gall_species_id and sp.place_id == ^place_id
+      )
+      |> Repo.delete_all()
+
+      {:removed, place_id}
+    else
+      # Add exclusion (place is now excluded)
+      Repo.insert_all(
+        "speciesplace",
+        [%{species_id: gall_species_id, place_id: place_id}],
+        on_conflict: :nothing
+      )
+
+      {:added, place_id}
+    end
+  end
+
+  @doc """
+  Gets the union of all host places for a gall as place IDs (not codes).
+  Used for computing which places can potentially be excluded.
+  """
+  @spec get_host_place_ids_for_gall(integer()) :: [integer()]
+  def get_host_place_ids_for_gall(gall_species_id) do
+    from(sp in "speciesplace",
+      join: h in Host,
+      on: h.host_species_id == sp.species_id,
+      where: h.gall_species_id == ^gall_species_id,
+      distinct: true,
+      select: sp.place_id
+    )
+    |> Repo.all()
+  end
+
+  @doc """
+  Gets a place ID by its code.
+  """
+  @spec get_place_id_by_code(String.t()) :: integer() | nil
+  def get_place_id_by_code(code) do
+    from(p in "place",
+      where: p.code == ^code,
+      select: p.id
+    )
+    |> Repo.one()
+  end
 end

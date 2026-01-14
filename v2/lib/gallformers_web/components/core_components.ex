@@ -467,6 +467,136 @@ defmodule GallformersWeb.CoreComponents do
   end
 
   @doc """
+  Renders a single-select typeahead component with server-side search.
+
+  Displays a search input that shows results in a dropdown. When an item is selected,
+  it displays the selection with a clear button. Includes full keyboard navigation
+  via the Typeahead JS hook.
+
+  ## Keyboard behavior
+  - Arrow Down/Up: Navigate through results
+  - Enter: Select highlighted item
+  - Escape: Clear results or selection
+  - Backspace/Delete on selection: Clear and focus input
+  - Type on selection: Clear and start new search
+
+  ## Events
+
+  The component emits events using the provided event names:
+  - `search_event` - when user types (params: %{"value" => query})
+  - `select_event` - when user selects an option (params: %{"id" => id})
+  - `clear_event` - when user clears the selection
+
+  ## Examples
+
+      <.typeahead
+        id="host-picker"
+        label="Host:"
+        placeholder="Search hosts..."
+        search_event="search_host"
+        select_event="select_host"
+        clear_event="clear_host"
+        query={@host_query}
+        results={@host_results}
+        selected={@selected_host}
+        display_fn={fn host -> host.name end}
+      />
+  """
+  attr :id, :string, required: true, doc: "unique identifier for the component"
+  attr :label, :string, required: true, doc: "label text"
+  attr :placeholder, :string, default: "Search...", doc: "placeholder for the input"
+  attr :search_event, :string, required: true, doc: "event name for search"
+  attr :select_event, :string, required: true, doc: "event name for selection"
+  attr :clear_event, :string, required: true, doc: "event name for clearing"
+  attr :query, :string, required: true, doc: "current search query"
+  attr :results, :list, required: true, doc: "list of search results"
+  attr :selected, :any, default: nil, doc: "currently selected item"
+  attr :display_fn, :any, required: true, doc: "function to display an item (fn item -> string)"
+  attr :result_slot, :any, default: nil, doc: "optional slot for custom result rendering"
+  attr :class, :string, default: "", doc: "additional CSS classes for the wrapper"
+
+  slot :result, doc: "optional slot for custom result item rendering" do
+    attr :item, :any
+  end
+
+  def typeahead(assigns) do
+    ~H"""
+    <div
+      id={@id}
+      phx-hook="Typeahead"
+      data-clear-event={@clear_event}
+      data-search-event={@search_event}
+      data-input-id={"#{@id}-input"}
+      class={@class}
+    >
+      <label class="block text-base font-medium text-gray-700 mb-1">{@label}</label>
+      <%= if @selected do %>
+        <div
+          id={"#{@id}-selected"}
+          data-typeahead-selected
+          class="flex items-center gap-2 p-2 bg-gray-50 rounded border focus:ring-2 focus:ring-gf-maroon focus:border-gf-maroon cursor-text"
+          tabindex="0"
+          role="combobox"
+          aria-expanded="false"
+          aria-label={"Selected: #{@display_fn.(@selected)}. Type to search, or press Escape to clear."}
+        >
+          <span class="flex-1 text-base italic">{@display_fn.(@selected)}</span>
+          <button
+            type="button"
+            phx-click={@clear_event}
+            class="text-gray-400 hover:text-gray-600"
+            aria-label="Clear selection"
+            tabindex="-1"
+          >
+            <.icon name="ph-x" class="size-4" />
+          </button>
+        </div>
+      <% else %>
+        <div class="relative">
+          <input
+            id={"#{@id}-input"}
+            data-typeahead-input
+            type="text"
+            value={@query}
+            phx-keyup={@search_event}
+            phx-debounce="200"
+            placeholder={@placeholder}
+            class="w-full px-3 py-2 border border-gray-300 rounded-md text-base focus:ring-gf-maroon focus:border-gf-maroon"
+            role="combobox"
+            aria-expanded={length(@results) > 0}
+            aria-controls={"#{@id}-results"}
+            aria-autocomplete="list"
+          />
+          <div
+            :if={length(@results) > 0}
+            id={"#{@id}-results"}
+            data-typeahead-results
+            class="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto"
+            role="listbox"
+          >
+            <button
+              :for={item <- @results}
+              type="button"
+              data-typeahead-option
+              phx-click={@select_event}
+              phx-value-id={item.id}
+              class="w-full text-left px-3 py-2 text-base hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
+              role="option"
+            >
+              <%= if @result != [] do %>
+                {render_slot(@result, item)}
+              <% else %>
+                <span class="italic">{@display_fn.(item)}</span>
+              <% end %>
+            </button>
+          </div>
+        </div>
+      <% end %>
+    </div>
+    """
+  end
+
+  @doc """
   Renders a multi-select typeahead component.
 
   Displays selected items as removable tags, with a text input for filtering
@@ -529,7 +659,14 @@ defmodule GallformersWeb.CoreComponents do
       |> assign(:filtered_options, filtered_options)
 
     ~H"""
-    <div class="mb-2">
+    <div
+      id={"#{@id}-wrapper"}
+      phx-hook="Typeahead"
+      data-clear-event={"#{@name}_clear"}
+      data-search-event={"#{@name}_search"}
+      data-input-id={@id}
+      class="mb-2"
+    >
       <label class="block text-base font-medium text-gray-700 mb-1">{@label}</label>
       <div class="relative">
         <%!-- Selected tags and input --%>
@@ -551,6 +688,7 @@ defmodule GallformersWeb.CoreComponents do
           <input
             type="text"
             id={@id}
+            data-typeahead-input
             value={@query}
             phx-keyup={"#{@name}_search"}
             phx-focus={"#{@name}_focus"}
@@ -558,6 +696,10 @@ defmodule GallformersWeb.CoreComponents do
             phx-debounce="100"
             placeholder={if @selected_options == [], do: @placeholder, else: ""}
             class="flex-1 min-w-[80px] border-0 p-0 text-base focus:ring-0 focus:outline-none"
+            role="combobox"
+            aria-expanded={@focused and length(@filtered_options) > 0}
+            aria-controls={"#{@id}-results"}
+            aria-autocomplete="list"
           />
           <%!-- Clear all button --%>
           <button
@@ -573,20 +715,59 @@ defmodule GallformersWeb.CoreComponents do
         <%!-- Dropdown --%>
         <div
           :if={@focused and length(@filtered_options) > 0}
+          id={"#{@id}-results"}
+          data-typeahead-results
           class="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-48 overflow-auto"
+          role="listbox"
           onmousedown="event.preventDefault()"
         >
           <div
             :for={opt <- @filtered_options}
+            data-typeahead-option
             phx-click={"#{@name}_select"}
             phx-value-id={to_string(opt.id)}
             class="w-full text-left px-3 py-2 text-base hover:bg-gray-50 border-b border-gray-100 last:border-b-0 cursor-pointer"
+            role="option"
           >
             {Map.get(opt, @option_label)}
           </div>
         </div>
       </div>
     </div>
+    """
+  end
+
+  @doc """
+  Renders a data complete/in progress badge.
+
+  Used on species (gall/host) and source pages to indicate data completeness.
+
+  ## Examples
+
+      <.data_complete_badge
+        complete={true}
+        complete_tooltip="All data has been entered."
+        incomplete_tooltip="Data entry is still in progress."
+      />
+  """
+  attr :complete, :boolean, required: true, doc: "whether the data is complete"
+  attr :complete_tooltip, :string, required: true, doc: "tooltip when complete"
+  attr :incomplete_tooltip, :string, required: true, doc: "tooltip when incomplete"
+
+  def data_complete_badge(assigns) do
+    ~H"""
+    <span
+      class={[
+        "inline-flex items-center px-2 py-1 text-xs font-medium rounded-full cursor-help",
+        if(@complete,
+          do: "bg-green-100 text-green-800",
+          else: "bg-yellow-100 text-yellow-800"
+        )
+      ]}
+      title={if @complete, do: @complete_tooltip, else: @incomplete_tooltip}
+    >
+      {if @complete, do: "Complete", else: "In Progress"}
+    </span>
     """
   end
 

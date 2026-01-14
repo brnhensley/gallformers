@@ -211,7 +211,7 @@ defmodule GallformersWeb.Admin.GallLive.Form do
   end
 
   @impl true
-  def handle_event("add_host", %{"host-id" => host_id}, socket) do
+  def handle_event("add_host", %{"id" => host_id}, socket) do
     case Species.add_host_to_species(socket.assigns.gall.id, String.to_integer(host_id)) do
       {:ok, _} ->
         hosts = Gallformers.Hosts.get_hosts_for_gall(socket.assigns.gall.id)
@@ -533,7 +533,12 @@ defmodule GallformersWeb.Admin.GallLive.Form do
               <div class="mb-3">
                 <label class="block text-sm font-medium text-gray-700 mb-1">Hosts (required):</label>
                 <%= if @mode == :edit do %>
-                  <div class="relative">
+                  <div
+                    id="host-picker"
+                    phx-hook="Typeahead"
+                    data-input-id="host-picker-input"
+                    class="relative"
+                  >
                     <div class="flex flex-wrap gap-1 p-2 border border-gray-300 rounded bg-white min-h-[38px]">
                       <span
                         :for={host <- @hosts}
@@ -550,6 +555,8 @@ defmodule GallformersWeb.Admin.GallLive.Form do
                         </button>
                       </span>
                       <input
+                        id="host-picker-input"
+                        data-typeahead-input
                         type="text"
                         value={@host_search_query}
                         placeholder={if @hosts == [], do: "Search hosts...", else: ""}
@@ -559,12 +566,17 @@ defmodule GallformersWeb.Admin.GallLive.Form do
                       />
                     </div>
                     <%= if @host_search_results != [] do %>
-                      <div class="absolute z-20 mt-1 w-full bg-white shadow-lg rounded border border-gray-200 max-h-48 overflow-auto">
+                      <div
+                        id="host-search-results"
+                        data-typeahead-results
+                        class="absolute z-20 mt-1 w-full bg-white shadow-lg rounded border border-gray-200 max-h-48 overflow-auto"
+                      >
                         <button
                           :for={host <- @host_search_results}
                           type="button"
+                          data-typeahead-option
                           phx-click="add_host"
-                          phx-value-host-id={host.id}
+                          phx-value-id={host.id}
                           class="w-full px-3 py-2 text-left text-sm hover:bg-gray-100"
                         >
                           {host.name}

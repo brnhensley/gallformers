@@ -78,7 +78,12 @@ defmodule GallformersWeb.AdminImagesLive do
         <%!-- Species Search --%>
         <div class="bg-white rounded-lg border border-gray-200 p-6">
           <h2 class="text-lg font-medium text-gray-900 mb-4">Select Species</h2>
-          <div class="relative">
+          <div
+            id="species-picker"
+            phx-hook="Typeahead"
+            data-input-id="images-species-search"
+            class="relative"
+          >
             <form phx-change="search" phx-submit="search" id="images-species-search-form">
               <.search_input
                 id="images-species-search"
@@ -86,17 +91,21 @@ defmodule GallformersWeb.AdminImagesLive do
                 value={@search_query}
                 placeholder="Search for a species..."
                 phx-debounce="300"
+                data-typeahead-input
               />
             </form>
 
             <%!-- Search Results Dropdown --%>
             <div
               :if={@search_results != []}
+              id="species-search-results"
+              data-typeahead-results
               class="absolute z-10 mt-1 w-full bg-white rounded-md shadow-lg border border-gray-200 max-h-60 overflow-auto"
             >
               <button
                 :for={species <- @search_results}
                 type="button"
+                data-typeahead-option
                 phx-click="select_species"
                 phx-value-id={species.id}
                 phx-value-name={species.name}

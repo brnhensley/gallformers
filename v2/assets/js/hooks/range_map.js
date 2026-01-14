@@ -168,7 +168,8 @@ const RangeMap = {
 
       // Click handler for editable mode
       if (this.editable) {
-        pathEl.addEventListener('click', () => {
+        pathEl.addEventListener('click', (e) => {
+          e.stopPropagation() // Prevent opening modal when clicking regions
           this.pushEvent('toggle_region', { code })
         })
       }
