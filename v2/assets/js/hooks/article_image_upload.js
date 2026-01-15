@@ -29,8 +29,8 @@ const ArticleImageUpload = {
     }
 
     // Listen for presigned URL response
-    this.handleEvent("article_presigned_url", ({ url, path, content_type }) => {
-      this.executeUpload(url, path, content_type)
+    this.handleEvent("article_presigned_url", ({ url, path, content_type, image_url }) => {
+      this.executeUpload(url, path, content_type, image_url)
     })
 
     // Listen for upload error
@@ -69,7 +69,7 @@ const ArticleImageUpload = {
     })
   },
 
-  async executeUpload(presignedUrl, path, contentType) {
+  async executeUpload(presignedUrl, path, contentType, imageUrl) {
     if (!this.currentFile) return
 
     this.showStatus("Uploading...", "info")
@@ -87,6 +87,9 @@ const ArticleImageUpload = {
         // Notify server of successful upload
         this.pushEvent("article_image_uploaded", { path })
         this.showStatus("Upload complete!", "success")
+
+        // Insert markdown at cursor position in content textarea
+        this.insertMarkdownIntoTextarea(imageUrl)
       } else {
         this.showStatus(`Upload failed: HTTP ${response.status}`, "error")
       }
@@ -95,6 +98,33 @@ const ArticleImageUpload = {
     }
 
     this.currentFile = null
+  },
+
+  insertMarkdownIntoTextarea(imageUrl) {
+    const textarea = document.getElementById(this.contentTextareaId)
+    if (!textarea) return
+
+    const markdown = `![Image](${imageUrl})`
+
+    // Insert at cursor position or append to end
+    const start = textarea.selectionStart
+    const end = textarea.selectionEnd
+    const before = textarea.value.substring(0, start)
+    const after = textarea.value.substring(end)
+
+    // Add newlines for clean insertion
+    const prefix = before.length > 0 && !before.endsWith("\n") ? "\n" : ""
+    const suffix = after.length > 0 && !after.startsWith("\n") ? "\n" : ""
+
+    textarea.value = before + prefix + markdown + suffix + after
+
+    // Trigger input event so LiveView picks up the change
+    textarea.dispatchEvent(new Event("input", { bubbles: true }))
+
+    // Move cursor after the inserted markdown
+    const newPosition = start + prefix.length + markdown.length + suffix.length
+    textarea.setSelectionRange(newPosition, newPosition)
+    textarea.focus()
   },
 
   showStatus(message, type) {

@@ -49,19 +49,8 @@ defmodule GallformersWeb.RefArticleLive do
   end
 
   defp load_article(socket, article) do
-    # Find related articles (same tags, excluding self)
-    related_articles =
-      if article.tags != [] do
-        article.tags
-        |> Enum.flat_map(fn tag ->
-          Articles.list_articles(published_only: true, tag: tag)
-        end)
-        |> Enum.uniq_by(& &1.id)
-        |> Enum.reject(&(&1.id == article.id))
-        |> Enum.take(5)
-      else
-        []
-      end
+    # Find related articles (same tags, excluding self) - single query
+    related_articles = Articles.list_related_articles(article, limit: 5)
 
     # Render markdown content
     rendered_content = Markdown.render!(article.content)
@@ -112,10 +101,6 @@ defmodule GallformersWeb.RefArticleLive do
     }
   end
 
-  defp format_date(datetime) do
-    Calendar.strftime(datetime, "%B %d, %Y")
-  end
-
   @impl true
   def render(assigns) do
     ~H"""
@@ -124,7 +109,12 @@ defmodule GallformersWeb.RefArticleLive do
         <%= if @error do %>
           <div class="bg-gray-50 rounded-lg p-8 text-center">
             <div class="mb-4">
-              <svg class="w-16 h-16 mx-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg
+                class="w-16 h-16 mx-auto text-gray-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
                 <path
                   stroke-linecap="round"
                   stroke-linejoin="round"
@@ -142,9 +132,17 @@ defmodule GallformersWeb.RefArticleLive do
         <% else %>
           <%!-- Back link --%>
           <div class="mb-6">
-            <.link href={~p"/refindex"} class="text-gf-maroon hover:underline inline-flex items-center gap-1">
+            <.link
+              href={~p"/refindex"}
+              class="text-gf-maroon hover:underline inline-flex items-center gap-1"
+            >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M15 19l-7-7 7-7"
+                />
               </svg>
               Back to Reference Library
             </.link>

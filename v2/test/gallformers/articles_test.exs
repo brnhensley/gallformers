@@ -169,6 +169,49 @@ defmodule Gallformers.ArticlesTest do
     end
   end
 
+  describe "list_related_articles/2" do
+    test "returns empty list when article has no tags" do
+      article = create_article(%{tags: []})
+      assert Articles.list_related_articles(article) == []
+    end
+
+    test "returns articles with shared tags" do
+      article1 = create_article(%{title: "Article 1", tags: ["biology"], is_published: true})
+      article2 = create_article(%{title: "Article 2", tags: ["biology", "ecology"], is_published: true})
+      _article3 = create_article(%{title: "Article 3", tags: ["botany"], is_published: true})
+
+      related = Articles.list_related_articles(article1)
+      assert length(related) == 1
+      assert hd(related).id == article2.id
+    end
+
+    test "excludes the article itself" do
+      article = create_article(%{title: "Article 1", tags: ["biology"], is_published: true})
+      _article2 = create_article(%{title: "Article 2", tags: ["biology"], is_published: true})
+
+      related = Articles.list_related_articles(article)
+      refute Enum.any?(related, &(&1.id == article.id))
+    end
+
+    test "only returns published articles" do
+      article = create_article(%{title: "Article 1", tags: ["biology"], is_published: true})
+      _unpublished = create_article(%{title: "Unpublished", tags: ["biology"], is_published: false})
+
+      related = Articles.list_related_articles(article)
+      assert related == []
+    end
+
+    test "respects limit option" do
+      article = create_article(%{title: "Article 1", tags: ["biology"], is_published: true})
+      for i <- 2..10 do
+        create_article(%{title: "Article #{i}", tags: ["biology"], is_published: true})
+      end
+
+      related = Articles.list_related_articles(article, limit: 3)
+      assert length(related) == 3
+    end
+  end
+
   describe "list_tags/0" do
     test "returns empty list when no articles exist" do
       assert Articles.list_tags() == []

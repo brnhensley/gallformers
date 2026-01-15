@@ -42,6 +42,7 @@ defmodule GallformersWeb.RefIndexLive do
 
   defp content_preview(content) when is_binary(content) do
     content
+    |> strip_markdown()
     |> String.slice(0, 200)
     |> String.trim()
     |> then(fn preview ->
@@ -51,8 +52,28 @@ defmodule GallformersWeb.RefIndexLive do
 
   defp content_preview(_), do: ""
 
-  defp format_date(datetime) do
-    Calendar.strftime(datetime, "%B %d, %Y")
+  # Strip common markdown syntax for plain text preview
+  defp strip_markdown(text) do
+    text
+    # Remove headings (# Header)
+    |> String.replace(~r/^\#{1,6}\s+/m, "")
+    # Remove bold (**text** or __text__)
+    |> String.replace(~r/\*\*([^*]+)\*\*/, "\\1")
+    |> String.replace(~r/__([^_]+)__/, "\\1")
+    # Remove italic (*text* or _text_)
+    |> String.replace(~r/(?<!\*)\*([^*]+)\*(?!\*)/, "\\1")
+    |> String.replace(~r/(?<!_)_([^_]+)_(?!_)/, "\\1")
+    # Remove links [text](url)
+    |> String.replace(~r/\[([^\]]+)\]\([^)]+\)/, "\\1")
+    # Remove images ![alt](url)
+    |> String.replace(~r/!\[[^\]]*\]\([^)]+\)/, "")
+    # Remove inline code `code`
+    |> String.replace(~r/`([^`]+)`/, "\\1")
+    # Remove blockquotes
+    |> String.replace(~r/^>\s*/m, "")
+    # Collapse multiple spaces/newlines
+    |> String.replace(~r/\s+/, " ")
+    |> String.trim()
   end
 
   @impl true
@@ -104,7 +125,12 @@ defmodule GallformersWeb.RefIndexLive do
         <%= if @articles == [] do %>
           <div class="bg-gray-50 rounded-lg p-8 text-center">
             <div class="mb-4">
-              <svg class="w-16 h-16 mx-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg
+                class="w-16 h-16 mx-auto text-gray-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
                 <path
                   stroke-linecap="round"
                   stroke-linejoin="round"

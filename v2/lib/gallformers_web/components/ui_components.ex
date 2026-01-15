@@ -808,4 +808,30 @@ defmodule GallformersWeb.UIComponents do
     </div>
     """
   end
+
+  # Date/time formatting helpers
+
+  @doc """
+  Formats a datetime for display.
+
+  Uses a consistent format across the application: "January 14, 2026"
+
+  ## Examples
+
+      format_date(~N[2026-01-14 12:00:00])
+      #=> "January 14, 2026"
+
+      format_date(~N[2026-01-14 12:00:00], :short)
+      #=> "Jan 14, 2026"
+  """
+  @spec format_date(NaiveDateTime.t() | DateTime.t(), :long | :short) :: String.t()
+  def format_date(datetime, format \\ :long)
+
+  def format_date(datetime, :long) do
+    Calendar.strftime(datetime, "%B %d, %Y")
+  end
+
+  def format_date(datetime, :short) do
+    Calendar.strftime(datetime, "%b %d, %Y")
+  end
 end

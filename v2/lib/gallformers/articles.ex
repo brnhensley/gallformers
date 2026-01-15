@@ -41,9 +41,8 @@ defmodule Gallformers.Articles do
   defp maybe_filter_by_tag(query, ""), do: query
 
   defp maybe_filter_by_tag(query, tag) do
-    # Search for tag in JSON array using SQLite JSON functions
-    search_pattern = "%\"#{tag}\"%"
-    where(query, [a], fragment("? LIKE ?", a.tags, ^search_pattern))
+    # Use SQLite JSON functions for exact tag matching
+    where(query, [a], fragment("EXISTS (SELECT 1 FROM json_each(?) WHERE value = ?)", a.tags, ^tag))
   end
 
   @doc """
@@ -122,6 +121,41 @@ defmodule Gallformers.Articles do
   end
 
   @doc """
+  Returns articles related to the given article by shared tags.
+
+  Finds published articles that share at least one tag with the given article,
+  excluding the article itself. Results are ordered by most recent first.
+
+  ## Options
+
+    * `:limit` - maximum number of articles to return (default: 5)
+
+  """
+  @spec list_related_articles(Article.t(), keyword()) :: [Article.t()]
+  def list_related_articles(%Article{} = article, opts \\ []) do
+    limit = Keyword.get(opts, :limit, 5)
+
+    if article.tags == [] do
+      []
+    else
+      tags_json = Jason.encode!(article.tags)
+
+      from(a in Article,
+        where: a.id != ^article.id and a.is_published == true,
+        where:
+          fragment(
+            "EXISTS (SELECT 1 FROM json_each(?) WHERE value IN (SELECT value FROM json_each(?)))",
+            a.tags,
+            ^tags_json
+          ),
+        order_by: [desc: a.inserted_at],
+        limit: ^limit
+      )
+      |> Repo.all()
+    end
+  end
+
+  @doc """
   Returns all unique tags with their counts.
 
   Returns a list of maps: `[%{tag: "biology", count: 3}, ...]`
@@ -135,13 +169,6 @@ defmodule Gallformers.Articles do
     |> Enum.frequencies()
     |> Enum.map(fn {tag, count} -> %{tag: tag, count: count} end)
     |> Enum.sort_by(& &1.tag)
-  end
-
-  @doc """
-  Subscribes to article changes.
-  """
-  def subscribe do
-    Phoenix.PubSub.subscribe(Gallformers.PubSub, "articles")
   end
 
   defp broadcast({:ok, article}, event) do

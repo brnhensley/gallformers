@@ -108,7 +108,7 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
                         <span class="text-gray-400">—</span>
                       <% end %>
                     </td>
-                    <td class="text-gray-600 text-sm">{format_date(article.updated_at)}</td>
+                    <td class="text-gray-600 text-sm">{format_date(article.updated_at, :short)}</td>
                     <td>
                       <div class="flex items-center gap-2">
                         <.link
@@ -153,7 +153,13 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
       </div>
 
       <%!-- Edit/Create Modal --%>
-      <.modal :if={@form} id="article-modal" show on_cancel={JS.push("cancel_edit")} class="!max-w-[80vw]">
+      <.modal
+        :if={@form}
+        id="article-modal"
+        show
+        on_cancel={JS.push("cancel_edit")}
+        class="!max-w-[80vw]"
+      >
         <:title>{if @editing_article.id, do: "Edit Article", else: "New Article"}</:title>
 
         <%!-- Tabs --%>
@@ -191,90 +197,100 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
         </div>
 
         <div class="h-[600px]">
-        <%= if @active_tab == :edit do %>
-          <.form for={@form} id="article-form" phx-submit="save_article" phx-change="validate" class="h-full flex flex-col space-y-4">
-            <div>
-              <.input field={@form[:title]} label="Title" required />
-            </div>
-            <div>
-              <.input field={@form[:slug]} label="Slug" placeholder="auto-generated from title if blank" />
-            </div>
-            <div>
-              <.input field={@form[:author]} label="Author" required />
-            </div>
-            <div class="flex-1 flex flex-col min-h-0">
-              <label class="block text-sm font-medium text-gray-700 mb-1">Content (Markdown)</label>
-              <textarea
-                name={@form[:content].name}
-                id={@form[:content].id}
-                class="flex-1 w-full rounded-md border-gray-300 shadow-sm focus:border-gf-maroon focus:ring-gf-maroon font-mono text-sm resize-none"
-                required
-              >{Phoenix.HTML.Form.input_value(@form, :content)}</textarea>
-              <div class="mt-2 flex items-center justify-between">
-                <p class="text-xs text-gray-500">
-                  Supports markdown formatting. Glossary terms are auto-linked.
-                </p>
-                <%!-- Image Upload --%>
-                <%= if @editing_article.id do %>
-                  <div
-                    id="article-image-upload"
-                    phx-hook="ArticleImageUpload"
-                    phx-update="ignore"
-                    data-content-textarea={@form[:content].id}
-                    class="flex items-center gap-2"
-                  >
-                    <button
-                      type="button"
-                      data-upload-trigger
-                      class="inline-flex items-center gap-1 px-2 py-1 text-xs text-gray-600 border border-gray-300 rounded hover:bg-gray-50"
-                    >
-                      <.icon name="ph-image" class="h-3 w-3" /> Add Image
-                    </button>
-                    <input
-                      data-file-input
-                      type="file"
-                      accept="image/jpeg,image/png"
-                      class="hidden"
-                    />
-                    <span data-status class="text-sm"></span>
-                  </div>
-                <% else %>
-                  <p class="text-xs text-gray-400">Save article first to upload images</p>
-                <% end %>
+          <%= if @active_tab == :edit do %>
+            <.form
+              for={@form}
+              id="article-form"
+              phx-submit="save_article"
+              phx-change="validate"
+              class="h-full flex flex-col space-y-4"
+            >
+              <div>
+                <.input field={@form[:title]} label="Title" required />
               </div>
+              <div>
+                <.input
+                  field={@form[:slug]}
+                  label="Slug"
+                  placeholder="auto-generated from title if blank"
+                />
+              </div>
+              <div>
+                <.input field={@form[:author]} label="Author" required />
+              </div>
+              <div class="flex-1 flex flex-col min-h-0">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Content (Markdown)</label>
+                <textarea
+                  name={@form[:content].name}
+                  id={@form[:content].id}
+                  class="flex-1 w-full rounded-md border-gray-300 shadow-sm focus:border-gf-maroon focus:ring-gf-maroon font-mono text-sm resize-none"
+                  required
+                >{Phoenix.HTML.Form.input_value(@form, :content)}</textarea>
+                <div class="mt-2 flex items-center justify-between">
+                  <p class="text-xs text-gray-500">
+                    Supports markdown formatting. Glossary terms are auto-linked.
+                  </p>
+                  <%!-- Image Upload --%>
+                  <%= if @editing_article.id do %>
+                    <div
+                      id="article-image-upload"
+                      phx-hook="ArticleImageUpload"
+                      phx-update="ignore"
+                      data-content-textarea={@form[:content].id}
+                      class="flex items-center gap-2"
+                    >
+                      <button
+                        type="button"
+                        data-upload-trigger
+                        class="inline-flex items-center gap-1 px-2 py-1 text-xs text-gray-600 border border-gray-300 rounded hover:bg-gray-50"
+                      >
+                        <.icon name="ph-image" class="h-3 w-3" /> Add Image
+                      </button>
+                      <input
+                        data-file-input
+                        type="file"
+                        accept="image/jpeg,image/png"
+                        class="hidden"
+                      />
+                      <span data-status class="text-sm"></span>
+                    </div>
+                  <% else %>
+                    <p class="text-xs text-gray-400">Save article first to upload images</p>
+                  <% end %>
+                </div>
+              </div>
+              <div>
+                <.input
+                  field={@form[:tags_input]}
+                  label="Tags"
+                  placeholder="biology, ecology, identification"
+                />
+                <p class="mt-1 text-xs text-gray-500">Comma-separated list of tags</p>
+              </div>
+              <div class="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  name={@form[:is_published].name}
+                  id={@form[:is_published].id}
+                  value="true"
+                  checked={Phoenix.HTML.Form.input_value(@form, :is_published) == true}
+                  class="rounded border-gray-300 text-gf-maroon focus:ring-gf-maroon"
+                />
+                <label for={@form[:is_published].id} class="text-sm text-gray-700">
+                  Published
+                </label>
+              </div>
+            </.form>
+          <% else %>
+            <%!-- Preview Tab --%>
+            <div class="prose prose-sm max-w-none h-full overflow-auto border border-gray-200 rounded-md p-4">
+              <%= if @preview_content do %>
+                {Phoenix.HTML.raw(@preview_content)}
+              <% else %>
+                <p class="text-gray-500 italic">Enter content to see preview.</p>
+              <% end %>
             </div>
-            <div>
-              <.input
-                field={@form[:tags_input]}
-                label="Tags"
-                placeholder="biology, ecology, identification"
-              />
-              <p class="mt-1 text-xs text-gray-500">Comma-separated list of tags</p>
-            </div>
-            <div class="flex items-center gap-2">
-              <input
-                type="checkbox"
-                name={@form[:is_published].name}
-                id={@form[:is_published].id}
-                value="true"
-                checked={Phoenix.HTML.Form.input_value(@form, :is_published) == true}
-                class="rounded border-gray-300 text-gf-maroon focus:ring-gf-maroon"
-              />
-              <label for={@form[:is_published].id} class="text-sm text-gray-700">
-                Published
-              </label>
-            </div>
-          </.form>
-        <% else %>
-          <%!-- Preview Tab --%>
-          <div class="prose prose-sm max-w-none h-full overflow-auto border border-gray-200 rounded-md p-4">
-            <%= if @preview_content do %>
-              {Phoenix.HTML.raw(@preview_content)}
-            <% else %>
-              <p class="text-gray-500 italic">Enter content to see preview.</p>
-            <% end %>
-          </div>
-        <% end %>
+          <% end %>
         </div>
 
         <:actions>
@@ -366,7 +382,10 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
 
     socket =
       socket
-      |> assign(:form, to_form(changeset_with_tags_input(changeset, article, params["tags_input"])))
+      |> assign(
+        :form,
+        to_form(changeset_with_tags_input(changeset, article, params["tags_input"]))
+      )
       |> assign(:preview_content, preview_content)
 
     {:noreply, socket}
@@ -400,7 +419,10 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
       {:error, changeset} ->
         socket =
           socket
-          |> assign(:form, to_form(changeset_with_tags_input(changeset, article, params["tags_input"])))
+          |> assign(
+            :form,
+            to_form(changeset_with_tags_input(changeset, article, params["tags_input"]))
+          )
           |> put_flash(:error, "Failed to save article. Check the form for errors.")
 
         {:noreply, socket}
@@ -466,13 +488,27 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
 
       case Images.presigned_upload_url(path, type) do
         {:ok, url} ->
-          {:noreply, push_event(socket, "article_presigned_url", %{url: url, path: path, content_type: type})}
+          image_url = Images.article_image_url(path)
+
+          {:noreply,
+           push_event(socket, "article_presigned_url", %{
+             url: url,
+             path: path,
+             content_type: type,
+             image_url: image_url
+           })}
 
         {:error, reason} ->
-          {:noreply, push_event(socket, "article_upload_error", %{message: "Failed to get upload URL: #{inspect(reason)}"})}
+          {:noreply,
+           push_event(socket, "article_upload_error", %{
+             message: "Failed to get upload URL: #{inspect(reason)}"
+           })}
       end
     else
-      {:noreply, push_event(socket, "article_upload_error", %{message: "Save article first before uploading images"})}
+      {:noreply,
+       push_event(socket, "article_upload_error", %{
+         message: "Save article first before uploading images"
+       })}
     end
   end
 
@@ -501,9 +537,14 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
   defp normalize_params(params) do
     tags =
       case params["tags_input"] do
-        nil -> []
-        "" -> []
-        input -> input |> String.split(",") |> Enum.map(&String.trim/1) |> Enum.reject(&(&1 == ""))
+        nil ->
+          []
+
+        "" ->
+          []
+
+        input ->
+          input |> String.split(",") |> Enum.map(&String.trim/1) |> Enum.reject(&(&1 == ""))
       end
 
     params
@@ -519,9 +560,5 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
       {:ok, html} -> html
       {:error, _} -> "<p class='text-red-500'>Error rendering markdown</p>"
     end
-  end
-
-  defp format_date(datetime) do
-    Calendar.strftime(datetime, "%b %d, %Y")
   end
 end
