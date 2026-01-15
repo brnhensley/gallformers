@@ -190,9 +190,7 @@ defmodule GallformersWeb.ExploreLive do
     ~H"""
     <Layouts.app flash={@flash} current_user={@current_user}>
       <div id="explore-container">
-        <h1 class="text-3xl font-bold text-gf-maroon mb-6">Explore</h1>
-
-        <p class="text-gray-600 mb-6">
+        <p class="text-lg text-gray-600 mb-6">
           Browse galls and host plants organized by taxonomic family. Click on families and genera
           to expand and see species.
         </p>
@@ -205,7 +203,7 @@ defmodule GallformersWeb.ExploreLive do
                 phx-click="switch_tab"
                 phx-value-tab={tab}
                 class={[
-                  "whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm",
+                  "whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg",
                   if(@active_tab == tab,
                     do: "border-gf-maroon text-gf-maroon",
                     else: "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"

@@ -333,19 +333,11 @@ defmodule GallformersWeb.GallLive do
                       <div>
                         <strong>Hosts:</strong>
                         <em>
-                          <%= for {host, i} <- Enum.with_index(@gall.hosts) do %>
-                            <.link
+                          <%= for {host, idx} <- Enum.with_index(@gall.hosts) do %>
+                            {if idx > 0, do: " / "}<.link
                               href={"/host/#{host.host_species_id}"}
                               class="hover:underline text-gf-maroon"
-                            >
-                              {host.host_name}
-                            </.link>{if i <
-                                                                                                               length(
-                                                                                                                 @gall.hosts
-                                                                                                               ) -
-                                                                                                                 1,
-                                                                                                             do:
-                                                                                                               " / "}
+                            >{host.host_name}</.link>
                           <% end %>
                         </em>
                       </div>

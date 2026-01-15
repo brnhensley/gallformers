@@ -182,12 +182,12 @@ defmodule GallformersWeb.SearchLive do
   @type_icons %{
     "gall" => "gf-gall",
     "host" => "gf-host",
-    "glossary" => "ph-book-open",
-    "source" => "ph-file-text",
-    "genus" => "ph-folder",
-    "family" => "ph-folder",
-    "section" => "ph-folder",
-    "place" => "ph-map-pin"
+    "glossary" => "gf-entry",
+    "source" => "gf-source",
+    "genus" => "gf-taxon",
+    "family" => "gf-taxon",
+    "section" => "gf-taxon",
+    "place" => "gf-place"
   }
 
   defp result_link(%{type: "glossary", name: name}), do: ~p"/glossary##{String.downcase(name)}"
@@ -200,6 +200,10 @@ defmodule GallformersWeb.SearchLive do
   defp build_entity_link(_type, _id), do: "/"
 
   defp type_icon(type), do: Map.get(@type_icons, type, "ph-question")
+
+  # Gall icon (wasp) needs larger size like V1 (45px vs 25px ratio)
+  defp search_result_icon_class("gall"), do: "w-10 h-8 text-gray-500"
+  defp search_result_icon_class(_type), do: "w-6 h-6 text-gray-500"
 
   defp format_name(result) do
     case result.type do
@@ -224,8 +228,6 @@ defmodule GallformersWeb.SearchLive do
     ~H"""
     <Layouts.app flash={@flash} current_user={@current_user}>
       <div id="search-container" phx-window-keydown="keydown">
-        <h1 class="text-3xl font-bold text-gf-maroon mb-6">Search</h1>
-
         <form id="search-form" phx-submit="search" phx-change="search_input" class="mb-6">
           <.search_input
             id="global-search"
@@ -261,11 +263,11 @@ defmodule GallformersWeb.SearchLive do
               </div>
 
               <div class="bg-white rounded-lg shadow overflow-hidden">
-                <table class="gf-table" id="results-table">
+                <table class="gf-table gf-table-compact" id="results-table">
                   <thead>
                     <tr>
                       <th
-                        class="cursor-pointer hover:bg-gray-100 w-32"
+                        class="cursor-pointer hover:bg-gray-100 w-16"
                         phx-click="sort"
                         phx-value-column="type"
                       >
@@ -297,13 +299,15 @@ defmodule GallformersWeb.SearchLive do
                         phx-click="select_result"
                         phx-value-index={index}
                       >
-                        <td>
-                          <div class="flex items-center gap-2">
-                            <.icon name={type_icon(result.type)} class="w-5 h-5 text-gray-500" />
-                            <span class="text-gray-600">{result.category}</span>
+                        <td class="!py-1 !px-2 w-16 align-middle">
+                          <div class="w-12 h-8 flex items-center justify-center">
+                            <.icon
+                              name={type_icon(result.type)}
+                              class={search_result_icon_class(result.type)}
+                            />
                           </div>
                         </td>
-                        <td>
+                        <td class="!py-1 !px-2 align-middle">
                           <.link
                             href={result_link(result)}
                             class="text-gf-maroon hover:underline"
@@ -326,20 +330,12 @@ defmodule GallformersWeb.SearchLive do
                 </table>
               </div>
 
-              <div class="mt-4 text-xs text-gray-500">
-                <p>
-                  <kbd class="px-1.5 py-0.5 bg-gray-100 border border-gray-300 rounded text-xs">
-                    ↑
-                  </kbd>
-                  <kbd class="px-1.5 py-0.5 bg-gray-100 border border-gray-300 rounded text-xs">
-                    ↓
-                  </kbd>
-                  to navigate,
-                  <kbd class="px-1.5 py-0.5 bg-gray-100 border border-gray-300 rounded text-xs">
-                    Enter
-                  </kbd>
-                  to select
-                </p>
+              <div class="mt-4 text-xs text-gray-500 flex items-center gap-1">
+                <kbd class="px-1.5 py-0.5 bg-gray-100 border border-gray-300 rounded">↑</kbd>
+                <kbd class="px-1.5 py-0.5 bg-gray-100 border border-gray-300 rounded">↓</kbd>
+                <span>to navigate,</span>
+                <kbd class="px-1.5 py-0.5 bg-gray-100 border border-gray-300 rounded">Enter</kbd>
+                <span>to select</span>
               </div>
             <% end %>
           <% end %>
