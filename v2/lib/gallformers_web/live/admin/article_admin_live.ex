@@ -13,6 +13,7 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
 
   alias Gallformers.Articles
   alias Gallformers.Articles.Article
+  alias Gallformers.Images
   alias Gallformers.Markdown
 
   @impl true
@@ -200,9 +201,38 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
                 class="w-full rounded-md border-gray-300 shadow-sm focus:border-gf-maroon focus:ring-gf-maroon font-mono text-sm"
                 required
               >{Phoenix.HTML.Form.input_value(@form, :content)}</textarea>
-              <p class="mt-1 text-xs text-gray-500">
-                Supports markdown formatting. Glossary terms are auto-linked.
-              </p>
+              <div class="mt-2 flex items-center justify-between">
+                <p class="text-xs text-gray-500">
+                  Supports markdown formatting. Glossary terms are auto-linked.
+                </p>
+                <%!-- Image Upload --%>
+                <%= if @editing_article.id do %>
+                  <div
+                    id="article-image-upload"
+                    phx-hook="ArticleImageUpload"
+                    phx-update="ignore"
+                    data-content-textarea={@form[:content].id}
+                    class="flex items-center gap-2"
+                  >
+                    <button
+                      type="button"
+                      data-upload-trigger
+                      class="inline-flex items-center gap-1 px-2 py-1 text-xs text-gray-600 border border-gray-300 rounded hover:bg-gray-50"
+                    >
+                      <.icon name="ph-image" class="h-3 w-3" /> Add Image
+                    </button>
+                    <input
+                      data-file-input
+                      type="file"
+                      accept="image/jpeg,image/png"
+                      class="hidden"
+                    />
+                    <span data-status class="text-sm"></span>
+                  </div>
+                <% else %>
+                  <p class="text-xs text-gray-400">Save article first to upload images</p>
+                <% end %>
+              </div>
             </div>
             <div>
               <.input
@@ -413,6 +443,40 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
       {:error, _} ->
         {:noreply, put_flash(socket, :error, "Failed to delete article.")}
     end
+  end
+
+  # Image upload handlers
+  @impl true
+  def handle_event("request_article_image_url", %{"extension" => ext, "type" => type}, socket) do
+    article = socket.assigns.editing_article
+
+    if article && article.id do
+      slug = article.slug || "article-#{article.id}"
+      path = Images.generate_article_path(slug, ext)
+
+      case Images.presigned_upload_url(path, type) do
+        {:ok, url} ->
+          {:noreply, push_event(socket, "article_presigned_url", %{url: url, path: path, content_type: type})}
+
+        {:error, reason} ->
+          {:noreply, push_event(socket, "article_upload_error", %{message: "Failed to get upload URL: #{inspect(reason)}"})}
+      end
+    else
+      {:noreply, push_event(socket, "article_upload_error", %{message: "Save article first before uploading images"})}
+    end
+  end
+
+  @impl true
+  def handle_event("article_image_uploaded", %{"path" => path}, socket) do
+    # Generate the CDN URL and show it to the user
+    image_url = Images.article_image_url(path)
+    markdown = "![Image](#{image_url})"
+
+    socket =
+      socket
+      |> put_flash(:info, "Image uploaded! Markdown copied: #{markdown}")
+
+    {:noreply, socket}
   end
 
   # Add tags_input virtual field to changeset for form binding

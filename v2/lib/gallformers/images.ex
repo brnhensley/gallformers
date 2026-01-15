@@ -405,4 +405,26 @@ defmodule Gallformers.Images do
     )
     |> Repo.all()
   end
+
+  # Article Image Functions
+
+  @doc """
+  Generates the S3 path for an article image.
+
+  Format: articles/{slug}/{timestamp}.{ext}
+  """
+  @spec generate_article_path(String.t(), String.t()) :: String.t()
+  def generate_article_path(slug, extension) do
+    timestamp = System.system_time(:millisecond)
+    ext = String.trim_leading(extension, ".")
+    "articles/#{slug}/#{timestamp}.#{ext}"
+  end
+
+  @doc """
+  Returns the full CDN URL for an article image path.
+  """
+  @spec article_image_url(String.t()) :: String.t()
+  def article_image_url(path) do
+    "#{cdn_url()}/#{path}"
+  end
 end
