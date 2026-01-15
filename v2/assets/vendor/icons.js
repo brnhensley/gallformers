@@ -25,8 +25,8 @@ module.exports = plugin(function({matchComponents, theme}) {
     })
   }
 
-  // Load Phosphor icons from deps/phosphor/regular
-  const phIconsDir = path.join(__dirname, "../../deps/phosphor/regular")
+  // Load Phosphor icons from assets/vendor/phosphor (committed to repo)
+  const phIconsDir = path.join(__dirname, "phosphor")
   if (fs.existsSync(phIconsDir)) {
     fs.readdirSync(phIconsDir).forEach(file => {
       if (file.endsWith(".svg")) {
