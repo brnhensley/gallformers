@@ -259,6 +259,24 @@ defmodule Gallformers.HostsTest do
         end
       end
     end
+
+    test "batch-loaded aliases match individually loaded aliases" do
+      # This test verifies the N+1 optimization (attach_aliases_batch)
+      # returns the same results as individual get_aliases_for_host calls
+      results = Hosts.search_hosts("a", 10)
+
+      if length(results) > 1 do
+        # For each result, verify batch-loaded aliases match individual lookup
+        for result <- results do
+          individual_aliases = Hosts.get_aliases_for_host(result.id)
+          batch_aliases = result.aliases
+
+          # Both should be lists with the same contents (order may differ)
+          assert Enum.sort(batch_aliases) == Enum.sort(individual_aliases),
+                 "Aliases mismatch for host #{result.id}: batch=#{inspect(batch_aliases)}, individual=#{inspect(individual_aliases)}"
+        end
+      end
+    end
   end
 
   describe "get_aliases_for_host/1" do

@@ -242,11 +242,28 @@ defmodule Gallformers.Hosts do
         )
       end)
 
-    query_with_terms
-    |> Repo.all()
-    |> Enum.map(fn host ->
-      aliases = get_aliases_for_host(host.id)
-      Map.put(host, :aliases, aliases)
+    hosts = Repo.all(query_with_terms)
+    attach_aliases_batch(hosts)
+  end
+
+  # Batch-load aliases for multiple hosts in a single query (avoids N+1)
+  defp attach_aliases_batch([]), do: []
+
+  defp attach_aliases_batch(hosts) do
+    host_ids = Enum.map(hosts, & &1.id)
+
+    aliases_by_host =
+      from(a in "alias",
+        join: als in "aliasspecies",
+        on: als.alias_id == a.id,
+        where: als.species_id in ^host_ids,
+        select: {als.species_id, a.name}
+      )
+      |> Repo.all()
+      |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
+
+    Enum.map(hosts, fn host ->
+      Map.put(host, :aliases, Map.get(aliases_by_host, host.id, []))
     end)
   end
 
