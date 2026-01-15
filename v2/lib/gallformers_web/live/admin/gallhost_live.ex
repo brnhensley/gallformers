@@ -36,8 +36,7 @@ defmodule GallformersWeb.Admin.GallhostLive do
       # Range state
       |> assign(:host_places, [])
       |> assign(:excluded_places, [])
-      # Dirty tracking
-      |> assign(:dirty, false)
+      |> assign(:in_range, [])
 
     {:ok, socket}
   end
@@ -52,7 +51,7 @@ defmodule GallformersWeb.Admin.GallhostLive do
       id_str ->
         case Integer.parse(id_str) do
           {id, ""} -> {:noreply, load_gall(socket, id)}
-          _ -> {:noreply, socket}
+          _ -> {:noreply, put_flash(socket, :error, "Invalid gall ID in URL")}
         end
     end
   end
@@ -74,14 +73,20 @@ defmodule GallformersWeb.Admin.GallhostLive do
   end
 
   @impl true
-  def handle_event("select_gall", %{"id" => gall_id}, socket) do
-    socket =
-      socket
-      |> assign(:gall_search_query, "")
-      |> assign(:gall_search_results, [])
-      |> load_gall(String.to_integer(gall_id))
+  def handle_event("select_gall", %{"id" => gall_id_str}, socket) do
+    case Integer.parse(gall_id_str) do
+      {gall_id, ""} ->
+        socket =
+          socket
+          |> assign(:gall_search_query, "")
+          |> assign(:gall_search_results, [])
+          |> load_gall(gall_id)
 
-    {:noreply, socket}
+        {:noreply, socket}
+
+      _ ->
+        {:noreply, put_flash(socket, :error, "Invalid gall ID")}
+    end
   end
 
   @impl true
@@ -90,9 +95,7 @@ defmodule GallformersWeb.Admin.GallhostLive do
       socket
       |> assign(:selected_gall, nil)
       |> assign(:hosts, [])
-      |> assign(:host_places, [])
-      |> assign(:excluded_places, [])
-      |> assign(:dirty, false)
+      |> assign_range_data([], [])
 
     {:noreply, socket}
   end
@@ -114,11 +117,12 @@ defmodule GallformersWeb.Admin.GallhostLive do
   end
 
   @impl true
-  def handle_event("add_host", %{"id" => host_id}, socket) do
+  def handle_event("add_host", %{"id" => host_id_str}, socket) do
     gall = socket.assigns.selected_gall
 
-    if gall do
-      case Species.add_host_to_species(gall.id, String.to_integer(host_id)) do
+    with %{id: gall_id} <- gall,
+         {host_id, ""} <- Integer.parse(host_id_str) do
+      case Species.add_host_to_species(gall_id, host_id) do
         {:ok, _} ->
           socket =
             socket
@@ -133,20 +137,27 @@ defmodule GallformersWeb.Admin.GallhostLive do
           {:noreply, put_flash(socket, :error, "Failed to add host (may already be associated)")}
       end
     else
-      {:noreply, socket}
+      nil -> {:noreply, put_flash(socket, :error, "Select a gall first")}
+      _ -> {:noreply, put_flash(socket, :error, "Invalid host ID")}
     end
   end
 
   @impl true
-  def handle_event("remove_host", %{"relation-id" => relation_id}, socket) do
-    Species.remove_host_from_species(String.to_integer(relation_id))
+  def handle_event("remove_host", %{"relation-id" => relation_id_str}, socket) do
+    case Integer.parse(relation_id_str) do
+      {relation_id, ""} ->
+        Species.remove_host_from_species(relation_id)
 
-    socket =
-      socket
-      |> reload_hosts_and_places()
-      |> put_flash(:info, "Host removed")
+        socket =
+          socket
+          |> reload_hosts_and_places()
+          |> put_flash(:info, "Host removed")
 
-    {:noreply, socket}
+        {:noreply, socket}
+
+      _ ->
+        {:noreply, put_flash(socket, :error, "Invalid relation ID")}
+    end
   end
 
   # ============================================
@@ -160,7 +171,7 @@ defmodule GallformersWeb.Admin.GallhostLive do
          true <- code in socket.assigns.host_places do
       Hosts.toggle_exclusion_for_gall(gall_id, place_id)
       excluded_places = Hosts.get_excluded_places_for_gall(gall_id)
-      {:noreply, assign(socket, excluded_places: excluded_places)}
+      {:noreply, assign_range_data(socket, socket.assigns.host_places, excluded_places)}
     else
       _ -> {:noreply, socket}
     end
@@ -173,7 +184,7 @@ defmodule GallformersWeb.Admin.GallhostLive do
     if gall do
       # Select all = remove all exclusions (all host places are in range)
       Hosts.set_range_exclusions_for_gall(gall.id, [])
-      {:noreply, assign(socket, excluded_places: [])}
+      {:noreply, assign_range_data(socket, socket.assigns.host_places, [])}
     else
       {:noreply, socket}
     end
@@ -188,7 +199,7 @@ defmodule GallformersWeb.Admin.GallhostLive do
       host_place_ids = Hosts.get_host_place_ids_for_gall(gall.id)
       Hosts.set_range_exclusions_for_gall(gall.id, host_place_ids)
       excluded_places = Hosts.get_excluded_places_for_gall(gall.id)
-      {:noreply, assign(socket, excluded_places: excluded_places)}
+      {:noreply, assign_range_data(socket, socket.assigns.host_places, excluded_places)}
     else
       {:noreply, socket}
     end
@@ -214,8 +225,7 @@ defmodule GallformersWeb.Admin.GallhostLive do
           socket
           |> assign(:selected_gall, gall)
           |> assign(:hosts, hosts)
-          |> assign(:host_places, host_places)
-          |> assign(:excluded_places, excluded_places)
+          |> assign_range_data(host_places, excluded_places)
           |> assign(:page_title, "Gall-Host Mappings - #{gall.name}")
         end
     end
@@ -244,24 +254,24 @@ defmodule GallformersWeb.Admin.GallhostLive do
 
       socket
       |> assign(:hosts, hosts)
-      |> assign(:host_places, host_places)
-      |> assign(:excluded_places, valid_exclusions)
+      |> assign_range_data(host_places, valid_exclusions)
     else
       socket
     end
   end
 
-  defp compute_in_range(host_places, excluded_places) do
-    # In range = host places minus exclusions
-    Enum.reject(host_places, &(&1 in excluded_places))
+  # Assigns host_places, excluded_places, and computed in_range together
+  defp assign_range_data(socket, host_places, excluded_places) do
+    in_range = Enum.reject(host_places, &(&1 in excluded_places))
+
+    socket
+    |> assign(:host_places, host_places)
+    |> assign(:excluded_places, excluded_places)
+    |> assign(:in_range, in_range)
   end
 
   @impl true
   def render(assigns) do
-    # Compute in-range places for the map
-    in_range = compute_in_range(assigns.host_places, assigns.excluded_places)
-    assigns = assign(assigns, :in_range, in_range)
-
     ~H"""
     <Layouts.admin flash={@flash} current_user={@current_user} page_title={@page_title}>
       <div class="max-w-7xl mx-auto">
@@ -325,8 +335,11 @@ defmodule GallformersWeb.Admin.GallhostLive do
                 class="relative"
               >
                 <div class={[
-                  "flex flex-wrap gap-1 p-2 border rounded bg-white min-h-[42px]",
-                  if(@selected_gall, do: "border-gray-300", else: "border-gray-200 bg-gray-50")
+                  "flex flex-wrap gap-1 p-2 border rounded min-h-[42px]",
+                  if(@selected_gall,
+                    do: "border-gray-300 bg-white",
+                    else: "border-gray-200 bg-gray-50"
+                  )
                 ]}>
                   <span
                     :for={host <- @hosts}
