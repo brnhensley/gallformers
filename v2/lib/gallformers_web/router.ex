@@ -89,6 +89,9 @@ defmodule GallformersWeb.Router do
 
     # Images admin
     live "/images", AdminImagesLive
+
+    # Articles admin
+    live "/articles", Admin.ArticleAdminLive
   end
 
   # Super admin routes (require superadmin role)

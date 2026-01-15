@@ -32,11 +32,11 @@ defmodule GallformersWeb.AdminDashboardLive do
           icon="gf-gall"
           href="/admin/galls"
         />
-        <.stat_card title="Hosts" value={@stats.host_count} icon="ph-leaf" href="/admin/hosts" />
+        <.stat_card title="Hosts" value={@stats.host_count} icon="gf-host" href="/admin/hosts" />
         <.stat_card
           title="Sources"
           value={@stats.source_count}
-          icon="ph-book-open"
+          icon="gf-source"
           href="/admin/sources"
         />
         <.stat_card title="Images" value={@stats.image_count} icon="ph-image" href="/admin/images" />
@@ -99,6 +99,12 @@ defmodule GallformersWeb.AdminDashboardLive do
             description="Search and edit species-source links"
             href="/admin/species-sources/find"
             icon="ph-magnifying-glass"
+          />
+          <.action_card
+            title="Reference Articles"
+            description="Manage reference library articles"
+            href="/admin/articles"
+            icon="ph-article"
           />
         </div>
       </div>
