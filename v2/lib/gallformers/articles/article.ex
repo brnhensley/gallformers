@@ -28,6 +28,9 @@ defmodule Gallformers.Articles.Article do
     field :tags, Gallformers.Articles.TagsType, default: []
     field :is_published, :boolean, default: false
 
+    # Virtual field for form handling
+    field :tags_input, :string, virtual: true
+
     timestamps()
   end
 
