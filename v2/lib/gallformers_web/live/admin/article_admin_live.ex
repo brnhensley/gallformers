@@ -144,7 +144,7 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
       </div>
 
       <%!-- Edit/Create Modal --%>
-      <.modal :if={@form} id="article-modal" show on_cancel={JS.push("cancel_edit")}>
+      <.modal :if={@form} id="article-modal" show on_cancel={JS.push("cancel_edit")} class="max-w-4xl">
         <:title>{if @editing_article.id, do: "Edit Article", else: "New Article"}</:title>
 
         <%!-- Tabs --%>
