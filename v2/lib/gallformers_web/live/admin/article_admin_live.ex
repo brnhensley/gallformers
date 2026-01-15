@@ -190,6 +190,7 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
           </nav>
         </div>
 
+        <div class="min-h-[500px]">
         <%= if @active_tab == :edit do %>
           <.form for={@form} id="article-form" phx-submit="save_article" phx-change="validate" class="space-y-4">
             <div>
@@ -267,7 +268,7 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
           </.form>
         <% else %>
           <%!-- Preview Tab --%>
-          <div class="prose prose-sm max-w-none max-h-96 overflow-auto">
+          <div class="prose prose-sm max-w-none h-[500px] overflow-auto border border-gray-200 rounded-md p-4">
             <%= if @preview_content do %>
               {Phoenix.HTML.raw(@preview_content)}
             <% else %>
@@ -275,6 +276,7 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
             <% end %>
           </div>
         <% end %>
+        </div>
 
         <:actions>
           <button
