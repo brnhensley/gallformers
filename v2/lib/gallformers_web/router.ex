@@ -120,6 +120,7 @@ defmodule GallformersWeb.Router do
       live "/resources", ResourcesLive
       live "/glossary", GlossaryLive
       live "/refindex", RefIndexLive
+      live "/ref/:slug", RefArticleLive
       live "/globalsearch", SearchLive
       live "/explore", ExploreLive
 
