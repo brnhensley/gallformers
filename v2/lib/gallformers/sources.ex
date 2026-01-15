@@ -88,8 +88,16 @@ defmodule Gallformers.Sources do
     |> Repo.all()
   end
 
+  # Gallformers Notes source ID - should appear second after default
+  @gallformers_notes_source_id 58
+
   @doc """
   Gets all sources for a species.
+
+  Sources are sorted with:
+  1. Default source first (if any)
+  2. Gallformers Notes second (unless it's the default)
+  3. Remaining sources alphabetically by title
   """
   @spec get_sources_for_species(integer()) :: [map()]
   def get_sources_for_species(species_id) do
@@ -97,7 +105,6 @@ defmodule Gallformers.Sources do
       join: s in Source,
       on: ss.source_id == s.id,
       where: ss.species_id == ^species_id,
-      order_by: [desc: ss.useasdefault, asc: s.title],
       select: %{
         id: s.id,
         title: s.title,
@@ -113,6 +120,19 @@ defmodule Gallformers.Sources do
       }
     )
     |> Repo.all()
+    |> sort_sources_with_priority()
+  end
+
+  # Sort sources: default first, Gallformers Notes second, then alphabetically
+  # Note: useasdefault comes as integer 0/1 from SQLite, not boolean
+  defp sort_sources_with_priority(sources) do
+    Enum.sort_by(sources, fn source ->
+      cond do
+        source.useasdefault == 1 or source.useasdefault == true -> {0, source.title}
+        source.id == @gallformers_notes_source_id -> {1, source.title}
+        true -> {2, source.title}
+      end
+    end)
   end
 
   @doc """

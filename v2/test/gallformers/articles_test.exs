@@ -177,7 +177,10 @@ defmodule Gallformers.ArticlesTest do
 
     test "returns articles with shared tags" do
       article1 = create_article(%{title: "Article 1", tags: ["biology"], is_published: true})
-      article2 = create_article(%{title: "Article 2", tags: ["biology", "ecology"], is_published: true})
+
+      article2 =
+        create_article(%{title: "Article 2", tags: ["biology", "ecology"], is_published: true})
+
       _article3 = create_article(%{title: "Article 3", tags: ["botany"], is_published: true})
 
       related = Articles.list_related_articles(article1)
@@ -195,7 +198,9 @@ defmodule Gallformers.ArticlesTest do
 
     test "only returns published articles" do
       article = create_article(%{title: "Article 1", tags: ["biology"], is_published: true})
-      _unpublished = create_article(%{title: "Unpublished", tags: ["biology"], is_published: false})
+
+      _unpublished =
+        create_article(%{title: "Unpublished", tags: ["biology"], is_published: false})
 
       related = Articles.list_related_articles(article)
       assert related == []
@@ -203,6 +208,7 @@ defmodule Gallformers.ArticlesTest do
 
     test "respects limit option" do
       article = create_article(%{title: "Article 1", tags: ["biology"], is_published: true})
+
       for i <- 2..10 do
         create_article(%{title: "Article #{i}", tags: ["biology"], is_published: true})
       end

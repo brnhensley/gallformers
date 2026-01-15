@@ -42,7 +42,11 @@ defmodule Gallformers.Articles do
 
   defp maybe_filter_by_tag(query, tag) do
     # Use SQLite JSON functions for exact tag matching
-    where(query, [a], fragment("EXISTS (SELECT 1 FROM json_each(?) WHERE value = ?)", a.tags, ^tag))
+    where(
+      query,
+      [a],
+      fragment("EXISTS (SELECT 1 FROM json_each(?) WHERE value = ?)", a.tags, ^tag)
+    )
   end
 
   @doc """

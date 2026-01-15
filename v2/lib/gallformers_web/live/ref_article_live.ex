@@ -83,7 +83,7 @@ defmodule GallformersWeb.RefArticleLive do
   defp content_description(_), do: "Reference article on Gallformers"
 
   defp article_json_ld(article) do
-    %{
+    json_ld = %{
       "@context" => "https://schema.org",
       "@type" => "Article",
       "headline" => article.title,
@@ -99,6 +99,8 @@ defmodule GallformersWeb.RefArticleLive do
         "url" => "https://gallformers.org"
       }
     }
+
+    Phoenix.HTML.raw(~s(<script type="application/ld+json">#{Jason.encode!(json_ld)}</script>))
   end
 
   @impl true
