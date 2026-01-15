@@ -79,7 +79,16 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
               <tbody>
                 <%= for article <- @articles do %>
                   <tr>
-                    <td class="font-medium">{article.title}</td>
+                    <td>
+                      <button
+                        type="button"
+                        phx-click="edit_article"
+                        phx-value-id={article.id}
+                        class="font-medium text-gf-maroon hover:underline text-left"
+                      >
+                        {article.title}
+                      </button>
+                    </td>
                     <td class="text-gray-600">{article.author}</td>
                     <td>
                       <%= if article.is_published do %>
