@@ -190,9 +190,9 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
           </nav>
         </div>
 
-        <div class="min-h-[500px]">
+        <div class="h-[600px]">
         <%= if @active_tab == :edit do %>
-          <.form for={@form} id="article-form" phx-submit="save_article" phx-change="validate" class="space-y-4">
+          <.form for={@form} id="article-form" phx-submit="save_article" phx-change="validate" class="h-full flex flex-col space-y-4">
             <div>
               <.input field={@form[:title]} label="Title" required />
             </div>
@@ -202,13 +202,12 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
             <div>
               <.input field={@form[:author]} label="Author" required />
             </div>
-            <div>
+            <div class="flex-1 flex flex-col min-h-0">
               <label class="block text-sm font-medium text-gray-700 mb-1">Content (Markdown)</label>
               <textarea
                 name={@form[:content].name}
                 id={@form[:content].id}
-                rows="12"
-                class="w-full rounded-md border-gray-300 shadow-sm focus:border-gf-maroon focus:ring-gf-maroon font-mono text-sm"
+                class="flex-1 w-full rounded-md border-gray-300 shadow-sm focus:border-gf-maroon focus:ring-gf-maroon font-mono text-sm resize-none"
                 required
               >{Phoenix.HTML.Form.input_value(@form, :content)}</textarea>
               <div class="mt-2 flex items-center justify-between">
@@ -268,7 +267,7 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
           </.form>
         <% else %>
           <%!-- Preview Tab --%>
-          <div class="prose prose-sm max-w-none h-[500px] overflow-auto border border-gray-200 rounded-md p-4">
+          <div class="prose prose-sm max-w-none h-full overflow-auto border border-gray-200 rounded-md p-4">
             <%= if @preview_content do %>
               {Phoenix.HTML.raw(@preview_content)}
             <% else %>
