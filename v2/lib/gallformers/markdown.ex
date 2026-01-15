@@ -28,9 +28,10 @@ defmodule Gallformers.Markdown do
   @doc """
   Renders markdown to HTML with glossary term auto-linking.
 
-  Returns `{:ok, html}` on success or `{:error, reason}` on failure.
+  Always returns `{:ok, html}`. Partial HTML is returned even if markdown
+  has parsing errors (e.g., unsupported HTML tags like `<details>`).
   """
-  @spec render(String.t()) :: {:ok, String.t()} | {:error, String.t()}
+  @spec render(String.t()) :: {:ok, String.t()}
   def render(nil), do: {:ok, ""}
   def render(""), do: {:ok, ""}
 
@@ -39,22 +40,22 @@ defmodule Gallformers.Markdown do
       {:ok, html, _warnings} ->
         {:ok, linkify_glossary_terms(html)}
 
-      {:error, _html, errors} ->
-        {:error, format_errors(errors)}
+      {:error, html, _errors} ->
+        # Return partial HTML even with errors (e.g., unsupported HTML tags like <details>)
+        # This allows content with HTML elements to still render
+        {:ok, linkify_glossary_terms(html)}
     end
   end
 
   @doc """
-  Renders markdown to HTML, raising on error.
+  Renders markdown to HTML, unwrapping the result tuple.
 
-  Use this when you're confident the markdown is valid.
+  Convenience function that extracts the HTML from `render/1`.
   """
   @spec render!(String.t()) :: String.t()
   def render!(markdown) do
-    case render(markdown) do
-      {:ok, html} -> html
-      {:error, reason} -> raise "Markdown rendering failed: #{reason}"
-    end
+    {:ok, html} = render(markdown)
+    html
   end
 
   @doc """
@@ -182,9 +183,5 @@ defmodule Gallformers.Markdown do
     Regex.replace(pattern, html, fn _full, match ->
       ~s(<a href="/glossary##{anchor}" class="text-gf-maroon hover:text-gf-maroon/80 underline decoration-dotted" title="View definition">#{match}</a>)
     end)
-  end
-
-  defp format_errors(errors) do
-    Enum.map_join(errors, "; ", fn {_severity, _line, message} -> message end)
   end
 end

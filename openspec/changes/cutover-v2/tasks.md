@@ -70,36 +70,38 @@ Before starting cutover tasks, verify all dependencies are complete:
 ### Phase 2: Database Sync
 - [ ] 2.5 Create final backup on DO
 - [ ] 2.6 Download database to local machine
-- [ ] 2.7 Compute local checksum
-- [ ] 2.8 Upload database to Fly.io volume
-- [ ] 2.9 Set file permissions: `fly ssh console -a gallformers -C "chmod 644 /data/gallformers.sqlite"`
-- [ ] 2.10 Verify checksum on Fly.io
-- [ ] 2.11 Restart Fly.io app
+- [ ] 2.7 Run v2 schema migrations: `cd v2 && cp ~/downloaded.sqlite priv/gallformers.sqlite && mix ecto.migrate`
+- [ ] 2.8 Run articles data migration: `mix migrate_articles` (imports markdown from /ref into articles table)
+- [ ] 2.9 Compute local checksum
+- [ ] 2.10 Upload database to Fly.io volume
+- [ ] 2.11 Set file permissions: `fly ssh console -a gallformers -C "chmod 644 /data/gallformers.sqlite"`
+- [ ] 2.12 Verify checksum on Fly.io
+- [ ] 2.13 Restart Fly.io app
 
 ### Phase 3: Pre-DNS Verification
-- [ ] 2.12 Verify Fly.io health endpoint
-- [ ] 2.13 Run smoke tests against fly.dev URL
-- [ ] 2.14 Manual verification of admin login
-- [ ] 2.15 Manual verification of public pages
-- [ ] 2.16 Manual verification of image display
+- [ ] 2.14 Verify Fly.io health endpoint
+- [ ] 2.15 Run smoke tests against fly.dev URL
+- [ ] 2.16 Manual verification of admin login
+- [ ] 2.17 Manual verification of public pages
+- [ ] 2.18 Manual verification of image display
 
 ### Phase 4: DNS Switch
-- [ ] 2.17 Update DNS at Namecheap (preserve any existing non-A records):
+- [ ] 2.19 Update DNS at Namecheap (preserve any existing non-A records):
   - gallformers.org (ALIAS → gallformers.fly.dev)
   - gallformers.com (ALIAS → gallformers.fly.dev)
   - www.gallformers.org (CNAME → gallformers.fly.dev)
   - www.gallformers.com (CNAME → gallformers.fly.dev)
-- [ ] 2.18 Run `fly certs add` for all four domains (brief SSL errors possible until certs provision)
-- [ ] 2.19 Verify DNS propagation with `dig`
-- [ ] 2.20 Wait for propagation (monitor with multiple DNS servers)
+- [ ] 2.20 Run `fly certs add` for all four domains (brief SSL errors possible until certs provision)
+- [ ] 2.21 Verify DNS propagation with `dig`
+- [ ] 2.22 Wait for propagation (monitor with multiple DNS servers)
 
 ### Phase 5: Post-DNS Verification
-- [ ] 2.21 Run smoke tests against production URL
-- [ ] 2.22 Verify admin login via production URL
-- [ ] 2.23 Monitor Fly.io logs for errors
-- [ ] 2.24 Record cutover end timestamp
-- [ ] 2.25 Calculate total downtime
-- [ ] 2.26 Remove maintenance banner from v1 (now v2 is live)
+- [ ] 2.23 Run smoke tests against production URL
+- [ ] 2.24 Verify admin login via production URL
+- [ ] 2.25 Monitor Fly.io logs for errors
+- [ ] 2.26 Record cutover end timestamp
+- [ ] 2.27 Calculate total downtime
+- [ ] 2.28 Remove maintenance banner from v1 (now v2 is live)
 
 ## 3. Post-Cutover Monitoring
 
@@ -148,6 +150,8 @@ Before starting cutover tasks, verify all dependencies are complete:
 - [ ] 4.15 Execute repository restructure
 - [ ] 4.16 Verify CI/CD still works after restructure
 - [ ] 4.17 Merge cleanup to main
+- [ ] 4.18 Remove articles seed migration (`v2/priv/repo/migrations/*_seed_articles.exs`) - no longer needed after cutover
+- [ ] 4.19 Remove articles seed generator script (`v2/scripts/generate_articles_seed_migration.exs`)
 
 ## 5. Rollback (if needed)
 

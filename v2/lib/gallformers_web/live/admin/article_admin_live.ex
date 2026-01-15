@@ -556,9 +556,7 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
   defp render_preview(""), do: nil
 
   defp render_preview(content) do
-    case Markdown.render(content) do
-      {:ok, html} -> html
-      {:error, _} -> "<p class='text-red-500'>Error rendering markdown</p>"
-    end
+    {:ok, html} = Markdown.render(content)
+    html
   end
 end
