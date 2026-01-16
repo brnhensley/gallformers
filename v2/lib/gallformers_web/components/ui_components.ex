@@ -740,27 +740,10 @@ defmodule GallformersWeb.UIComponents do
       |> assign(:undescribed_code, undescribed_code)
 
     ~H"""
-    <div>
-      <hr class="border-gray-200 my-4" />
-      <div class="mb-4 font-semibold text-gray-700">See Also:</div>
-      <%= if @undescribed do %>
-        <div class="mb-3 text-sm text-gray-600">
-          Unless noted otherwise in the ID Notes, observations of this gall are collected in the
-          Observation Field <em>Gallformers Code</em> with value <em>{@undescribed_code}</em> on
-          iNaturalist. You can view them here:
-        </div>
-        <div>
-          <a
-            href={"https://www.inaturalist.org/observations?verifiable=any&place_id=any&field:Gallformers%20Code=#{@undescribed_code}"}
-            target="_blank"
-            rel="noreferrer"
-            aria-label="Search for observations of this species on iNaturalist"
-            class="hover:opacity-80 transition-opacity"
-          >
-            <img src="/images/inatlogo-small.png" alt="iNaturalist" />
-          </a>
-        </div>
-      <% else %>
+    <%= unless @undescribed do %>
+      <div>
+        <hr class="border-gray-200 my-4" />
+        <div class="mb-4 font-semibold text-gray-700">See Also:</div>
         <div class={[
           "grid items-center",
           @type == :gall && "grid-cols-2 md:grid-cols-4",
@@ -804,8 +787,8 @@ defmodule GallformersWeb.UIComponents do
             <img src="/images/bhllogo.png" alt="Biodiversity Heritage Library" />
           </a>
         </div>
-      <% end %>
-    </div>
+      </div>
+    <% end %>
     """
   end
 

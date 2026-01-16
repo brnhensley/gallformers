@@ -240,9 +240,29 @@ defmodule GallformersWeb.GallLive do
   defp get_detachable_display(value), do: Map.get(@detachable_values, value, "")
   defp format_fields(fields), do: Enum.join(fields, ", ")
 
+  # Extract the gallformers code from the species name by removing the genus and any trailing parenthetical
+  defp get_gallformers_code(species_name, genus_name) when is_binary(genus_name) do
+    species_name
+    |> String.replace(genus_name, "")
+    |> String.trim()
+    |> String.replace(~r/ \([^)]+\)$/, "")
+  end
+
+  defp get_gallformers_code(species_name, _), do: species_name
+
   @impl true
   def handle_event("dismiss_notes_alert", _params, socket) do
     {:noreply, assign(socket, notes_alert_dismissed: true)}
+  end
+
+  @impl true
+  def handle_event("clipboard_copy_success", _params, socket) do
+    {:noreply, put_flash(socket, :info, "Code copied to clipboard")}
+  end
+
+  @impl true
+  def handle_event("clipboard_copy_error", _params, socket) do
+    {:noreply, put_flash(socket, :error, "Failed to copy to clipboard")}
   end
 
   @impl true
@@ -297,7 +317,35 @@ defmodule GallformersWeb.GallLive do
               </div>
 
               <%= if @gall.undescribed do %>
-                <div class="text-red-600">The inducer of this gall is unknown or undescribed.</div>
+                <div class="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                  <p class="text-red-600 font-medium mb-2">
+                    The inducer of this gall is unknown or undescribed.
+                  </p>
+                  <p class="text-sm mb-2">
+                    <span class="font-medium text-gray-700">Gallformers Code:</span>
+                    <button
+                      id="copy-gallformers-code"
+                      phx-hook="CopyToClipboard"
+                      data-copy-text={get_gallformers_code(@gall.name, @taxonomy && @taxonomy.genus)}
+                      class="ml-1 cursor-pointer hover:opacity-70"
+                    >
+                      <code class="px-2 py-0.5 bg-white border border-amber-200 rounded font-mono text-amber-800">
+                        {get_gallformers_code(@gall.name, @taxonomy && @taxonomy.genus)}
+                      </code>
+                      <span class="ml-2 text-xs text-gf-maroon hover:underline">
+                        Click to Copy
+                      </span>
+                    </button>
+                  </p>
+                  <p class="text-sm text-gray-600">
+                    Observations are tagged with this code on iNaturalist. You can view these observations with this <a
+                      href={"https://www.inaturalist.org/observations?verifiable=any&place_id=any&field:Gallformers%20Code=#{URI.encode(get_gallformers_code(@gall.name, @taxonomy && @taxonomy.genus))}"}
+                      target="_blank"
+                      rel="noreferrer"
+                      class="text-gf-maroon hover:underline"
+                    >link</a>.
+                  </p>
+                </div>
               <% end %>
 
               <div class="flex flex-col md:flex-row md:items-start gap-4">

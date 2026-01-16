@@ -280,6 +280,22 @@ const ImageGallery = {
   }
 }
 
+// CopyToClipboard hook for copying text to clipboard
+const CopyToClipboard = {
+  mounted() {
+    this.el.addEventListener("click", () => {
+      const text = this.el.dataset.copyText
+      if (text) {
+        navigator.clipboard.writeText(text).then(() => {
+          this.pushEvent("clipboard_copy_success", {})
+        }).catch(() => {
+          this.pushEvent("clipboard_copy_error", {})
+        })
+      }
+    })
+  }
+}
+
 // Typeahead hook for keyboard navigation in search dropdowns
 const Typeahead = {
   mounted() {
@@ -421,7 +437,7 @@ const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {Tabs, ImageGallery, RangeMap, ImageUpload, SortableImages, AutoDismiss, Typeahead, ArticleImageUpload},
+  hooks: {Tabs, ImageGallery, RangeMap, ImageUpload, SortableImages, AutoDismiss, Typeahead, ArticleImageUpload, CopyToClipboard},
 })
 
 // Show progress bar on live navigation and form submits
