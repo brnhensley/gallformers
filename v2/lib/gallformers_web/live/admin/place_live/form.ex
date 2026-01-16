@@ -3,6 +3,7 @@ defmodule GallformersWeb.Admin.PlaceLive.Form do
   Admin form for creating and editing geographic places.
   """
   use GallformersWeb, :live_view
+  use GallformersWeb.Admin.FormHelpers
 
   alias Gallformers.Places
   alias Gallformers.Places.Place
@@ -15,8 +16,13 @@ defmodule GallformersWeb.Admin.PlaceLive.Form do
       socket
       |> assign(:current_user, current_user)
       |> assign(:page_title, "Place")
+      |> init_form_state()
 
     {:ok, socket}
+  end
+
+  def close_form(socket) do
+    push_navigate(socket, to: ~p"/admin/places")
   end
 
   @impl true
@@ -53,12 +59,18 @@ defmodule GallformersWeb.Admin.PlaceLive.Form do
       |> Places.change_place(params)
       |> Map.put(:action, :validate)
 
-    {:noreply, assign(socket, :form, to_form(changeset))}
+    {:noreply, socket |> assign(:form, to_form(changeset)) |> mark_dirty()}
   end
 
   @impl true
   def handle_event("save", %{"place" => params}, socket) do
     save_place(socket, socket.assigns.mode, params)
+  end
+
+  @impl true
+  def handle_event(event, params, socket)
+      when event in ~w(request_cancel cancel_discard confirm_discard) do
+    handle_form_event(event, params, socket)
   end
 
   defp save_place(socket, :new, params) do
@@ -91,69 +103,86 @@ defmodule GallformersWeb.Admin.PlaceLive.Form do
   def render(assigns) do
     ~H"""
     <Layouts.admin flash={@flash} current_user={@current_user} page_title={@page_title}>
-      <Layouts.admin_form_container
+      <Layouts.admin_edit_layout
         back_path={~p"/admin/places"}
         back_label="Back to Places"
-        max_width="max-w-2xl"
+        title={if @mode == :new, do: "Add New Place", else: "Edit Place"}
       >
-        <Layouts.form_card title={if @mode == :new, do: "Add New Place"}>
-          <.form for={@form} id="place-form" phx-change="validate" phx-submit="save" class="p-6">
-            <div class="space-y-6">
-              <div>
-                <.input
-                  field={@form[:name]}
-                  type="text"
-                  label="Name"
-                  placeholder="e.g., California, Ontario"
-                  class="w-full input text-lg py-3"
-                  required
-                />
-              </div>
+        <:intro>
+          Places represent geographic regions (states, provinces) used for range data.
+          To manage which hosts occur in which places, use the Host admin page.
+        </:intro>
 
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <.input
-                    field={@form[:code]}
-                    type="text"
-                    label="Code"
-                    placeholder="e.g., CA, ON"
-                    class="w-full input text-lg py-3"
-                    required
-                  />
-                  <p class="mt-1 text-sm text-gray-500">
-                    Standard 2-letter postal code
-                  </p>
-                </div>
-                <div>
-                  <.input
-                    field={@form[:type]}
-                    type="select"
-                    label="Type"
-                    options={Place.place_types()}
-                    prompt="Select type"
-                    class="w-full select text-lg py-3"
-                    required
-                  />
-                </div>
-              </div>
+        <.form for={@form} id="place-form" phx-change="validate" phx-submit="save">
+          <div class="mb-3">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Name:</label>
+            <input
+              type="text"
+              name={@form[:name].name}
+              value={Phoenix.HTML.Form.input_value(@form, :name)}
+              placeholder="e.g., California, Ontario"
+              required
+              class="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gf-maroon focus:border-gf-maroon"
+            />
+          </div>
 
-              <div class="flex justify-end gap-4 pt-4 border-t border-gray-200">
-                <.link
-                  navigate={~p"/admin/places"}
-                  class="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900"
-                >
-                  Cancel
-                </.link>
-                <button
-                  type="submit"
-                  class="px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gf-maroon hover:bg-gf-maroon/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gf-maroon"
-                >
-                  {if @mode == :new, do: "Create Place", else: "Save Changes"}
-                </button>
-              </div>
+          <div class="grid grid-cols-2 gap-4 mb-3">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Code:</label>
+              <input
+                type="text"
+                name={@form[:code].name}
+                value={Phoenix.HTML.Form.input_value(@form, :code)}
+                placeholder="e.g., CA, ON"
+                required
+                class="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gf-maroon focus:border-gf-maroon"
+              />
+              <p class="mt-1 text-xs text-gray-500">Standard 2-letter postal code</p>
             </div>
-          </.form>
-        </Layouts.form_card>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Type:</label>
+              <select
+                name={@form[:type].name}
+                required
+                class="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gf-maroon focus:border-gf-maroon"
+              >
+                <option value="">Select type</option>
+                <option
+                  :for={type <- Place.place_types()}
+                  value={type}
+                  selected={Phoenix.HTML.Form.input_value(@form, :type) == type}
+                >
+                  {type}
+                </option>
+              </select>
+            </div>
+          </div>
+
+          <div class="flex justify-end gap-2 pt-4 border-t border-gray-200">
+            <button
+              type="button"
+              phx-click="request_cancel"
+              class="px-4 py-2 text-sm bg-gray-200 hover:bg-gray-300 border border-gray-300 rounded"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={not @form_dirty}
+              class={[
+                "px-4 py-2 text-sm rounded",
+                if(@form_dirty,
+                  do: "text-white bg-gf-maroon hover:bg-gf-maroon/90",
+                  else: "bg-gray-300 text-gray-500 cursor-not-allowed"
+                )
+              ]}
+            >
+              {if @mode == :new, do: "Create Place", else: "Save Changes"}
+            </button>
+          </div>
+        </.form>
+
+        <.discard_confirm_modal show={@show_discard_confirm} />
 
         <%!-- Help Card --%>
         <div class="mt-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
@@ -162,11 +191,10 @@ defmodule GallformersWeb.Admin.PlaceLive.Form do
           </h3>
           <p class="text-sm text-yellow-700">
             This is a basic place management page. Place hierarchies (regions containing states) and
-            place aggregations are not yet supported in this admin interface. To manage which hosts
-            occur in which places (range data), use the Host admin page.
+            place aggregations are not yet supported in this admin interface.
           </p>
         </div>
-      </Layouts.admin_form_container>
+      </Layouts.admin_edit_layout>
     </Layouts.admin>
     """
   end

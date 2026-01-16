@@ -13,6 +13,7 @@ defmodule GallformersWeb.AdminImagesLive do
   use GallformersWeb, :live_view
 
   alias Gallformers.Images
+  alias Gallformers.Licenses
   alias Gallformers.Species.Image
 
   @impl true
@@ -297,41 +298,51 @@ defmodule GallformersWeb.AdminImagesLive do
               <label class="block text-sm font-medium text-gray-700 mb-1">License</label>
               <select
                 name="license"
+                phx-change="update_license"
                 class="w-full rounded-md border-gray-300 shadow-sm focus:border-gf-maroon focus:ring-gf-maroon"
               >
                 <option value="">Select a license</option>
                 <option
-                  value="Public Domain / CC0"
-                  selected={@editing_image.license == "Public Domain / CC0"}
+                  :for={license <- Licenses.all()}
+                  value={license}
+                  selected={@editing_image.license == license}
                 >
-                  Public Domain / CC0
-                </option>
-                <option value="CC-BY" selected={@editing_image.license == "CC-BY"}>CC-BY</option>
-                <option value="CC-BY-SA" selected={@editing_image.license == "CC-BY-SA"}>
-                  CC-BY-SA
-                </option>
-                <option value="CC-BY-NC" selected={@editing_image.license == "CC-BY-NC"}>
-                  CC-BY-NC
-                </option>
-                <option value="CC-BY-NC-SA" selected={@editing_image.license == "CC-BY-NC-SA"}>
-                  CC-BY-NC-SA
-                </option>
-                <option
-                  value="All Rights Reserved"
-                  selected={@editing_image.license == "All Rights Reserved"}
-                >
-                  All Rights Reserved
+                  {license}
                 </option>
               </select>
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">License URL</label>
-              <input
-                type="text"
-                name="licenselink"
-                value={@editing_image.licenselink || ""}
-                class="w-full rounded-md border-gray-300 shadow-sm focus:border-gf-maroon focus:ring-gf-maroon"
-              />
+              <%= if Licenses.url_readonly?(@editing_image.license) do %>
+                <input
+                  type="text"
+                  name="licenselink"
+                  value={Licenses.url(@editing_image.license)}
+                  readonly
+                  class="w-full rounded-md border-gray-300 bg-gray-50 text-gray-500 shadow-sm cursor-not-allowed"
+                />
+                <p class="mt-1 text-xs text-gray-500">
+                  Auto-filled from license selection
+                </p>
+              <% else %>
+                <input
+                  type="text"
+                  name="licenselink"
+                  value={@editing_image.licenselink || Licenses.url(@editing_image.license) || ""}
+                  placeholder={
+                    if @editing_image.license == "All Rights Reserved",
+                      do: "Optional - link to usage terms",
+                      else: ""
+                  }
+                  class="w-full rounded-md border-gray-300 shadow-sm focus:border-gf-maroon focus:ring-gf-maroon"
+                />
+                <p
+                  :if={@editing_image.license == "Public Domain / CC0"}
+                  class="mt-1 text-xs text-gray-500"
+                >
+                  Defaults to CC0, but can be changed for other public domain references
+                </p>
+              <% end %>
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">
@@ -562,16 +573,31 @@ defmodule GallformersWeb.AdminImagesLive do
   end
 
   @impl true
+  def handle_event("update_license", %{"license" => license}, socket) do
+    # Update the editing_image's license to trigger UI update for license URL field
+    updated_image = %{socket.assigns.editing_image | license: license}
+    {:noreply, assign(socket, :editing_image, updated_image)}
+  end
+
+  @impl true
   def handle_event("save_image", params, socket) do
     image = socket.assigns.editing_image
 
     lastchangedby =
       socket.assigns.current_user["name"] || socket.assigns.current_user["email"] || "admin"
 
+    # Use canonical URL for read-only CC licenses, otherwise use the provided value
+    # (Public Domain / CC0 allows custom URLs)
+    license = params["license"]
+
+    licenselink =
+      if Licenses.url_readonly?(license), do: Licenses.url(license), else: params["licenselink"]
+
     attrs =
       params
       |> Map.put("lastchangedby", lastchangedby)
       |> Map.put("default", params["default"] == "true")
+      |> Map.put("licenselink", licenselink)
 
     case Images.update_image(image, attrs) do
       {:ok, _updated} ->

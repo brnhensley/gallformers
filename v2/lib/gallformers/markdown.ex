@@ -7,8 +7,8 @@ defmodule Gallformers.Markdown do
 
   ## Usage
 
-      iex> Gallformers.Markdown.render("A **gall** is an abnormal growth")
-      {:ok, "<p>A <strong><a href=\\"/glossary#gall\\" ...>gall</a></strong> is an abnormal growth</p>"}
+      iex> Gallformers.Markdown.render("A **cynipid** gall wasp")
+      {:ok, "<p>A <strong><a href=\\"/glossary#cynipid\\" ...>cynipid</a></strong> gall wasp</p>"}
 
       iex> Gallformers.Markdown.render_unsafe("Some *markdown* text")
       "<p>Some <em>markdown</em> text</p>"
@@ -143,9 +143,13 @@ defmodule Gallformers.Markdown do
     end
   end
 
+  # Terms that are too common to auto-link (defined elsewhere or ubiquitous on site)
+  @excluded_terms MapSet.new(["gall"])
+
   defp load_glossary_to_cache do
     word_map =
       Glossary.list_glossary()
+      |> Enum.reject(fn entry -> MapSet.member?(@excluded_terms, String.downcase(entry.word)) end)
       |> Enum.reduce(%{}, fn entry, acc ->
         # Store lowercase word mapping to original word for case-insensitive matching
         Map.put(acc, String.downcase(entry.word), entry.word)
@@ -181,7 +185,7 @@ defmodule Gallformers.Markdown do
     pattern = ~r/(?<![<\/\w])(?<!\w)\b(#{Regex.escape(word)})\b(?![^<]*>)(?![^<]*<\/a>)/i
 
     Regex.replace(pattern, html, fn _full, match ->
-      ~s(<a href="/glossary##{anchor}" class="text-gf-maroon hover:text-gf-maroon/80 underline decoration-dotted" title="View definition">#{match}</a>)
+      ~s(<a href="/glossary##{anchor}" class="glossary-link" title="View definition">#{match}</a>)
     end)
   end
 end

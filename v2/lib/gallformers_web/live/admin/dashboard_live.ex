@@ -25,13 +25,8 @@ defmodule GallformersWeb.AdminDashboardLive do
     ~H"""
     <Layouts.admin flash={@flash} current_user={@current_user} page_title="Admin Dashboard">
       <%!-- Stats Grid --%>
-      <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        <.stat_card
-          title="Galls"
-          value={@stats.gall_count}
-          icon="gf-gall"
-          href="/admin/galls"
-        />
+      <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <.stat_card title="Galls" value={@stats.gall_count} icon="gf-gall" href="/admin/galls" />
         <.stat_card title="Hosts" value={@stats.host_count} icon="gf-host" href="/admin/hosts" />
         <.stat_card
           title="Sources"
@@ -42,86 +37,52 @@ defmodule GallformersWeb.AdminDashboardLive do
         <.stat_card title="Images" value={@stats.image_count} icon="ph-image" href="/admin/images" />
       </div>
 
-      <%!-- Quick Actions --%>
-      <div class="mt-8">
-        <h2 class="text-lg font-medium text-gray-900 mb-4">Quick Actions</h2>
-        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <.action_card
-            title="Add New Gall"
-            description="Create a new gall entry"
-            href="/admin/galls/new"
-            icon="ph-plus-circle"
-          />
-          <.action_card
-            title="Add New Host"
-            description="Add a new host plant to the database"
-            href="/admin/hosts/new"
-            icon="ph-plus-circle"
-          />
-          <.action_card
-            title="Add New Source"
-            description="Add a new reference or citation"
-            href="/admin/sources/new"
-            icon="ph-plus-circle"
-          />
-          <.action_card
-            title="Gall-Host Mappings"
-            description="Manage gall-host associations and range"
-            href="/admin/gallhost"
-            icon="ph-arrows-left-right"
-          />
-          <.action_card
-            title="Upload Images"
-            description="Upload images for species or hosts"
-            href="/admin/images/upload"
-            icon="ph-arrow-line-up"
-          />
-          <.action_card
-            title="Manage Taxonomy"
-            description="Edit taxonomic classifications"
-            href="/admin/taxonomy"
-            icon="ph-tree-structure"
-          />
-          <.action_card
-            title="Edit Glossary"
-            description="Add or edit glossary terms"
-            href="/admin/glossary"
-            icon="ph-book-open"
-          />
-          <.action_card
-            title="Add from Source"
-            description="Bulk-add species info from a paper"
-            href="/admin/species-sources/add"
-            icon="ph-file-plus"
-          />
-          <.action_card
-            title="Find & Edit Mappings"
-            description="Search and edit species-source links"
-            href="/admin/species-sources/find"
-            icon="ph-magnifying-glass"
-          />
-          <.action_card
-            title="Reference Articles"
-            description="Manage reference library articles"
-            href="/admin/articles"
-            icon="ph-article"
-          />
+      <%!-- Welcome --%>
+      <div class="mt-6">
+        <div class="bg-white rounded-lg border border-gray-200 p-4">
+          <p class="text-gray-600 text-lg">
+            Welcome to the Gallformers admin panel. If you need help ask in the <a
+              href="https://discord.com/channels/1178401400821125122/1180224727978094632"
+              target="_blank"
+              class="text-gf-maroon hover:underline"
+            >Discord</a>.
+          </p>
+          <p class="text-lg text-red-600 font-bold">
+            Note: Admin functionality is being migrated from v1. Some features may not yet be available.
+          </p>
         </div>
       </div>
 
-      <%!-- Recent Activity placeholder --%>
-      <div class="mt-8">
-        <h2 class="text-lg font-medium text-gray-900 mb-4">Welcome</h2>
-        <div class="bg-white rounded-lg border border-gray-200 p-6">
-          <p class="text-gray-600">
-            Welcome to the Gallformers admin panel. Use the sidebar navigation or quick actions above
-            to manage species, hosts, sources, and other content.
-          </p>
-          <p class="text-gray-600 mt-4">
-            <strong>Note:</strong> Admin functionality is being migrated from v1. Some features may
-            not yet be available.
-          </p>
-        </div>
+      <%!-- Quick Actions --%>
+      <div class="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <.action_card label="Create a New Gall" href="/admin/galls/new" icon="ph-plus-circle" />
+        <.action_card label="Create a New Host" href="/admin/hosts/new" icon="ph-plus-circle" />
+        <.action_card label="Create a New Source" href="/admin/sources/new" icon="ph-plus-circle" />
+        <.action_card label="Create a New Taxon" href="/admin/taxonomy/new" icon="ph-plus-circle" />
+        <.action_card
+          label="Create a New Glossary Entry"
+          href="/admin/glossary/new"
+          icon="ph-plus-circle"
+        />
+        <.action_card label="Create a New Article" href="/admin/articles/new" icon="ph-plus-circle" />
+        <%= if Gallformers.Accounts.superadmin?(@current_user) do %>
+          <.action_card label="Create a New Place" href="/admin/places/new" icon="ph-plus-circle" />
+        <% end %>
+        <.action_card
+          label="Manage Gall-Host Associations"
+          href="/admin/gallhost"
+          icon="ph-arrows-left-right"
+        />
+        <.action_card
+          label="Bulk Add Species Descriptions from Sources"
+          href="/admin/species-sources/add"
+          icon="ph-file-plus"
+        />
+        <.action_card
+          label="Find and Edit Species-Source Mappings"
+          href="/admin/species-sources/find"
+          icon="ph-magnifying-glass"
+        />
       </div>
     </Layouts.admin>
     """
@@ -131,18 +92,18 @@ defmodule GallformersWeb.AdminDashboardLive do
     ~H"""
     <a
       href={@href}
-      class="block bg-white rounded-lg border border-gray-200 p-5 hover:shadow-md transition-shadow"
+      class="block bg-white rounded-lg border border-gray-200 p-3 hover:shadow-md transition-shadow"
     >
       <div class="flex items-center">
         <div class="flex-shrink-0">
-          <div class="rounded-md bg-gf-maroon/10 p-3">
-            <.icon name={@icon} class="h-6 w-6 text-gf-maroon" />
+          <div class="rounded-md bg-gf-maroon/10 p-2">
+            <.icon name={@icon} class="h-5 w-5 text-gf-maroon" />
           </div>
         </div>
-        <div class="ml-5 w-0 flex-1">
+        <div class="ml-3 w-0 flex-1">
           <dl>
-            <dt class="text-sm font-medium text-gray-500 truncate">{@title}</dt>
-            <dd class="text-2xl font-semibold text-gray-900">{format_number(@value)}</dd>
+            <dt class="text-xs font-medium text-gray-500 truncate">{@title}</dt>
+            <dd class="text-xl font-semibold text-gray-900">{format_number(@value)}</dd>
           </dl>
         </div>
       </div>
@@ -154,17 +115,10 @@ defmodule GallformersWeb.AdminDashboardLive do
     ~H"""
     <a
       href={@href}
-      class="block bg-white rounded-lg border border-gray-200 p-5 hover:shadow-md transition-shadow group"
+      class="flex items-center gap-3 bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-shadow group"
     >
-      <div class="flex items-start">
-        <div class="flex-shrink-0">
-          <.icon name={@icon} class="h-6 w-6 text-gf-maroon group-hover:text-gf-autumn" />
-        </div>
-        <div class="ml-4">
-          <h3 class="text-base font-medium text-gray-900 group-hover:text-gf-maroon">{@title}</h3>
-          <p class="mt-1 text-sm text-gray-500">{@description}</p>
-        </div>
-      </div>
+      <.icon name={@icon} class="h-7 w-7 flex-shrink-0 text-gf-maroon group-hover:text-gf-autumn" />
+      <span class="text-lg font-medium text-gray-900 group-hover:text-gf-maroon">{@label}</span>
     </a>
     """
   end

@@ -10,8 +10,13 @@ defmodule GallformersWeb.RefArticleLive do
   alias Gallformers.Articles
   alias Gallformers.Markdown
 
+  alias Gallformers.Accounts
+
   @impl true
   def mount(%{"slug" => slug}, _session, socket) do
+    current_user = socket.assigns.current_user
+    is_admin = Accounts.admin?(current_user)
+
     case Articles.get_article_by_slug(slug) do
       nil ->
         {:ok,
@@ -28,9 +33,9 @@ defmodule GallformersWeb.RefArticleLive do
          )}
 
       article ->
-        # Only show published articles to non-admin users
-        if article.is_published do
-          load_article(socket, article)
+        # Show draft articles to admins only
+        if article.is_published or is_admin do
+          load_article(socket, article, is_admin)
         else
           {:ok,
            assign(socket,
@@ -48,12 +53,15 @@ defmodule GallformersWeb.RefArticleLive do
     end
   end
 
-  defp load_article(socket, article) do
+  defp load_article(socket, article, is_admin) do
     # Find related articles (same tags, excluding self) - single query
     related_articles = Articles.list_related_articles(article, limit: 5)
 
     # Render markdown content
     rendered_content = Markdown.render!(article.content)
+
+    # Draft articles should not be indexed by search engines
+    noindex = not article.is_published
 
     {:ok,
      assign(socket,
@@ -62,10 +70,11 @@ defmodule GallformersWeb.RefArticleLive do
        page_url: "/ref/#{article.slug}",
        page_image: nil,
        page_json_ld: article_json_ld(article),
-       page_noindex: false,
+       page_noindex: noindex,
        article: article,
        rendered_content: rendered_content,
        related_articles: related_articles,
+       is_draft_preview: not article.is_published and is_admin,
        error: nil
      )}
   end
@@ -132,6 +141,26 @@ defmodule GallformersWeb.RefArticleLive do
             </.link>
           </div>
         <% else %>
+          <%!-- Draft preview banner --%>
+          <%= if @is_draft_preview do %>
+            <div class="mb-6 px-4 py-3 bg-yellow-100 border border-yellow-300 rounded-lg">
+              <div class="flex items-center gap-2 text-yellow-800">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                  />
+                </svg>
+                <span class="font-medium">Draft Preview</span>
+                <span class="text-sm">
+                  — This article is not published and only visible to administrators.
+                </span>
+              </div>
+            </div>
+          <% end %>
+
           <%!-- Back link --%>
           <div class="mb-6">
             <.link

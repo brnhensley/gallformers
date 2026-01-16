@@ -4,6 +4,7 @@ defmodule GallformersWeb.Admin.GallLive.Form do
   Layout mirrors V1 gall admin for consistency.
   """
   use GallformersWeb, :live_view
+  use GallformersWeb.Admin.FormHelpers
 
   alias Gallformers.Species
   alias Gallformers.Species.Species, as: SpeciesSchema
@@ -27,8 +28,13 @@ defmodule GallformersWeb.Admin.GallLive.Form do
       |> assign(:abundances, Species.list_abundances())
       |> assign(:filter_options, filter_options)
       |> assign(:detachable_options, @detachable_options)
+      |> init_form_state()
 
     {:ok, socket}
+  end
+
+  def close_form(socket) do
+    push_navigate(socket, to: ~p"/admin/galls")
   end
 
   @impl true
@@ -149,13 +155,19 @@ defmodule GallformersWeb.Admin.GallLive.Form do
       |> Species.change_species(params)
       |> Map.put(:action, :validate)
 
-    {:noreply, assign(socket, :form, to_form(changeset))}
+    {:noreply, socket |> assign(:form, to_form(changeset)) |> mark_dirty()}
   end
 
   @impl true
   def handle_event("save", %{"species" => params}, socket) do
     params = Map.put(params, "taxoncode", "gall")
     save_gall(socket, socket.assigns.mode, params)
+  end
+
+  @impl true
+  def handle_event(event, params, socket)
+      when event in ~w(request_cancel cancel_discard confirm_discard) do
+    handle_form_event(event, params, socket)
   end
 
   @impl true
@@ -436,392 +448,413 @@ defmodule GallformersWeb.Admin.GallLive.Form do
   def render(assigns) do
     ~H"""
     <Layouts.admin flash={@flash} current_user={@current_user} page_title={@page_title}>
-      <div class="max-w-7xl mx-auto">
-        <div class="mb-4">
-          <.link navigate={~p"/admin/galls"} class="text-gf-maroon hover:underline text-sm">
-            &larr; Back to Galls
+      <Layouts.admin_edit_layout
+        back_path={~p"/admin/galls"}
+        back_label="Back to Galls"
+        title={if @mode == :new, do: "Add New Gall", else: "Edit Gall"}
+      >
+        <:intro>
+          This is for all of the details about a Gall. To add a description (which must be referenced to a source) go add <.link
+            navigate={~p"/admin/sources"}
+            class="text-gf-maroon hover:underline"
+          >Sources</.link>,
+          if they do not already exist, then map species to sources with description.
+          To associate a gall with all plants in a genus, add one species here first, then go to Gall-Host Mappings.
+        </:intro>
+
+        <:quick_links :if={@mode == :edit}>
+          <.link
+            navigate={~p"/admin/images?species_id=#{@gall.id}"}
+            class="text-sm text-gf-maroon hover:underline mr-4"
+          >
+            Manage Images
           </.link>
-        </div>
+          <.link
+            navigate={~p"/admin/gallhost?id=#{@gall.id}"}
+            class="text-sm text-gf-maroon hover:underline mr-4"
+          >
+            Gall-Host Mappings
+          </.link>
+          <.link
+            navigate={~p"/admin/species-sources/find?species_id=#{@gall.id}"}
+            class="text-sm text-gf-maroon hover:underline"
+          >
+            Species-Source Mappings
+          </.link>
+        </:quick_links>
 
-        <div class="bg-white border border-gray-200 rounded shadow-sm">
-          <div class="px-4 py-3 border-b border-gray-200 bg-gray-50">
-            <h4 class="text-lg font-semibold text-gf-maroon">Edit Gallformers</h4>
+        <%!-- Add Undescribed button (new mode only) --%>
+        <%= if @mode == :new do %>
+          <div class="mb-3">
+            <button
+              type="button"
+              disabled
+              class="px-3 py-1 text-sm bg-gray-100 text-gray-400 border border-gray-300 rounded cursor-not-allowed"
+              title="Coming Soon"
+            >
+              Add Undescribed (Coming Soon)
+            </button>
           </div>
+        <% end %>
 
-          <div class="p-4">
-            <%!-- Intro text with links --%>
-            <p class="text-sm text-gray-600 mb-4">
-              This is for all of the details about a Gall. To add a description (which must be referenced to a source) go add <.link
-                navigate={~p"/admin/sources"}
-                class="text-gf-maroon hover:underline"
-              >Sources</.link>, if they do not already exist, then go <span class="text-gray-400">map species to sources with description</span>.
-              To associate a gall with all plants in a genus, add one species here first, then go to <span class="text-gray-400">Gall-Host Mappings</span>.
-            </p>
-
-            <%!-- Add Undescribed button (new mode only) --%>
-            <%= if @mode == :new do %>
-              <div class="mb-3">
+        <.form for={@form} id="gall-form" phx-change="validate" phx-submit="save">
+          <%!-- Row: Name --%>
+          <div class="mb-3">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Name (binomial):</label>
+            <%= if @mode == :edit do %>
+              <div class="flex gap-2">
+                <input
+                  type="text"
+                  value={@gall.name}
+                  disabled
+                  class="flex-1 px-3 py-2 bg-gray-100 border border-gray-300 rounded text-gray-700 text-sm"
+                />
                 <button
                   type="button"
-                  disabled
-                  class="px-3 py-1 text-sm bg-gray-100 text-gray-400 border border-gray-300 rounded cursor-not-allowed"
-                  title="Coming Soon"
+                  phx-click="open_rename_modal"
+                  class="px-3 py-2 text-sm bg-gray-200 hover:bg-gray-300 border border-gray-300 rounded"
                 >
-                  Add Undescribed (Coming Soon)
+                  Rename
                 </button>
               </div>
+            <% else %>
+              <.input
+                field={@form[:name]}
+                type="text"
+                placeholder="Enter gall name..."
+                class="w-full"
+                required
+              />
             <% end %>
+          </div>
 
-            <.form for={@form} id="gall-form" phx-change="validate" phx-submit="save">
-              <%!-- Row: Name --%>
-              <div class="mb-3">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Name (binomial):</label>
-                <%= if @mode == :edit do %>
-                  <div class="flex gap-2">
-                    <input
-                      type="text"
-                      value={@gall.name}
-                      disabled
-                      class="flex-1 px-3 py-2 bg-gray-100 border border-gray-300 rounded text-gray-700 text-sm"
-                    />
+          <%!-- Row: Genus | Family --%>
+          <div class="grid grid-cols-2 gap-4 mb-3">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">
+                Genus (filled automatically):
+              </label>
+              <input
+                type="text"
+                value={if @taxonomy, do: @taxonomy.genus, else: ""}
+                disabled
+                class="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded text-gray-500 text-sm"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">
+                Family (required):
+              </label>
+              <input
+                type="text"
+                value={if @taxonomy, do: @taxonomy.family, else: ""}
+                disabled
+                class="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded text-gray-500 text-sm"
+              />
+            </div>
+          </div>
+
+          <%!-- Row: Hosts --%>
+          <div class="mb-3">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Hosts (required):</label>
+            <%= if @mode == :edit do %>
+              <div
+                id="host-picker"
+                phx-hook="Typeahead"
+                data-input-id="host-picker-input"
+                class="relative"
+              >
+                <div class="flex flex-wrap gap-1 p-2 border border-gray-300 rounded bg-white min-h-[38px]">
+                  <span
+                    :for={host <- @hosts}
+                    class="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-800 rounded text-sm"
+                  >
+                    {host.host_name}
                     <button
                       type="button"
-                      phx-click="open_rename_modal"
-                      class="px-3 py-2 text-sm bg-gray-200 hover:bg-gray-300 border border-gray-300 rounded"
+                      phx-click="remove_host"
+                      phx-value-relation-id={host.host_relation_id}
+                      class="text-blue-600 hover:text-blue-800"
                     >
-                      Rename
+                      <.icon name="ph-x" class="h-3 w-3" />
+                    </button>
+                  </span>
+                  <input
+                    id="host-picker-input"
+                    data-typeahead-input
+                    type="text"
+                    value={@host_search_query}
+                    placeholder={if @hosts == [], do: "Search hosts...", else: ""}
+                    phx-keyup="search_hosts"
+                    phx-debounce="300"
+                    class="flex-1 min-w-[120px] border-0 p-0 text-sm focus:ring-0 focus:outline-none"
+                  />
+                </div>
+                <%= if @host_search_results != [] do %>
+                  <div
+                    id="host-search-results"
+                    data-typeahead-results
+                    class="absolute z-20 mt-1 w-full bg-white shadow-lg rounded border border-gray-200 max-h-48 overflow-auto"
+                  >
+                    <button
+                      :for={host <- @host_search_results}
+                      type="button"
+                      data-typeahead-option
+                      phx-click="add_host"
+                      phx-value-id={host.id}
+                      class="w-full px-3 py-2 text-left text-sm hover:bg-gray-100"
+                    >
+                      {host.name}
                     </button>
                   </div>
-                <% else %>
-                  <.input
-                    field={@form[:name]}
-                    type="text"
-                    placeholder="Enter gall name..."
-                    class="w-full"
-                    required
-                  />
                 <% end %>
               </div>
-
-              <%!-- Row: Genus | Family --%>
-              <div class="grid grid-cols-2 gap-4 mb-3">
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1">
-                    Genus (filled automatically):
-                  </label>
-                  <input
-                    type="text"
-                    value={if @taxonomy, do: @taxonomy.genus, else: ""}
-                    disabled
-                    class="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded text-gray-500 text-sm"
-                  />
-                </div>
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1">
-                    Family (required):
-                  </label>
-                  <input
-                    type="text"
-                    value={if @taxonomy, do: @taxonomy.family, else: ""}
-                    disabled
-                    class="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded text-gray-500 text-sm"
-                  />
-                </div>
-              </div>
-
-              <%!-- Row: Hosts --%>
-              <div class="mb-3">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Hosts (required):</label>
-                <%= if @mode == :edit do %>
-                  <div
-                    id="host-picker"
-                    phx-hook="Typeahead"
-                    data-input-id="host-picker-input"
-                    class="relative"
-                  >
-                    <div class="flex flex-wrap gap-1 p-2 border border-gray-300 rounded bg-white min-h-[38px]">
-                      <span
-                        :for={host <- @hosts}
-                        class="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-800 rounded text-sm"
-                      >
-                        {host.host_name}
-                        <button
-                          type="button"
-                          phx-click="remove_host"
-                          phx-value-relation-id={host.host_relation_id}
-                          class="text-blue-600 hover:text-blue-800"
-                        >
-                          <.icon name="ph-x" class="h-3 w-3" />
-                        </button>
-                      </span>
-                      <input
-                        id="host-picker-input"
-                        data-typeahead-input
-                        type="text"
-                        value={@host_search_query}
-                        placeholder={if @hosts == [], do: "Search hosts...", else: ""}
-                        phx-keyup="search_hosts"
-                        phx-debounce="300"
-                        class="flex-1 min-w-[120px] border-0 p-0 text-sm focus:ring-0 focus:outline-none"
-                      />
-                    </div>
-                    <%= if @host_search_results != [] do %>
-                      <div
-                        id="host-search-results"
-                        data-typeahead-results
-                        class="absolute z-20 mt-1 w-full bg-white shadow-lg rounded border border-gray-200 max-h-48 overflow-auto"
-                      >
-                        <button
-                          :for={host <- @host_search_results}
-                          type="button"
-                          data-typeahead-option
-                          phx-click="add_host"
-                          phx-value-id={host.id}
-                          class="w-full px-3 py-2 text-left text-sm hover:bg-gray-100"
-                        >
-                          {host.name}
-                        </button>
-                      </div>
-                    <% end %>
-                  </div>
-                  <%= if @hosts == [] do %>
-                    <p class="text-red-600 text-xs mt-1">
-                      You must map this gall to at least one host.
-                    </p>
-                  <% end %>
-                <% else %>
-                  <input
-                    type="text"
-                    disabled
-                    placeholder="Save gall first to add hosts"
-                    class="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded text-gray-400 text-sm"
-                  />
-                <% end %>
-              </div>
-
-              <%= if @mode == :edit do %>
-                <%!-- Row: Detachable | Walls | Cells | Alignment --%>
-                <div class="grid grid-cols-4 gap-3 mb-3">
-                  <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Detachable:</label>
-                    <select
-                      phx-change="update_detachable"
-                      name="value"
-                      class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
-                    >
-                      <%= for {label, id} <- @detachable_options do %>
-                        <option value={id} selected={@detachable == id}>{label}</option>
-                      <% end %>
-                    </select>
-                  </div>
-                  <.filter_field
-                    label="Walls:"
-                    type={:walls}
-                    options={@filter_options.walls}
-                    selected={@filter_values.walls}
-                    search_query={@filter_search.walls}
-                  />
-                  <.filter_field
-                    label="Cells:"
-                    type={:cells}
-                    options={@filter_options.cells}
-                    selected={@filter_values.cells}
-                    search_query={@filter_search.cells}
-                  />
-                  <.filter_field
-                    label="Alignment(s):"
-                    type={:alignments}
-                    options={@filter_options.alignments}
-                    selected={@filter_values.alignments}
-                    search_query={@filter_search.alignments}
-                  />
-                </div>
-
-                <%!-- Row: Color | Shape | Season | Form --%>
-                <div class="grid grid-cols-4 gap-3 mb-3">
-                  <.filter_field
-                    label="Color(s):"
-                    type={:colors}
-                    options={@filter_options.colors}
-                    selected={@filter_values.colors}
-                    search_query={@filter_search.colors}
-                  />
-                  <.filter_field
-                    label="Shape(s):"
-                    type={:shapes}
-                    options={@filter_options.shapes}
-                    selected={@filter_values.shapes}
-                    search_query={@filter_search.shapes}
-                  />
-                  <.filter_field
-                    label="Season(s):"
-                    type={:seasons}
-                    options={@filter_options.seasons}
-                    selected={@filter_values.seasons}
-                    search_query={@filter_search.seasons}
-                  />
-                  <.filter_field
-                    label="Form(s):"
-                    type={:forms}
-                    options={@filter_options.forms}
-                    selected={@filter_values.forms}
-                    search_query={@filter_search.forms}
-                  />
-                </div>
-
-                <%!-- Row: Location | Texture | Abundance --%>
-                <div class="grid grid-cols-3 gap-3 mb-3">
-                  <.filter_field
-                    label="Location(s):"
-                    type={:locations}
-                    options={@filter_options.locations}
-                    selected={@filter_values.locations}
-                    search_query={@filter_search.locations}
-                  />
-                  <.filter_field
-                    label="Texture(s):"
-                    type={:textures}
-                    options={@filter_options.textures}
-                    selected={@filter_values.textures}
-                    search_query={@filter_search.textures}
-                  />
-                  <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Abundance:</label>
-                    <.input
-                      field={@form[:abundance_id]}
-                      type="select"
-                      options={Enum.map(@abundances, &{&1.abundance, &1.id})}
-                      prompt=""
-                      class="w-full text-sm"
-                    />
-                  </div>
-                </div>
-
-                <%!-- Aliases table --%>
-                <div class="mb-3">
-                  <label class="block text-sm font-medium text-gray-700 mb-1">Aliases:</label>
-                  <div class="border border-gray-300 rounded">
-                    <table class="w-full text-sm">
-                      <thead class="bg-gray-50">
-                        <tr>
-                          <th class="px-3 py-1.5 text-left font-medium text-gray-700">Name</th>
-                          <th class="px-3 py-1.5 text-left font-medium text-gray-700">Type</th>
-                          <th class="px-3 py-1.5 w-10"></th>
-                        </tr>
-                      </thead>
-                      <tbody class="divide-y divide-gray-200">
-                        <tr :for={a <- @aliases} class="hover:bg-gray-50">
-                          <td class="px-3 py-1.5 italic">{a.name}</td>
-                          <td class="px-3 py-1.5">{a.type}</td>
-                          <td class="px-3 py-1.5">
-                            <button
-                              type="button"
-                              phx-click="remove_alias"
-                              phx-value-alias-id={a.id}
-                              class="text-red-600 hover:text-red-800"
-                            >
-                              <.icon name="ph-x" class="h-4 w-4" />
-                            </button>
-                          </td>
-                        </tr>
-                        <tr>
-                          <td class="px-3 py-1.5">
-                            <input
-                              type="text"
-                              value={@new_alias_name}
-                              placeholder="New alias..."
-                              phx-keyup="update_new_alias"
-                              phx-value-type={@new_alias_type}
-                              class="w-full px-2 py-1 border border-gray-300 rounded text-sm"
-                            />
-                          </td>
-                          <td class="px-3 py-1.5">
-                            <select
-                              phx-change="update_new_alias"
-                              phx-value-name={@new_alias_name}
-                              class="w-full px-2 py-1 border border-gray-300 rounded text-sm"
-                            >
-                              <%= for {label, value} <- alias_type_options() do %>
-                                <option value={value} selected={@new_alias_type == value}>
-                                  {label}
-                                </option>
-                              <% end %>
-                            </select>
-                          </td>
-                          <td class="px-3 py-1.5">
-                            <button
-                              type="button"
-                              phx-click="add_alias"
-                              class="text-green-600 hover:text-green-800"
-                            >
-                              <.icon name="ph-plus" class="h-4 w-4" />
-                            </button>
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
+              <%= if @hosts == [] do %>
+                <p class="text-red-600 text-xs mt-1">
+                  You must map this gall to at least one host.
+                </p>
               <% end %>
-
-              <%!-- Checkboxes --%>
-              <div class="space-y-2 mb-4">
-                <label class="flex items-start gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    name="species[datacomplete]"
-                    checked={@form[:datacomplete].value}
-                    class="mt-0.5 rounded border-gray-300 text-gf-maroon focus:ring-gf-maroon"
-                  />
-                  <span class="text-sm text-gray-700">
-                    All sources containing unique information relevant to this gall have been added and are reflected in its associated data. However, filter criteria may not be comprehensive in every field.
-                  </span>
-                </label>
-
-                <%= if @mode == :edit do %>
-                  <label class="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={@undescribed}
-                      phx-click="toggle_undescribed"
-                      class="rounded border-gray-300 text-gf-maroon focus:ring-gf-maroon"
-                    />
-                    <span class="text-sm text-gray-700">Undescribed?</span>
-                  </label>
-                <% end %>
-              </div>
-
-              <%!-- Action buttons --%>
-              <div class="flex justify-between items-center pt-3 border-t border-gray-200">
-                <div>
-                  <%= if @mode == :edit do %>
-                    <.link
-                      navigate={~p"/gall/#{@gall.id}"}
-                      class="text-sm text-gf-maroon hover:underline"
-                    >
-                      View public page
-                    </.link>
-                  <% end %>
-                </div>
-                <div class="flex gap-2">
-                  <.link
-                    navigate={~p"/admin/galls"}
-                    class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
-                  >
-                    Cancel
-                  </.link>
-                  <button
-                    type="submit"
-                    class="px-4 py-2 bg-gf-maroon text-white text-sm rounded hover:bg-gf-maroon/90"
-                  >
-                    {if @mode == :new, do: "Create", else: "Save"}
-                  </button>
-                </div>
-              </div>
-            </.form>
+            <% else %>
+              <input
+                type="text"
+                disabled
+                placeholder="Save gall first to add hosts"
+                class="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded text-gray-400 text-sm"
+              />
+            <% end %>
           </div>
-        </div>
-      </div>
+
+          <%= if @mode == :edit do %>
+            <%!-- Row: Detachable | Walls | Cells | Alignment --%>
+            <div class="grid grid-cols-4 gap-3 mb-3">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Detachable:</label>
+                <select
+                  phx-change="update_detachable"
+                  name="value"
+                  class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+                >
+                  <%= for {label, id} <- @detachable_options do %>
+                    <option value={id} selected={@detachable == id}>{label}</option>
+                  <% end %>
+                </select>
+              </div>
+              <.filter_field
+                label="Walls:"
+                type={:walls}
+                options={@filter_options.walls}
+                selected={@filter_values.walls}
+                search_query={@filter_search.walls}
+              />
+              <.filter_field
+                label="Cells:"
+                type={:cells}
+                options={@filter_options.cells}
+                selected={@filter_values.cells}
+                search_query={@filter_search.cells}
+              />
+              <.filter_field
+                label="Alignment(s):"
+                type={:alignments}
+                options={@filter_options.alignments}
+                selected={@filter_values.alignments}
+                search_query={@filter_search.alignments}
+              />
+            </div>
+
+            <%!-- Row: Color | Shape | Season | Form --%>
+            <div class="grid grid-cols-4 gap-3 mb-3">
+              <.filter_field
+                label="Color(s):"
+                type={:colors}
+                options={@filter_options.colors}
+                selected={@filter_values.colors}
+                search_query={@filter_search.colors}
+              />
+              <.filter_field
+                label="Shape(s):"
+                type={:shapes}
+                options={@filter_options.shapes}
+                selected={@filter_values.shapes}
+                search_query={@filter_search.shapes}
+              />
+              <.filter_field
+                label="Season(s):"
+                type={:seasons}
+                options={@filter_options.seasons}
+                selected={@filter_values.seasons}
+                search_query={@filter_search.seasons}
+              />
+              <.filter_field
+                label="Form(s):"
+                type={:forms}
+                options={@filter_options.forms}
+                selected={@filter_values.forms}
+                search_query={@filter_search.forms}
+              />
+            </div>
+
+            <%!-- Row: Location | Texture | Abundance --%>
+            <div class="grid grid-cols-3 gap-3 mb-3">
+              <.filter_field
+                label="Location(s):"
+                type={:locations}
+                options={@filter_options.locations}
+                selected={@filter_values.locations}
+                search_query={@filter_search.locations}
+              />
+              <.filter_field
+                label="Texture(s):"
+                type={:textures}
+                options={@filter_options.textures}
+                selected={@filter_values.textures}
+                search_query={@filter_search.textures}
+              />
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Abundance:</label>
+                <.input
+                  field={@form[:abundance_id]}
+                  type="select"
+                  options={Enum.map(@abundances, &{&1.abundance, &1.id})}
+                  prompt=""
+                  class="w-full text-sm"
+                />
+              </div>
+            </div>
+
+            <%!-- Aliases table --%>
+            <div class="mb-3">
+              <label class="block text-sm font-medium text-gray-700 mb-1">Aliases:</label>
+              <div class="border border-gray-300 rounded">
+                <table class="w-full text-sm">
+                  <thead class="bg-gray-50">
+                    <tr>
+                      <th class="px-3 py-1.5 text-left font-medium text-gray-700">Name</th>
+                      <th class="px-3 py-1.5 text-left font-medium text-gray-700">Type</th>
+                      <th class="px-3 py-1.5 w-10"></th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-gray-200">
+                    <tr :for={a <- @aliases} class="hover:bg-gray-50">
+                      <td class="px-3 py-1.5 italic">{a.name}</td>
+                      <td class="px-3 py-1.5">{a.type}</td>
+                      <td class="px-3 py-1.5">
+                        <button
+                          type="button"
+                          phx-click="remove_alias"
+                          phx-value-alias-id={a.id}
+                          class="text-red-600 hover:text-red-800"
+                        >
+                          <.icon name="ph-x" class="h-4 w-4" />
+                        </button>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td class="px-3 py-1.5">
+                        <input
+                          type="text"
+                          value={@new_alias_name}
+                          placeholder="New alias..."
+                          phx-keyup="update_new_alias"
+                          phx-value-type={@new_alias_type}
+                          class="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                        />
+                      </td>
+                      <td class="px-3 py-1.5">
+                        <select
+                          phx-change="update_new_alias"
+                          phx-value-name={@new_alias_name}
+                          class="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                        >
+                          <%= for {label, value} <- alias_type_options() do %>
+                            <option value={value} selected={@new_alias_type == value}>
+                              {label}
+                            </option>
+                          <% end %>
+                        </select>
+                      </td>
+                      <td class="px-3 py-1.5">
+                        <button
+                          type="button"
+                          phx-click="add_alias"
+                          class="text-green-600 hover:text-green-800"
+                        >
+                          <.icon name="ph-plus" class="h-4 w-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          <% end %>
+
+          <%!-- Checkboxes --%>
+          <div class="space-y-2 mb-4">
+            <label class="flex items-start gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                name="species[datacomplete]"
+                checked={@form[:datacomplete].value}
+                class="mt-0.5 rounded border-gray-300 text-gf-maroon focus:ring-gf-maroon"
+              />
+              <span class="text-sm text-gray-700">
+                All sources containing unique information relevant to this gall have been added and are reflected in its associated data. However, filter criteria may not be comprehensive in every field.
+              </span>
+            </label>
+
+            <%= if @mode == :edit do %>
+              <label class="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={@undescribed}
+                  phx-click="toggle_undescribed"
+                  class="rounded border-gray-300 text-gf-maroon focus:ring-gf-maroon"
+                />
+                <span class="text-sm text-gray-700">Undescribed?</span>
+              </label>
+            <% end %>
+          </div>
+
+          <%!-- Action buttons --%>
+          <div class="flex justify-between items-center pt-3 border-t border-gray-200">
+            <div>
+              <%= if @mode == :edit do %>
+                <.link
+                  navigate={~p"/gall/#{@gall.id}"}
+                  class="text-sm text-gf-maroon hover:underline"
+                >
+                  View public page
+                </.link>
+              <% end %>
+            </div>
+            <div class="flex gap-2">
+              <button
+                type="button"
+                phx-click="request_cancel"
+                class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={not @form_dirty}
+                class={[
+                  "px-4 py-2 text-sm rounded",
+                  if(@form_dirty,
+                    do: "bg-gf-maroon text-white hover:bg-gf-maroon/90",
+                    else: "bg-gray-300 text-gray-500 cursor-not-allowed"
+                  )
+                ]}
+              >
+                {if @mode == :new, do: "Create", else: "Save"}
+              </button>
+            </div>
+          </div>
+        </.form>
+
+        <.discard_confirm_modal show={@show_discard_confirm} />
+      </Layouts.admin_edit_layout>
 
       <%!-- Rename Modal --%>
       <%= if @show_rename_modal do %>

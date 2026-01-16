@@ -37,6 +37,11 @@ const ArticleImageUpload = {
     this.handleEvent("article_upload_error", ({ message }) => {
       this.showStatus(message, "error")
     })
+
+    // Listen for image selection from browser (inserting existing image)
+    this.handleEvent("insert_image_markdown", ({ markdown }) => {
+      this.insertMarkdownAtCursor(markdown)
+    })
   },
 
   handleFileSelect(e) {
@@ -101,10 +106,13 @@ const ArticleImageUpload = {
   },
 
   insertMarkdownIntoTextarea(imageUrl) {
+    const markdown = `![Image](${imageUrl})`
+    this.insertMarkdownAtCursor(markdown)
+  },
+
+  insertMarkdownAtCursor(markdown) {
     const textarea = document.getElementById(this.contentTextareaId)
     if (!textarea) return
-
-    const markdown = `![Image](${imageUrl})`
 
     // Insert at cursor position or append to end
     const start = textarea.selectionStart

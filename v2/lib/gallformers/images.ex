@@ -6,6 +6,8 @@ defmodule Gallformers.Images do
   presigned URLs, image processing, and database operations.
   """
 
+  require Logger
+
   import Ecto.Query
   alias Gallformers.Repo
   alias Gallformers.Species.Image, as: ImageSchema
@@ -391,7 +393,7 @@ defmodule Gallformers.Images do
     search_term = "%#{String.downcase(query)}%"
 
     from(s in Species,
-      left_join: i in Image,
+      left_join: i in ImageSchema,
       on: i.species_id == s.id,
       where: fragment("lower(?) LIKE ?", s.name, ^search_term),
       group_by: [s.id, s.name],
@@ -426,5 +428,56 @@ defmodule Gallformers.Images do
   @spec article_image_url(String.t()) :: String.t()
   def article_image_url(path) do
     "#{cdn_url()}/#{path}"
+  end
+
+  @doc """
+  Lists all images in the articles folder on S3.
+
+  Returns a list of maps with :path, :url, :name, and :folder keys.
+  """
+  @spec list_article_images() :: [map()]
+  def list_article_images do
+    list_article_images("articles/")
+  end
+
+  @doc """
+  Lists images in a specific articles subfolder on S3.
+  """
+  @spec list_article_images(String.t()) :: [map()]
+  def list_article_images(prefix) do
+    case ExAws.S3.list_objects(bucket(), prefix: prefix) |> ExAws.request() do
+      {:ok, %{body: body}} ->
+        # contents may be missing, nil, or a list depending on S3 response
+        contents = Map.get(body, :contents) || []
+        contents = if is_list(contents), do: contents, else: []
+
+        contents
+        |> Enum.filter(fn obj ->
+          # Only include image files
+          path = obj.key
+          String.ends_with?(path, [".jpg", ".jpeg", ".png", ".gif", ".webp"])
+        end)
+        |> Enum.map(fn obj ->
+          path = obj.key
+          # Extract folder (article slug) and filename
+          parts = String.split(path, "/")
+          folder = if length(parts) >= 2, do: Enum.at(parts, 1), else: ""
+          name = List.last(parts)
+
+          %{
+            path: path,
+            url: article_image_url(path),
+            name: name,
+            folder: folder,
+            last_modified: obj.last_modified,
+            size: obj.size
+          }
+        end)
+        |> Enum.sort_by(& &1.last_modified, :desc)
+
+      {:error, reason} ->
+        Logger.warning("Failed to list article images: #{inspect(reason)}")
+        []
+    end
   end
 end

@@ -50,7 +50,8 @@ defmodule GallformersWeb.AdminDashboardLiveTest do
     test "displays quick actions section", %{conn: conn} do
       {:ok, _view, html} = live(conn, ~p"/admin")
 
-      assert html =~ "Quick Actions" or html =~ "Add New"
+      # Dashboard shows "Create a New" action cards
+      assert html =~ "Create a New"
     end
 
     test "quick action links are present", %{conn: conn} do
@@ -151,11 +152,11 @@ defmodule GallformersWeb.AdminDashboardLiveTest do
                render(view) =~ "Add New Source"
     end
 
-    test "upload images link exists", %{conn: conn} do
+    test "add article link exists", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/admin")
 
-      assert has_element?(view, "a[href='/admin/images/upload']") or
-               render(view) =~ "Upload Images"
+      assert has_element?(view, "a[href='/admin/articles/new']") or
+               render(view) =~ "Create a New Article"
     end
 
     test "taxonomy link exists", %{conn: conn} do

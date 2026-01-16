@@ -11,6 +11,10 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
 
   use GallformersWeb, :live_view
 
+  # Import the discard_confirm_modal component
+  import GallformersWeb.Admin.FormHelpers, only: [discard_confirm_modal: 1]
+
+  alias Gallformers.Accounts.User
   alias Gallformers.Articles
   alias Gallformers.Articles.Article
   alias Gallformers.Images
@@ -20,17 +24,27 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
   def mount(_params, session, socket) do
     current_user = session["current_user"]
     articles = Articles.list_articles()
+    all_tags = Articles.list_all_tags()
 
     socket =
       socket
       |> assign(:current_user, current_user)
-      |> assign(:page_title, "Article Management")
+      |> assign(:page_title, "Articles")
       |> assign(:articles, articles)
+      |> assign(:filtered_articles, articles)
+      |> assign(:search_query, "")
+      |> assign(:tag_filter, "")
+      |> assign(:status_filter, "")
+      |> assign(:all_tags, all_tags)
       |> assign(:editing_article, nil)
       |> assign(:form, nil)
+      |> assign(:form_dirty, false)
+      |> assign(:show_discard_confirm, false)
       |> assign(:delete_article, nil)
       |> assign(:preview_content, nil)
       |> assign(:active_tab, :edit)
+      |> assign(:show_image_browser, false)
+      |> assign(:article_images, [])
 
     {:ok, socket}
   end
@@ -38,34 +52,73 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.admin flash={@flash} current_user={@current_user} page_title="Article Management">
+    <Layouts.admin flash={@flash} current_user={@current_user} page_title="Articles">
       <div class="space-y-6">
-        <%!-- Header --%>
-        <div class="flex items-center justify-between">
-          <h1 class="text-2xl font-bold text-gf-maroon">Article Management</h1>
-          <div class="flex items-center gap-4">
-            <.link navigate="/admin" class="text-gf-maroon hover:underline">
-              &larr; Back to Dashboard
-            </.link>
-            <button
-              type="button"
-              phx-click="new_article"
-              class="px-4 py-2 bg-gf-maroon text-white rounded-md hover:bg-gf-maroon/90"
-            >
-              <.icon name="ph-plus" class="h-4 w-4 inline mr-1" /> New Article
-            </button>
+        <%!-- Info banner --%>
+        <div class="gf-admin-info">
+          <.icon name="ph-info" class="h-5 w-5 text-blue-400 mr-2 flex-shrink-0" />
+          <p>
+            Reference articles provide educational content about galls, identification guides, and research resources.
+            Articles support markdown formatting and glossary term auto-linking.
+          </p>
+        </div>
+
+        <%!-- Header with filters and new button --%>
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div class="flex flex-1 gap-3 max-w-2xl">
+            <form phx-change="search" phx-submit="search" id="article-search-form" class="flex-1">
+              <.search_input
+                id="article-search"
+                name="query"
+                value={@search_query}
+                placeholder="Filter by title or author..."
+                phx-debounce="300"
+              />
+            </form>
+            <form phx-change="filter_tag" id="article-tag-filter" class="w-48">
+              <select
+                name="tag"
+                class="w-full px-3 py-3 border border-gray-300 rounded-md text-lg focus:outline-none focus:ring-1 focus:ring-gf-maroon focus:border-gf-maroon"
+              >
+                <option value="">All Tags</option>
+                <option :for={tag <- @all_tags} value={tag} selected={@tag_filter == tag}>
+                  {tag}
+                </option>
+              </select>
+            </form>
+            <form phx-change="filter_status" id="article-status-filter" class="w-40">
+              <select
+                name="status"
+                class="w-full px-3 py-3 border border-gray-300 rounded-md text-lg focus:outline-none focus:ring-1 focus:ring-gf-maroon focus:border-gf-maroon"
+              >
+                <option value="">All Status</option>
+                <option value="published" selected={@status_filter == "published"}>
+                  Published
+                </option>
+                <option value="draft" selected={@status_filter == "draft"}>
+                  Draft
+                </option>
+              </select>
+            </form>
           </div>
+          <button type="button" phx-click="new_article" class="gf-btn gf-btn-primary">
+            New Article
+          </button>
         </div>
 
         <%!-- Articles Table --%>
-        <div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
-          <%= if @articles == [] do %>
+        <div class="bg-white shadow rounded-lg overflow-hidden">
+          <%= if @filtered_articles == [] do %>
             <div class="p-8 text-center text-gray-500">
               <.icon name="ph-article" class="h-12 w-12 mx-auto text-gray-300 mb-4" />
-              <p>No articles yet. Create your first article to get started.</p>
+              <%= if @articles == [] do %>
+                <p>No articles yet. Create your first article to get started.</p>
+              <% else %>
+                <p>No articles match your filters. Try a different search term or tag.</p>
+              <% end %>
             </div>
           <% else %>
-            <table class="gf-table">
+            <table class="gf-table gf-table-dark gf-table-compact">
               <thead>
                 <tr>
                   <th>Title</th>
@@ -73,11 +126,11 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
                   <th>Status</th>
                   <th>Tags</th>
                   <th>Updated</th>
-                  <th class="w-32">Actions</th>
+                  <th class="text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                <%= for article <- @articles do %>
+                <%= for article <- @filtered_articles do %>
                   <tr>
                     <td>
                       <button
@@ -109,36 +162,29 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
                       <% end %>
                     </td>
                     <td class="text-gray-600 text-sm">{format_date(article.updated_at, :short)}</td>
-                    <td>
-                      <div class="flex items-center gap-2">
-                        <.link
-                          :if={article.is_published}
-                          href={~p"/ref/#{article.slug}"}
-                          target="_blank"
-                          class="p-1 text-gray-500 hover:text-gf-maroon"
-                          title="View"
-                        >
-                          <.icon name="ph-eye" class="h-4 w-4" />
-                        </.link>
-                        <button
-                          type="button"
+                    <td class="text-right">
+                      <.table_actions>
+                        <.action_button
+                          icon="ph-pencil-simple"
+                          label="Edit"
+                          variant="primary"
                           phx-click="edit_article"
                           phx-value-id={article.id}
-                          class="p-1 text-gray-500 hover:text-gf-maroon"
-                          title="Edit"
-                        >
-                          <.icon name="ph-pencil" class="h-4 w-4" />
-                        </button>
-                        <button
-                          type="button"
+                        />
+                        <.action_button
+                          icon="ph-arrow-square-out"
+                          label={if article.is_published, do: "View", else: "Preview"}
+                          href={~p"/ref/#{article.slug}"}
+                          target="_blank"
+                        />
+                        <.action_button
+                          icon="ph-trash"
+                          label="Delete"
+                          variant="danger"
                           phx-click="confirm_delete"
                           phx-value-id={article.id}
-                          class="p-1 text-gray-500 hover:text-red-600"
-                          title="Delete"
-                        >
-                          <.icon name="ph-trash" class="h-4 w-4" />
-                        </button>
-                      </div>
+                        />
+                      </.table_actions>
                     </td>
                   </tr>
                 <% end %>
@@ -147,9 +193,12 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
           <% end %>
         </div>
 
-        <div class="text-sm text-gray-500">
-          {length(@articles)} article{if length(@articles) != 1, do: "s", else: ""}
-        </div>
+        <p class="text-sm text-gray-500">
+          Showing {length(@filtered_articles)} of {length(@articles)} article{if length(@articles) !=
+                                                                                   1,
+                                                                                 do: "s",
+                                                                                 else: ""}
+        </p>
       </div>
 
       <%!-- Edit/Create Modal --%>
@@ -157,7 +206,7 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
         :if={@form}
         id="article-modal"
         show
-        on_cancel={JS.push("cancel_edit")}
+        on_cancel={JS.push("request_cancel")}
         class="!max-w-[80vw]"
       >
         <:title>{if @editing_article.id, do: "Edit Article", else: "New Article"}</:title>
@@ -230,32 +279,41 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
                   <p class="text-xs text-gray-500">
                     Supports markdown formatting. Glossary terms are auto-linked.
                   </p>
-                  <%!-- Image Upload --%>
+                  <%!-- Image Upload & Browse --%>
                   <%= if @editing_article.id do %>
-                    <div
-                      id="article-image-upload"
-                      phx-hook="ArticleImageUpload"
-                      phx-update="ignore"
-                      data-content-textarea={@form[:content].id}
-                      class="flex items-center gap-2"
-                    >
+                    <div class="flex items-center gap-2">
+                      <div
+                        id="article-image-upload"
+                        phx-hook="ArticleImageUpload"
+                        phx-update="ignore"
+                        data-content-textarea={@form[:content].id}
+                        class="flex items-center gap-2"
+                      >
+                        <button
+                          type="button"
+                          data-upload-trigger
+                          class="gf-btn gf-btn-secondary text-sm"
+                        >
+                          Upload Image
+                        </button>
+                        <input
+                          data-file-input
+                          type="file"
+                          accept="image/jpeg,image/png"
+                          class="hidden"
+                        />
+                        <span data-status class="text-sm"></span>
+                      </div>
                       <button
                         type="button"
-                        data-upload-trigger
-                        class="inline-flex items-center gap-1 px-2 py-1 text-xs text-gray-600 border border-gray-300 rounded hover:bg-gray-50"
+                        phx-click="open_image_browser"
+                        class="gf-btn gf-btn-secondary text-sm"
                       >
-                        <.icon name="ph-image" class="h-3 w-3" /> Add Image
+                        Browse Images
                       </button>
-                      <input
-                        data-file-input
-                        type="file"
-                        accept="image/jpeg,image/png"
-                        class="hidden"
-                      />
-                      <span data-status class="text-sm"></span>
                     </div>
                   <% else %>
-                    <p class="text-xs text-gray-400">Save article first to upload images</p>
+                    <p class="text-xs text-gray-400">Save article first to add images</p>
                   <% end %>
                 </div>
               </div>
@@ -296,7 +354,7 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
         <:actions>
           <button
             type="button"
-            phx-click="cancel_edit"
+            phx-click="request_cancel"
             class="px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
           >
             Cancel
@@ -304,7 +362,14 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
           <button
             type="submit"
             form="article-form"
-            class="px-4 py-2 bg-gf-maroon text-white rounded-md hover:bg-gf-maroon/90"
+            disabled={not @form_dirty}
+            class={[
+              "px-4 py-2 rounded-md",
+              if(@form_dirty,
+                do: "bg-gf-maroon text-white hover:bg-gf-maroon/90",
+                else: "bg-gray-300 text-gray-500 cursor-not-allowed"
+              )
+            ]}
           >
             {if @editing_article.id, do: "Save Changes", else: "Create Article"}
           </button>
@@ -335,19 +400,101 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
           </button>
         </:actions>
       </.modal>
+
+      <%!-- Discard Changes Confirmation Modal --%>
+      <.discard_confirm_modal show={@show_discard_confirm} />
+
+      <%!-- Image Browser Modal --%>
+      <.modal
+        :if={@show_image_browser}
+        id="image-browser-modal"
+        show
+        on_cancel={JS.push("close_image_browser")}
+        class="!max-w-[70vw]"
+      >
+        <:title>Browse Article Images</:title>
+        <p class="text-sm text-gray-500 mb-4">
+          Click an image to insert its markdown link at the cursor position in the content editor.
+        </p>
+
+        <%= if @article_images == [] do %>
+          <div class="p-8 text-center text-gray-500">
+            <.icon name="ph-images" class="h-12 w-12 mx-auto text-gray-300 mb-4" />
+            <p>No images found. Upload some images first.</p>
+          </div>
+        <% else %>
+          <div class="max-h-[60vh] overflow-y-auto">
+            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+              <%= for image <- @article_images do %>
+                <button
+                  type="button"
+                  phx-click="select_image"
+                  phx-value-url={image.url}
+                  phx-value-name={image.name}
+                  class="group relative aspect-square bg-gray-100 rounded-lg overflow-hidden border-2 border-transparent hover:border-gf-maroon focus:border-gf-maroon focus:outline-none"
+                >
+                  <img
+                    src={image.url}
+                    alt={image.name}
+                    class="w-full h-full object-cover"
+                    loading="lazy"
+                  />
+                  <div class="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                    <span class="text-white text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+                      Select
+                    </span>
+                  </div>
+                  <div class="absolute bottom-0 left-0 right-0 bg-black/60 px-2 py-1">
+                    <p class="text-white text-xs truncate">{image.folder}</p>
+                  </div>
+                </button>
+              <% end %>
+            </div>
+          </div>
+        <% end %>
+
+        <:actions>
+          <button
+            type="button"
+            phx-click="close_image_browser"
+            class="px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
+          >
+            Close
+          </button>
+        </:actions>
+      </.modal>
     </Layouts.admin>
     """
   end
 
   @impl true
+  def handle_event("search", %{"query" => query}, socket) do
+    {:noreply, socket |> assign(:search_query, query) |> apply_filters()}
+  end
+
+  @impl true
+  def handle_event("filter_tag", %{"tag" => tag}, socket) do
+    {:noreply, socket |> assign(:tag_filter, tag) |> apply_filters()}
+  end
+
+  @impl true
+  def handle_event("filter_status", %{"status" => status}, socket) do
+    {:noreply, socket |> assign(:status_filter, status) |> apply_filters()}
+  end
+
+  @impl true
   def handle_event("new_article", _params, socket) do
-    article = %Article{}
-    changeset = Articles.change_article(article, %{})
+    # Pre-populate author from logged in user
+    author = User.display_name(socket.assigns.current_user)
+
+    article = %Article{author: author}
+    changeset = Articles.change_article(article, %{author: author})
 
     socket =
       socket
       |> assign(:editing_article, article)
       |> assign(:form, to_form(changeset_with_tags_input(changeset, article)))
+      |> assign(:form_dirty, false)
       |> assign(:preview_content, nil)
       |> assign(:active_tab, :edit)
 
@@ -363,6 +510,7 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
       socket
       |> assign(:editing_article, article)
       |> assign(:form, to_form(changeset_with_tags_input(changeset, article)))
+      |> assign(:form_dirty, false)
       |> assign(:preview_content, render_preview(article.content))
       |> assign(:active_tab, :edit)
 
@@ -386,6 +534,7 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
         :form,
         to_form(changeset_with_tags_input(changeset, article, params["tags_input"]))
       )
+      |> assign(:form_dirty, true)
       |> assign(:preview_content, preview_content)
 
     {:noreply, socket}
@@ -406,12 +555,15 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
     case result do
       {:ok, _saved} ->
         articles = Articles.list_articles()
+        all_tags = Articles.list_all_tags()
 
         socket =
           socket
           |> assign(:articles, articles)
+          |> assign(:all_tags, all_tags)
           |> assign(:editing_article, nil)
           |> assign(:form, nil)
+          |> apply_filters()
           |> put_flash(:info, if(article.id, do: "Article updated.", else: "Article created."))
 
         {:noreply, socket}
@@ -435,7 +587,70 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
       socket
       |> assign(:editing_article, nil)
       |> assign(:form, nil)
+      |> assign(:form_dirty, false)
       |> assign(:preview_content, nil)
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("request_cancel", _params, socket) do
+    # Ignore cancel request if the image browser is open - the user is interacting
+    # with the nested modal, not trying to close the article modal
+    if socket.assigns.show_image_browser do
+      {:noreply, socket}
+    else
+      if socket.assigns.form_dirty do
+        {:noreply, assign(socket, :show_discard_confirm, true)}
+      else
+        {:noreply,
+         socket
+         |> assign(:editing_article, nil)
+         |> assign(:form, nil)
+         |> assign(:form_dirty, false)
+         |> assign(:preview_content, nil)}
+      end
+    end
+  end
+
+  @impl true
+  def handle_event("cancel_discard", _params, socket) do
+    {:noreply, assign(socket, :show_discard_confirm, false)}
+  end
+
+  @impl true
+  def handle_event("confirm_discard", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:editing_article, nil)
+     |> assign(:form, nil)
+     |> assign(:form_dirty, false)
+     |> assign(:show_discard_confirm, false)
+     |> assign(:preview_content, nil)}
+  end
+
+  @impl true
+  def handle_event("open_image_browser", _params, socket) do
+    images = Images.list_article_images()
+    {:noreply, socket |> assign(:article_images, images) |> assign(:show_image_browser, true)}
+  end
+
+  @impl true
+  def handle_event("close_image_browser", _params, socket) do
+    {:noreply, assign(socket, :show_image_browser, false)}
+  end
+
+  @impl true
+  def handle_event("select_image", %{"url" => url, "name" => name}, socket) do
+    # Generate markdown for the image
+    markdown = "![#{name}](#{url})"
+
+    # Push event to client to insert at cursor position
+    socket =
+      socket
+      |> push_event("insert_image_markdown", %{markdown: markdown})
+      |> assign(:show_image_browser, false)
+      |> assign(:form_dirty, true)
 
     {:noreply, socket}
   end
@@ -463,11 +678,14 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
     case Articles.delete_article(article) do
       {:ok, _} ->
         articles = Articles.list_articles()
+        all_tags = Articles.list_all_tags()
 
         socket =
           socket
           |> assign(:articles, articles)
+          |> assign(:all_tags, all_tags)
           |> assign(:delete_article, nil)
+          |> apply_filters()
           |> put_flash(:info, "Article deleted.")
 
         {:noreply, socket}
@@ -558,5 +776,49 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
   defp render_preview(content) do
     {:ok, html} = Markdown.render(content)
     html
+  end
+
+  defp apply_filters(socket) do
+    articles = socket.assigns.articles
+    search_query = socket.assigns.search_query
+    tag_filter = socket.assigns.tag_filter
+    status_filter = socket.assigns.status_filter
+
+    filtered =
+      articles
+      |> filter_by_search(search_query)
+      |> filter_by_tag(tag_filter)
+      |> filter_by_status(status_filter)
+
+    assign(socket, :filtered_articles, filtered)
+  end
+
+  defp filter_by_search(articles, ""), do: articles
+
+  defp filter_by_search(articles, query) do
+    query_lower = String.downcase(query)
+
+    Enum.filter(articles, fn article ->
+      String.contains?(String.downcase(article.title || ""), query_lower) ||
+        String.contains?(String.downcase(article.author || ""), query_lower)
+    end)
+  end
+
+  defp filter_by_tag(articles, ""), do: articles
+
+  defp filter_by_tag(articles, tag) do
+    Enum.filter(articles, fn article ->
+      tag in (article.tags || [])
+    end)
+  end
+
+  defp filter_by_status(articles, ""), do: articles
+
+  defp filter_by_status(articles, "published") do
+    Enum.filter(articles, fn article -> article.is_published end)
+  end
+
+  defp filter_by_status(articles, "draft") do
+    Enum.filter(articles, fn article -> not article.is_published end)
   end
 end

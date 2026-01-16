@@ -7,6 +7,8 @@ defmodule Gallformers.Sources.Source do
   use Ecto.Schema
   import Ecto.Changeset
 
+  alias Gallformers.Licenses
+
   @type t :: %__MODULE__{
           id: integer() | nil,
           title: String.t() | nil,
@@ -18,8 +20,6 @@ defmodule Gallformers.Sources.Source do
           license: String.t() | nil,
           licenselink: String.t() | nil
         }
-
-  @license_types ~w(Public\ Domain CC\ BY All\ Rights\ Reserved)
 
   schema "source" do
     field :title, :string
@@ -61,8 +61,18 @@ defmodule Gallformers.Sources.Source do
     license = get_field(changeset, :license)
     licenselink = get_field(changeset, :licenselink)
 
-    if license == "CC BY" && (is_nil(licenselink) || licenselink == "") do
-      add_error(changeset, :licenselink, "is required when using CC BY license")
+    # All CC licenses (except CC0/Public Domain) require attribution via license link
+    cc_licenses_requiring_link = [
+      "CC-BY",
+      "CC-BY-SA",
+      "CC-BY-NC",
+      "CC-BY-NC-SA",
+      "CC-BY-ND",
+      "CC-BY-NC-ND"
+    ]
+
+    if license in cc_licenses_requiring_link && (is_nil(licenselink) || licenselink == "") do
+      add_error(changeset, :licenselink, "is required for CC licenses")
     else
       changeset
     end
@@ -71,5 +81,5 @@ defmodule Gallformers.Sources.Source do
   @doc """
   Returns the list of valid license types.
   """
-  def license_types, do: @license_types
+  def license_types, do: Licenses.all()
 end

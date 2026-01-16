@@ -104,6 +104,20 @@ a:hover {
   text-decoration: underline;
 }
 
+/* Glossary auto-linked terms - distinct from regular links */
+a.glossary-link {
+  color: #475569; /* slate-600 - subtle blue-gray */
+  text-decoration: underline;
+  font-weight: 500; /* medium - slightly heavier than normal */
+  padding: 0 2px;
+  border-radius: 2px;
+}
+
+a.glossary-link:hover {
+  color: #334155; /* slate-700 - darker on hover */
+  background-color: #fefce8; /* yellow-50 */
+}
+
 /* Card styles similar to v1 */
 .card {
   border-color: #fff;

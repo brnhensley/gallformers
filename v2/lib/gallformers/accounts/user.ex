@@ -63,11 +63,11 @@ defmodule Gallformers.Accounts.User do
   end
 
   @doc """
-  Returns the display name for the user, preferring nickname over name over email.
+  Returns the display name for the user, preferring name over nickname over email.
   """
   @spec display_name(t()) :: String.t()
-  def display_name(%__MODULE__{nickname: nickname}) when is_binary(nickname), do: nickname
   def display_name(%__MODULE__{name: name}) when is_binary(name), do: name
+  def display_name(%__MODULE__{nickname: nickname}) when is_binary(nickname), do: nickname
   def display_name(%__MODULE__{email: email}) when is_binary(email), do: email
   def display_name(_), do: "Unknown User"
 end

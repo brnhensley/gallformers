@@ -58,6 +58,19 @@ defmodule Gallformers.Articles do
   end
 
   @doc """
+  Returns all unique tags across all articles, sorted alphabetically.
+  """
+  @spec list_all_tags() :: [String.t()]
+  def list_all_tags do
+    Article
+    |> select([a], a.tags)
+    |> Repo.all()
+    |> List.flatten()
+    |> Enum.uniq()
+    |> Enum.sort()
+  end
+
+  @doc """
   Gets an article by ID.
 
   Raises `Ecto.NoResultsError` if not found.

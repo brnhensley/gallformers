@@ -3,6 +3,7 @@ defmodule GallformersWeb.Admin.FilterTermsLive.Form do
   Admin form for creating and editing filter terms.
   """
   use GallformersWeb, :live_view
+  use GallformersWeb.Admin.FormHelpers
 
   alias Gallformers.FilterFields
 
@@ -14,8 +15,13 @@ defmodule GallformersWeb.Admin.FilterTermsLive.Form do
       socket
       |> assign(:current_user, current_user)
       |> assign(:page_title, "Filter Term")
+      |> init_form_state()
 
     {:ok, socket}
+  end
+
+  def close_form(socket) do
+    push_navigate(socket, to: ~p"/admin/filter-terms?type=#{socket.assigns.filter_type}")
   end
 
   @impl true
@@ -67,12 +73,18 @@ defmodule GallformersWeb.Admin.FilterTermsLive.Form do
       |> FilterFields.change(socket.assigns.filter_type, params)
       |> Map.put(:action, :validate)
 
-    {:noreply, assign(socket, :form, to_form(changeset, as: :filter_field))}
+    {:noreply, socket |> assign(:form, to_form(changeset, as: :filter_field)) |> mark_dirty()}
   end
 
   @impl true
   def handle_event("save", %{"filter_field" => params}, socket) do
     save_item(socket, socket.assigns.mode, params)
+  end
+
+  @impl true
+  def handle_event(event, params, socket)
+      when event in ~w(request_cancel cancel_discard confirm_discard) do
+    handle_form_event(event, params, socket)
   end
 
   defp save_item(socket, :new, params) do
@@ -109,81 +121,78 @@ defmodule GallformersWeb.Admin.FilterTermsLive.Form do
   def render(assigns) do
     ~H"""
     <Layouts.admin flash={@flash} current_user={@current_user} page_title={@page_title}>
-      <Layouts.admin_form_container
+      <Layouts.admin_edit_layout
         back_path={~p"/admin/filter-terms?type=#{@filter_type}"}
         back_label={"Back to #{FilterFields.type_label(@filter_type)}"}
-        max_width="max-w-2xl"
+        title={
+          if @mode == :new,
+            do: "Add New #{FilterFields.singular_label(@filter_type)}",
+            else: "Edit #{FilterFields.singular_label(@filter_type)}"
+        }
       >
-        <Layouts.form_card title={
-          if @mode == :new, do: "Add New #{FilterFields.singular_label(@filter_type)}"
-        }>
-          <.form
-            for={@form}
-            id="filter-field-form"
-            phx-change="validate"
-            phx-submit="save"
-            class="p-6"
-          >
-            <div class="space-y-6">
-              <div>
-                <.input
-                  field={@form[FilterFields.field_name_for(@filter_type)]}
-                  type="text"
-                  label={FilterFields.singular_label(@filter_type)}
-                  placeholder={"Enter #{FilterFields.singular_label(@filter_type) |> String.downcase()}"}
-                  class="w-full input text-lg py-3"
-                  required
-                />
-              </div>
+        <:intro>
+          Filter terms are used by the ID tool to help identify galls.
+          Modifying or deleting terms that are in use by existing galls may affect filtering.
+        </:intro>
 
-              <%= if FilterFields.has_description?(@filter_type) do %>
-                <div>
-                  <.input
-                    field={@form[:description]}
-                    type="textarea"
-                    label="Description"
-                    placeholder="Enter a description explaining this term"
-                    rows={4}
-                    class="w-full textarea text-lg py-3"
-                  />
-                  <p class="mt-1 text-sm text-gray-500">
-                    A brief explanation of what this term means, shown in the filter guide.
-                  </p>
-                </div>
-              <% end %>
+        <.form for={@form} id="filter-field-form" phx-change="validate" phx-submit="save">
+          <div class="mb-3">
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+              {FilterFields.singular_label(@filter_type)}:
+            </label>
+            <input
+              type="text"
+              name={@form[FilterFields.field_name_for(@filter_type)].name}
+              value={Phoenix.HTML.Form.input_value(@form, FilterFields.field_name_for(@filter_type))}
+              placeholder={"Enter #{FilterFields.singular_label(@filter_type) |> String.downcase()}"}
+              required
+              class="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gf-maroon focus:border-gf-maroon"
+            />
+          </div>
 
-              <div class="flex justify-end gap-4 pt-4 border-t border-gray-200">
-                <.link
-                  navigate={~p"/admin/filter-terms?type=#{@filter_type}"}
-                  class="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900"
-                >
-                  Cancel
-                </.link>
-                <button
-                  type="submit"
-                  class="px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gf-maroon hover:bg-gf-maroon/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gf-maroon"
-                >
-                  {if @mode == :new,
-                    do: "Create #{FilterFields.singular_label(@filter_type)}",
-                    else: "Save Changes"}
-                </button>
-              </div>
+          <%= if FilterFields.has_description?(@filter_type) do %>
+            <div class="mb-3">
+              <label class="block text-sm font-medium text-gray-700 mb-1">Description:</label>
+              <textarea
+                name={@form[:description].name}
+                rows="4"
+                placeholder="Enter a description explaining this term"
+                class="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gf-maroon focus:border-gf-maroon"
+              >{Phoenix.HTML.Form.input_value(@form, :description)}</textarea>
+              <p class="mt-1 text-xs text-gray-500">
+                A brief explanation of what this term means, shown in the filter guide.
+              </p>
             </div>
-          </.form>
-        </Layouts.form_card>
+          <% end %>
 
-        <%!-- Help Card --%>
-        <div class="mt-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <h3 class="text-sm font-medium text-yellow-800 mb-2">
-            <.icon name="ph-warning" class="h-4 w-4 inline mr-1" /> Usage Note
-          </h3>
-          <p class="text-sm text-yellow-700">
-            Filter terms are used by the ID tool to help identify galls. Modifying or deleting
-            terms that are in use by existing galls may affect the ID tool's filtering capabilities.
-            Consider the impact before making changes.
-          </p>
-        </div>
-      </Layouts.admin_form_container>
+          <div class="flex justify-end gap-2 pt-4 border-t border-gray-200">
+            <button
+              type="button"
+              phx-click="request_cancel"
+              class="px-4 py-2 text-sm bg-gray-200 hover:bg-gray-300 border border-gray-300 rounded"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={not @form_dirty}
+              class={[
+                "px-4 py-2 text-sm rounded",
+                if(@form_dirty,
+                  do: "text-white bg-gf-maroon hover:bg-gf-maroon/90",
+                  else: "bg-gray-300 text-gray-500 cursor-not-allowed"
+                )
+              ]}
+            >
+              {if @mode == :new,
+                do: "Create #{FilterFields.singular_label(@filter_type)}",
+                else: "Save Changes"}
+            </button>
+          </div>
+        </.form>
+
+        <.discard_confirm_modal show={@show_discard_confirm} />
+      </Layouts.admin_edit_layout>
     </Layouts.admin>
     """
   end

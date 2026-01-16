@@ -426,10 +426,11 @@ defmodule GallformersWeb.Layouts do
       %{href: "/admin", label: "Dashboard", icon: "ph-house"},
       %{href: "/admin/galls", label: "Galls", icon: "gf-gall"},
       %{href: "/admin/hosts", label: "Hosts", icon: "gf-host"},
-      %{href: "/admin/taxonomy", label: "Taxonomy", icon: "gf-taxon"},
       %{href: "/admin/sources", label: "Sources", icon: "gf-source"},
       %{href: "/admin/images", label: "Images", icon: "ph-image"},
-      %{href: "/admin/glossary", label: "Glossary", icon: "gf-entry"}
+      %{href: "/admin/taxonomy", label: "Taxonomy", icon: "gf-taxon"},
+      %{href: "/admin/glossary", label: "Glossary", icon: "gf-entry"},
+      %{href: "/admin/articles", label: "Articles", icon: "ph-article"}
     ]
 
     superadmin_nav_links = [
@@ -699,62 +700,69 @@ defmodule GallformersWeb.Layouts do
   end
 
   @doc """
-  Renders a card container for admin forms.
+  Standard layout for admin edit pages (Gall, Host, Source, etc.)
 
-  ## Examples
+  Provides consistent structure with:
+  - Back link
+  - Card with gray header bar and maroon title
+  - Intro text slot
+  - Quick links slot (optional)
+  - Main content area
 
-      <Layouts.form_card>
-        <:header>Add New Entry</:header>
-        <.form ...>...</.form>
-      </Layouts.form_card>
+  ## Example
 
-      <Layouts.form_card title="Edit Entry">
-        <.form ...>...</.form>
-      </Layouts.form_card>
-  """
-  attr :title, :string, default: nil, doc: "optional title for the card header"
-  attr :class, :string, default: nil, doc: "additional classes for the card"
+      <Layouts.admin_edit_layout
+        back_path={~p"/admin/galls"}
+        back_label="Back to Galls"
+        title="Edit Gall"
+      >
+        <:intro>
+          This is for all the details about a Gall...
+        </:intro>
+        <:quick_links>
+          <.link navigate={...}>Manage Images</.link>
+        </:quick_links>
 
-  slot :header, doc: "optional header slot (alternative to title attr)"
-  slot :inner_block, required: true
-
-  def form_card(assigns) do
-    ~H"""
-    <div class={["bg-white shadow rounded-lg overflow-hidden", @class]}>
-      <%= if @title || @header != [] do %>
-        <div class="px-6 py-5 border-b border-gray-200 bg-gray-50">
-          <h2 class="text-2xl font-semibold text-gf-maroon">
-            {render_slot(@header) || @title}
-          </h2>
-        </div>
-      <% end %>
-      {render_slot(@inner_block)}
-    </div>
-    """
-  end
-
-  @doc """
-  Renders the standard admin form container with back link.
-
-  ## Examples
-
-      <Layouts.admin_form_container back_path={~p"/admin/glossary"} back_label="Back to Glossary">
-        <Layouts.form_card title="Add New Entry">
-          ...
-        </Layouts.form_card>
-      </Layouts.admin_form_container>
+        <.form ...>
+          ... form fields ...
+        </.form>
+      </Layouts.admin_edit_layout>
   """
   attr :back_path, :string, required: true, doc: "path for the back link"
-  attr :back_label, :string, required: true, doc: "text for the back link"
-  attr :max_width, :string, default: "max-w-4xl", doc: "max width class for the container"
+  attr :back_label, :string, required: true, doc: "text for the back link (without arrow)"
+  attr :title, :string, required: true, doc: "card header title"
 
-  slot :inner_block, required: true
+  slot :intro, doc: "intro text paragraph"
+  slot :quick_links, doc: "quick links (shown in a gray box)"
+  slot :inner_block, required: true, doc: "main form content"
 
-  def admin_form_container(assigns) do
+  def admin_edit_layout(assigns) do
     ~H"""
-    <div class={@max_width}>
-      <Layouts.back_link navigate={@back_path} label={@back_label} />
-      {render_slot(@inner_block)}
+    <div class="max-w-7xl mx-auto">
+      <div class="mb-4">
+        <.link navigate={@back_path} class="text-gf-maroon hover:underline text-sm">
+          &larr; {@back_label}
+        </.link>
+      </div>
+
+      <div class="bg-white border border-gray-200 rounded shadow-sm">
+        <div class="px-4 py-3 border-b border-gray-200 bg-gray-50">
+          <h4 class="text-lg font-semibold text-gf-maroon">{@title}</h4>
+        </div>
+
+        <div class="p-4">
+          <p :if={@intro != []} class="text-sm text-gray-600 mb-4">
+            {render_slot(@intro)}
+          </p>
+
+          <div :if={@quick_links != []} class="mb-4 p-3 bg-gray-50 border border-gray-200 rounded">
+            <span class="text-sm font-medium text-gray-700 mr-3">Quick Links:</span>
+            {render_slot(@quick_links)}
+          </div>
+
+          {render_slot(@inner_block)}
+        </div>
+      </div>
     </div>
     """
   end

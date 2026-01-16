@@ -637,7 +637,7 @@ defmodule GallformersWeb.UIComponents do
             phx-key="escape"
             phx-click-away={@on_cancel && JS.exec("data-cancel", to: "##{@id}")}
             class={[
-              "relative w-full max-w-lg bg-white rounded-lg shadow-xl p-6",
+              "relative w-full max-w-3xl bg-white rounded-lg shadow-xl p-6",
               @class
             ]}
           >

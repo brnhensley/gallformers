@@ -5,6 +5,7 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
   Includes a hierarchical parent selector for setting up the taxonomy tree.
   """
   use GallformersWeb, :live_view
+  use GallformersWeb.Admin.FormHelpers
 
   alias Gallformers.Taxonomy
   alias Gallformers.Taxonomy.Taxonomy, as: TaxonomySchema
@@ -17,8 +18,13 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
       socket
       |> assign(:current_user, current_user)
       |> assign(:page_title, "Taxonomy")
+      |> init_form_state()
 
     {:ok, socket}
+  end
+
+  def close_form(socket) do
+    push_navigate(socket, to: ~p"/admin/taxonomy")
   end
 
   @impl true
@@ -87,12 +93,19 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
     {:noreply,
      socket
      |> assign(:form, to_form(changeset))
-     |> assign(:parent_options, parent_options)}
+     |> assign(:parent_options, parent_options)
+     |> mark_dirty()}
   end
 
   @impl true
   def handle_event("save", %{"taxonomy" => params}, socket) do
     save_taxonomy(socket, socket.assigns.mode, params)
+  end
+
+  @impl true
+  def handle_event(event, params, socket)
+      when event in ~w(request_cancel cancel_discard confirm_discard) do
+    handle_form_event(event, params, socket)
   end
 
   defp save_taxonomy(socket, :new, params) do
@@ -125,101 +138,127 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
   def render(assigns) do
     ~H"""
     <Layouts.admin flash={@flash} current_user={@current_user} page_title={@page_title}>
-      <Layouts.admin_form_container
+      <Layouts.admin_edit_layout
         back_path={~p"/admin/taxonomy"}
         back_label="Back to Taxonomy"
-        max_width="max-w-2xl"
+        title={if @mode == :new, do: "Create New Taxonomy Entry", else: "Edit Taxonomy Entry"}
       >
-        <Layouts.form_card title={if @mode == :new, do: "Create New Taxonomy Entry"}>
-          <.form for={@form} id="taxonomy-form" phx-change="validate" phx-submit="save" class="p-6">
-            <div class="space-y-6">
-              <div>
-                <.input
-                  field={@form[:name]}
-                  type="text"
-                  label="Name"
-                  placeholder="Enter taxonomy name"
-                  class="w-full input text-lg py-3"
-                  required
-                />
-              </div>
+        <:intro>
+          Taxonomy entries define the hierarchical classification of species:
+          Family → Section (optional) → Genus. Species are linked to genera.
+        </:intro>
 
-              <div>
-                <.input
-                  field={@form[:type]}
-                  type="select"
-                  label="Type"
-                  options={[
-                    {"Family", "family"},
-                    {"Genus", "genus"},
-                    {"Section", "section"}
-                  ]}
-                  prompt="Select type"
-                  class="w-full select text-lg py-3"
-                  required
-                />
-                <p class="mt-1 text-sm text-gray-500">
-                  Family &rarr; Section (optional) &rarr; Genus
-                </p>
-              </div>
+        <.form for={@form} id="taxonomy-form" phx-change="validate" phx-submit="save">
+          <div class="mb-3">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Name:</label>
+            <input
+              type="text"
+              name={@form[:name].name}
+              value={Phoenix.HTML.Form.input_value(@form, :name)}
+              placeholder="Enter taxonomy name"
+              required
+              class="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gf-maroon focus:border-gf-maroon"
+            />
+          </div>
 
-              <div>
-                <.input
-                  field={@form[:description]}
-                  type="text"
-                  label="Description"
-                  placeholder="e.g., 'gall' or 'plant' for families"
-                  class="w-full input text-lg py-3"
-                />
-                <p class="mt-1 text-sm text-gray-500">
-                  For families, use "gall" or "plant" to indicate the type of organisms
-                </p>
-              </div>
-
-              <%= if @parent_options != [] do %>
-                <div>
-                  <.input
-                    field={@form[:parent_id]}
-                    type="select"
-                    label="Parent"
-                    options={@parent_options}
-                    prompt="Select parent (optional for families)"
-                    class="w-full select text-lg py-3"
-                  />
-                  <p class="mt-1 text-sm text-gray-500">
-                    Genera belong to families (or sections). Sections belong to families.
-                  </p>
-                </div>
-              <% else %>
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1">Parent</label>
-                  <p class="text-sm text-gray-500 italic">
-                    <%= if @form[:type].value == "family" do %>
-                      Families are top-level entries and have no parent.
-                    <% else %>
-                      Select a type to see available parent options.
-                    <% end %>
-                  </p>
-                </div>
-              <% end %>
-
-              <div class="flex justify-end gap-4 pt-4 border-t border-gray-200">
-                <.link
-                  navigate={~p"/admin/taxonomy"}
-                  class="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900"
+          <div class="grid grid-cols-2 gap-4 mb-3">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Type:</label>
+              <select
+                name={@form[:type].name}
+                required
+                class="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gf-maroon focus:border-gf-maroon"
+              >
+                <option value="">Select type</option>
+                <option
+                  value="family"
+                  selected={Phoenix.HTML.Form.input_value(@form, :type) == "family"}
                 >
-                  Cancel
-                </.link>
-                <button
-                  type="submit"
-                  class="px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gf-maroon hover:bg-gf-maroon/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gf-maroon"
+                  Family
+                </option>
+                <option
+                  value="genus"
+                  selected={Phoenix.HTML.Form.input_value(@form, :type) == "genus"}
                 >
-                  {if @mode == :new, do: "Create", else: "Save Changes"}
-                </button>
-              </div>
+                  Genus
+                </option>
+                <option
+                  value="section"
+                  selected={Phoenix.HTML.Form.input_value(@form, :type) == "section"}
+                >
+                  Section
+                </option>
+              </select>
             </div>
-          </.form>
-        </Layouts.form_card>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Description:</label>
+              <input
+                type="text"
+                name={@form[:description].name}
+                value={Phoenix.HTML.Form.input_value(@form, :description)}
+                placeholder="e.g., 'gall' or 'plant'"
+                class="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gf-maroon focus:border-gf-maroon"
+              />
+              <p class="mt-1 text-xs text-gray-500">For families: "gall" or "plant"</p>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <%= if @parent_options != [] do %>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Parent:</label>
+              <select
+                name={@form[:parent_id].name}
+                class="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gf-maroon focus:border-gf-maroon"
+              >
+                <option value="">Select parent (optional for families)</option>
+                <option
+                  :for={{label, id} <- @parent_options}
+                  value={id}
+                  selected={Phoenix.HTML.Form.input_value(@form, :parent_id) == id}
+                >
+                  {label}
+                </option>
+              </select>
+              <p class="mt-1 text-xs text-gray-500">
+                Genera belong to families or sections. Sections belong to families.
+              </p>
+            <% else %>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Parent:</label>
+              <p class="text-sm text-gray-500 italic px-3 py-2">
+                <%= if Phoenix.HTML.Form.input_value(@form, :type) == "family" do %>
+                  Families are top-level entries and have no parent.
+                <% else %>
+                  Select a type to see available parent options.
+                <% end %>
+              </p>
+            <% end %>
+          </div>
+
+          <div class="flex justify-end gap-2 pt-4 border-t border-gray-200">
+            <button
+              type="button"
+              phx-click="request_cancel"
+              class="px-4 py-2 text-sm bg-gray-200 hover:bg-gray-300 border border-gray-300 rounded"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={not @form_dirty}
+              class={[
+                "px-4 py-2 text-sm rounded",
+                if(@form_dirty,
+                  do: "text-white bg-gf-maroon hover:bg-gf-maroon/90",
+                  else: "bg-gray-300 text-gray-500 cursor-not-allowed"
+                )
+              ]}
+            >
+              {if @mode == :new, do: "Create", else: "Save Changes"}
+            </button>
+          </div>
+        </.form>
+
+        <.discard_confirm_modal show={@show_discard_confirm} />
 
         <%!-- Help Card --%>
         <div class="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -235,10 +274,9 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
               are optional sub-groupings within families (used primarily for Quercus oaks)
             </li>
             <li><strong>Genera</strong> belong to families or sections (e.g., Andricus, Quercus)</li>
-            <li>Species are linked to genera through the speciestaxonomy table</li>
           </ul>
         </div>
-      </Layouts.admin_form_container>
+      </Layouts.admin_edit_layout>
     </Layouts.admin>
     """
   end
