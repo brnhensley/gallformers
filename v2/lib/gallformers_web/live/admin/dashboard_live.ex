@@ -125,28 +125,17 @@ defmodule GallformersWeb.AdminDashboardLive do
 
   defp assign_stats(socket) do
     stats = %{
-      gall_count: count_galls(),
-      host_count: count_table("host"),
-      source_count: count_table("source"),
-      image_count: count_table("image")
+      gall_count: count_query("SELECT COUNT(*) FROM species WHERE taxoncode = 'gall'"),
+      host_count: count_query("SELECT COUNT(*) FROM host"),
+      source_count: count_query("SELECT COUNT(*) FROM source"),
+      image_count: count_query("SELECT COUNT(*) FROM image")
     }
 
     assign(socket, :stats, stats)
   end
 
-  defp count_table(table_name) do
-    query = "SELECT COUNT(*) FROM #{table_name}"
-
-    case Repo.query(query) do
-      {:ok, %{rows: [[count]]}} -> count
-      _ -> 0
-    end
-  end
-
-  defp count_galls do
-    query = "SELECT COUNT(*) FROM species WHERE taxoncode = 'gall'"
-
-    case Repo.query(query) do
+  defp count_query(sql) do
+    case Repo.query(sql) do
       {:ok, %{rows: [[count]]}} -> count
       _ -> 0
     end

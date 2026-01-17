@@ -295,7 +295,7 @@ defmodule GallformersWeb.Admin.GallhostLiveTest do
           # Remove the host
           html =
             render_click(view, "remove_host", %{
-              "relation-id" => Integer.to_string(host_to_remove.host_relation_id)
+              "id" => Integer.to_string(host_to_remove.host_relation_id)
             })
 
           # Should show flash message
@@ -310,7 +310,7 @@ defmodule GallformersWeb.Admin.GallhostLiveTest do
       if gall do
         {:ok, view, _html} = live(conn, ~p"/admin/gallhost?id=#{gall.id}")
 
-        html = render_click(view, "remove_host", %{"relation-id" => "invalid"})
+        html = render_click(view, "remove_host", %{"id" => "invalid"})
 
         assert html =~ "Invalid relation ID"
       end

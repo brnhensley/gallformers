@@ -35,10 +35,20 @@ defmodule GallformersWeb.Admin.GallLive.FormTest do
     |> put_session(:current_user, user)
   end
 
-  # Helper to find any gall for testing
-  defp find_any_gall do
-    galls = Species.list_galls()
-    if length(galls) > 0, do: hd(galls), else: nil
+  # Helper to find any gall for testing - fails explicitly if no data
+  defp require_gall do
+    case Species.list_galls() do
+      [gall | _] -> gall
+      [] -> flunk("No gall found in test database - ensure test fixtures exist")
+    end
+  end
+
+  # Helper to find any host for testing - fails explicitly if no data
+  defp require_host do
+    case Hosts.list_hosts() do
+      [host | _] -> host
+      [] -> flunk("No host found in test database - ensure test fixtures exist")
+    end
   end
 
   describe "Mount and render - new mode" do
@@ -84,70 +94,52 @@ defmodule GallformersWeb.Admin.GallLive.FormTest do
     end
 
     test "renders edit gall form with gall data", %{conn: conn} do
-      gall = find_any_gall()
+      gall = require_gall()
+      {:ok, _view, html} = live(conn, ~p"/admin/galls/#{gall.id}")
 
-      if gall do
-        {:ok, _view, html} = live(conn, ~p"/admin/galls/#{gall.id}")
-
-        assert html =~ "Edit Gall"
-        assert html =~ gall.name
-      end
+      assert html =~ "Edit Gall"
+      assert html =~ gall.name
     end
 
     test "shows correct page title for edit gall", %{conn: conn} do
-      gall = find_any_gall()
+      gall = require_gall()
+      {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
 
-      if gall do
-        {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
-
-        assert page_title(view) =~ gall.name
-      end
+      assert page_title(view) =~ gall.name
     end
 
     test "shows rename button in edit mode", %{conn: conn} do
-      gall = find_any_gall()
+      gall = require_gall()
+      {:ok, _view, html} = live(conn, ~p"/admin/galls/#{gall.id}")
 
-      if gall do
-        {:ok, _view, html} = live(conn, ~p"/admin/galls/#{gall.id}")
-
-        assert html =~ "Rename"
-      end
+      assert html =~ "Rename"
     end
 
     test "shows quick links in edit mode", %{conn: conn} do
-      gall = find_any_gall()
+      gall = require_gall()
+      {:ok, _view, html} = live(conn, ~p"/admin/galls/#{gall.id}")
 
-      if gall do
-        {:ok, _view, html} = live(conn, ~p"/admin/galls/#{gall.id}")
-
-        assert html =~ "Manage Images"
-        assert html =~ "Gall-Host Mappings"
-        assert html =~ "Species-Source Mappings"
-      end
+      assert html =~ "Manage Images"
+      assert html =~ "Gall-Host Mappings"
+      assert html =~ "Species-Source Mappings"
     end
 
     test "shows view public page link in edit mode", %{conn: conn} do
-      gall = find_any_gall()
+      gall = require_gall()
+      {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
 
-      if gall do
-        {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
-
-        assert has_element?(view, "a[href='/gall/#{gall.id}']", "View public page")
-      end
+      assert has_element?(view, "a[href='/gall/#{gall.id}']", "View public page")
     end
 
     test "shows filter fields in edit mode", %{conn: conn} do
-      gall = find_any_gall()
+      gall = require_gall()
+      {:ok, _view, html} = live(conn, ~p"/admin/galls/#{gall.id}")
 
-      if gall do
-        {:ok, _view, html} = live(conn, ~p"/admin/galls/#{gall.id}")
-
-        assert html =~ "Detachable"
-        assert html =~ "Walls"
-        assert html =~ "Cells"
-        assert html =~ "Color"
-        assert html =~ "Shape"
-      end
+      assert html =~ "Detachable"
+      assert html =~ "Walls"
+      assert html =~ "Cells"
+      assert html =~ "Color"
+      assert html =~ "Shape"
     end
 
     test "handles invalid gall ID", %{conn: conn} do
@@ -192,39 +184,33 @@ defmodule GallformersWeb.Admin.GallLive.FormTest do
     end
 
     test "update_new_alias handles name field change (phx-keyup)", %{conn: conn} do
-      gall = find_any_gall()
+      gall = require_gall()
+      {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
 
-      if gall do
-        {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
+      # Simulate typing in alias name field - sends value and type from phx-value-type
+      html =
+        render_click(view, "update_new_alias", %{
+          "value" => "Test Alias",
+          "type" => "common name"
+        })
 
-        # Simulate typing in alias name field - sends value and type from phx-value-type
-        html =
-          render_click(view, "update_new_alias", %{
-            "value" => "Test Alias",
-            "type" => "common name"
-          })
-
-        # Should update the input field value
-        assert html =~ "Test Alias" or true
-      end
+      # Should update the input field value
+      assert html =~ "Test Alias" or html =~ gall.name
     end
 
     test "update_new_alias handles type field change (phx-change)", %{conn: conn} do
-      gall = find_any_gall()
+      gall = require_gall()
+      {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
 
-      if gall do
-        {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
+      # Simulate changing select - sends value and name from phx-value-name
+      html =
+        render_click(view, "update_new_alias", %{
+          "value" => "scientific synonym",
+          "name" => "Some Alias"
+        })
 
-        # Simulate changing select - sends value and name from phx-value-name
-        html =
-          render_click(view, "update_new_alias", %{
-            "value" => "scientific synonym",
-            "name" => "Some Alias"
-          })
-
-        # Should update both fields
-        assert html =~ "Some Alias" or html =~ "scientific synonym" or true
-      end
+      # Should update both fields
+      assert html =~ "Some Alias" or html =~ "scientific synonym" or html =~ gall.name
     end
   end
 
@@ -234,32 +220,26 @@ defmodule GallformersWeb.Admin.GallLive.FormTest do
     end
 
     test "search_hosts handles value parameter correctly", %{conn: conn} do
-      gall = find_any_gall()
+      gall = require_gall()
+      {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
 
-      if gall do
-        {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
+      # Simulate searching - phx-keyup sends "value" not "query"
+      html = render_click(view, "search_hosts", %{"value" => "quercus"})
 
-        # Simulate searching - phx-keyup sends "value" not "query"
-        html = render_click(view, "search_hosts", %{"value" => "quercus"})
-
-        # Should not crash and should process search
-        assert html =~ "Edit Gall" or html =~ gall.name
-      end
+      # Should not crash and should process search
+      assert html =~ "Edit Gall" or html =~ gall.name
     end
 
     test "search_hosts with short query returns no results", %{conn: conn} do
-      gall = find_any_gall()
+      gall = require_gall()
+      {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
 
-      if gall do
-        {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
+      # Search with 1 character - should return no results
+      html = render_click(view, "search_hosts", %{"value" => "q"})
 
-        # Search with 1 character - should return no results
-        html = render_click(view, "search_hosts", %{"value" => "q"})
-
-        # Should not show results dropdown
-        refute has_element?(view, "#host-search-results button")
-        assert html =~ gall.name
-      end
+      # Should not show results dropdown
+      refute has_element?(view, "#host-search-results button")
+      assert html =~ gall.name
     end
   end
 
@@ -269,32 +249,26 @@ defmodule GallformersWeb.Admin.GallLive.FormTest do
     end
 
     test "filter_search handles value parameter correctly", %{conn: conn} do
-      gall = find_any_gall()
+      gall = require_gall()
+      {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
 
-      if gall do
-        {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
+      # Simulate filter search - phx-keyup sends "value" not "query"
+      html = render_click(view, "filter_search", %{"type" => "colors", "value" => "red"})
 
-        # Simulate filter search - phx-keyup sends "value" not "query"
-        html = render_click(view, "filter_search", %{"type" => "colors", "value" => "red"})
-
-        # Should not crash
-        assert html =~ "Edit Gall" or html =~ gall.name
-      end
+      # Should not crash
+      assert html =~ "Edit Gall" or html =~ gall.name
     end
 
     test "filter_search works for various filter types", %{conn: conn} do
-      gall = find_any_gall()
+      gall = require_gall()
+      {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
 
-      if gall do
-        {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
+      # Test multiple filter types
+      filter_types = ~w(walls cells alignments colors shapes seasons forms locations textures)
 
-        # Test multiple filter types
-        filter_types = ~w(walls cells alignments colors shapes seasons forms locations textures)
-
-        for filter_type <- filter_types do
-          html = render_click(view, "filter_search", %{"type" => filter_type, "value" => "test"})
-          assert html =~ gall.name, "Failed for filter type: #{filter_type}"
-        end
+      for filter_type <- filter_types do
+        html = render_click(view, "filter_search", %{"type" => filter_type, "value" => "test"})
+        assert html =~ gall.name, "Failed for filter type: #{filter_type}"
       end
     end
   end
@@ -305,33 +279,27 @@ defmodule GallformersWeb.Admin.GallLive.FormTest do
     end
 
     test "update_detachable marks form as dirty", %{conn: conn} do
-      gall = find_any_gall()
+      gall = require_gall()
+      {:ok, view, html_before} = live(conn, ~p"/admin/galls/#{gall.id}")
 
-      if gall do
-        {:ok, view, html_before} = live(conn, ~p"/admin/galls/#{gall.id}")
+      # Initially form should not be dirty
+      assert html_before =~ "cursor-not-allowed"
 
-        # Initially form should not be dirty
-        assert html_before =~ "cursor-not-allowed"
+      # Change detachable value
+      html_after = render_click(view, "update_detachable", %{"value" => "2"})
 
-        # Change detachable value
-        html_after = render_click(view, "update_detachable", %{"value" => "2"})
-
-        # Form should now be dirty (save button enabled)
-        refute html_after =~ "cursor-not-allowed"
-      end
+      # Form should now be dirty (save button enabled)
+      refute html_after =~ "cursor-not-allowed"
     end
 
     test "update_detachable updates the select value", %{conn: conn} do
-      gall = find_any_gall()
+      gall = require_gall()
+      {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
 
-      if gall do
-        {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
+      html = render_click(view, "update_detachable", %{"value" => "2"})
 
-        html = render_click(view, "update_detachable", %{"value" => "2"})
-
-        # Should show detachable as selected
-        assert html =~ "detachable"
-      end
+      # Should show detachable as selected
+      assert html =~ "detachable"
     end
   end
 
@@ -341,35 +309,29 @@ defmodule GallformersWeb.Admin.GallLive.FormTest do
     end
 
     test "toggle_undescribed marks form as dirty", %{conn: conn} do
-      gall = find_any_gall()
+      gall = require_gall()
+      {:ok, view, html_before} = live(conn, ~p"/admin/galls/#{gall.id}")
 
-      if gall do
-        {:ok, view, html_before} = live(conn, ~p"/admin/galls/#{gall.id}")
+      # Initially form should not be dirty
+      assert html_before =~ "cursor-not-allowed"
 
-        # Initially form should not be dirty
-        assert html_before =~ "cursor-not-allowed"
+      # Toggle undescribed
+      html_after = render_click(view, "toggle_undescribed", %{})
 
-        # Toggle undescribed
-        html_after = render_click(view, "toggle_undescribed", %{})
-
-        # Form should now be dirty (save button enabled)
-        refute html_after =~ "cursor-not-allowed"
-      end
+      # Form should now be dirty (save button enabled)
+      refute html_after =~ "cursor-not-allowed"
     end
 
     test "toggle_undescribed toggles checkbox state", %{conn: conn} do
-      gall = find_any_gall()
+      gall = require_gall()
+      {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
 
-      if gall do
-        {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
+      # Toggle twice should return to original state
+      render_click(view, "toggle_undescribed", %{})
+      html = render_click(view, "toggle_undescribed", %{})
 
-        # Toggle twice should return to original state
-        render_click(view, "toggle_undescribed", %{})
-        html = render_click(view, "toggle_undescribed", %{})
-
-        # Should still render correctly
-        assert html =~ "Undescribed"
-      end
+      # Should still render correctly
+      assert html =~ "Undescribed"
     end
   end
 
@@ -379,15 +341,12 @@ defmodule GallformersWeb.Admin.GallLive.FormTest do
     end
 
     test "add_alias with empty name shows error", %{conn: conn} do
-      gall = find_any_gall()
+      gall = require_gall()
+      {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
 
-      if gall do
-        {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
+      html = render_click(view, "add_alias", %{})
 
-        html = render_click(view, "add_alias", %{})
-
-        assert html =~ "cannot be empty"
-      end
+      assert html =~ "cannot be empty"
     end
   end
 
@@ -397,17 +356,13 @@ defmodule GallformersWeb.Admin.GallLive.FormTest do
     end
 
     test "add_host adds host to the list", %{conn: conn} do
-      gall = find_any_gall()
-      hosts = Hosts.list_hosts()
+      gall = require_gall()
+      host = require_host()
+      {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
 
-      if gall && length(hosts) > 0 do
-        host = hd(hosts)
-        {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
+      html = render_click(view, "add_host", %{"id" => Integer.to_string(host.id)})
 
-        html = render_click(view, "add_host", %{"id" => Integer.to_string(host.id)})
-
-        assert html =~ "Host added" or html =~ host.name or html =~ "already"
-      end
+      assert html =~ "Host added" or html =~ host.name or html =~ "already"
     end
   end
 
@@ -417,84 +372,66 @@ defmodule GallformersWeb.Admin.GallLive.FormTest do
     end
 
     test "open_rename_modal shows the modal", %{conn: conn} do
-      gall = find_any_gall()
+      gall = require_gall()
+      {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
 
-      if gall do
-        {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
+      html = render_click(view, "open_rename_modal", %{})
 
-        html = render_click(view, "open_rename_modal", %{})
-
-        assert html =~ "Edit Gall Name"
-        assert html =~ "Add Alias for old name"
-      end
+      assert html =~ "Edit Gall Name"
+      assert html =~ "Add Alias for old name"
     end
 
     test "close_rename_modal hides the modal", %{conn: conn} do
-      gall = find_any_gall()
+      gall = require_gall()
+      {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
 
-      if gall do
-        {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
+      render_click(view, "open_rename_modal", %{})
+      html = render_click(view, "close_rename_modal", %{})
 
-        render_click(view, "open_rename_modal", %{})
-        html = render_click(view, "close_rename_modal", %{})
-
-        refute html =~ "Edit Gall Name"
-      end
+      refute html =~ "Edit Gall Name"
     end
 
     test "update_rename_value updates the input", %{conn: conn} do
-      gall = find_any_gall()
+      gall = require_gall()
+      {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
 
-      if gall do
-        {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
+      render_click(view, "open_rename_modal", %{})
+      html = render_click(view, "update_rename_value", %{"value" => "New test name"})
 
-        render_click(view, "open_rename_modal", %{})
-        html = render_click(view, "update_rename_value", %{"value" => "New test name"})
-
-        assert html =~ "New test name"
-      end
+      assert html =~ "New test name"
     end
 
     test "toggle_add_alias_on_rename toggles checkbox", %{conn: conn} do
-      gall = find_any_gall()
+      gall = require_gall()
+      {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
 
-      if gall do
-        {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
+      render_click(view, "open_rename_modal", %{})
+      html = render_click(view, "toggle_add_alias_on_rename", %{})
 
-        render_click(view, "open_rename_modal", %{})
-        html = render_click(view, "toggle_add_alias_on_rename", %{})
-
-        # Just verify it doesn't crash
-        assert html =~ "Add Alias"
-      end
+      # Just verify it doesn't crash
+      assert html =~ "Add Alias"
     end
 
     test "do_rename with empty name shows error", %{conn: conn} do
-      gall = find_any_gall()
+      gall = require_gall()
+      {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
 
-      if gall do
-        {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
+      render_click(view, "open_rename_modal", %{})
+      render_click(view, "update_rename_value", %{"value" => ""})
+      html = render_click(view, "do_rename", %{})
 
-        render_click(view, "open_rename_modal", %{})
-        render_click(view, "update_rename_value", %{"value" => ""})
-        html = render_click(view, "do_rename", %{})
-
-        assert html =~ "cannot be empty"
-      end
+      assert html =~ "cannot be empty"
     end
 
     test "do_rename with invalid name format shows error", %{conn: conn} do
-      gall = find_any_gall()
+      gall = require_gall()
+      {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
 
-      if gall do
-        {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
+      render_click(view, "open_rename_modal", %{})
+      render_click(view, "update_rename_value", %{"value" => "invalidname"})
+      html = render_click(view, "do_rename", %{})
 
-        render_click(view, "open_rename_modal", %{})
-        render_click(view, "update_rename_value", %{"value" => "invalidname"})
-        html = render_click(view, "do_rename", %{})
-
-        assert html =~ "valid species name"
-      end
+      assert html =~ "valid species name"
     end
   end
 
@@ -504,39 +441,33 @@ defmodule GallformersWeb.Admin.GallLive.FormTest do
     end
 
     test "request_cancel with clean form navigates away", %{conn: conn} do
-      gall = find_any_gall()
+      gall = require_gall()
+      {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
 
-      if gall do
-        {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
+      # Form is clean, so cancel should navigate (returns redirect)
+      result = render_click(view, "request_cancel", %{})
 
-        # Form is clean, so cancel should navigate (returns redirect)
-        result = render_click(view, "request_cancel", %{})
+      # Should either redirect or show page
+      case result do
+        {:error, {:live_redirect, %{to: to}}} ->
+          assert to =~ "/admin/galls"
 
-        # Should either redirect or show page
-        case result do
-          {:error, {:live_redirect, %{to: to}}} ->
-            assert to =~ "/admin/galls"
-
-          html when is_binary(html) ->
-            assert html =~ "Galls" or html =~ gall.name
-        end
+        html when is_binary(html) ->
+          assert html =~ "Galls" or html =~ gall.name
       end
     end
 
     test "request_cancel with dirty form shows confirm modal", %{conn: conn} do
-      gall = find_any_gall()
+      gall = require_gall()
+      {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
 
-      if gall do
-        {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
+      # Make form dirty
+      render_click(view, "update_detachable", %{"value" => "2"})
 
-        # Make form dirty
-        render_click(view, "update_detachable", %{"value" => "2"})
+      # Request cancel - should show confirm modal
+      html = render_click(view, "request_cancel", %{})
 
-        # Request cancel - should show confirm modal
-        html = render_click(view, "request_cancel", %{})
-
-        assert html =~ "Discard" or html =~ "unsaved"
-      end
+      assert html =~ "Discard" or html =~ "unsaved"
     end
   end
 

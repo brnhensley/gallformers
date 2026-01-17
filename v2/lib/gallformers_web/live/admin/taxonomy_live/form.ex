@@ -5,26 +5,27 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
   Includes a hierarchical parent selector for setting up the taxonomy tree.
   """
   use GallformersWeb, :live_view
-  use GallformersWeb.Admin.FormHelpers
+  use GallformersWeb.Admin.FormHelpers, crud_helpers: true
+
+  import GallformersWeb.Admin.FormComponents, only: [form_actions: 1]
 
   alias Gallformers.Taxonomy
-  alias Gallformers.Taxonomy.Taxonomy, as: TaxonomySchema
+
+  # Required callbacks for FormHelpers
+  @impl GallformersWeb.Admin.FormHelpers
+  def context_module, do: Gallformers.Taxonomy
+  @impl GallformersWeb.Admin.FormHelpers
+  def entity_key, do: :taxonomy
+  @impl GallformersWeb.Admin.FormHelpers
+  def list_path, do: ~p"/admin/taxonomy"
 
   @impl true
   def mount(_params, session, socket) do
-    current_user = session["current_user"]
-
-    socket =
-      socket
-      |> assign(:current_user, current_user)
-      |> assign(:page_title, "Taxonomy")
-      |> init_form_state()
-
-    {:ok, socket}
+    {:ok, init_admin_form(socket, session)}
   end
 
   def close_form(socket) do
-    push_navigate(socket, to: ~p"/admin/taxonomy")
+    push_navigate(socket, to: list_path())
   end
 
   @impl true
@@ -32,30 +33,21 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
     {:noreply, apply_action(socket, socket.assigns.live_action, params)}
   end
 
+  # Custom apply_action to handle parent_options
   defp apply_action(socket, :new, _params) do
-    taxonomy = %TaxonomySchema{}
-    changeset = Taxonomy.change_taxonomy(taxonomy)
-    parent_options = load_parent_options(nil)
-
-    socket
-    |> assign(:page_title, "New Taxonomy Entry")
-    |> assign(:taxonomy, taxonomy)
-    |> assign(:form, to_form(changeset))
-    |> assign(:parent_options, parent_options)
-    |> assign(:mode, :new)
+    apply_new_action(socket, parent_options: load_parent_options(nil))
   end
 
   defp apply_action(socket, :edit, %{"id" => id}) do
-    taxonomy = Taxonomy.get_taxonomy!(String.to_integer(id))
-    changeset = Taxonomy.change_taxonomy(taxonomy)
-    parent_options = load_parent_options(taxonomy.type)
+    socket = apply_edit_action(socket, id)
+    # Add parent_options based on loaded entity's type
+    taxonomy = socket.assigns[:taxonomy]
 
-    socket
-    |> assign(:page_title, "Edit #{taxonomy.name}")
-    |> assign(:taxonomy, taxonomy)
-    |> assign(:form, to_form(changeset))
-    |> assign(:parent_options, parent_options)
-    |> assign(:mode, :edit)
+    if taxonomy do
+      assign(socket, :parent_options, load_parent_options(taxonomy.type))
+    else
+      socket
+    end
   end
 
   defp load_parent_options(nil) do
@@ -64,22 +56,18 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
     |> Enum.map(fn p -> {"#{p.name} (#{p.type})", p.id} end)
   end
 
-  defp load_parent_options("family") do
-    # Families don't have parents
-    []
-  end
+  defp load_parent_options("family"), do: []
 
   defp load_parent_options("genus") do
-    # Genera can have family or section parents
     Taxonomy.list_parents_for_genus()
     |> Enum.map(fn p -> {"#{p.name} (#{p.type})", p.id} end)
   end
 
   defp load_parent_options("section") do
-    # Sections have family parents
     Taxonomy.list_families_for_select()
   end
 
+  # Custom validate handler to update parent_options when type changes
   @impl true
   def handle_event("validate", %{"taxonomy" => params}, socket) do
     changeset =
@@ -87,7 +75,6 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
       |> Taxonomy.change_taxonomy(params)
       |> Map.put(:action, :validate)
 
-    # Update parent options when type changes
     parent_options = load_parent_options(params["type"])
 
     {:noreply,
@@ -98,40 +85,12 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
   end
 
   @impl true
-  def handle_event("save", %{"taxonomy" => params}, socket) do
-    save_taxonomy(socket, socket.assigns.mode, params)
-  end
+  def handle_event("save", params, socket), do: handle_save(params, socket)
 
   @impl true
   def handle_event(event, params, socket)
       when event in ~w(request_cancel cancel_discard confirm_discard) do
     handle_form_event(event, params, socket)
-  end
-
-  defp save_taxonomy(socket, :new, params) do
-    case Taxonomy.create_taxonomy(params) do
-      {:ok, _taxonomy} ->
-        {:noreply,
-         socket
-         |> put_flash(:info, "Taxonomy created successfully")
-         |> push_navigate(to: ~p"/admin/taxonomy")}
-
-      {:error, %Ecto.Changeset{} = changeset} ->
-        {:noreply, assign(socket, :form, to_form(changeset))}
-    end
-  end
-
-  defp save_taxonomy(socket, :edit, params) do
-    case Taxonomy.update_taxonomy(socket.assigns.taxonomy, params) do
-      {:ok, _taxonomy} ->
-        {:noreply,
-         socket
-         |> put_flash(:info, "Taxonomy updated successfully")
-         |> push_navigate(to: ~p"/admin/taxonomy")}
-
-      {:error, %Ecto.Changeset{} = changeset} ->
-        {:noreply, assign(socket, :form, to_form(changeset))}
-    end
   end
 
   @impl true
@@ -234,27 +193,8 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
             <% end %>
           </div>
 
-          <div class="flex justify-end gap-2 pt-4 border-t border-gray-200">
-            <button
-              type="button"
-              phx-click="request_cancel"
-              class="px-4 py-2 text-sm bg-gray-200 hover:bg-gray-300 border border-gray-300 rounded"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={not @form_dirty}
-              class={[
-                "px-4 py-2 text-sm rounded",
-                if(@form_dirty,
-                  do: "text-white bg-gf-maroon hover:bg-gf-maroon/90",
-                  else: "bg-gray-300 text-gray-500 cursor-not-allowed"
-                )
-              ]}
-            >
-              {if @mode == :new, do: "Create", else: "Save Changes"}
-            </button>
+          <div class="flex justify-end pt-4 border-t border-gray-200">
+            <.form_actions form_dirty={@form_dirty} mode={@mode} />
           </div>
         </.form>
 

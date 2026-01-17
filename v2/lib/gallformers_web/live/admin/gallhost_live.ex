@@ -159,11 +159,8 @@ defmodule GallformersWeb.Admin.GallhostLive do
   end
 
   @impl true
-  def handle_event("remove_host", params, socket) do
-    # Support both new format ("id") and legacy format ("relation-id")
-    relation_id_str = params["id"] || params["relation-id"]
-
-    case Integer.parse(relation_id_str) do
+  def handle_event("remove_host", %{"id" => id}, socket) do
+    case Integer.parse(id) do
       {relation_id, ""} ->
         Species.remove_host_from_species(relation_id)
 

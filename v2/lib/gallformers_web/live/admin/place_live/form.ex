@@ -3,26 +3,27 @@ defmodule GallformersWeb.Admin.PlaceLive.Form do
   Admin form for creating and editing geographic places.
   """
   use GallformersWeb, :live_view
-  use GallformersWeb.Admin.FormHelpers
+  use GallformersWeb.Admin.FormHelpers, crud_helpers: true
 
-  alias Gallformers.Places
+  import GallformersWeb.Admin.FormComponents, only: [form_actions: 1]
+
   alias Gallformers.Places.Place
+
+  # Required callbacks for FormHelpers
+  @impl GallformersWeb.Admin.FormHelpers
+  def context_module, do: Gallformers.Places
+  @impl GallformersWeb.Admin.FormHelpers
+  def entity_key, do: :place
+  @impl GallformersWeb.Admin.FormHelpers
+  def list_path, do: ~p"/admin/places"
 
   @impl true
   def mount(_params, session, socket) do
-    current_user = session["current_user"]
-
-    socket =
-      socket
-      |> assign(:current_user, current_user)
-      |> assign(:page_title, "Place")
-      |> init_form_state()
-
-    {:ok, socket}
+    {:ok, init_admin_form(socket, session)}
   end
 
   def close_form(socket) do
-    push_navigate(socket, to: ~p"/admin/places")
+    push_navigate(socket, to: list_path())
   end
 
   @impl true
@@ -30,73 +31,19 @@ defmodule GallformersWeb.Admin.PlaceLive.Form do
     {:noreply, apply_action(socket, socket.assigns.live_action, params)}
   end
 
-  defp apply_action(socket, :new, _params) do
-    place = %Place{}
-    changeset = Places.change_place(place)
-
-    socket
-    |> assign(:page_title, "New Place")
-    |> assign(:place, place)
-    |> assign(:form, to_form(changeset))
-    |> assign(:mode, :new)
-  end
-
-  defp apply_action(socket, :edit, %{"id" => id}) do
-    place = Places.get_place!(String.to_integer(id))
-    changeset = Places.change_place(place)
-
-    socket
-    |> assign(:page_title, "Edit #{place.name}")
-    |> assign(:place, place)
-    |> assign(:form, to_form(changeset))
-    |> assign(:mode, :edit)
-  end
+  defp apply_action(socket, :new, _params), do: apply_new_action(socket)
+  defp apply_action(socket, :edit, %{"id" => id}), do: apply_edit_action(socket, id)
 
   @impl true
-  def handle_event("validate", %{"place" => params}, socket) do
-    changeset =
-      socket.assigns.place
-      |> Places.change_place(params)
-      |> Map.put(:action, :validate)
-
-    {:noreply, socket |> assign(:form, to_form(changeset)) |> mark_dirty()}
-  end
+  def handle_event("validate", params, socket), do: handle_validate(params, socket)
 
   @impl true
-  def handle_event("save", %{"place" => params}, socket) do
-    save_place(socket, socket.assigns.mode, params)
-  end
+  def handle_event("save", params, socket), do: handle_save(params, socket)
 
   @impl true
   def handle_event(event, params, socket)
       when event in ~w(request_cancel cancel_discard confirm_discard) do
     handle_form_event(event, params, socket)
-  end
-
-  defp save_place(socket, :new, params) do
-    case Places.create_place(params) do
-      {:ok, _place} ->
-        {:noreply,
-         socket
-         |> put_flash(:info, "Place created successfully")
-         |> push_navigate(to: ~p"/admin/places")}
-
-      {:error, %Ecto.Changeset{} = changeset} ->
-        {:noreply, assign(socket, :form, to_form(changeset))}
-    end
-  end
-
-  defp save_place(socket, :edit, params) do
-    case Places.update_place(socket.assigns.place, params) do
-      {:ok, _place} ->
-        {:noreply,
-         socket
-         |> put_flash(:info, "Place updated successfully")
-         |> push_navigate(to: ~p"/admin/places")}
-
-      {:error, %Ecto.Changeset{} = changeset} ->
-        {:noreply, assign(socket, :form, to_form(changeset))}
-    end
   end
 
   @impl true
@@ -158,27 +105,8 @@ defmodule GallformersWeb.Admin.PlaceLive.Form do
             </div>
           </div>
 
-          <div class="flex justify-end gap-2 pt-4 border-t border-gray-200">
-            <button
-              type="button"
-              phx-click="request_cancel"
-              class="px-4 py-2 text-sm bg-gray-200 hover:bg-gray-300 border border-gray-300 rounded"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={not @form_dirty}
-              class={[
-                "px-4 py-2 text-sm rounded",
-                if(@form_dirty,
-                  do: "text-white bg-gf-maroon hover:bg-gf-maroon/90",
-                  else: "bg-gray-300 text-gray-500 cursor-not-allowed"
-                )
-              ]}
-            >
-              {if @mode == :new, do: "Create Place", else: "Save Changes"}
-            </button>
+          <div class="flex justify-end pt-4 border-t border-gray-200">
+            <.form_actions form_dirty={@form_dirty} mode={@mode} create_label="Create Place" />
           </div>
         </.form>
 

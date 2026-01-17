@@ -3,27 +3,40 @@ defmodule GallformersWeb.Admin.SourceLive.Form do
   Admin form for creating and editing scientific sources/references.
   """
   use GallformersWeb, :live_view
-  use GallformersWeb.Admin.FormHelpers
+  use GallformersWeb.Admin.FormHelpers, crud_helpers: true
+
+  import GallformersWeb.Admin.FormComponents, only: [form_actions: 1]
 
   alias Gallformers.Licenses
-  alias Gallformers.Sources
   alias Gallformers.Sources.Source
+
+  # Required callbacks for FormHelpers
+  @impl GallformersWeb.Admin.FormHelpers
+  def context_module, do: Gallformers.Sources
+  @impl GallformersWeb.Admin.FormHelpers
+  def entity_key, do: :source
+  @impl GallformersWeb.Admin.FormHelpers
+  def list_path, do: ~p"/admin/sources"
+
+  # Override to apply canonical license URL for read-only licenses
+  @impl GallformersWeb.Admin.FormHelpers
+  def prepare_params(params) do
+    license = params["license"]
+
+    if Licenses.url_readonly?(license) do
+      Map.put(params, "licenselink", Licenses.url(license))
+    else
+      params
+    end
+  end
 
   @impl true
   def mount(_params, session, socket) do
-    current_user = session["current_user"]
-
-    socket =
-      socket
-      |> assign(:current_user, current_user)
-      |> assign(:page_title, "Source")
-      |> init_form_state()
-
-    {:ok, socket}
+    {:ok, init_admin_form(socket, session)}
   end
 
   def close_form(socket) do
-    push_navigate(socket, to: ~p"/admin/sources")
+    push_navigate(socket, to: list_path())
   end
 
   @impl true
@@ -31,88 +44,19 @@ defmodule GallformersWeb.Admin.SourceLive.Form do
     {:noreply, apply_action(socket, socket.assigns.live_action, params)}
   end
 
-  defp apply_action(socket, :new, _params) do
-    source = %Source{}
-    changeset = Sources.change_source(source)
-
-    socket
-    |> assign(:page_title, "New Source")
-    |> assign(:source, source)
-    |> assign(:form, to_form(changeset))
-    |> assign(:mode, :new)
-  end
-
-  defp apply_action(socket, :edit, %{"id" => id}) do
-    source = Sources.get_source!(String.to_integer(id))
-    changeset = Sources.change_source(source)
-
-    socket
-    |> assign(:page_title, "Edit Source")
-    |> assign(:source, source)
-    |> assign(:form, to_form(changeset))
-    |> assign(:mode, :edit)
-  end
+  defp apply_action(socket, :new, _params), do: apply_new_action(socket)
+  defp apply_action(socket, :edit, %{"id" => id}), do: apply_edit_action(socket, id)
 
   @impl true
-  def handle_event("validate", %{"source" => params}, socket) do
-    changeset =
-      socket.assigns.source
-      |> Sources.change_source(params)
-      |> Map.put(:action, :validate)
-
-    {:noreply, socket |> assign(:form, to_form(changeset)) |> mark_dirty()}
-  end
+  def handle_event("validate", params, socket), do: handle_validate(params, socket)
 
   @impl true
-  def handle_event("save", %{"source" => params}, socket) do
-    save_source(socket, socket.assigns.mode, params)
-  end
+  def handle_event("save", params, socket), do: handle_save(params, socket)
 
   @impl true
   def handle_event(event, params, socket)
       when event in ~w(request_cancel cancel_discard confirm_discard) do
     handle_form_event(event, params, socket)
-  end
-
-  defp save_source(socket, :new, params) do
-    params = maybe_set_canonical_license_url(params)
-
-    case Sources.create_source(params) do
-      {:ok, _source} ->
-        {:noreply,
-         socket
-         |> put_flash(:info, "Source created successfully")
-         |> push_navigate(to: ~p"/admin/sources")}
-
-      {:error, %Ecto.Changeset{} = changeset} ->
-        {:noreply, assign(socket, :form, to_form(changeset))}
-    end
-  end
-
-  defp save_source(socket, :edit, params) do
-    params = maybe_set_canonical_license_url(params)
-
-    case Sources.update_source(socket.assigns.source, params) do
-      {:ok, _source} ->
-        {:noreply,
-         socket
-         |> put_flash(:info, "Source updated successfully")
-         |> push_navigate(to: ~p"/admin/sources")}
-
-      {:error, %Ecto.Changeset{} = changeset} ->
-        {:noreply, assign(socket, :form, to_form(changeset))}
-    end
-  end
-
-  defp maybe_set_canonical_license_url(params) do
-    license = params["license"]
-
-    # Only force canonical URL for read-only licenses (not Public Domain / CC0)
-    if Licenses.url_readonly?(license) do
-      Map.put(params, "licenselink", Licenses.url(license))
-    else
-      params
-    end
   end
 
   @impl true
@@ -288,27 +232,8 @@ defmodule GallformersWeb.Admin.SourceLive.Form do
           </div>
 
           <%!-- Buttons --%>
-          <div class="flex justify-end gap-2 pt-4 border-t border-gray-200">
-            <button
-              type="button"
-              phx-click="request_cancel"
-              class="px-4 py-2 text-sm bg-gray-200 hover:bg-gray-300 border border-gray-300 rounded"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={not @form_dirty}
-              class={[
-                "px-4 py-2 text-sm rounded",
-                if(@form_dirty,
-                  do: "text-white bg-gf-maroon hover:bg-gf-maroon/90",
-                  else: "bg-gray-300 text-gray-500 cursor-not-allowed"
-                )
-              ]}
-            >
-              {if @mode == :new, do: "Create Source", else: "Save Changes"}
-            </button>
+          <div class="flex justify-end pt-4 border-t border-gray-200">
+            <.form_actions form_dirty={@form_dirty} mode={@mode} create_label="Create Source" />
           </div>
         </.form>
 

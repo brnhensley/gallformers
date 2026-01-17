@@ -1,9 +1,14 @@
 defmodule GallformersWeb.Admin.FilterTermsLive.Form do
   @moduledoc """
   Admin form for creating and editing filter terms.
+
+  Note: This form uses polymorphic types (different schemas based on filter_type),
+  so it doesn't use crud_helpers - the custom logic handles the polymorphism.
   """
   use GallformersWeb, :live_view
   use GallformersWeb.Admin.FormHelpers
+
+  import GallformersWeb.Admin.FormComponents, only: [form_actions: 1]
 
   alias Gallformers.FilterFields
 
@@ -165,29 +170,12 @@ defmodule GallformersWeb.Admin.FilterTermsLive.Form do
             </div>
           <% end %>
 
-          <div class="flex justify-end gap-2 pt-4 border-t border-gray-200">
-            <button
-              type="button"
-              phx-click="request_cancel"
-              class="px-4 py-2 text-sm bg-gray-200 hover:bg-gray-300 border border-gray-300 rounded"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={not @form_dirty}
-              class={[
-                "px-4 py-2 text-sm rounded",
-                if(@form_dirty,
-                  do: "text-white bg-gf-maroon hover:bg-gf-maroon/90",
-                  else: "bg-gray-300 text-gray-500 cursor-not-allowed"
-                )
-              ]}
-            >
-              {if @mode == :new,
-                do: "Create #{FilterFields.singular_label(@filter_type)}",
-                else: "Save Changes"}
-            </button>
+          <div class="flex justify-end pt-4 border-t border-gray-200">
+            <.form_actions
+              form_dirty={@form_dirty}
+              mode={@mode}
+              create_label={"Create #{FilterFields.singular_label(@filter_type)}"}
+            />
           </div>
         </.form>
 

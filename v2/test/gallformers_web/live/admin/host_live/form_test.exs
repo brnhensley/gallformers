@@ -32,10 +32,12 @@ defmodule GallformersWeb.Admin.HostLive.FormTest do
     |> put_session(:current_user, user)
   end
 
-  # Helper to find any host for testing
-  defp find_any_host do
-    hosts = Hosts.list_hosts()
-    if length(hosts) > 0, do: hd(hosts), else: nil
+  # Helper to find any host for testing - fails explicitly if no data
+  defp require_host do
+    case Hosts.list_hosts() do
+      [host | _] -> host
+      [] -> flunk("No host found in test database - ensure test fixtures exist")
+    end
   end
 
   describe "Mount and render - new mode" do
@@ -87,77 +89,56 @@ defmodule GallformersWeb.Admin.HostLive.FormTest do
     end
 
     test "renders edit host form with host data", %{conn: conn} do
-      host = find_any_host()
+      host = require_host()
+      {:ok, _view, html} = live(conn, ~p"/admin/hosts/#{host.id}")
 
-      if host do
-        {:ok, _view, html} = live(conn, ~p"/admin/hosts/#{host.id}")
-
-        assert html =~ "Edit Host"
-        assert html =~ host.name
-      end
+      assert html =~ "Edit Host"
+      assert html =~ host.name
     end
 
     test "shows correct page title for edit host", %{conn: conn} do
-      host = find_any_host()
+      host = require_host()
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
 
-      if host do
-        {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
-
-        assert page_title(view) =~ host.name
-      end
+      assert page_title(view) =~ host.name
     end
 
     test "shows rename button in edit mode", %{conn: conn} do
-      host = find_any_host()
+      host = require_host()
+      {:ok, _view, html} = live(conn, ~p"/admin/hosts/#{host.id}")
 
-      if host do
-        {:ok, _view, html} = live(conn, ~p"/admin/hosts/#{host.id}")
-
-        assert html =~ "Rename"
-      end
+      assert html =~ "Rename"
     end
 
     test "shows quick links in edit mode", %{conn: conn} do
-      host = find_any_host()
+      host = require_host()
+      {:ok, _view, html} = live(conn, ~p"/admin/hosts/#{host.id}")
 
-      if host do
-        {:ok, _view, html} = live(conn, ~p"/admin/hosts/#{host.id}")
-
-        assert html =~ "Manage Images"
-        assert html =~ "Species-Source Mappings"
-      end
+      assert html =~ "Manage Images"
+      assert html =~ "Species-Source Mappings"
     end
 
     test "shows view public page link in edit mode", %{conn: conn} do
-      host = find_any_host()
+      host = require_host()
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
 
-      if host do
-        {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
-
-        assert has_element?(view, "a[href='/host/#{host.id}']", "View public page")
-      end
+      assert has_element?(view, "a[href='/host/#{host.id}']", "View public page")
     end
 
     test "shows range map in edit mode", %{conn: conn} do
-      host = find_any_host()
+      host = require_host()
+      {:ok, _view, html} = live(conn, ~p"/admin/hosts/#{host.id}")
 
-      if host do
-        {:ok, _view, html} = live(conn, ~p"/admin/hosts/#{host.id}")
-
-        assert html =~ "Range"
-        assert html =~ "host-range-map" or html =~ "Legend"
-      end
+      assert html =~ "Range"
+      assert html =~ "host-range-map" or html =~ "Legend"
     end
 
     test "shows aliases table in edit mode", %{conn: conn} do
-      host = find_any_host()
+      host = require_host()
+      {:ok, _view, html} = live(conn, ~p"/admin/hosts/#{host.id}")
 
-      if host do
-        {:ok, _view, html} = live(conn, ~p"/admin/hosts/#{host.id}")
-
-        assert html =~ "Aliases"
-        assert html =~ "New alias"
-      end
+      assert html =~ "Aliases"
+      assert html =~ "New alias"
     end
 
     test "handles invalid host ID", %{conn: conn} do
@@ -201,39 +182,33 @@ defmodule GallformersWeb.Admin.HostLive.FormTest do
     end
 
     test "update_new_alias handles name field change (phx-keyup)", %{conn: conn} do
-      host = find_any_host()
+      host = require_host()
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
 
-      if host do
-        {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
+      # Simulate typing in alias name field - sends value and type from phx-value-type
+      html =
+        render_click(view, "update_new_alias", %{
+          "value" => "White Oak",
+          "type" => "common name"
+        })
 
-        # Simulate typing in alias name field - sends value and type from phx-value-type
-        html =
-          render_click(view, "update_new_alias", %{
-            "value" => "White Oak",
-            "type" => "common name"
-          })
-
-        # Should update the input field value
-        assert html =~ "White Oak" or true
-      end
+      # Should update the input field value
+      assert html =~ "White Oak" or html =~ host.name
     end
 
     test "update_new_alias handles type field change (phx-change)", %{conn: conn} do
-      host = find_any_host()
+      host = require_host()
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
 
-      if host do
-        {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
+      # Simulate changing select - sends value and name from phx-value-name
+      html =
+        render_click(view, "update_new_alias", %{
+          "value" => "scientific synonym",
+          "name" => "Some Alias"
+        })
 
-        # Simulate changing select - sends value and name from phx-value-name
-        html =
-          render_click(view, "update_new_alias", %{
-            "value" => "scientific synonym",
-            "name" => "Some Alias"
-          })
-
-        # Should update both fields
-        assert html =~ "Some Alias" or html =~ "scientific synonym" or true
-      end
+      # Should update both fields
+      assert html =~ "Some Alias" or html =~ "scientific synonym" or html =~ host.name
     end
   end
 
@@ -243,15 +218,12 @@ defmodule GallformersWeb.Admin.HostLive.FormTest do
     end
 
     test "add_alias with empty name shows error", %{conn: conn} do
-      host = find_any_host()
+      host = require_host()
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
 
-      if host do
-        {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
+      html = render_click(view, "add_alias", %{})
 
-        html = render_click(view, "add_alias", %{})
-
-        assert html =~ "cannot be empty"
-      end
+      assert html =~ "cannot be empty"
     end
   end
 
@@ -270,29 +242,23 @@ defmodule GallformersWeb.Admin.HostLive.FormTest do
     end
 
     test "toggle_region in edit mode works", %{conn: conn} do
-      host = find_any_host()
+      host = require_host()
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
 
-      if host do
-        {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
+      html = render_click(view, "toggle_region", %{"code" => "US-CA"})
 
-        html = render_click(view, "toggle_region", %{"code" => "US-CA"})
-
-        # Should not crash
-        assert html =~ host.name
-      end
+      # Should not crash
+      assert html =~ host.name
     end
 
     test "toggle_region with invalid code is ignored", %{conn: conn} do
-      host = find_any_host()
+      host = require_host()
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
 
-      if host do
-        {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
+      html = render_click(view, "toggle_region", %{"code" => "INVALID-CODE"})
 
-        html = render_click(view, "toggle_region", %{"code" => "INVALID-CODE"})
-
-        # Should not crash
-        assert html =~ host.name
-      end
+      # Should not crash
+      assert html =~ host.name
     end
 
     test "select_all_places in new mode is no-op", %{conn: conn} do
@@ -304,15 +270,12 @@ defmodule GallformersWeb.Admin.HostLive.FormTest do
     end
 
     test "select_all_places in edit mode works", %{conn: conn} do
-      host = find_any_host()
+      host = require_host()
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
 
-      if host do
-        {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
+      html = render_click(view, "select_all_places", %{})
 
-        html = render_click(view, "select_all_places", %{})
-
-        assert html =~ host.name
-      end
+      assert html =~ host.name
     end
 
     test "deselect_all_places in new mode is no-op", %{conn: conn} do
@@ -324,15 +287,12 @@ defmodule GallformersWeb.Admin.HostLive.FormTest do
     end
 
     test "deselect_all_places in edit mode works", %{conn: conn} do
-      host = find_any_host()
+      host = require_host()
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
 
-      if host do
-        {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
+      html = render_click(view, "deselect_all_places", %{})
 
-        html = render_click(view, "deselect_all_places", %{})
-
-        assert html =~ host.name
-      end
+      assert html =~ host.name
     end
   end
 
@@ -342,99 +302,78 @@ defmodule GallformersWeb.Admin.HostLive.FormTest do
     end
 
     test "open_rename_modal shows the modal", %{conn: conn} do
-      host = find_any_host()
+      host = require_host()
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
 
-      if host do
-        {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
+      html = render_click(view, "open_rename_modal", %{})
 
-        html = render_click(view, "open_rename_modal", %{})
-
-        assert html =~ "Edit Host Name"
-        assert html =~ "Add Alias for old name"
-      end
+      assert html =~ "Edit Host Name"
+      assert html =~ "Add Alias for old name"
     end
 
     test "close_rename_modal hides the modal", %{conn: conn} do
-      host = find_any_host()
+      host = require_host()
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
 
-      if host do
-        {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
+      render_click(view, "open_rename_modal", %{})
+      html = render_click(view, "close_rename_modal", %{})
 
-        render_click(view, "open_rename_modal", %{})
-        html = render_click(view, "close_rename_modal", %{})
-
-        refute html =~ "Edit Host Name"
-      end
+      refute html =~ "Edit Host Name"
     end
 
     test "update_rename_value updates the input", %{conn: conn} do
-      host = find_any_host()
+      host = require_host()
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
 
-      if host do
-        {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
+      render_click(view, "open_rename_modal", %{})
+      html = render_click(view, "update_rename_value", %{"value" => "Quercus newname"})
 
-        render_click(view, "open_rename_modal", %{})
-        html = render_click(view, "update_rename_value", %{"value" => "Quercus newname"})
-
-        assert html =~ "Quercus newname"
-      end
+      assert html =~ "Quercus newname"
     end
 
     test "toggle_add_alias_on_rename toggles checkbox", %{conn: conn} do
-      host = find_any_host()
+      host = require_host()
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
 
-      if host do
-        {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
+      render_click(view, "open_rename_modal", %{})
+      html = render_click(view, "toggle_add_alias_on_rename", %{})
 
-        render_click(view, "open_rename_modal", %{})
-        html = render_click(view, "toggle_add_alias_on_rename", %{})
-
-        # Just verify it doesn't crash
-        assert html =~ "Add Alias"
-      end
+      # Just verify it doesn't crash
+      assert html =~ "Add Alias"
     end
 
     test "do_rename with empty name shows error", %{conn: conn} do
-      host = find_any_host()
+      host = require_host()
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
 
-      if host do
-        {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
+      render_click(view, "open_rename_modal", %{})
+      render_click(view, "update_rename_value", %{"value" => ""})
+      html = render_click(view, "do_rename", %{})
 
-        render_click(view, "open_rename_modal", %{})
-        render_click(view, "update_rename_value", %{"value" => ""})
-        html = render_click(view, "do_rename", %{})
-
-        assert html =~ "cannot be empty"
-      end
+      assert html =~ "cannot be empty"
     end
 
     test "do_rename with invalid name format shows error", %{conn: conn} do
-      host = find_any_host()
+      host = require_host()
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
 
-      if host do
-        {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
+      render_click(view, "open_rename_modal", %{})
+      render_click(view, "update_rename_value", %{"value" => "invalidname"})
+      html = render_click(view, "do_rename", %{})
 
-        render_click(view, "open_rename_modal", %{})
-        render_click(view, "update_rename_value", %{"value" => "invalidname"})
-        html = render_click(view, "do_rename", %{})
-
-        assert html =~ "valid species name"
-      end
+      assert html =~ "valid species name"
     end
 
     test "do_rename with same name closes modal", %{conn: conn} do
-      host = find_any_host()
+      host = require_host()
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
 
-      if host do
-        {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
+      render_click(view, "open_rename_modal", %{})
+      # Keep the same name
+      html = render_click(view, "do_rename", %{})
 
-        render_click(view, "open_rename_modal", %{})
-        # Keep the same name
-        html = render_click(view, "do_rename", %{})
-
-        # Modal should close
-        refute html =~ "Edit Host Name"
-      end
+      # Modal should close
+      refute html =~ "Edit Host Name"
     end
   end
 
@@ -444,40 +383,34 @@ defmodule GallformersWeb.Admin.HostLive.FormTest do
     end
 
     test "request_cancel with clean form navigates away", %{conn: conn} do
-      host = find_any_host()
+      host = require_host()
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
 
-      if host do
-        {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
+      # Form is clean, so cancel should navigate (returns redirect)
+      result = render_click(view, "request_cancel", %{})
 
-        # Form is clean, so cancel should navigate (returns redirect)
-        result = render_click(view, "request_cancel", %{})
+      # Should either redirect or show page
+      case result do
+        {:error, {:live_redirect, %{to: to}}} ->
+          assert to =~ "/admin/hosts"
 
-        # Should either redirect or show page
-        case result do
-          {:error, {:live_redirect, %{to: to}}} ->
-            assert to =~ "/admin/hosts"
-
-          html when is_binary(html) ->
-            assert html =~ "Hosts" or html =~ host.name
-        end
+        html when is_binary(html) ->
+          assert html =~ "Hosts" or html =~ host.name
       end
     end
 
     test "request_cancel with dirty form shows confirm modal", %{conn: conn} do
-      host = find_any_host()
+      host = require_host()
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
 
-      if host do
-        {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
+      # Make form dirty by changing the abundance dropdown
+      view
+      |> form("#host-form", species: %{abundance_id: "2"})
+      |> render_change()
 
-        # Make form dirty by changing the abundance dropdown
-        view
-        |> form("#host-form", species: %{abundance_id: "2"})
-        |> render_change()
+      html = render_click(view, "request_cancel", %{})
 
-        html = render_click(view, "request_cancel", %{})
-
-        assert html =~ "Discard" or html =~ "unsaved"
-      end
+      assert html =~ "Discard" or html =~ "unsaved"
     end
   end
 
@@ -487,26 +420,20 @@ defmodule GallformersWeb.Admin.HostLive.FormTest do
     end
 
     test "shows legend in edit mode", %{conn: conn} do
-      host = find_any_host()
+      host = require_host()
+      {:ok, _view, html} = live(conn, ~p"/admin/hosts/#{host.id}")
 
-      if host do
-        {:ok, _view, html} = live(conn, ~p"/admin/hosts/#{host.id}")
-
-        assert html =~ "Legend"
-        assert html =~ "In Range"
-        assert html =~ "Out of Range"
-      end
+      assert html =~ "Legend"
+      assert html =~ "In Range"
+      assert html =~ "Out of Range"
     end
 
     test "shows map action buttons in edit mode", %{conn: conn} do
-      host = find_any_host()
+      host = require_host()
+      {:ok, _view, html} = live(conn, ~p"/admin/hosts/#{host.id}")
 
-      if host do
-        {:ok, _view, html} = live(conn, ~p"/admin/hosts/#{host.id}")
-
-        assert html =~ "Select All"
-        assert html =~ "De-select All"
-      end
+      assert html =~ "Select All"
+      assert html =~ "De-select All"
     end
 
     test "shows data complete checkbox", %{conn: conn} do
@@ -516,33 +443,24 @@ defmodule GallformersWeb.Admin.HostLive.FormTest do
     end
 
     test "shows genus field as disabled", %{conn: conn} do
-      host = find_any_host()
+      host = require_host()
+      {:ok, _view, html} = live(conn, ~p"/admin/hosts/#{host.id}")
 
-      if host do
-        {:ok, _view, html} = live(conn, ~p"/admin/hosts/#{host.id}")
-
-        assert html =~ "Genus (filled automatically)"
-      end
+      assert html =~ "Genus (filled automatically)"
     end
 
     test "shows family field", %{conn: conn} do
-      host = find_any_host()
+      host = require_host()
+      {:ok, _view, html} = live(conn, ~p"/admin/hosts/#{host.id}")
 
-      if host do
-        {:ok, _view, html} = live(conn, ~p"/admin/hosts/#{host.id}")
-
-        assert html =~ "Family"
-      end
+      assert html =~ "Family"
     end
 
     test "shows section field", %{conn: conn} do
-      host = find_any_host()
+      host = require_host()
+      {:ok, _view, html} = live(conn, ~p"/admin/hosts/#{host.id}")
 
-      if host do
-        {:ok, _view, html} = live(conn, ~p"/admin/hosts/#{host.id}")
-
-        assert html =~ "Section"
-      end
+      assert html =~ "Section"
     end
   end
 
