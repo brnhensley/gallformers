@@ -74,6 +74,7 @@ jobs:
             - name: Install dependencies
               run: |
                   echo "Installing dependencies..."
+                  corepack enable
                   yarn install --immutable
 
             - name: Type check

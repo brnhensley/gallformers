@@ -7,7 +7,9 @@ config :gallformers, env: :test
 config :gallformers, Gallformers.Repo,
   database: Path.expand("../priv/gallformers_test.sqlite", __DIR__),
   pool_size: 5,
-  pool: Ecto.Adapters.SQL.Sandbox
+  pool: Ecto.Adapters.SQL.Sandbox,
+  journal_mode: :wal,
+  busy_timeout: 5000
 
 # We don't run a server during test. If one is required,
 # you can enable the server option below.
