@@ -6,8 +6,12 @@ defmodule GallformersWeb.Admin.GallLive.Form do
   use GallformersWeb, :live_view
   use GallformersWeb.Admin.FormHelpers
 
+  alias Gallformers.Repo
   alias Gallformers.Species
   alias Gallformers.Species.Species, as: SpeciesSchema
+  alias GallformersWeb.Admin.DeferredChanges
+
+  import GallformersWeb.Admin.FormComponents, only: [alias_editor: 1, form_actions: 1]
 
   @detachable_options [
     {"", 0},
@@ -52,15 +56,13 @@ defmodule GallformersWeb.Admin.GallLive.Form do
     |> assign(:gall_data, nil)
     |> assign(:form, to_form(changeset))
     |> assign(:mode, :new)
-    # Original data from DB (for comparison)
-    |> assign(:original_aliases, [])
-    |> assign(:original_hosts, [])
+    # Deferred changes tracking
+    |> assign(DeferredChanges.init(:aliases, []))
+    |> assign(DeferredChanges.init(:hosts, []))
     |> assign(:original_filter_values, empty_filter_values())
     |> assign(:original_detachable, 0)
     |> assign(:original_undescribed, false)
     # Pending state (what user sees and edits)
-    |> assign(:aliases, [])
-    |> assign(:hosts, [])
     |> assign(:taxonomy, nil)
     |> assign(:filter_values, empty_filter_values())
     |> assign(:gall_id, nil)
@@ -110,15 +112,13 @@ defmodule GallformersWeb.Admin.GallLive.Form do
           |> assign(:gall_data, gall_data)
           |> assign(:form, to_form(changeset))
           |> assign(:mode, :edit)
-          # Original data from DB (for comparison on save)
-          |> assign(:original_aliases, aliases)
-          |> assign(:original_hosts, hosts)
+          # Deferred changes tracking
+          |> assign(DeferredChanges.init(:aliases, aliases))
+          |> assign(DeferredChanges.init(:hosts, hosts))
           |> assign(:original_filter_values, filter_values)
           |> assign(:original_detachable, detachable)
           |> assign(:original_undescribed, undescribed)
           # Pending state (what user sees and edits)
-          |> assign(:aliases, aliases)
-          |> assign(:hosts, hosts)
           |> assign(:taxonomy, taxonomy)
           |> assign(:filter_values, filter_values)
           |> assign(:gall_id, gall_data.gall_id)
@@ -208,36 +208,34 @@ defmodule GallformersWeb.Admin.GallLive.Form do
     name = String.trim(socket.assigns.new_alias_name)
     type = socket.assigns.new_alias_type
 
-    if name == "" do
-      {:noreply, put_flash(socket, :error, "Alias name cannot be empty")}
-    else
-      # Check for duplicate
-      if Enum.any?(socket.assigns.aliases, &(&1.name == name)) do
-        {:noreply, put_flash(socket, :error, "Alias already exists")}
-      else
-        # Add to pending aliases (use negative temp ID for new aliases)
-        temp_id = -System.unique_integer([:positive])
-        new_alias = %{id: temp_id, name: name, type: type, pending: true}
-        aliases = socket.assigns.aliases ++ [new_alias]
+    cond do
+      name == "" ->
+        {:noreply, put_flash(socket, :error, "Alias name cannot be empty")}
 
-        {:noreply,
-         socket
-         |> assign(:aliases, aliases)
-         |> assign(:new_alias_name, "")
-         |> mark_dirty()}
-      end
+      DeferredChanges.exists?(socket, :aliases, :name, name) ->
+        {:noreply, put_flash(socket, :error, "Alias already exists")}
+
+      true ->
+        socket =
+          socket
+          |> DeferredChanges.add_pending(:aliases, %{name: name, type: type})
+          |> assign(:new_alias_name, "")
+          |> mark_dirty()
+
+        {:noreply, socket}
     end
   end
 
   @impl true
   def handle_event("remove_alias", %{"alias-id" => alias_id}, socket) do
     alias_id = String.to_integer(alias_id)
-    aliases = Enum.reject(socket.assigns.aliases, &(&1.id == alias_id))
 
-    {:noreply,
-     socket
-     |> assign(:aliases, aliases)
-     |> mark_dirty()}
+    socket =
+      socket
+      |> DeferredChanges.remove_pending(:aliases, alias_id)
+      |> mark_dirty()
+
+    {:noreply, socket}
   end
 
   @impl true
@@ -270,49 +268,44 @@ defmodule GallformersWeb.Admin.GallLive.Form do
   def handle_event("add_host", %{"id" => host_id}, socket) do
     host_id = String.to_integer(host_id)
 
-    # Check if already added
-    if Enum.any?(socket.assigns.hosts, &(&1.host_species_id == host_id)) do
-      {:noreply, put_flash(socket, :error, "Host already associated")}
-    else
-      # Find the host in search results to get its name
-      host_result = Enum.find(socket.assigns.host_search_results, &(&1.id == host_id))
+    cond do
+      DeferredChanges.exists?(socket, :hosts, :host_species_id, host_id) ->
+        {:noreply, put_flash(socket, :error, "Host already associated")}
 
-      if host_result do
-        # Add to pending hosts with temp relation ID
-        temp_relation_id = -System.unique_integer([:positive])
+      true ->
+        # Find the host in search results to get its name
+        host_result = Enum.find(socket.assigns.host_search_results, &(&1.id == host_id))
 
-        new_host = %{
-          host_species_id: host_id,
-          host_name: host_result.name,
-          host_relation_id: temp_relation_id,
-          pending: true
-        }
+        if host_result do
+          socket =
+            socket
+            |> DeferredChanges.add_pending(
+              :hosts,
+              %{host_species_id: host_id, host_name: host_result.name},
+              id_field: :host_relation_id
+            )
+            |> assign(:host_search_query, "")
+            |> assign(:host_search_results, [])
+            |> assign(:host_dropdown_open, false)
+            |> mark_dirty()
 
-        hosts = socket.assigns.hosts ++ [new_host]
-
-        {:noreply,
-         socket
-         |> assign(:hosts, hosts)
-         |> assign(:host_search_query, "")
-         |> assign(:host_search_results, [])
-         |> assign(:host_dropdown_open, false)
-         |> mark_dirty()}
-      else
-        {:noreply, put_flash(socket, :error, "Host not found")}
-      end
+          {:noreply, socket}
+        else
+          {:noreply, put_flash(socket, :error, "Host not found")}
+        end
     end
   end
 
   @impl true
-  def handle_event("remove_host", params, socket) do
-    # Support both new format ("id") and legacy format ("relation-id")
-    relation_id = String.to_integer(params["id"] || params["relation-id"])
-    hosts = Enum.reject(socket.assigns.hosts, &(&1.host_relation_id == relation_id))
+  def handle_event("remove_host", %{"id" => id}, socket) do
+    relation_id = String.to_integer(id)
 
-    {:noreply,
-     socket
-     |> assign(:hosts, hosts)
-     |> mark_dirty()}
+    socket =
+      socket
+      |> DeferredChanges.remove_pending(:hosts, relation_id, id_field: :host_relation_id)
+      |> mark_dirty()
+
+    {:noreply, socket}
   end
 
   @impl true
@@ -466,13 +459,6 @@ defmodule GallformersWeb.Admin.GallLive.Form do
     end
   end
 
-  # Basic validation for species name (Genus species format)
-  defp valid_species_name?(name) do
-    # Matches: "Genus species", "Genus x species", "Genus species (variant)", etc.
-    # At minimum: one capitalized word, space, one lowercase word
-    Regex.match?(~r/^[A-Z][a-z-]+ (x )?[a-z-]+/, name)
-  end
-
   defp save_gall(socket, :new, params) do
     case Species.create_species(params) do
       {:ok, gall} ->
@@ -488,33 +474,50 @@ defmodule GallformersWeb.Admin.GallLive.Form do
   end
 
   defp save_gall(socket, :edit, params) do
-    case Species.update_species(socket.assigns.gall, params) do
-      {:ok, updated_gall} ->
-        # Now persist all pending changes
-        gall_id = socket.assigns.gall_id
-        species_id = socket.assigns.gall.id
+    gall_id = socket.assigns.gall_id
+    species_id = socket.assigns.gall.id
 
-        # Save aliases - diff original vs current
-        save_alias_changes(species_id, socket.assigns.original_aliases, socket.assigns.aliases)
+    # Compute changes using DeferredChanges
+    {aliases_to_add, aliases_to_remove} = DeferredChanges.compute_changes(socket, :aliases)
 
-        # Save hosts - diff original vs current
-        save_host_changes(species_id, socket.assigns.original_hosts, socket.assigns.hosts)
+    {hosts_to_add, hosts_to_remove} =
+      DeferredChanges.compute_changes(socket, :hosts, id_field: :host_relation_id)
 
-        # Save filter values - diff original vs current
-        if gall_id do
-          save_filter_changes(
-            gall_id,
-            socket.assigns.original_filter_values,
-            socket.assigns.filter_values
-          )
+    # Wrap all saves in a transaction for atomicity
+    transaction_result =
+      Repo.transaction(fn ->
+        case Species.update_species(socket.assigns.gall, params) do
+          {:ok, updated_gall} ->
+            # Save aliases
+            save_alias_changes(species_id, aliases_to_add, aliases_to_remove)
 
-          # Save gall properties (detachable, undescribed)
-          Species.update_gall_properties(gall_id, %{
-            detachable: socket.assigns.detachable,
-            undescribed: socket.assigns.undescribed
-          })
+            # Save hosts
+            save_host_changes(species_id, hosts_to_add, hosts_to_remove)
+
+            # Save filter values - diff original vs current
+            if gall_id do
+              save_filter_changes(
+                gall_id,
+                socket.assigns.original_filter_values,
+                socket.assigns.filter_values
+              )
+
+              # Save gall properties (detachable, undescribed)
+              Species.update_gall_properties(gall_id, %{
+                detachable: socket.assigns.detachable,
+                undescribed: socket.assigns.undescribed
+              })
+            end
+
+            updated_gall
+
+          {:error, changeset} ->
+            Repo.rollback(changeset)
         end
+      end)
 
+    case transaction_result do
+      {:ok, updated_gall} ->
         # Reload data from DB to get actual IDs for new records
         aliases = Species.get_aliases_for_species(species_id)
         hosts = Gallformers.Hosts.get_hosts_for_gall(species_id)
@@ -526,60 +529,45 @@ defmodule GallformersWeb.Admin.GallLive.Form do
         {:noreply,
          socket
          |> assign(:gall, updated_gall)
-         |> assign(:original_aliases, aliases)
-         |> assign(:original_hosts, hosts)
+         |> DeferredChanges.refresh(:aliases, aliases)
+         |> DeferredChanges.refresh(:hosts, hosts)
          |> assign(:original_filter_values, filter_values)
          |> assign(:original_detachable, socket.assigns.detachable)
          |> assign(:original_undescribed, socket.assigns.undescribed)
-         |> assign(:aliases, aliases)
-         |> assign(:hosts, hosts)
          |> assign(:filter_values, filter_values)
          |> reset_dirty()
          |> put_flash(:info, "Gall saved successfully")}
 
       {:error, %Ecto.Changeset{} = changeset} ->
         {:noreply, assign(socket, :form, to_form(changeset))}
+
+      {:error, _reason} ->
+        {:noreply, put_flash(socket, :error, "Failed to save gall. Please try again.")}
     end
   end
 
   # Helper to save alias changes
-  defp save_alias_changes(species_id, original_aliases, current_aliases) do
-    original_ids = MapSet.new(Enum.map(original_aliases, & &1.id))
-    current_ids = MapSet.new(Enum.map(current_aliases, & &1.id) |> Enum.filter(&(&1 > 0)))
-
+  defp save_alias_changes(species_id, to_add, to_remove) do
     # Delete removed aliases
-    removed_ids = MapSet.difference(original_ids, current_ids)
-
-    for alias_id <- removed_ids do
+    for alias_id <- to_remove do
       Species.remove_alias_from_species(species_id, alias_id)
     end
 
-    # Add new aliases (those with negative/temp IDs or marked as pending)
-    for alias <- current_aliases, Map.get(alias, :pending, false) or alias.id < 0 do
+    # Add new aliases
+    for alias <- to_add do
       Species.create_alias_for_species(species_id, %{name: alias.name, type: alias.type})
     end
   end
 
   # Helper to save host changes
-  defp save_host_changes(species_id, original_hosts, current_hosts) do
-    original_relation_ids = MapSet.new(Enum.map(original_hosts, & &1.host_relation_id))
-
-    current_relation_ids =
-      MapSet.new(
-        current_hosts
-        |> Enum.map(& &1.host_relation_id)
-        |> Enum.filter(&(&1 > 0))
-      )
-
+  defp save_host_changes(species_id, to_add, to_remove) do
     # Delete removed hosts
-    removed_ids = MapSet.difference(original_relation_ids, current_relation_ids)
-
-    for relation_id <- removed_ids do
+    for relation_id <- to_remove do
       Species.remove_host_from_species(relation_id)
     end
 
-    # Add new hosts (those with negative/temp relation IDs or marked as pending)
-    for host <- current_hosts, Map.get(host, :pending, false) or host.host_relation_id < 0 do
+    # Add new hosts
+    for host <- to_add do
       Species.add_host_to_species(species_id, host.host_species_id)
     end
   end
@@ -619,14 +607,6 @@ defmodule GallformersWeb.Admin.GallLive.Form do
         Species.add_filter_field_to_gall(gall_id, filter_type, filter_id)
       end
     end
-  end
-
-  defp alias_type_options do
-    [
-      {"Common Name", "common name"},
-      {"Scientific Synonym", "scientific synonym"},
-      {"Other", "other"}
-    ]
   end
 
   @impl true
@@ -949,70 +929,11 @@ defmodule GallformersWeb.Admin.GallLive.Form do
             </div>
 
             <%!-- Aliases table --%>
-            <div class="mb-3">
-              <label class="block text-sm font-medium text-gray-700 mb-1">Aliases:</label>
-              <div class="border border-gray-300 rounded">
-                <table class="w-full text-sm">
-                  <thead class="bg-gray-50">
-                    <tr>
-                      <th class="px-3 py-1.5 text-left font-medium text-gray-700">Name</th>
-                      <th class="px-3 py-1.5 text-left font-medium text-gray-700">Type</th>
-                      <th class="px-3 py-1.5 w-10"></th>
-                    </tr>
-                  </thead>
-                  <tbody class="divide-y divide-gray-200">
-                    <tr :for={a <- @aliases} class="hover:bg-gray-50">
-                      <td class="px-3 py-1.5 italic">{a.name}</td>
-                      <td class="px-3 py-1.5">{a.type}</td>
-                      <td class="px-3 py-1.5">
-                        <button
-                          type="button"
-                          phx-click="remove_alias"
-                          phx-value-alias-id={a.id}
-                          class="text-red-600 hover:text-red-800"
-                        >
-                          <.icon name="ph-x" class="h-4 w-4" />
-                        </button>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td class="px-3 py-1.5">
-                        <input
-                          type="text"
-                          value={@new_alias_name}
-                          placeholder="New alias..."
-                          phx-keyup="update_new_alias"
-                          phx-value-type={@new_alias_type}
-                          class="w-full px-2 py-1 border border-gray-300 rounded text-sm"
-                        />
-                      </td>
-                      <td class="px-3 py-1.5">
-                        <select
-                          phx-change="update_new_alias"
-                          phx-value-name={@new_alias_name}
-                          class="w-full px-2 py-1 border border-gray-300 rounded text-sm"
-                        >
-                          <%= for {label, value} <- alias_type_options() do %>
-                            <option value={value} selected={@new_alias_type == value}>
-                              {label}
-                            </option>
-                          <% end %>
-                        </select>
-                      </td>
-                      <td class="px-3 py-1.5">
-                        <button
-                          type="button"
-                          phx-click="add_alias"
-                          class="text-green-600 hover:text-green-800"
-                        >
-                          <.icon name="ph-plus" class="h-4 w-4" />
-                        </button>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
+            <.alias_editor
+              aliases={@aliases}
+              new_alias_name={@new_alias_name}
+              new_alias_type={@new_alias_type}
+            />
           <% end %>
 
           <%!-- Checkboxes --%>
@@ -1054,111 +975,19 @@ defmodule GallformersWeb.Admin.GallLive.Form do
                 </.link>
               <% end %>
             </div>
-            <div class="flex gap-2">
-              <button
-                type="button"
-                phx-click="request_cancel"
-                class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={not @form_dirty}
-                class={[
-                  "px-4 py-2 text-sm rounded",
-                  if(@form_dirty,
-                    do: "bg-gf-maroon text-white hover:bg-gf-maroon/90",
-                    else: "bg-gray-300 text-gray-500 cursor-not-allowed"
-                  )
-                ]}
-              >
-                {if @mode == :new, do: "Create", else: "Save"}
-              </button>
-            </div>
+            <.form_actions form_dirty={@form_dirty} mode={@mode} />
           </div>
         </.form>
 
         <.discard_confirm_modal show={@show_discard_confirm} />
       </Layouts.admin_edit_layout>
 
-      <%!-- Rename Modal --%>
-      <%= if @show_rename_modal do %>
-        <div
-          class="fixed inset-0 z-50 overflow-y-auto"
-          phx-window-keydown="close_rename_modal"
-          phx-key="Escape"
-        >
-          <div class="flex min-h-full items-center justify-center p-4">
-            <%!-- Backdrop --%>
-            <div
-              class="fixed inset-0 bg-black/50 transition-opacity"
-              phx-click="close_rename_modal"
-            >
-            </div>
-
-            <%!-- Modal --%>
-            <div class="relative bg-white rounded-lg shadow-xl w-full max-w-2xl">
-              <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-                <h3 class="text-xl font-semibold text-gray-900">Edit Gall Name</h3>
-                <button
-                  type="button"
-                  phx-click="close_rename_modal"
-                  class="text-gray-400 hover:text-gray-600"
-                >
-                  <.icon name="ph-x" class="h-6 w-6" />
-                </button>
-              </div>
-
-              <div class="p-6">
-                <input
-                  type="text"
-                  value={@rename_value}
-                  phx-keyup="update_rename_value"
-                  phx-key="Enter"
-                  class="w-full px-4 py-3 border border-gray-300 rounded text-lg focus:ring-gf-maroon focus:border-gf-maroon"
-                  autofocus
-                />
-
-                <div class="mt-5">
-                  <label class="flex items-center gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={@add_alias_on_rename}
-                      phx-click="toggle_add_alias_on_rename"
-                      class="w-5 h-5 rounded border-gray-300 text-gf-maroon focus:ring-gf-maroon"
-                    />
-                    <span class="text-base text-gray-700">Add Alias for old name?</span>
-                  </label>
-                </div>
-
-                <div class="mt-4 text-sm text-gray-500">
-                  If you want to reassign the species to a different genus, enter the new name
-                  with the new genus. If the genus doesn't exist, it will be created under the same family.
-                  If it exists, the species will be reassigned to that genus.
-                </div>
-              </div>
-
-              <div class="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
-                <button
-                  type="button"
-                  phx-click="close_rename_modal"
-                  class="px-5 py-2.5 text-base text-gray-600 hover:text-gray-800"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  phx-click="do_rename"
-                  class="px-5 py-2.5 bg-gf-maroon text-white text-base rounded hover:bg-gf-maroon/90"
-                >
-                  Save Changes
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      <% end %>
+      <.rename_modal
+        show={@show_rename_modal}
+        value={@rename_value}
+        add_alias_checked={@add_alias_on_rename}
+        entity_type="Gall"
+      />
     </Layouts.admin>
     """
   end
