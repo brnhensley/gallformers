@@ -1143,7 +1143,10 @@ defmodule GallformersWeb.Admin.GallLive.Form do
           />
         </div>
         <%= if @dropdown_open && @available != [] do %>
-          <div class="absolute z-20 mt-1 w-full bg-white shadow-lg rounded border border-gray-200 max-h-32 overflow-auto">
+          <div
+            phx-click-away="close_filter_dropdown"
+            class="absolute z-20 mt-1 w-full bg-white shadow-lg rounded border border-gray-200 max-h-32 overflow-auto"
+          >
             <button
               :for={opt <- Enum.take(@available, 10)}
               type="button"
