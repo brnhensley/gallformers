@@ -31,33 +31,10 @@ defmodule GallformersWeb.DataDisplayComponents do
   attr :no_image_src, :string, default: nil, doc: "optional placeholder image when no images"
 
   def image_gallery(assigns) do
-    # Pass all image data to JS for dynamic updates
-    images_json =
-      assigns.images
-      |> Enum.map(fn img ->
-        %{
-          id: Map.get(img, :id) || Map.get(img, "id"),
-          src: Map.get(img, :src) || Map.get(img, "src"),
-          alt: Map.get(img, :alt) || Map.get(img, "alt") || "",
-          caption: Map.get(img, :caption) || Map.get(img, "caption") || "",
-          creator: Map.get(img, :creator) || Map.get(img, "creator") || "",
-          license: Map.get(img, :license) || Map.get(img, "license") || "",
-          licenselink: Map.get(img, :licenselink) || Map.get(img, "licenselink") || "",
-          sourcelink: Map.get(img, :sourcelink) || Map.get(img, "sourcelink") || "",
-          attribution: Map.get(img, :attribution) || Map.get(img, "attribution") || "",
-          source_title: Map.get(img, :source_title) || Map.get(img, "source_title"),
-          uploader: Map.get(img, :uploader) || Map.get(img, "uploader") || "",
-          lastchangedby: Map.get(img, :lastchangedby) || Map.get(img, "lastchangedby") || ""
-        }
-      end)
-      |> Jason.encode!()
-
-    first_image = List.first(assigns.images) || %{}
-
     assigns =
       assigns
-      |> assign(:images_json, images_json)
-      |> assign(:first_image, first_image)
+      |> assign(:images_json, prepare_images_json(assigns.images))
+      |> assign(:first_image, List.first(assigns.images) || %{})
       |> assign(:image_count, length(assigns.images))
 
     ~H"""
@@ -368,6 +345,29 @@ defmodule GallformersWeb.DataDisplayComponents do
   end
 
   defp get_img_field(_, _), do: ""
+
+  defp prepare_images_json(images) do
+    images
+    |> Enum.map(&normalize_image_data/1)
+    |> Jason.encode!()
+  end
+
+  defp normalize_image_data(img) do
+    %{
+      id: get_img_field(img, :id),
+      src: get_img_field(img, :src),
+      alt: get_img_field(img, :alt),
+      caption: get_img_field(img, :caption),
+      creator: get_img_field(img, :creator),
+      license: get_img_field(img, :license),
+      licenselink: get_img_field(img, :licenselink),
+      sourcelink: get_img_field(img, :sourcelink),
+      attribution: get_img_field(img, :attribution),
+      source_title: Map.get(img, :source_title) || Map.get(img, "source_title"),
+      uploader: get_img_field(img, :uploader),
+      lastchangedby: get_img_field(img, :lastchangedby)
+    }
+  end
 
   @doc """
   Renders a species card for list views.

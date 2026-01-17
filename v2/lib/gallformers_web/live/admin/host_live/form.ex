@@ -181,28 +181,7 @@ defmodule GallformersWeb.Admin.HostLive.Form do
 
   @impl true
   def handle_event("toggle_region", %{"code" => code}, socket) do
-    if socket.assigns.mode == :edit do
-      # Find the place by code
-      place = Enum.find(socket.assigns.all_places, &(&1.code == code))
-
-      if place do
-        # Toggle in local state - don't save to DB yet
-        places = socket.assigns.places
-
-        new_places =
-          if code in places do
-            Enum.reject(places, &(&1 == code))
-          else
-            places ++ [code]
-          end
-
-        {:noreply, socket |> assign(:places, new_places) |> mark_dirty()}
-      else
-        {:noreply, socket}
-      end
-    else
-      {:noreply, socket}
-    end
+    {:noreply, toggle_region(socket, code)}
   end
 
   @impl true
@@ -297,6 +276,25 @@ defmodule GallformersWeb.Admin.HostLive.Form do
             {:noreply, put_flash(socket, :error, "Failed to rename host")}
         end
     end
+  end
+
+  # Helper functions for handle_event
+
+  defp toggle_region(%{assigns: %{mode: mode}} = socket, _code) when mode != :edit, do: socket
+
+  defp toggle_region(socket, code) do
+    place = Enum.find(socket.assigns.all_places, &(&1.code == code))
+
+    if place do
+      new_places = toggle_place_code(socket.assigns.places, code)
+      socket |> assign(:places, new_places) |> mark_dirty()
+    else
+      socket
+    end
+  end
+
+  defp toggle_place_code(places, code) do
+    if code in places, do: Enum.reject(places, &(&1 == code)), else: places ++ [code]
   end
 
   defp save_host(socket, :new, params) do

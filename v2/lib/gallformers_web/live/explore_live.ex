@@ -117,26 +117,25 @@ defmodule GallformersWeb.ExploreLive do
   defp collect_matching_branch_keys(nodes, query) do
     query_lower = String.downcase(query)
 
-    Enum.flat_map(nodes, fn node ->
-      if Map.has_key?(node, :nodes) and node.nodes != [] do
-        # Check if any children match
-        child_keys = collect_matching_branch_keys(node.nodes, query)
-        child_matches = child_keys != []
-
-        # Check if this branch's label matches
-        label_matches = String.contains?(String.downcase(node.label), query_lower)
-
-        if child_matches or label_matches do
-          [node.key | child_keys]
-        else
-          []
-        end
-      else
-        # Leaf node - check if it matches
-        if String.contains?(String.downcase(node.label), query_lower), do: [:match], else: []
-      end
-    end)
+    nodes
+    |> Enum.flat_map(&collect_node_keys(&1, query, query_lower))
     |> Enum.filter(&(&1 != :match))
+  end
+
+  defp collect_node_keys(node, query, query_lower) do
+    if branch_node?(node) do
+      collect_branch_matching_keys(node, query, query_lower)
+    else
+      if label_matches?(node.label, query_lower), do: [:match], else: []
+    end
+  end
+
+  defp collect_branch_matching_keys(node, query, query_lower) do
+    child_keys = collect_matching_branch_keys(node.nodes, query)
+
+    if child_keys != [] or label_matches?(node.label, query_lower),
+      do: [node.key | child_keys],
+      else: []
   end
 
   defp filter_tree(nodes, ""), do: nodes
@@ -145,28 +144,32 @@ defmodule GallformersWeb.ExploreLive do
     query_lower = String.downcase(query)
 
     nodes
-    |> Enum.map(fn node ->
-      if Map.has_key?(node, :nodes) and node.nodes != [] do
-        # Branch node - filter children recursively
-        filtered_children = filter_tree(node.nodes, query)
-        label_matches = String.contains?(String.downcase(node.label), query_lower)
-
-        if filtered_children != [] or label_matches do
-          %{node | nodes: filtered_children}
-        else
-          nil
-        end
-      else
-        # Leaf node - keep if matches
-        if String.contains?(String.downcase(node.label), query_lower) do
-          node
-        else
-          nil
-        end
-      end
-    end)
+    |> Enum.map(&filter_node(&1, query, query_lower))
     |> Enum.reject(&is_nil/1)
   end
+
+  defp filter_node(node, query, query_lower) do
+    if branch_node?(node) do
+      filter_branch_node(node, query, query_lower)
+    else
+      if label_matches?(node.label, query_lower), do: node, else: nil
+    end
+  end
+
+  defp filter_branch_node(node, query, query_lower) do
+    filtered_children = filter_tree(node.nodes, query)
+
+    if filtered_children != [] or label_matches?(node.label, query_lower) do
+      %{node | nodes: filtered_children}
+    else
+      nil
+    end
+  end
+
+  defp branch_node?(node), do: Map.has_key?(node, :nodes) and node.nodes != []
+
+  defp label_matches?(label, query_lower),
+    do: String.contains?(String.downcase(label), query_lower)
 
   defp tab_label("galls"), do: "Galls"
   defp tab_label("undescribed"), do: "Undescribed"

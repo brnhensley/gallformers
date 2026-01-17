@@ -114,44 +114,8 @@ defmodule GallformersWeb.IDLive do
 
   # Apply filters from URL and load host/genus if specified
   defp apply_url_filters(socket, filters, params) do
-    # Load host from URL param (decode URL encoding)
-    host_name =
-      case params[@url_params.host] do
-        nil -> nil
-        name -> URI.decode(name)
-      end
-
-    selected_host =
-      if host_name && host_name != "" do
-        Hosts.get_host_by_name(host_name)
-      else
-        nil
-      end
-
-    # Load genus from URL param (decode URL encoding)
-    genus_name =
-      case params[@url_params.genus] do
-        nil -> nil
-        name -> URI.decode(name)
-      end
-
-    genus_type =
-      case params[@url_params.genus_type] do
-        nil -> "genus"
-        type -> URI.decode(type)
-      end
-
-    selected_genus =
-      if genus_name && genus_name != "" do
-        case Taxonomy.get_taxonomy_by_name(genus_name, genus_type) do
-          nil -> Taxonomy.get_taxonomy_by_name(genus_name)
-          tax -> tax
-        end
-      else
-        nil
-      end
-
-    # Load families based on selection
+    selected_host = load_host_from_params(params)
+    selected_genus = load_genus_from_params(params)
     families = load_families_for_selection(selected_host, selected_genus)
 
     socket
@@ -161,6 +125,34 @@ defmodule GallformersWeb.IDLive do
     |> assign(families: families)
     |> maybe_load_results()
   end
+
+  defp load_host_from_params(params) do
+    case decode_url_param(params[@url_params.host]) do
+      nil -> nil
+      "" -> nil
+      name -> Hosts.get_host_by_name(name)
+    end
+  end
+
+  defp load_genus_from_params(params) do
+    case decode_url_param(params[@url_params.genus]) do
+      nil -> nil
+      "" -> nil
+      name -> find_genus_by_name(name, params)
+    end
+  end
+
+  defp find_genus_by_name(name, params) do
+    genus_type = decode_url_param(params[@url_params.genus_type]) || "genus"
+
+    case Taxonomy.get_taxonomy_by_name(name, genus_type) do
+      nil -> Taxonomy.get_taxonomy_by_name(name)
+      tax -> tax
+    end
+  end
+
+  defp decode_url_param(nil), do: nil
+  defp decode_url_param(value), do: URI.decode(value)
 
   # Load families relevant to the current host/genus selection
   defp load_families_for_selection(nil, nil), do: []

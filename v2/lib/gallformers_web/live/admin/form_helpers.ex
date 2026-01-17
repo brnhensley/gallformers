@@ -138,6 +138,7 @@ defmodule GallformersWeb.Admin.FormHelpers do
   defmacro __using__(opts) do
     crud_helpers = Keyword.get(opts, :crud_helpers, false)
 
+    # credo:disable-for-next-line Credo.Check.Refactor.LongQuoteBlocks
     quote location: :keep do
       @behaviour GallformersWeb.Admin.FormHelpers
 

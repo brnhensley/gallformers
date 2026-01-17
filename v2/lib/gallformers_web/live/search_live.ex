@@ -166,18 +166,17 @@ defmodule GallformersWeb.SearchLive do
   end
 
   defp sorted_results(results, sort_by, sort_dir) do
-    sorted =
-      Enum.sort_by(results, fn result ->
-        case sort_by do
-          :type -> result.category
-          :name -> String.downcase(result.name || "")
-          :relevance -> {result.match_score || 2, String.downcase(result.name || "")}
-          _ -> String.downcase(result.name || "")
-        end
-      end)
-
+    sorted = Enum.sort_by(results, &sort_key(&1, sort_by))
     if sort_dir == :desc, do: Enum.reverse(sorted), else: sorted
   end
+
+  defp sort_key(result, :type), do: result.category
+  defp sort_key(result, :name), do: String.downcase(result.name || "")
+
+  defp sort_key(result, :relevance),
+    do: {result.match_score || 2, String.downcase(result.name || "")}
+
+  defp sort_key(result, _), do: String.downcase(result.name || "")
 
   @type_icons %{
     "gall" => "gf-gall",

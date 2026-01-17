@@ -10,10 +10,10 @@ defmodule Gallformers.Search do
   alias Gallformers.Glossary.Glossary
   alias Gallformers.Places.Place
   alias Gallformers.Repo
+  alias Gallformers.Search.Ranking
   alias Gallformers.Sources.Source
   alias Gallformers.Species.{Alias, Gall, GallSpecies, Species}
   alias Gallformers.Taxonomy.Taxonomy
-  alias Gallformers.Search.Ranking
 
   @doc """
   Searches galls by name (partial match).
@@ -266,8 +266,7 @@ defmodule Gallformers.Search do
       fts_query =
         sanitized
         |> String.split(~r/\s+/, trim: true)
-        |> Enum.map(&"#{&1}*")
-        |> Enum.join(" ")
+        |> Enum.map_join(" ", &"#{&1}*")
 
       sql = """
       SELECT f.species_id, s.name, g.undescribed, f.aliases
@@ -282,21 +281,10 @@ defmodule Gallformers.Search do
 
       case Repo.query(sql, [fts_query]) do
         {:ok, %{rows: rows}} ->
-          search_lower = String.downcase(query)
           search_terms = Ranking.parse_query(query)
 
           rows
-          |> Enum.map(fn [id, name, undescribed, aliases] ->
-            matching_aliases = find_matching_aliases(aliases, search_lower, name)
-
-            %{
-              id: id,
-              name: name,
-              type: "gall",
-              undescribed: undescribed == 1,
-              aliases: matching_aliases
-            }
-          end)
+          |> Enum.map(&transform_gall_row(&1, query))
           |> Ranking.add_scores_and_sort(search_terms)
 
         {:error, _} ->
@@ -382,8 +370,7 @@ defmodule Gallformers.Search do
       fts_query =
         sanitized
         |> String.split(~r/\s+/, trim: true)
-        |> Enum.map(&"#{&1}*")
-        |> Enum.join(" ")
+        |> Enum.map_join(" ", &"#{&1}*")
 
       sql = """
       SELECT f.species_id, s.name, f.aliases
@@ -396,20 +383,10 @@ defmodule Gallformers.Search do
 
       case Repo.query(sql, [fts_query]) do
         {:ok, %{rows: rows}} ->
-          search_lower = String.downcase(query)
           search_terms = Ranking.parse_query(query)
 
           rows
-          |> Enum.map(fn [id, name, aliases] ->
-            matching_aliases = find_matching_aliases(aliases, search_lower, name)
-
-            %{
-              id: id,
-              name: name,
-              type: "host",
-              aliases: matching_aliases
-            }
-          end)
+          |> Enum.map(&transform_host_row(&1, query))
           |> Ranking.add_scores_and_sort(search_terms)
 
         {:error, _} ->
@@ -455,6 +432,20 @@ defmodule Gallformers.Search do
     name_results
     |> merge_species_with_aliases(alias_results)
     |> Ranking.add_scores_and_sort(search_terms)
+  end
+
+  defp transform_gall_row([id, name, undescribed, aliases], query) do
+    search_lower = String.downcase(query)
+    matching_aliases = find_matching_aliases(aliases, search_lower, name)
+
+    %{id: id, name: name, type: "gall", undescribed: undescribed == 1, aliases: matching_aliases}
+  end
+
+  defp transform_host_row([id, name, aliases], query) do
+    search_lower = String.downcase(query)
+    matching_aliases = find_matching_aliases(aliases, search_lower, name)
+
+    %{id: id, name: name, type: "host", aliases: matching_aliases}
   end
 
   # Finds aliases that match the search query from a space-separated alias string

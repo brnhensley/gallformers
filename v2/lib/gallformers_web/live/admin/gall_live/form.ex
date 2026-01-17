@@ -268,31 +268,10 @@ defmodule GallformersWeb.Admin.GallLive.Form do
   def handle_event("add_host", %{"id" => host_id}, socket) do
     host_id = String.to_integer(host_id)
 
-    cond do
-      DeferredChanges.exists?(socket, :hosts, :host_species_id, host_id) ->
-        {:noreply, put_flash(socket, :error, "Host already associated")}
-
-      true ->
-        # Find the host in search results to get its name
-        host_result = Enum.find(socket.assigns.host_search_results, &(&1.id == host_id))
-
-        if host_result do
-          socket =
-            socket
-            |> DeferredChanges.add_pending(
-              :hosts,
-              %{host_species_id: host_id, host_name: host_result.name},
-              id_field: :host_relation_id
-            )
-            |> assign(:host_search_query, "")
-            |> assign(:host_search_results, [])
-            |> assign(:host_dropdown_open, false)
-            |> mark_dirty()
-
-          {:noreply, socket}
-        else
-          {:noreply, put_flash(socket, :error, "Host not found")}
-        end
+    if DeferredChanges.exists?(socket, :hosts, :host_species_id, host_id) do
+      {:noreply, put_flash(socket, :error, "Host already associated")}
+    else
+      add_host_to_pending(socket, host_id)
     end
   end
 
@@ -459,6 +438,30 @@ defmodule GallformersWeb.Admin.GallLive.Form do
     end
   end
 
+  # Helper functions for handle_event
+
+  defp add_host_to_pending(socket, host_id) do
+    host_result = Enum.find(socket.assigns.host_search_results, &(&1.id == host_id))
+
+    if host_result do
+      socket =
+        socket
+        |> DeferredChanges.add_pending(
+          :hosts,
+          %{host_species_id: host_id, host_name: host_result.name},
+          id_field: :host_relation_id
+        )
+        |> assign(:host_search_query, "")
+        |> assign(:host_search_results, [])
+        |> assign(:host_dropdown_open, false)
+        |> mark_dirty()
+
+      {:noreply, socket}
+    else
+      {:noreply, put_flash(socket, :error, "Host not found")}
+    end
+  end
+
   defp save_gall(socket, :new, params) do
     case Species.create_species(params) do
       {:ok, gall} ->
@@ -488,27 +491,9 @@ defmodule GallformersWeb.Admin.GallLive.Form do
       Repo.transaction(fn ->
         case Species.update_species(socket.assigns.gall, params) do
           {:ok, updated_gall} ->
-            # Save aliases
             save_alias_changes(species_id, aliases_to_add, aliases_to_remove)
-
-            # Save hosts
             save_host_changes(species_id, hosts_to_add, hosts_to_remove)
-
-            # Save filter values - diff original vs current
-            if gall_id do
-              save_filter_changes(
-                gall_id,
-                socket.assigns.original_filter_values,
-                socket.assigns.filter_values
-              )
-
-              # Save gall properties (detachable, undescribed)
-              Species.update_gall_properties(gall_id, %{
-                detachable: socket.assigns.detachable,
-                undescribed: socket.assigns.undescribed
-              })
-            end
-
+            save_gall_specific_data(gall_id, socket.assigns)
             updated_gall
 
           {:error, changeset} ->
@@ -544,6 +529,17 @@ defmodule GallformersWeb.Admin.GallLive.Form do
       {:error, _reason} ->
         {:noreply, put_flash(socket, :error, "Failed to save gall. Please try again.")}
     end
+  end
+
+  defp save_gall_specific_data(nil, _assigns), do: :ok
+
+  defp save_gall_specific_data(gall_id, assigns) do
+    save_filter_changes(gall_id, assigns.original_filter_values, assigns.filter_values)
+
+    Species.update_gall_properties(gall_id, %{
+      detachable: assigns.detachable,
+      undescribed: assigns.undescribed
+    })
   end
 
   # Helper to save alias changes

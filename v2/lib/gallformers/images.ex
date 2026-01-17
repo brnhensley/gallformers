@@ -452,27 +452,8 @@ defmodule Gallformers.Images do
         contents = if is_list(contents), do: contents, else: []
 
         contents
-        |> Enum.filter(fn obj ->
-          # Only include image files
-          path = obj.key
-          String.ends_with?(path, [".jpg", ".jpeg", ".png", ".gif", ".webp"])
-        end)
-        |> Enum.map(fn obj ->
-          path = obj.key
-          # Extract folder (article slug) and filename
-          parts = String.split(path, "/")
-          folder = if length(parts) >= 2, do: Enum.at(parts, 1), else: ""
-          name = List.last(parts)
-
-          %{
-            path: path,
-            url: article_image_url(path),
-            name: name,
-            folder: folder,
-            last_modified: obj.last_modified,
-            size: obj.size
-          }
-        end)
+        |> Enum.filter(&image_file?/1)
+        |> Enum.map(&transform_s3_object/1)
         |> Enum.sort_by(& &1.last_modified, :desc)
 
       {:error, reason} ->
@@ -480,4 +461,25 @@ defmodule Gallformers.Images do
         []
     end
   end
+
+  defp image_file?(obj) do
+    String.ends_with?(obj.key, [".jpg", ".jpeg", ".png", ".gif", ".webp"])
+  end
+
+  defp transform_s3_object(obj) do
+    path = obj.key
+    parts = String.split(path, "/")
+
+    %{
+      path: path,
+      url: article_image_url(path),
+      name: List.last(parts),
+      folder: extract_folder(parts),
+      last_modified: obj.last_modified,
+      size: obj.size
+    }
+  end
+
+  defp extract_folder(parts) when length(parts) >= 2, do: Enum.at(parts, 1)
+  defp extract_folder(_parts), do: ""
 end

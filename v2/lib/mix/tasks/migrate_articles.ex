@@ -66,27 +66,26 @@ defmodule Mix.Tasks.MigrateArticles do
     IO.write("  Migrating #{filename}... ")
 
     # Check if article already exists
-    case Articles.get_article_by_slug(slug) do
-      nil ->
-        case File.read(filepath) do
-          {:ok, content} ->
-            case parse_frontmatter(content) do
-              {:ok, frontmatter, body} ->
-                create_article(slug, frontmatter, body, filename)
+    if Articles.get_article_by_slug(slug) do
+      IO.puts("SKIPPED (already exists)")
+      {:skipped, filename}
+    else
+      migrate_new_article(filepath, slug, filename)
+    end
+  end
 
-              {:error, reason} ->
-                IO.puts("FAILED (#{reason})")
-                {:error, filename, reason}
-            end
+  defp migrate_new_article(filepath, slug, filename) do
+    with {:ok, content} <- File.read(filepath),
+         {:ok, frontmatter, body} <- parse_frontmatter(content) do
+      create_article(slug, frontmatter, body, filename)
+    else
+      {:error, reason} when is_binary(reason) ->
+        IO.puts("FAILED (#{reason})")
+        {:error, filename, reason}
 
-          {:error, reason} ->
-            IO.puts("FAILED (read error: #{inspect(reason)})")
-            {:error, filename, reason}
-        end
-
-      _existing ->
-        IO.puts("SKIPPED (already exists)")
-        {:skipped, filename}
+      {:error, reason} ->
+        IO.puts("FAILED (read error: #{inspect(reason)})")
+        {:error, filename, reason}
     end
   end
 
@@ -105,34 +104,33 @@ defmodule Mix.Tasks.MigrateArticles do
   defp parse_yaml_simple(yaml_str) do
     yaml_str
     |> String.split("\n")
-    |> Enum.reduce(%{}, fn line, acc ->
-      line = String.trim(line)
+    |> Enum.reduce(%{}, &parse_yaml_line/2)
+  end
 
-      cond do
-        # Skip empty lines
-        line == "" ->
-          acc
+  defp parse_yaml_line(line, acc) do
+    line = String.trim(line)
 
-        # Handle nested author.name
-        String.starts_with?(line, "name:") ->
-          value = extract_value(line, "name:")
-          Map.put(acc, "author", value)
+    cond do
+      line == "" ->
+        acc
 
-        # Handle top-level keys
-        String.contains?(line, ":") and not String.starts_with?(line, " ") ->
-          [key | rest] = String.split(line, ":", parts: 2)
-          value = rest |> Enum.join(":") |> String.trim() |> String.trim("'") |> String.trim("\"")
+      String.starts_with?(line, "name:") ->
+        value = extract_value(line, "name:")
+        Map.put(acc, "author", value)
 
-          if value != "" do
-            Map.put(acc, String.trim(key), value)
-          else
-            acc
-          end
+      String.contains?(line, ":") and not String.starts_with?(line, " ") ->
+        parse_top_level_key(line, acc)
 
-        true ->
-          acc
-      end
-    end)
+      true ->
+        acc
+    end
+  end
+
+  defp parse_top_level_key(line, acc) do
+    [key | rest] = String.split(line, ":", parts: 2)
+    value = rest |> Enum.join(":") |> String.trim() |> String.trim("'") |> String.trim("\"")
+
+    if value != "", do: Map.put(acc, String.trim(key), value), else: acc
   end
 
   defp extract_value(line, prefix) do
@@ -174,7 +172,6 @@ defmodule Mix.Tasks.MigrateArticles do
         opts |> Keyword.get(String.to_existing_atom(key), key) |> to_string()
       end)
     end)
-    |> Enum.map(fn {field, errors} -> "#{field}: #{Enum.join(errors, ", ")}" end)
-    |> Enum.join("; ")
+    |> Enum.map_join("; ", fn {field, errors} -> "#{field}: #{Enum.join(errors, ", ")}" end)
   end
 end

@@ -7,8 +7,8 @@ defmodule Gallformers.Species do
 
   import Ecto.Query
   alias Gallformers.Repo
-  alias Gallformers.Species.{Abundance, Gall, GallSpecies, Image, Species}
   alias Gallformers.Search.Ranking
+  alias Gallformers.Species.{Abundance, Gall, GallSpecies, Image, Species}
 
   @doc """
   Returns a random gall that has a default image.
@@ -449,7 +449,7 @@ defmodule Gallformers.Species do
     else
       # Add * suffix to each term for prefix matching
       search_terms = Ranking.parse_query(sanitized)
-      fts_query = search_terms |> Enum.map(&"#{&1}*") |> Enum.join(" ")
+      fts_query = Enum.map_join(search_terms, " ", &"#{&1}*")
 
       sql = """
       SELECT f.species_id, s.name, s.taxoncode, s.datacomplete, a.abundance as abundance_name
@@ -464,21 +464,23 @@ defmodule Gallformers.Species do
       case Repo.query(sql, [fts_query, limit]) do
         {:ok, %{rows: rows}} ->
           rows
-          |> Enum.map(fn [id, name, taxoncode, datacomplete, abundance_name] ->
-            %{
-              id: id,
-              name: name,
-              taxoncode: taxoncode,
-              datacomplete: datacomplete == 1,
-              abundance_name: abundance_name
-            }
-          end)
+          |> Enum.map(&transform_species_fts_row/1)
           |> Ranking.add_scores_and_sort(search_terms)
 
         {:error, _} ->
           []
       end
     end
+  end
+
+  defp transform_species_fts_row([id, name, taxoncode, datacomplete, abundance_name]) do
+    %{
+      id: id,
+      name: name,
+      taxoncode: taxoncode,
+      datacomplete: datacomplete == 1,
+      abundance_name: abundance_name
+    }
   end
 
   @doc """
@@ -596,8 +598,7 @@ defmodule Gallformers.Species do
       fts_query =
         sanitized
         |> String.split(~r/\s+/, trim: true)
-        |> Enum.map(&"#{&1}*")
-        |> Enum.join(" ")
+        |> Enum.map_join(" ", &"#{&1}*")
 
       # Build SQL with optional taxoncode filter
       {sql, params} =
@@ -622,16 +623,13 @@ defmodule Gallformers.Species do
         end
 
       case Repo.query(sql, params) do
-        {:ok, %{rows: rows}} ->
-          Enum.map(rows, fn [id, name, tc] ->
-            %{id: id, name: name, taxoncode: tc}
-          end)
-
-        {:error, _} ->
-          []
+        {:ok, %{rows: rows}} -> Enum.map(rows, &transform_species_name_row/1)
+        {:error, _} -> []
       end
     end
   end
+
+  defp transform_species_name_row([id, name, tc]), do: %{id: id, name: name, taxoncode: tc}
 
   # LIKE-based fallback for mid-word matches
   defp search_species_by_name_like(query, taxoncode, limit) do
