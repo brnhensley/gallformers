@@ -316,7 +316,8 @@ defmodule GallformersWeb.Admin.GallLive.Form do
     filter_type = String.to_atom(type)
     filter_search = Map.put(socket.assigns.filter_search, filter_type, query)
     # Open dropdown when typing
-    {:noreply, socket |> assign(:filter_search, filter_search) |> assign(:filter_dropdown_open, filter_type)}
+    {:noreply,
+     socket |> assign(:filter_search, filter_search) |> assign(:filter_dropdown_open, filter_type)}
   end
 
   @impl true
@@ -483,7 +484,11 @@ defmodule GallformersWeb.Admin.GallLive.Form do
 
         # Save filter values - diff original vs current
         if gall_id do
-          save_filter_changes(gall_id, socket.assigns.original_filter_values, socket.assigns.filter_values)
+          save_filter_changes(
+            gall_id,
+            socket.assigns.original_filter_values,
+            socket.assigns.filter_values
+          )
 
           # Save gall properties (detachable, undescribed)
           Species.update_gall_properties(gall_id, %{
@@ -495,7 +500,9 @@ defmodule GallformersWeb.Admin.GallLive.Form do
         # Reload data from DB to get actual IDs for new records
         aliases = Species.get_aliases_for_species(species_id)
         hosts = Gallformers.Hosts.get_hosts_for_gall(species_id)
-        filter_values = if gall_id, do: Species.get_gall_filter_values(gall_id), else: empty_filter_values()
+
+        filter_values =
+          if gall_id, do: Species.get_gall_filter_values(gall_id), else: empty_filter_values()
 
         # Stay on page, update state to reflect saved data
         {:noreply,
@@ -524,6 +531,7 @@ defmodule GallformersWeb.Admin.GallLive.Form do
 
     # Delete removed aliases
     removed_ids = MapSet.difference(original_ids, current_ids)
+
     for alias_id <- removed_ids do
       Species.remove_alias_from_species(species_id, alias_id)
     end
@@ -537,14 +545,17 @@ defmodule GallformersWeb.Admin.GallLive.Form do
   # Helper to save host changes
   defp save_host_changes(species_id, original_hosts, current_hosts) do
     original_relation_ids = MapSet.new(Enum.map(original_hosts, & &1.host_relation_id))
-    current_relation_ids = MapSet.new(
-      current_hosts
-      |> Enum.map(& &1.host_relation_id)
-      |> Enum.filter(&(&1 > 0))
-    )
+
+    current_relation_ids =
+      MapSet.new(
+        current_hosts
+        |> Enum.map(& &1.host_relation_id)
+        |> Enum.filter(&(&1 > 0))
+      )
 
     # Delete removed hosts
     removed_ids = MapSet.difference(original_relation_ids, current_relation_ids)
+
     for relation_id <- removed_ids do
       Species.remove_host_from_species(relation_id)
     end
@@ -557,7 +568,17 @@ defmodule GallformersWeb.Admin.GallLive.Form do
 
   # Helper to save filter changes
   defp save_filter_changes(gall_id, original_values, current_values) do
-    filter_types = [:colors, :shapes, :textures, :alignments, :walls, :cells, :locations, :forms, :seasons]
+    filter_types = [
+      :colors,
+      :shapes,
+      :textures,
+      :alignments,
+      :walls,
+      :cells,
+      :locations,
+      :forms,
+      :seasons
+    ]
 
     for filter_type <- filter_types do
       original = Map.get(original_values, filter_type, [])
@@ -568,12 +589,14 @@ defmodule GallformersWeb.Admin.GallLive.Form do
 
       # Remove deleted filters
       removed_ids = MapSet.difference(original_ids, current_ids)
+
       for filter_id <- removed_ids do
         Species.remove_filter_field_from_gall(gall_id, filter_type, filter_id)
       end
 
       # Add new filters
       added_ids = MapSet.difference(current_ids, original_ids)
+
       for filter_id <- added_ids do
         Species.add_filter_field_to_gall(gall_id, filter_type, filter_id)
       end
@@ -586,17 +609,6 @@ defmodule GallformersWeb.Admin.GallLive.Form do
       {"Scientific Synonym", "scientific synonym"},
       {"Other", "other"}
     ]
-  end
-
-  defp filter_available_options(options, selected, search_query) do
-    selected_ids = MapSet.new(Enum.map(selected, & &1.id))
-    search_lower = String.downcase(search_query)
-
-    options
-    |> Enum.reject(&MapSet.member?(selected_ids, &1.id))
-    |> Enum.filter(fn opt ->
-      search_query == "" || String.contains?(String.downcase(opt.field), search_lower)
-    end)
   end
 
   @impl true
@@ -794,85 +806,148 @@ defmodule GallformersWeb.Admin.GallLive.Form do
                   <% end %>
                 </select>
               </div>
-              <.filter_field
+              <.multi_select_dropdown
+                id="walls"
                 label="Walls:"
                 type={:walls}
                 options={@filter_options.walls}
                 selected={@filter_values.walls}
                 search_query={@filter_search.walls}
                 dropdown_open={@filter_dropdown_open == :walls}
+                item_label={:field}
+                on_search="filter_search"
+                on_add="add_filter"
+                on_remove="remove_filter"
+                on_open="open_filter_dropdown"
+                on_close="close_filter_dropdown"
               />
-              <.filter_field
+              <.multi_select_dropdown
+                id="cells"
                 label="Cells:"
                 type={:cells}
                 options={@filter_options.cells}
                 selected={@filter_values.cells}
                 search_query={@filter_search.cells}
                 dropdown_open={@filter_dropdown_open == :cells}
+                item_label={:field}
+                on_search="filter_search"
+                on_add="add_filter"
+                on_remove="remove_filter"
+                on_open="open_filter_dropdown"
+                on_close="close_filter_dropdown"
               />
-              <.filter_field
+              <.multi_select_dropdown
+                id="alignments"
                 label="Alignment(s):"
                 type={:alignments}
                 options={@filter_options.alignments}
                 selected={@filter_values.alignments}
                 search_query={@filter_search.alignments}
                 dropdown_open={@filter_dropdown_open == :alignments}
+                item_label={:field}
+                on_search="filter_search"
+                on_add="add_filter"
+                on_remove="remove_filter"
+                on_open="open_filter_dropdown"
+                on_close="close_filter_dropdown"
               />
             </div>
 
             <%!-- Row: Color | Shape | Season | Form --%>
             <div class="grid grid-cols-4 gap-3 mb-3">
-              <.filter_field
+              <.multi_select_dropdown
+                id="colors"
                 label="Color(s):"
                 type={:colors}
                 options={@filter_options.colors}
                 selected={@filter_values.colors}
                 search_query={@filter_search.colors}
                 dropdown_open={@filter_dropdown_open == :colors}
+                item_label={:field}
+                on_search="filter_search"
+                on_add="add_filter"
+                on_remove="remove_filter"
+                on_open="open_filter_dropdown"
+                on_close="close_filter_dropdown"
               />
-              <.filter_field
+              <.multi_select_dropdown
+                id="shapes"
                 label="Shape(s):"
                 type={:shapes}
                 options={@filter_options.shapes}
                 selected={@filter_values.shapes}
                 search_query={@filter_search.shapes}
                 dropdown_open={@filter_dropdown_open == :shapes}
+                item_label={:field}
+                on_search="filter_search"
+                on_add="add_filter"
+                on_remove="remove_filter"
+                on_open="open_filter_dropdown"
+                on_close="close_filter_dropdown"
               />
-              <.filter_field
+              <.multi_select_dropdown
+                id="seasons"
                 label="Season(s):"
                 type={:seasons}
                 options={@filter_options.seasons}
                 selected={@filter_values.seasons}
                 search_query={@filter_search.seasons}
                 dropdown_open={@filter_dropdown_open == :seasons}
+                item_label={:field}
+                on_search="filter_search"
+                on_add="add_filter"
+                on_remove="remove_filter"
+                on_open="open_filter_dropdown"
+                on_close="close_filter_dropdown"
               />
-              <.filter_field
+              <.multi_select_dropdown
+                id="forms"
                 label="Form(s):"
                 type={:forms}
                 options={@filter_options.forms}
                 selected={@filter_values.forms}
                 search_query={@filter_search.forms}
                 dropdown_open={@filter_dropdown_open == :forms}
+                item_label={:field}
+                on_search="filter_search"
+                on_add="add_filter"
+                on_remove="remove_filter"
+                on_open="open_filter_dropdown"
+                on_close="close_filter_dropdown"
               />
             </div>
 
             <%!-- Row: Location | Texture | Abundance --%>
             <div class="grid grid-cols-3 gap-3 mb-3">
-              <.filter_field
+              <.multi_select_dropdown
+                id="locations"
                 label="Location(s):"
                 type={:locations}
                 options={@filter_options.locations}
                 selected={@filter_values.locations}
                 search_query={@filter_search.locations}
                 dropdown_open={@filter_dropdown_open == :locations}
+                item_label={:field}
+                on_search="filter_search"
+                on_add="add_filter"
+                on_remove="remove_filter"
+                on_open="open_filter_dropdown"
+                on_close="close_filter_dropdown"
               />
-              <.filter_field
+              <.multi_select_dropdown
+                id="textures"
                 label="Texture(s):"
                 type={:textures}
                 options={@filter_options.textures}
                 selected={@filter_values.textures}
                 search_query={@filter_search.textures}
                 dropdown_open={@filter_dropdown_open == :textures}
+                item_label={:field}
+                on_search="filter_search"
+                on_add="add_filter"
+                on_remove="remove_filter"
+                on_open="open_filter_dropdown"
+                on_close="close_filter_dropdown"
               />
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Abundance:</label>
@@ -1098,69 +1173,6 @@ defmodule GallformersWeb.Admin.GallLive.Form do
         </div>
       <% end %>
     </Layouts.admin>
-    """
-  end
-
-  # Compact filter field component with dropdown
-  defp filter_field(assigns) do
-    available =
-      filter_available_options(assigns.options, assigns.selected, assigns.search_query)
-
-    assigns = assign(assigns, :available, available)
-
-    ~H"""
-    <div>
-      <label class="block text-sm font-medium text-gray-700 mb-1">{@label}</label>
-      <div class="relative">
-        <div
-          class="flex flex-wrap gap-1 p-1.5 border border-gray-300 rounded bg-white min-h-[34px] cursor-text"
-          phx-click="open_filter_dropdown"
-          phx-value-type={@type}
-        >
-          <span
-            :for={item <- @selected}
-            class="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-blue-100 text-blue-800 rounded text-xs"
-          >
-            {item.field}
-            <button
-              type="button"
-              phx-click="remove_filter"
-              phx-value-type={@type}
-              phx-value-id={item.id}
-              class="text-blue-600 hover:text-blue-800"
-            >
-              <.icon name="ph-x" class="h-3 w-3" />
-            </button>
-          </span>
-          <input
-            type="text"
-            value={@search_query}
-            placeholder={if @selected == [], do: "Select...", else: ""}
-            phx-keyup="filter_search"
-            phx-focus="open_filter_dropdown"
-            phx-value-type={@type}
-            class="flex-1 min-w-[60px] border-0 p-0 text-xs focus:ring-0 focus:outline-none"
-          />
-        </div>
-        <%= if @dropdown_open && @available != [] do %>
-          <div
-            phx-click-away="close_filter_dropdown"
-            class="absolute z-20 mt-1 w-full bg-white shadow-lg rounded border border-gray-200 max-h-32 overflow-auto"
-          >
-            <button
-              :for={opt <- Enum.take(@available, 10)}
-              type="button"
-              phx-click="add_filter"
-              phx-value-type={@type}
-              phx-value-id={opt.id}
-              class="w-full px-2 py-1 text-left text-xs hover:bg-gray-100"
-            >
-              {opt.field}
-            </button>
-          </div>
-        <% end %>
-      </div>
-    </div>
     """
   end
 end

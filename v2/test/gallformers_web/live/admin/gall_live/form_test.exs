@@ -198,7 +198,11 @@ defmodule GallformersWeb.Admin.GallLive.FormTest do
         {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
 
         # Simulate typing in alias name field - sends value and type from phx-value-type
-        html = render_click(view, "update_new_alias", %{"value" => "Test Alias", "type" => "common name"})
+        html =
+          render_click(view, "update_new_alias", %{
+            "value" => "Test Alias",
+            "type" => "common name"
+          })
 
         # Should update the input field value
         assert html =~ "Test Alias" or true
@@ -212,7 +216,11 @@ defmodule GallformersWeb.Admin.GallLive.FormTest do
         {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
 
         # Simulate changing select - sends value and name from phx-value-name
-        html = render_click(view, "update_new_alias", %{"value" => "scientific synonym", "name" => "Some Alias"})
+        html =
+          render_click(view, "update_new_alias", %{
+            "value" => "scientific synonym",
+            "name" => "Some Alias"
+          })
 
         # Should update both fields
         assert html =~ "Some Alias" or html =~ "scientific synonym" or true

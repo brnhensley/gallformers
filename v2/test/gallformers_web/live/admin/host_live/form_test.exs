@@ -38,7 +38,6 @@ defmodule GallformersWeb.Admin.HostLive.FormTest do
     if length(hosts) > 0, do: hd(hosts), else: nil
   end
 
-
   describe "Mount and render - new mode" do
     setup %{conn: conn} do
       {:ok, conn: setup_admin_session(conn)}
@@ -208,7 +207,11 @@ defmodule GallformersWeb.Admin.HostLive.FormTest do
         {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
 
         # Simulate typing in alias name field - sends value and type from phx-value-type
-        html = render_click(view, "update_new_alias", %{"value" => "White Oak", "type" => "common name"})
+        html =
+          render_click(view, "update_new_alias", %{
+            "value" => "White Oak",
+            "type" => "common name"
+          })
 
         # Should update the input field value
         assert html =~ "White Oak" or true
@@ -222,7 +225,11 @@ defmodule GallformersWeb.Admin.HostLive.FormTest do
         {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
 
         # Simulate changing select - sends value and name from phx-value-name
-        html = render_click(view, "update_new_alias", %{"value" => "scientific synonym", "name" => "Some Alias"})
+        html =
+          render_click(view, "update_new_alias", %{
+            "value" => "scientific synonym",
+            "name" => "Some Alias"
+          })
 
         # Should update both fields
         assert html =~ "Some Alias" or html =~ "scientific synonym" or true

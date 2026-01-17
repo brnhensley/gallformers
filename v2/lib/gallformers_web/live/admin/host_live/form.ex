@@ -332,7 +332,12 @@ defmodule GallformersWeb.Admin.HostLive.Form do
         save_alias_changes(host_id, socket.assigns.original_aliases, socket.assigns.aliases)
 
         # Save places - diff original vs current
-        save_place_changes(host_id, socket.assigns.original_places, socket.assigns.places, socket.assigns.all_places)
+        save_place_changes(
+          host_id,
+          socket.assigns.original_places,
+          socket.assigns.places,
+          socket.assigns.all_places
+        )
 
         # Reload data from DB to get actual IDs for new records
         aliases = Hosts.get_aliases_for_host_full(host_id)
@@ -361,6 +366,7 @@ defmodule GallformersWeb.Admin.HostLive.Form do
 
     # Delete removed aliases
     removed_ids = MapSet.difference(original_ids, current_ids)
+
     for alias_id <- removed_ids do
       Hosts.remove_alias_from_host(host_id, alias_id)
     end
@@ -381,7 +387,9 @@ defmodule GallformersWeb.Admin.HostLive.Form do
 
     # Only update if there are changes
     if original_set != current_set do
-      place_ids = Enum.map(current_places, &Map.get(place_code_to_id, &1)) |> Enum.reject(&is_nil/1)
+      place_ids =
+        Enum.map(current_places, &Map.get(place_code_to_id, &1)) |> Enum.reject(&is_nil/1)
+
       Hosts.update_host_places(host_id, place_ids)
     end
   end

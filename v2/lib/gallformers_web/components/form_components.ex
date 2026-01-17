@@ -394,4 +394,252 @@ defmodule GallformersWeb.FormComponents do
     </button>
     """
   end
+
+  @doc """
+  Renders a multi-select dropdown with search/filter capability.
+
+  This component displays selected items as removable chips, with a text input
+  for filtering options and a dropdown that appears on focus/click and dismisses
+  on click-away. Supports both static options (client-side filtering) and async
+  search (server-provided results).
+
+  ## Modes
+
+  **Static Mode** (options provided):
+  - Pass `options` as a list of maps with `:id` and display field
+  - Component filters options based on search query
+  - Good for small/medium option lists
+
+  **Async Mode** (search_results provided):
+  - Pass `search_results` instead of `options`
+  - Parent LiveView handles search and provides filtered results
+  - Good for large datasets or server-side filtering
+
+  ## Events
+
+  The component emits these events with the specified params:
+  - `on_search` - when user types (params include `type` and `value`)
+  - `on_add` - when user selects an option (params include `type` and `id`)
+  - `on_remove` - when user removes a chip (params include `type` and `id`)
+  - `on_open` - when dropdown should open (params include `type`)
+  - `on_close` - when dropdown should close (no params)
+
+  ## Examples
+
+  Static options mode (admin filter):
+
+      <.multi_select_dropdown
+        id="colors"
+        label="Color(s):"
+        type={:colors}
+        options={@filter_options.colors}
+        selected={@filter_values.colors}
+        search_query={@filter_search.colors}
+        dropdown_open={@filter_dropdown_open == :colors}
+        item_label={:field}
+        on_search="filter_search"
+        on_add="add_filter"
+        on_remove="remove_filter"
+        on_open="open_filter_dropdown"
+        on_close="close_filter_dropdown"
+        size="sm"
+      />
+
+  Async search mode (host picker):
+
+      <.multi_select_dropdown
+        id="hosts"
+        label="Hosts:"
+        type={:hosts}
+        search_results={@host_search_results}
+        selected={@hosts}
+        search_query={@host_search_query}
+        dropdown_open={@host_dropdown_open}
+        item_id={:host_species_id}
+        item_label={:host_name}
+        on_search="search_hosts"
+        on_add="add_host"
+        on_remove="remove_host"
+        on_open="open_host_dropdown"
+        on_close="close_host_dropdown"
+        size="md"
+      />
+  """
+  attr :id, :string, required: true, doc: "unique identifier for the component"
+  attr :label, :string, default: nil, doc: "optional label text"
+  attr :type, :any, required: true, doc: "type key for event params (atom or string)"
+
+  # Options (use one or the other)
+  attr :options, :list, default: nil, doc: "static list of all options (for client filtering)"
+
+  attr :search_results, :list,
+    default: nil,
+    doc: "server-provided search results (for async mode)"
+
+  # State
+  attr :selected, :list, required: true, doc: "list of currently selected items"
+  attr :search_query, :string, required: true, doc: "current search/filter query"
+  attr :dropdown_open, :boolean, required: true, doc: "whether dropdown is visible"
+
+  # Display configuration
+  attr :item_id, :atom, default: :id, doc: "field name for item ID"
+  attr :item_label, :atom, required: true, doc: "field name for item display text"
+  attr :placeholder, :string, default: "Select...", doc: "placeholder when empty"
+
+  # Events
+  attr :on_search, :string, required: true, doc: "event for search input changes"
+  attr :on_add, :string, required: true, doc: "event for adding an item"
+  attr :on_remove, :string, required: true, doc: "event for removing an item"
+  attr :on_open, :string, required: true, doc: "event for opening dropdown"
+  attr :on_close, :string, required: true, doc: "event for closing dropdown"
+
+  # Styling
+  attr :size, :string,
+    default: "sm",
+    values: ~w(sm md),
+    doc: "size variant: sm (admin) or md (public)"
+
+  attr :class, :any, default: nil, doc: "additional CSS classes"
+
+  def multi_select_dropdown(assigns) do
+    # Compute available options (filtered, excluding already selected)
+    available =
+      compute_available_options(
+        assigns.options,
+        assigns.search_results,
+        assigns.selected,
+        assigns.search_query,
+        assigns.item_id,
+        assigns.item_label
+      )
+
+    # Size-based classes
+    {container_class, chip_class, input_class, dropdown_class} =
+      case assigns.size do
+        "sm" ->
+          {
+            "flex flex-wrap gap-1 p-1.5 border border-gray-300 rounded bg-white min-h-[34px] cursor-text",
+            "inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-blue-100 text-blue-800 rounded text-xs",
+            "flex-1 min-w-[60px] border-0 p-0 text-xs focus:ring-0 focus:outline-none",
+            "absolute z-20 mt-1 w-full bg-white shadow-lg rounded border border-gray-200 max-h-32 overflow-auto"
+          }
+
+        "md" ->
+          {
+            "flex flex-wrap gap-1 p-2 border border-gray-300 rounded-md bg-white min-h-[42px] cursor-text",
+            "inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-800 rounded text-sm",
+            "flex-1 min-w-[80px] border-0 p-0 text-base focus:ring-0 focus:outline-none",
+            "absolute z-20 mt-1 w-full bg-white shadow-lg rounded-md border border-gray-200 max-h-48 overflow-auto"
+          }
+      end
+
+    assigns =
+      assigns
+      |> assign(:available, available)
+      |> assign(:container_class, container_class)
+      |> assign(:chip_class, chip_class)
+      |> assign(:input_class, input_class)
+      |> assign(:dropdown_class, dropdown_class)
+
+    ~H"""
+    <div class={@class}>
+      <label :if={@label} class="block text-sm font-medium text-gray-700 mb-1">{@label}</label>
+      <div
+        id={@id}
+        phx-hook="Typeahead"
+        data-input-id={"#{@id}-input"}
+        class="relative"
+      >
+        <div
+          class={@container_class}
+          phx-click={@on_open}
+          phx-value-type={@type}
+        >
+          <span
+            :for={item <- @selected}
+            class={@chip_class}
+          >
+            {get_display_label(item, @item_label)}
+            <button
+              type="button"
+              phx-click={@on_remove}
+              phx-value-type={@type}
+              phx-value-id={get_item_id(item, @item_id)}
+              class="text-blue-600 hover:text-blue-800"
+            >
+              <.icon name="ph-x" class="h-3 w-3" />
+            </button>
+          </span>
+          <input
+            id={"#{@id}-input"}
+            data-typeahead-input
+            type="text"
+            value={@search_query}
+            placeholder={if @selected == [], do: @placeholder, else: ""}
+            phx-keyup={@on_search}
+            phx-focus={@on_open}
+            phx-value-type={@type}
+            class={@input_class}
+          />
+        </div>
+        <%= if @dropdown_open && @available != [] do %>
+          <div
+            id={"#{@id}-results"}
+            data-typeahead-results
+            phx-click-away={@on_close}
+            class={@dropdown_class}
+          >
+            <button
+              :for={opt <- Enum.take(@available, 10)}
+              type="button"
+              data-typeahead-option
+              phx-click={@on_add}
+              phx-value-type={@type}
+              phx-value-id={get_item_id(opt, @item_id)}
+              class="w-full px-2 py-1 text-left text-xs hover:bg-gray-100 data-[highlighted]:bg-gray-100"
+            >
+              {get_display_label(opt, @item_label)}
+            </button>
+          </div>
+        <% end %>
+      </div>
+    </div>
+    """
+  end
+
+  # Compute available options based on mode (static vs async)
+  defp compute_available_options(options, search_results, selected, query, item_id, item_label) do
+    cond do
+      # Async mode: use search_results directly (already filtered by server)
+      search_results != nil ->
+        selected_ids = MapSet.new(Enum.map(selected, &get_item_id(&1, item_id)))
+        Enum.reject(search_results, &MapSet.member?(selected_ids, get_item_id(&1, item_id)))
+
+      # Static mode: filter options client-side
+      options != nil ->
+        selected_ids = MapSet.new(Enum.map(selected, &get_item_id(&1, item_id)))
+        search_lower = String.downcase(query)
+
+        options
+        |> Enum.reject(&MapSet.member?(selected_ids, get_item_id(&1, item_id)))
+        |> Enum.filter(fn opt ->
+          query == "" ||
+            String.contains?(String.downcase(get_display_label(opt, item_label)), search_lower)
+        end)
+
+      # No options provided
+      true ->
+        []
+    end
+  end
+
+  # Get item ID from a map, supporting different field names
+  defp get_item_id(item, field) when is_map(item) do
+    Map.get(item, field)
+  end
+
+  # Get display label from a map
+  defp get_display_label(item, field) when is_map(item) and is_atom(field) do
+    Map.get(item, field, "")
+  end
 end
