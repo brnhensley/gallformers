@@ -171,7 +171,14 @@ defmodule GallformersWeb.Admin.GallLive.Form do
   end
 
   @impl true
-  def handle_event("update_new_alias", %{"name" => name, "type" => type}, socket) do
+  def handle_event("update_new_alias", %{"value" => name, "type" => type}, socket) do
+    # Name field changed (from phx-keyup on text input)
+    {:noreply, assign(socket, new_alias_name: name, new_alias_type: type)}
+  end
+
+  @impl true
+  def handle_event("update_new_alias", %{"value" => type, "name" => name}, socket) do
+    # Type field changed (from phx-change on select)
     {:noreply, assign(socket, new_alias_name: name, new_alias_type: type)}
   end
 
@@ -211,7 +218,7 @@ defmodule GallformersWeb.Admin.GallLive.Form do
   end
 
   @impl true
-  def handle_event("search_hosts", %{"query" => query}, socket) do
+  def handle_event("search_hosts", %{"value" => query}, socket) do
     results =
       if String.length(query) >= 2 do
         Species.search_species_by_name(query, "plant", 10)
@@ -259,7 +266,7 @@ defmodule GallformersWeb.Admin.GallLive.Form do
       Species.update_gall_properties(socket.assigns.gall_id, %{detachable: detachable})
     end
 
-    {:noreply, assign(socket, :detachable, detachable)}
+    {:noreply, socket |> assign(:detachable, detachable) |> mark_dirty()}
   end
 
   @impl true
@@ -270,11 +277,11 @@ defmodule GallformersWeb.Admin.GallLive.Form do
       Species.update_gall_properties(socket.assigns.gall_id, %{undescribed: new_value})
     end
 
-    {:noreply, assign(socket, :undescribed, new_value)}
+    {:noreply, socket |> assign(:undescribed, new_value) |> mark_dirty()}
   end
 
   @impl true
-  def handle_event("filter_search", %{"type" => type, "query" => query}, socket) do
+  def handle_event("filter_search", %{"type" => type, "value" => query}, socket) do
     filter_search = Map.put(socket.assigns.filter_search, String.to_atom(type), query)
     {:noreply, assign(socket, :filter_search, filter_search)}
   end

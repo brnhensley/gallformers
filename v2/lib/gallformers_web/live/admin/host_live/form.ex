@@ -123,7 +123,14 @@ defmodule GallformersWeb.Admin.HostLive.Form do
   # Alias events
 
   @impl true
-  def handle_event("update_new_alias", %{"name" => name, "type" => type}, socket) do
+  def handle_event("update_new_alias", %{"value" => name, "type" => type}, socket) do
+    # Name field changed (from phx-keyup on text input)
+    {:noreply, assign(socket, new_alias_name: name, new_alias_type: type)}
+  end
+
+  @impl true
+  def handle_event("update_new_alias", %{"value" => type, "name" => name}, socket) do
+    # Type field changed (from phx-change on select)
     {:noreply, assign(socket, new_alias_name: name, new_alias_type: type)}
   end
 
