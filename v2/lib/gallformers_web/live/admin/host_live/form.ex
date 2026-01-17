@@ -47,6 +47,10 @@ defmodule GallformersWeb.Admin.HostLive.Form do
     |> assign(:host, host)
     |> assign(:form, to_form(changeset))
     |> assign(:mode, :new)
+    # Original data from DB (for comparison on save)
+    |> assign(:original_aliases, [])
+    |> assign(:original_places, [])
+    # Pending state
     |> assign(:aliases, [])
     |> assign(:places, [])
     |> assign(:taxonomy, nil)
@@ -83,6 +87,10 @@ defmodule GallformersWeb.Admin.HostLive.Form do
           |> assign(:host, host)
           |> assign(:form, to_form(changeset))
           |> assign(:mode, :edit)
+          # Original data from DB (for comparison on save)
+          |> assign(:original_aliases, aliases)
+          |> assign(:original_places, places)
+          # Pending state
           |> assign(:aliases, aliases)
           |> assign(:places, places)
           |> assign(:taxonomy, taxonomy)
@@ -142,44 +150,58 @@ defmodule GallformersWeb.Admin.HostLive.Form do
     if name == "" do
       {:noreply, put_flash(socket, :error, "Alias name cannot be empty")}
     else
-      case Hosts.create_alias_for_host(socket.assigns.host.id, %{name: name, type: type}) do
-        {:ok, _alias} ->
-          aliases = Hosts.get_aliases_for_host_full(socket.assigns.host.id)
+      # Check for duplicate
+      if Enum.any?(socket.assigns.aliases, &(&1.name == name)) do
+        {:noreply, put_flash(socket, :error, "Alias already exists")}
+      else
+        # Add to pending aliases (use negative temp ID for new aliases)
+        temp_id = -System.unique_integer([:positive])
+        new_alias = %{id: temp_id, name: name, type: type, pending: true}
+        aliases = socket.assigns.aliases ++ [new_alias]
 
-          {:noreply,
-           socket
-           |> assign(:aliases, aliases)
-           |> assign(:new_alias_name, "")
-           |> put_flash(:info, "Alias added")}
-
-        {:error, _} ->
-          {:noreply, put_flash(socket, :error, "Failed to add alias")}
+        {:noreply,
+         socket
+         |> assign(:aliases, aliases)
+         |> assign(:new_alias_name, "")
+         |> mark_dirty()}
       end
     end
   end
 
   @impl true
   def handle_event("remove_alias", %{"alias-id" => alias_id}, socket) do
-    Hosts.remove_alias_from_host(socket.assigns.host.id, String.to_integer(alias_id))
-    aliases = Hosts.get_aliases_for_host_full(socket.assigns.host.id)
+    alias_id = String.to_integer(alias_id)
+    aliases = Enum.reject(socket.assigns.aliases, &(&1.id == alias_id))
 
     {:noreply,
      socket
      |> assign(:aliases, aliases)
-     |> put_flash(:info, "Alias removed")}
+     |> mark_dirty()}
   end
 
   # Range/Place events
 
   @impl true
   def handle_event("toggle_region", %{"code" => code}, socket) do
-    # Find the place by code
-    place = Enum.find(socket.assigns.all_places, &(&1.code == code))
+    if socket.assigns.mode == :edit do
+      # Find the place by code
+      place = Enum.find(socket.assigns.all_places, &(&1.code == code))
 
-    if place && socket.assigns.mode == :edit do
-      Hosts.toggle_place_for_host(socket.assigns.host.id, place.id)
-      places = Hosts.get_places_for_host(socket.assigns.host.id)
-      {:noreply, assign(socket, :places, places)}
+      if place do
+        # Toggle in local state - don't save to DB yet
+        places = socket.assigns.places
+
+        new_places =
+          if code in places do
+            Enum.reject(places, &(&1 == code))
+          else
+            places ++ [code]
+          end
+
+        {:noreply, socket |> assign(:places, new_places) |> mark_dirty()}
+      else
+        {:noreply, socket}
+      end
     else
       {:noreply, socket}
     end
@@ -188,10 +210,9 @@ defmodule GallformersWeb.Admin.HostLive.Form do
   @impl true
   def handle_event("select_all_places", _params, socket) do
     if socket.assigns.mode == :edit do
-      place_ids = Enum.map(socket.assigns.all_places, & &1.id)
-      Hosts.update_host_places(socket.assigns.host.id, place_ids)
-      places = Hosts.get_places_for_host(socket.assigns.host.id)
-      {:noreply, assign(socket, :places, places)}
+      # Select all in local state - don't save to DB yet
+      all_codes = Enum.map(socket.assigns.all_places, & &1.code)
+      {:noreply, socket |> assign(:places, all_codes) |> mark_dirty()}
     else
       {:noreply, socket}
     end
@@ -200,8 +221,8 @@ defmodule GallformersWeb.Admin.HostLive.Form do
   @impl true
   def handle_event("deselect_all_places", _params, socket) do
     if socket.assigns.mode == :edit do
-      Hosts.update_host_places(socket.assigns.host.id, [])
-      {:noreply, assign(socket, :places, [])}
+      # Deselect all in local state - don't save to DB yet
+      {:noreply, socket |> assign(:places, []) |> mark_dirty()}
     else
       {:noreply, socket}
     end
@@ -290,6 +311,7 @@ defmodule GallformersWeb.Admin.HostLive.Form do
   defp save_host(socket, :new, params) do
     case Hosts.create_host(params) do
       {:ok, host} ->
+        # Redirect to edit mode for the new host so user can add range/aliases
         {:noreply,
          socket
          |> put_flash(:info, "Host created. Now add range and aliases.")
@@ -302,14 +324,65 @@ defmodule GallformersWeb.Admin.HostLive.Form do
 
   defp save_host(socket, :edit, params) do
     case Hosts.update_host(socket.assigns.host, params) do
-      {:ok, _host} ->
+      {:ok, updated_host} ->
+        # Now persist all pending changes
+        host_id = socket.assigns.host.id
+
+        # Save aliases - diff original vs current
+        save_alias_changes(host_id, socket.assigns.original_aliases, socket.assigns.aliases)
+
+        # Save places - diff original vs current
+        save_place_changes(host_id, socket.assigns.original_places, socket.assigns.places, socket.assigns.all_places)
+
+        # Reload data from DB to get actual IDs for new records
+        aliases = Hosts.get_aliases_for_host_full(host_id)
+        places = Hosts.get_places_for_host(host_id)
+
+        # Stay on page, update state to reflect saved data
         {:noreply,
          socket
-         |> put_flash(:info, "Host updated successfully")
-         |> push_navigate(to: ~p"/admin/hosts")}
+         |> assign(:host, updated_host)
+         |> assign(:original_aliases, aliases)
+         |> assign(:original_places, places)
+         |> assign(:aliases, aliases)
+         |> assign(:places, places)
+         |> reset_dirty()
+         |> put_flash(:info, "Host saved successfully")}
 
       {:error, %Ecto.Changeset{} = changeset} ->
         {:noreply, assign(socket, :form, to_form(changeset))}
+    end
+  end
+
+  # Helper to save alias changes
+  defp save_alias_changes(host_id, original_aliases, current_aliases) do
+    original_ids = MapSet.new(Enum.map(original_aliases, & &1.id))
+    current_ids = MapSet.new(Enum.map(current_aliases, & &1.id) |> Enum.filter(&(&1 > 0)))
+
+    # Delete removed aliases
+    removed_ids = MapSet.difference(original_ids, current_ids)
+    for alias_id <- removed_ids do
+      Hosts.remove_alias_from_host(host_id, alias_id)
+    end
+
+    # Add new aliases (those with negative/temp IDs or marked as pending)
+    for alias <- current_aliases, Map.get(alias, :pending, false) or alias.id < 0 do
+      Hosts.create_alias_for_host(host_id, %{name: alias.name, type: alias.type})
+    end
+  end
+
+  # Helper to save place changes
+  defp save_place_changes(host_id, original_places, current_places, all_places) do
+    # Convert to place_ids
+    place_code_to_id = Map.new(all_places, &{&1.code, &1.id})
+
+    original_set = MapSet.new(original_places)
+    current_set = MapSet.new(current_places)
+
+    # Only update if there are changes
+    if original_set != current_set do
+      place_ids = Enum.map(current_places, &Map.get(place_code_to_id, &1)) |> Enum.reject(&is_nil/1)
+      Hosts.update_host_places(host_id, place_ids)
     end
   end
 

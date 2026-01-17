@@ -52,6 +52,13 @@ defmodule GallformersWeb.Admin.GallLive.Form do
     |> assign(:gall_data, nil)
     |> assign(:form, to_form(changeset))
     |> assign(:mode, :new)
+    # Original data from DB (for comparison)
+    |> assign(:original_aliases, [])
+    |> assign(:original_hosts, [])
+    |> assign(:original_filter_values, empty_filter_values())
+    |> assign(:original_detachable, 0)
+    |> assign(:original_undescribed, false)
+    # Pending state (what user sees and edits)
     |> assign(:aliases, [])
     |> assign(:hosts, [])
     |> assign(:taxonomy, nil)
@@ -64,6 +71,7 @@ defmodule GallformersWeb.Admin.GallLive.Form do
     |> assign(:host_search_query, "")
     |> assign(:host_search_results, [])
     |> assign(:filter_search, init_filter_search_state())
+    |> assign(:filter_dropdown_open, nil)
     # Rename modal state
     |> assign(:show_rename_modal, false)
     |> assign(:rename_value, "")
@@ -91,6 +99,9 @@ defmodule GallformersWeb.Admin.GallLive.Form do
           aliases = Species.get_aliases_for_species(species_id)
           hosts = Gallformers.Hosts.get_hosts_for_gall(species_id)
           taxonomy = Gallformers.Taxonomy.get_taxonomy_for_species(species_id)
+          filter_values = gall_data.filter_values
+          detachable = gall_data.detachable || 0
+          undescribed = gall_data.undescribed || false
 
           socket
           |> assign(:page_title, "Edit Gall - #{species.name}")
@@ -98,18 +109,26 @@ defmodule GallformersWeb.Admin.GallLive.Form do
           |> assign(:gall_data, gall_data)
           |> assign(:form, to_form(changeset))
           |> assign(:mode, :edit)
+          # Original data from DB (for comparison on save)
+          |> assign(:original_aliases, aliases)
+          |> assign(:original_hosts, hosts)
+          |> assign(:original_filter_values, filter_values)
+          |> assign(:original_detachable, detachable)
+          |> assign(:original_undescribed, undescribed)
+          # Pending state (what user sees and edits)
           |> assign(:aliases, aliases)
           |> assign(:hosts, hosts)
           |> assign(:taxonomy, taxonomy)
-          |> assign(:filter_values, gall_data.filter_values)
+          |> assign(:filter_values, filter_values)
           |> assign(:gall_id, gall_data.gall_id)
-          |> assign(:detachable, gall_data.detachable || 0)
-          |> assign(:undescribed, gall_data.undescribed || false)
+          |> assign(:detachable, detachable)
+          |> assign(:undescribed, undescribed)
           |> assign(:new_alias_name, "")
           |> assign(:new_alias_type, "common name")
           |> assign(:host_search_query, "")
           |> assign(:host_search_results, [])
           |> assign(:filter_search, init_filter_search_state())
+          |> assign(:filter_dropdown_open, nil)
           # Rename modal state
           |> assign(:show_rename_modal, false)
           |> assign(:rename_value, species.name)
@@ -190,31 +209,33 @@ defmodule GallformersWeb.Admin.GallLive.Form do
     if name == "" do
       {:noreply, put_flash(socket, :error, "Alias name cannot be empty")}
     else
-      case Species.create_alias_for_species(socket.assigns.gall.id, %{name: name, type: type}) do
-        {:ok, _alias} ->
-          aliases = Species.get_aliases_for_species(socket.assigns.gall.id)
+      # Check for duplicate
+      if Enum.any?(socket.assigns.aliases, &(&1.name == name)) do
+        {:noreply, put_flash(socket, :error, "Alias already exists")}
+      else
+        # Add to pending aliases (use negative temp ID for new aliases)
+        temp_id = -System.unique_integer([:positive])
+        new_alias = %{id: temp_id, name: name, type: type, pending: true}
+        aliases = socket.assigns.aliases ++ [new_alias]
 
-          {:noreply,
-           socket
-           |> assign(:aliases, aliases)
-           |> assign(:new_alias_name, "")
-           |> put_flash(:info, "Alias added")}
-
-        {:error, _} ->
-          {:noreply, put_flash(socket, :error, "Failed to add alias")}
+        {:noreply,
+         socket
+         |> assign(:aliases, aliases)
+         |> assign(:new_alias_name, "")
+         |> mark_dirty()}
       end
     end
   end
 
   @impl true
   def handle_event("remove_alias", %{"alias-id" => alias_id}, socket) do
-    Species.remove_alias_from_species(socket.assigns.gall.id, String.to_integer(alias_id))
-    aliases = Species.get_aliases_for_species(socket.assigns.gall.id)
+    alias_id = String.to_integer(alias_id)
+    aliases = Enum.reject(socket.assigns.aliases, &(&1.id == alias_id))
 
     {:noreply,
      socket
      |> assign(:aliases, aliases)
-     |> put_flash(:info, "Alias removed")}
+     |> mark_dirty()}
   end
 
   @impl true
@@ -231,83 +252,113 @@ defmodule GallformersWeb.Admin.GallLive.Form do
 
   @impl true
   def handle_event("add_host", %{"id" => host_id}, socket) do
-    case Species.add_host_to_species(socket.assigns.gall.id, String.to_integer(host_id)) do
-      {:ok, _} ->
-        hosts = Gallformers.Hosts.get_hosts_for_gall(socket.assigns.gall.id)
+    host_id = String.to_integer(host_id)
+
+    # Check if already added
+    if Enum.any?(socket.assigns.hosts, &(&1.host_species_id == host_id)) do
+      {:noreply, put_flash(socket, :error, "Host already associated")}
+    else
+      # Find the host in search results to get its name
+      host_result = Enum.find(socket.assigns.host_search_results, &(&1.id == host_id))
+
+      if host_result do
+        # Add to pending hosts with temp relation ID
+        temp_relation_id = -System.unique_integer([:positive])
+
+        new_host = %{
+          host_species_id: host_id,
+          host_name: host_result.name,
+          host_relation_id: temp_relation_id,
+          pending: true
+        }
+
+        hosts = socket.assigns.hosts ++ [new_host]
 
         {:noreply,
          socket
          |> assign(:hosts, hosts)
          |> assign(:host_search_query, "")
          |> assign(:host_search_results, [])
-         |> put_flash(:info, "Host added")}
-
-      {:error, _} ->
-        {:noreply, put_flash(socket, :error, "Failed to add host (may already be associated)")}
+         |> mark_dirty()}
+      else
+        {:noreply, put_flash(socket, :error, "Host not found")}
+      end
     end
   end
 
   @impl true
   def handle_event("remove_host", %{"relation-id" => relation_id}, socket) do
-    Species.remove_host_from_species(String.to_integer(relation_id))
-    hosts = Gallformers.Hosts.get_hosts_for_gall(socket.assigns.gall.id)
+    relation_id = String.to_integer(relation_id)
+    hosts = Enum.reject(socket.assigns.hosts, &(&1.host_relation_id == relation_id))
 
     {:noreply,
      socket
      |> assign(:hosts, hosts)
-     |> put_flash(:info, "Host removed")}
+     |> mark_dirty()}
   end
 
   @impl true
   def handle_event("update_detachable", %{"value" => value}, socket) do
     detachable = String.to_integer(value)
-
-    if socket.assigns.gall_id do
-      Species.update_gall_properties(socket.assigns.gall_id, %{detachable: detachable})
-    end
-
+    # Just update local state, don't save to DB yet
     {:noreply, socket |> assign(:detachable, detachable) |> mark_dirty()}
   end
 
   @impl true
   def handle_event("toggle_undescribed", _params, socket) do
     new_value = !socket.assigns.undescribed
-
-    if socket.assigns.gall_id do
-      Species.update_gall_properties(socket.assigns.gall_id, %{undescribed: new_value})
-    end
-
+    # Just update local state, don't save to DB yet
     {:noreply, socket |> assign(:undescribed, new_value) |> mark_dirty()}
   end
 
   @impl true
   def handle_event("filter_search", %{"type" => type, "value" => query}, socket) do
-    filter_search = Map.put(socket.assigns.filter_search, String.to_atom(type), query)
-    {:noreply, assign(socket, :filter_search, filter_search)}
+    filter_type = String.to_atom(type)
+    filter_search = Map.put(socket.assigns.filter_search, filter_type, query)
+    # Open dropdown when typing
+    {:noreply, socket |> assign(:filter_search, filter_search) |> assign(:filter_dropdown_open, filter_type)}
+  end
+
+  @impl true
+  def handle_event("open_filter_dropdown", %{"type" => type}, socket) do
+    filter_type = String.to_atom(type)
+    {:noreply, assign(socket, :filter_dropdown_open, filter_type)}
+  end
+
+  @impl true
+  def handle_event("close_filter_dropdown", _params, socket) do
+    {:noreply, assign(socket, :filter_dropdown_open, nil)}
   end
 
   @impl true
   def handle_event("add_filter", %{"type" => type, "id" => id}, socket) do
     filter_type = String.to_atom(type)
     filter_id = String.to_integer(id)
-    gall_id = socket.assigns.gall_id
 
-    if gall_id do
-      case Species.add_filter_field_to_gall(gall_id, filter_type, filter_id) do
-        {:ok, _} ->
-          filter_values = Species.get_gall_filter_values(gall_id)
-          filter_search = Map.put(socket.assigns.filter_search, filter_type, "")
+    # Find the option from filter_options
+    options = Map.get(socket.assigns.filter_options, filter_type, [])
+    option = Enum.find(options, &(&1.id == filter_id))
 
-          {:noreply,
-           socket
-           |> assign(:filter_values, filter_values)
-           |> assign(:filter_search, filter_search)}
+    if option do
+      current_values = Map.get(socket.assigns.filter_values, filter_type, [])
 
-        {:error, _} ->
-          {:noreply, put_flash(socket, :error, "Failed to add filter")}
+      # Check for duplicate
+      if Enum.any?(current_values, &(&1.id == filter_id)) do
+        {:noreply, put_flash(socket, :error, "Already selected")}
+      else
+        new_values = current_values ++ [option]
+        filter_values = Map.put(socket.assigns.filter_values, filter_type, new_values)
+        filter_search = Map.put(socket.assigns.filter_search, filter_type, "")
+
+        {:noreply,
+         socket
+         |> assign(:filter_values, filter_values)
+         |> assign(:filter_search, filter_search)
+         |> assign(:filter_dropdown_open, nil)
+         |> mark_dirty()}
       end
     else
-      {:noreply, put_flash(socket, :error, "Save the gall first before adding filters")}
+      {:noreply, put_flash(socket, :error, "Option not found")}
     end
   end
 
@@ -315,15 +366,12 @@ defmodule GallformersWeb.Admin.GallLive.Form do
   def handle_event("remove_filter", %{"type" => type, "id" => id}, socket) do
     filter_type = String.to_atom(type)
     filter_id = String.to_integer(id)
-    gall_id = socket.assigns.gall_id
 
-    if gall_id do
-      Species.remove_filter_field_from_gall(gall_id, filter_type, filter_id)
-      filter_values = Species.get_gall_filter_values(gall_id)
-      {:noreply, assign(socket, :filter_values, filter_values)}
-    else
-      {:noreply, socket}
-    end
+    current_values = Map.get(socket.assigns.filter_values, filter_type, [])
+    new_values = Enum.reject(current_values, &(&1.id == filter_id))
+    filter_values = Map.put(socket.assigns.filter_values, filter_type, new_values)
+
+    {:noreply, socket |> assign(:filter_values, filter_values) |> mark_dirty()}
   end
 
   # Rename modal events
@@ -409,6 +457,7 @@ defmodule GallformersWeb.Admin.GallLive.Form do
   defp save_gall(socket, :new, params) do
     case Species.create_species(params) do
       {:ok, gall} ->
+        # Redirect to edit mode for the new gall so user can add hosts/filters
         {:noreply,
          socket
          |> put_flash(:info, "Gall created. Now add hosts and filter properties.")
@@ -421,14 +470,113 @@ defmodule GallformersWeb.Admin.GallLive.Form do
 
   defp save_gall(socket, :edit, params) do
     case Species.update_species(socket.assigns.gall, params) do
-      {:ok, _gall} ->
+      {:ok, updated_gall} ->
+        # Now persist all pending changes
+        gall_id = socket.assigns.gall_id
+        species_id = socket.assigns.gall.id
+
+        # Save aliases - diff original vs current
+        save_alias_changes(species_id, socket.assigns.original_aliases, socket.assigns.aliases)
+
+        # Save hosts - diff original vs current
+        save_host_changes(species_id, socket.assigns.original_hosts, socket.assigns.hosts)
+
+        # Save filter values - diff original vs current
+        if gall_id do
+          save_filter_changes(gall_id, socket.assigns.original_filter_values, socket.assigns.filter_values)
+
+          # Save gall properties (detachable, undescribed)
+          Species.update_gall_properties(gall_id, %{
+            detachable: socket.assigns.detachable,
+            undescribed: socket.assigns.undescribed
+          })
+        end
+
+        # Reload data from DB to get actual IDs for new records
+        aliases = Species.get_aliases_for_species(species_id)
+        hosts = Gallformers.Hosts.get_hosts_for_gall(species_id)
+        filter_values = if gall_id, do: Species.get_gall_filter_values(gall_id), else: empty_filter_values()
+
+        # Stay on page, update state to reflect saved data
         {:noreply,
          socket
-         |> put_flash(:info, "Gall updated successfully")
-         |> push_navigate(to: ~p"/admin/galls")}
+         |> assign(:gall, updated_gall)
+         |> assign(:original_aliases, aliases)
+         |> assign(:original_hosts, hosts)
+         |> assign(:original_filter_values, filter_values)
+         |> assign(:original_detachable, socket.assigns.detachable)
+         |> assign(:original_undescribed, socket.assigns.undescribed)
+         |> assign(:aliases, aliases)
+         |> assign(:hosts, hosts)
+         |> assign(:filter_values, filter_values)
+         |> reset_dirty()
+         |> put_flash(:info, "Gall saved successfully")}
 
       {:error, %Ecto.Changeset{} = changeset} ->
         {:noreply, assign(socket, :form, to_form(changeset))}
+    end
+  end
+
+  # Helper to save alias changes
+  defp save_alias_changes(species_id, original_aliases, current_aliases) do
+    original_ids = MapSet.new(Enum.map(original_aliases, & &1.id))
+    current_ids = MapSet.new(Enum.map(current_aliases, & &1.id) |> Enum.filter(&(&1 > 0)))
+
+    # Delete removed aliases
+    removed_ids = MapSet.difference(original_ids, current_ids)
+    for alias_id <- removed_ids do
+      Species.remove_alias_from_species(species_id, alias_id)
+    end
+
+    # Add new aliases (those with negative/temp IDs or marked as pending)
+    for alias <- current_aliases, Map.get(alias, :pending, false) or alias.id < 0 do
+      Species.create_alias_for_species(species_id, %{name: alias.name, type: alias.type})
+    end
+  end
+
+  # Helper to save host changes
+  defp save_host_changes(species_id, original_hosts, current_hosts) do
+    original_relation_ids = MapSet.new(Enum.map(original_hosts, & &1.host_relation_id))
+    current_relation_ids = MapSet.new(
+      current_hosts
+      |> Enum.map(& &1.host_relation_id)
+      |> Enum.filter(&(&1 > 0))
+    )
+
+    # Delete removed hosts
+    removed_ids = MapSet.difference(original_relation_ids, current_relation_ids)
+    for relation_id <- removed_ids do
+      Species.remove_host_from_species(relation_id)
+    end
+
+    # Add new hosts (those with negative/temp relation IDs or marked as pending)
+    for host <- current_hosts, Map.get(host, :pending, false) or host.host_relation_id < 0 do
+      Species.add_host_to_species(species_id, host.host_species_id)
+    end
+  end
+
+  # Helper to save filter changes
+  defp save_filter_changes(gall_id, original_values, current_values) do
+    filter_types = [:colors, :shapes, :textures, :alignments, :walls, :cells, :locations, :forms, :seasons]
+
+    for filter_type <- filter_types do
+      original = Map.get(original_values, filter_type, [])
+      current = Map.get(current_values, filter_type, [])
+
+      original_ids = MapSet.new(Enum.map(original, & &1.id))
+      current_ids = MapSet.new(Enum.map(current, & &1.id))
+
+      # Remove deleted filters
+      removed_ids = MapSet.difference(original_ids, current_ids)
+      for filter_id <- removed_ids do
+        Species.remove_filter_field_from_gall(gall_id, filter_type, filter_id)
+      end
+
+      # Add new filters
+      added_ids = MapSet.difference(current_ids, original_ids)
+      for filter_id <- added_ids do
+        Species.add_filter_field_to_gall(gall_id, filter_type, filter_id)
+      end
     end
   end
 
@@ -652,6 +800,7 @@ defmodule GallformersWeb.Admin.GallLive.Form do
                 options={@filter_options.walls}
                 selected={@filter_values.walls}
                 search_query={@filter_search.walls}
+                dropdown_open={@filter_dropdown_open == :walls}
               />
               <.filter_field
                 label="Cells:"
@@ -659,6 +808,7 @@ defmodule GallformersWeb.Admin.GallLive.Form do
                 options={@filter_options.cells}
                 selected={@filter_values.cells}
                 search_query={@filter_search.cells}
+                dropdown_open={@filter_dropdown_open == :cells}
               />
               <.filter_field
                 label="Alignment(s):"
@@ -666,6 +816,7 @@ defmodule GallformersWeb.Admin.GallLive.Form do
                 options={@filter_options.alignments}
                 selected={@filter_values.alignments}
                 search_query={@filter_search.alignments}
+                dropdown_open={@filter_dropdown_open == :alignments}
               />
             </div>
 
@@ -677,6 +828,7 @@ defmodule GallformersWeb.Admin.GallLive.Form do
                 options={@filter_options.colors}
                 selected={@filter_values.colors}
                 search_query={@filter_search.colors}
+                dropdown_open={@filter_dropdown_open == :colors}
               />
               <.filter_field
                 label="Shape(s):"
@@ -684,6 +836,7 @@ defmodule GallformersWeb.Admin.GallLive.Form do
                 options={@filter_options.shapes}
                 selected={@filter_values.shapes}
                 search_query={@filter_search.shapes}
+                dropdown_open={@filter_dropdown_open == :shapes}
               />
               <.filter_field
                 label="Season(s):"
@@ -691,6 +844,7 @@ defmodule GallformersWeb.Admin.GallLive.Form do
                 options={@filter_options.seasons}
                 selected={@filter_values.seasons}
                 search_query={@filter_search.seasons}
+                dropdown_open={@filter_dropdown_open == :seasons}
               />
               <.filter_field
                 label="Form(s):"
@@ -698,6 +852,7 @@ defmodule GallformersWeb.Admin.GallLive.Form do
                 options={@filter_options.forms}
                 selected={@filter_values.forms}
                 search_query={@filter_search.forms}
+                dropdown_open={@filter_dropdown_open == :forms}
               />
             </div>
 
@@ -709,6 +864,7 @@ defmodule GallformersWeb.Admin.GallLive.Form do
                 options={@filter_options.locations}
                 selected={@filter_values.locations}
                 search_query={@filter_search.locations}
+                dropdown_open={@filter_dropdown_open == :locations}
               />
               <.filter_field
                 label="Texture(s):"
@@ -716,6 +872,7 @@ defmodule GallformersWeb.Admin.GallLive.Form do
                 options={@filter_options.textures}
                 selected={@filter_values.textures}
                 search_query={@filter_search.textures}
+                dropdown_open={@filter_dropdown_open == :textures}
               />
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Abundance:</label>
@@ -944,7 +1101,7 @@ defmodule GallformersWeb.Admin.GallLive.Form do
     """
   end
 
-  # Compact filter field component matching V1 typeahead style
+  # Compact filter field component with dropdown
   defp filter_field(assigns) do
     available =
       filter_available_options(assigns.options, assigns.selected, assigns.search_query)
@@ -955,7 +1112,11 @@ defmodule GallformersWeb.Admin.GallLive.Form do
     <div>
       <label class="block text-sm font-medium text-gray-700 mb-1">{@label}</label>
       <div class="relative">
-        <div class="flex flex-wrap gap-1 p-1.5 border border-gray-300 rounded bg-white min-h-[34px]">
+        <div
+          class="flex flex-wrap gap-1 p-1.5 border border-gray-300 rounded bg-white min-h-[34px] cursor-text"
+          phx-click="open_filter_dropdown"
+          phx-value-type={@type}
+        >
           <span
             :for={item <- @selected}
             class="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-blue-100 text-blue-800 rounded text-xs"
@@ -976,14 +1137,15 @@ defmodule GallformersWeb.Admin.GallLive.Form do
             value={@search_query}
             placeholder={if @selected == [], do: "Select...", else: ""}
             phx-keyup="filter_search"
+            phx-focus="open_filter_dropdown"
             phx-value-type={@type}
             class="flex-1 min-w-[60px] border-0 p-0 text-xs focus:ring-0 focus:outline-none"
           />
         </div>
-        <%= if @search_query != "" && @available != [] do %>
+        <%= if @dropdown_open && @available != [] do %>
           <div class="absolute z-20 mt-1 w-full bg-white shadow-lg rounded border border-gray-200 max-h-32 overflow-auto">
             <button
-              :for={opt <- Enum.take(@available, 8)}
+              :for={opt <- Enum.take(@available, 10)}
               type="button"
               phx-click="add_filter"
               phx-value-type={@type}
