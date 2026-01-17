@@ -75,7 +75,7 @@ jobs:
               run: |
                   echo "Installing dependencies..."
                   corepack enable
-                  yarn install --immutable
+                  yarn install
 
             - name: Type check
               run: yarn tsc --project tsconfig.ci.json --noEmit
