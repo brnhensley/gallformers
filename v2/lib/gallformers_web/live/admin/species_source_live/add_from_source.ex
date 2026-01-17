@@ -430,45 +430,25 @@ defmodule GallformersWeb.Admin.SpeciesSourceLive.AddFromSource do
 
               <%!-- Add New Species --%>
               <div class="mb-6">
-                <label class="block text-sm font-medium text-gray-700 mb-2">
-                  Add species:
-                </label>
-                <div
+                <.typeahead
                   id="species-picker"
-                  phx-hook="Typeahead"
-                  data-input-id="species-search-input"
-                  class="relative"
+                  label="Add species:"
+                  placeholder="Search species by name..."
+                  query={@species_search_query}
+                  results={@species_search_results}
+                  selected={@selected_species}
+                  search_event="search_species"
+                  select_event="select_species"
+                  clear_event="clear_species"
+                  display_fn={& &1.name}
                 >
-                  <input
-                    id="species-search-input"
-                    data-typeahead-input
-                    type="text"
-                    value={@species_search_query}
-                    placeholder="Search species by name..."
-                    phx-keyup="search_species"
-                    phx-debounce="300"
-                    class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-gf-maroon focus:border-gf-maroon"
-                  />
-                  <%= if @species_search_results != [] do %>
-                    <div
-                      id="species-search-results"
-                      data-typeahead-results
-                      class="absolute z-20 mt-1 w-full bg-white shadow-lg rounded border border-gray-200 max-h-48 overflow-auto"
-                    >
-                      <button
-                        :for={species <- @species_search_results}
-                        type="button"
-                        data-typeahead-option
-                        phx-click="select_species"
-                        phx-value-id={species.id}
-                        class="w-full px-3 py-2 text-left hover:bg-gray-100 flex justify-between items-center"
-                      >
-                        <span class="italic">{species.name}</span>
-                        <span class="text-xs text-gray-400">{species.taxoncode}</span>
-                      </button>
+                  <:result :let={species}>
+                    <div class="flex justify-between items-center w-full">
+                      <span class="italic">{species.name}</span>
+                      <span class="text-xs text-gray-400">{species.taxoncode}</span>
                     </div>
-                  <% end %>
-                </div>
+                  </:result>
+                </.typeahead>
               </div>
 
               <%!-- Mapping Form --%>

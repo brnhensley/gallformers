@@ -79,61 +79,25 @@ defmodule GallformersWeb.AdminImagesLive do
         <%!-- Species Search --%>
         <div class="bg-white rounded-lg border border-gray-200 p-6">
           <h2 class="text-lg font-medium text-gray-900 mb-4">Select Species</h2>
-          <div
+          <.typeahead
             id="species-picker"
-            phx-hook="Typeahead"
-            data-input-id="images-species-search"
-            class="relative"
+            label=""
+            placeholder="Search for a species..."
+            query={@search_query}
+            results={@search_results}
+            selected={@selected_species}
+            search_event="search_species"
+            select_event="select_species"
+            clear_event="clear_species"
+            display_fn={& &1.name}
           >
-            <form phx-change="search" phx-submit="search" id="images-species-search-form">
-              <.search_input
-                id="images-species-search"
-                name="query"
-                value={@search_query}
-                placeholder="Search for a species..."
-                phx-debounce="300"
-                data-typeahead-input
-              />
-            </form>
-
-            <%!-- Search Results Dropdown --%>
-            <div
-              :if={@search_results != []}
-              id="species-search-results"
-              data-typeahead-results
-              class="absolute z-10 mt-1 w-full bg-white rounded-md shadow-lg border border-gray-200 max-h-60 overflow-auto"
-            >
-              <button
-                :for={species <- @search_results}
-                type="button"
-                data-typeahead-option
-                phx-click="select_species"
-                phx-value-id={species.id}
-                phx-value-name={species.name}
-                class="w-full px-4 py-2 text-left hover:bg-gf-sky-blue/20 flex justify-between items-center"
-              >
+            <:result :let={species}>
+              <div class="flex justify-between items-center w-full">
                 <span class="text-gray-900">{species.name}</span>
                 <span class="text-sm text-gray-500">{species.image_count} images</span>
-              </button>
-            </div>
-          </div>
-
-          <%!-- Selected Species --%>
-          <div :if={@selected_species} class="mt-4 p-4 bg-gf-sky-blue/10 rounded-lg">
-            <div class="flex items-center justify-between">
-              <div>
-                <span class="text-sm text-gray-500">Selected:</span>
-                <span class="ml-2 font-medium text-gray-900">{@selected_species.name}</span>
               </div>
-              <button
-                type="button"
-                phx-click="clear_selection"
-                class="text-gray-500 hover:text-gray-700"
-              >
-                <.icon name="ph-x" class="h-5 w-5" />
-              </button>
-            </div>
-          </div>
+            </:result>
+          </.typeahead>
         </div>
 
         <%!-- Image Management Section --%>
@@ -430,7 +394,7 @@ defmodule GallformersWeb.AdminImagesLive do
   end
 
   @impl true
-  def handle_event("search", %{"query" => query}, socket) do
+  def handle_event("search_species", %{"value" => query}, socket) do
     search_results =
       if String.length(query) >= 2 do
         Images.search_species(query)
@@ -442,8 +406,13 @@ defmodule GallformersWeb.AdminImagesLive do
   end
 
   @impl true
-  def handle_event("select_species", %{"id" => id, "name" => name}, socket) do
+  def handle_event("select_species", %{"id" => id}, socket) do
     species_id = String.to_integer(id)
+
+    # Get the species name from search results
+    species_result = Enum.find(socket.assigns.search_results, &(&1.id == species_id))
+    name = if species_result, do: species_result.name, else: "Unknown"
+
     images = Images.list_images_for_species(species_id)
 
     socket =
@@ -458,7 +427,7 @@ defmodule GallformersWeb.AdminImagesLive do
   end
 
   @impl true
-  def handle_event("clear_selection", _params, socket) do
+  def handle_event("clear_species", _params, socket) do
     socket =
       socket
       |> assign(:selected_species, nil)

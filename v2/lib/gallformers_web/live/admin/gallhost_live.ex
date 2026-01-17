@@ -33,6 +33,7 @@ defmodule GallformersWeb.Admin.GallhostLive do
       |> assign(:hosts, [])
       |> assign(:host_search_query, "")
       |> assign(:host_search_results, [])
+      |> assign(:host_dropdown_open, false)
       # Range state
       |> assign(:host_places, [])
       |> assign(:excluded_places, [])
@@ -113,7 +114,21 @@ defmodule GallformersWeb.Admin.GallhostLive do
         []
       end
 
-    {:noreply, assign(socket, host_search_query: query, host_search_results: results)}
+    {:noreply,
+     socket
+     |> assign(:host_search_query, query)
+     |> assign(:host_search_results, results)
+     |> assign(:host_dropdown_open, results != [])}
+  end
+
+  @impl true
+  def handle_event("open_host_dropdown", _params, socket) do
+    {:noreply, assign(socket, :host_dropdown_open, true)}
+  end
+
+  @impl true
+  def handle_event("close_host_dropdown", _params, socket) do
+    {:noreply, assign(socket, :host_dropdown_open, false)}
   end
 
   @impl true
@@ -129,6 +144,7 @@ defmodule GallformersWeb.Admin.GallhostLive do
             |> reload_hosts_and_places()
             |> assign(:host_search_query, "")
             |> assign(:host_search_results, [])
+            |> assign(:host_dropdown_open, false)
             |> put_flash(:info, "Host added")
 
           {:noreply, socket}
@@ -143,7 +159,10 @@ defmodule GallformersWeb.Admin.GallhostLive do
   end
 
   @impl true
-  def handle_event("remove_host", %{"relation-id" => relation_id_str}, socket) do
+  def handle_event("remove_host", params, socket) do
+    # Support both new format ("id") and legacy format ("relation-id")
+    relation_id_str = params["id"] || params["relation-id"]
+
     case Integer.parse(relation_id_str) do
       {relation_id, ""} ->
         Species.remove_host_from_species(relation_id)
@@ -327,72 +346,38 @@ defmodule GallformersWeb.Admin.GallhostLive do
 
             <%!-- Hosts Multi-select --%>
             <div class="mb-4">
-              <label class="block text-sm font-medium text-gray-700 mb-1">Hosts:</label>
-              <div
-                id="host-picker"
-                phx-hook="Typeahead"
-                data-input-id="host-picker-input"
-                class="relative"
-              >
-                <div class={[
-                  "flex flex-wrap gap-1 p-2 border rounded min-h-[42px]",
-                  if(@selected_gall,
-                    do: "border-gray-300 bg-white",
-                    else: "border-gray-200 bg-gray-50"
-                  )
-                ]}>
-                  <span
-                    :for={host <- @hosts}
-                    class="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm"
-                  >
-                    <span class="italic">{host.host_name}</span>
-                    <button
-                      type="button"
-                      phx-click="remove_host"
-                      phx-value-relation-id={host.host_relation_id}
-                      class="text-blue-600 hover:text-blue-800"
-                    >
-                      <.icon name="ph-x" class="h-3 w-3" />
-                    </button>
-                  </span>
-                  <%= if @selected_gall do %>
-                    <input
-                      id="host-picker-input"
-                      data-typeahead-input
-                      type="text"
-                      value={@host_search_query}
-                      placeholder={if @hosts == [], do: "Search hosts...", else: "Add more..."}
-                      phx-keyup="search_hosts"
-                      phx-debounce="300"
-                      class="flex-1 min-w-[150px] border-0 p-0 text-sm focus:ring-0 focus:outline-none"
-                    />
-                  <% else %>
-                    <span class="text-gray-400 text-sm">Select a gall first</span>
-                  <% end %>
-                </div>
-                <%= if @host_search_results != [] do %>
-                  <div
-                    id="host-search-results"
-                    data-typeahead-results
-                    class="absolute z-20 mt-1 w-full bg-white shadow-lg rounded border border-gray-200 max-h-48 overflow-auto"
-                  >
-                    <button
-                      :for={host <- @host_search_results}
-                      type="button"
-                      data-typeahead-option
-                      phx-click="add_host"
-                      phx-value-id={host.id}
-                      class="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 italic"
-                    >
-                      {host.name}
-                    </button>
-                  </div>
+              <%= if @selected_gall do %>
+                <.multi_select_dropdown
+                  id="host-picker"
+                  label="Hosts:"
+                  type={:hosts}
+                  search_results={@host_search_results}
+                  selected={@hosts}
+                  search_query={@host_search_query}
+                  dropdown_open={@host_dropdown_open}
+                  item_id={:host_relation_id}
+                  result_id={:id}
+                  selected_match_id={:host_species_id}
+                  item_label={:host_name}
+                  result_label={:name}
+                  placeholder={if @hosts == [], do: "Search hosts...", else: "Add more..."}
+                  on_search="search_hosts"
+                  on_add="add_host"
+                  on_remove="remove_host"
+                  on_open="open_host_dropdown"
+                  on_close="close_host_dropdown"
+                  size="md"
+                />
+                <%= if @hosts == [] do %>
+                  <p class="text-red-600 text-xs mt-1">
+                    You must map this gall to at least one host.
+                  </p>
                 <% end %>
-              </div>
-              <%= if @selected_gall && @hosts == [] do %>
-                <p class="text-red-600 text-xs mt-1">
-                  You must map this gall to at least one host.
-                </p>
+              <% else %>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Hosts:</label>
+                <div class="flex flex-wrap gap-1 p-2 border border-gray-200 bg-gray-50 rounded min-h-[42px]">
+                  <span class="text-gray-400 text-sm">Select a gall first</span>
+                </div>
               <% end %>
             </div>
 

@@ -70,6 +70,7 @@ defmodule GallformersWeb.Admin.GallLive.Form do
     |> assign(:new_alias_type, "common name")
     |> assign(:host_search_query, "")
     |> assign(:host_search_results, [])
+    |> assign(:host_dropdown_open, false)
     |> assign(:filter_search, init_filter_search_state())
     |> assign(:filter_dropdown_open, nil)
     # Rename modal state
@@ -127,6 +128,7 @@ defmodule GallformersWeb.Admin.GallLive.Form do
           |> assign(:new_alias_type, "common name")
           |> assign(:host_search_query, "")
           |> assign(:host_search_results, [])
+          |> assign(:host_dropdown_open, false)
           |> assign(:filter_search, init_filter_search_state())
           |> assign(:filter_dropdown_open, nil)
           # Rename modal state
@@ -247,7 +249,21 @@ defmodule GallformersWeb.Admin.GallLive.Form do
         []
       end
 
-    {:noreply, assign(socket, host_search_query: query, host_search_results: results)}
+    {:noreply,
+     socket
+     |> assign(:host_search_query, query)
+     |> assign(:host_search_results, results)
+     |> assign(:host_dropdown_open, results != [])}
+  end
+
+  @impl true
+  def handle_event("open_host_dropdown", _params, socket) do
+    {:noreply, assign(socket, :host_dropdown_open, true)}
+  end
+
+  @impl true
+  def handle_event("close_host_dropdown", _params, socket) do
+    {:noreply, assign(socket, :host_dropdown_open, false)}
   end
 
   @impl true
@@ -279,6 +295,7 @@ defmodule GallformersWeb.Admin.GallLive.Form do
          |> assign(:hosts, hosts)
          |> assign(:host_search_query, "")
          |> assign(:host_search_results, [])
+         |> assign(:host_dropdown_open, false)
          |> mark_dirty()}
       else
         {:noreply, put_flash(socket, :error, "Host not found")}
@@ -287,8 +304,9 @@ defmodule GallformersWeb.Admin.GallLive.Form do
   end
 
   @impl true
-  def handle_event("remove_host", %{"relation-id" => relation_id}, socket) do
-    relation_id = String.to_integer(relation_id)
+  def handle_event("remove_host", params, socket) do
+    # Support both new format ("id") and legacy format ("relation-id")
+    relation_id = String.to_integer(params["id"] || params["relation-id"])
     hosts = Enum.reject(socket.assigns.hosts, &(&1.host_relation_id == relation_id))
 
     {:noreply,
@@ -723,65 +741,34 @@ defmodule GallformersWeb.Admin.GallLive.Form do
 
           <%!-- Row: Hosts --%>
           <div class="mb-3">
-            <label class="block text-sm font-medium text-gray-700 mb-1">Hosts (required):</label>
             <%= if @mode == :edit do %>
-              <div
+              <.multi_select_dropdown
                 id="host-picker"
-                phx-hook="Typeahead"
-                data-input-id="host-picker-input"
-                class="relative"
-              >
-                <div class="flex flex-wrap gap-1 p-2 border border-gray-300 rounded bg-white min-h-[38px]">
-                  <span
-                    :for={host <- @hosts}
-                    class="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-800 rounded text-sm"
-                  >
-                    {host.host_name}
-                    <button
-                      type="button"
-                      phx-click="remove_host"
-                      phx-value-relation-id={host.host_relation_id}
-                      class="text-blue-600 hover:text-blue-800"
-                    >
-                      <.icon name="ph-x" class="h-3 w-3" />
-                    </button>
-                  </span>
-                  <input
-                    id="host-picker-input"
-                    data-typeahead-input
-                    type="text"
-                    value={@host_search_query}
-                    placeholder={if @hosts == [], do: "Search hosts...", else: ""}
-                    phx-keyup="search_hosts"
-                    phx-debounce="300"
-                    class="flex-1 min-w-[120px] border-0 p-0 text-sm focus:ring-0 focus:outline-none"
-                  />
-                </div>
-                <%= if @host_search_results != [] do %>
-                  <div
-                    id="host-search-results"
-                    data-typeahead-results
-                    class="absolute z-20 mt-1 w-full bg-white shadow-lg rounded border border-gray-200 max-h-48 overflow-auto"
-                  >
-                    <button
-                      :for={host <- @host_search_results}
-                      type="button"
-                      data-typeahead-option
-                      phx-click="add_host"
-                      phx-value-id={host.id}
-                      class="w-full px-3 py-2 text-left text-sm hover:bg-gray-100"
-                    >
-                      {host.name}
-                    </button>
-                  </div>
-                <% end %>
-              </div>
+                label="Hosts (required):"
+                type={:hosts}
+                search_results={@host_search_results}
+                selected={@hosts}
+                search_query={@host_search_query}
+                dropdown_open={@host_dropdown_open}
+                item_id={:host_relation_id}
+                result_id={:id}
+                selected_match_id={:host_species_id}
+                item_label={:host_name}
+                result_label={:name}
+                placeholder="Search hosts..."
+                on_search="search_hosts"
+                on_add="add_host"
+                on_remove="remove_host"
+                on_open="open_host_dropdown"
+                on_close="close_host_dropdown"
+              />
               <%= if @hosts == [] do %>
                 <p class="text-red-600 text-xs mt-1">
                   You must map this gall to at least one host.
                 </p>
               <% end %>
             <% else %>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Hosts (required):</label>
               <input
                 type="text"
                 disabled

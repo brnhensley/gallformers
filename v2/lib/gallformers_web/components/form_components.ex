@@ -482,8 +482,22 @@ defmodule GallformersWeb.FormComponents do
   attr :dropdown_open, :boolean, required: true, doc: "whether dropdown is visible"
 
   # Display configuration
-  attr :item_id, :atom, default: :id, doc: "field name for item ID"
+  attr :item_id, :atom, default: :id, doc: "field name for selected item ID (used for remove)"
+
+  attr :result_id, :atom,
+    default: nil,
+    doc: "field name for search result ID (used for add, defaults to item_id)"
+
+  attr :selected_match_id, :atom,
+    default: nil,
+    doc: "field in selected items to match against result_id for dedup (defaults to result_id)"
+
   attr :item_label, :atom, required: true, doc: "field name for item display text"
+
+  attr :result_label, :atom,
+    default: nil,
+    doc: "field name for search result display (defaults to item_label)"
+
   attr :placeholder, :string, default: "Select...", doc: "placeholder when empty"
 
   # Events
@@ -502,6 +516,12 @@ defmodule GallformersWeb.FormComponents do
   attr :class, :any, default: nil, doc: "additional CSS classes"
 
   def multi_select_dropdown(assigns) do
+    # Resolve result_id and result_label (default to item_id/item_label)
+    result_id = assigns.result_id || assigns.item_id
+    result_label = assigns.result_label || assigns.item_label
+    # selected_match_id: the field in selected items to compare against result_id
+    selected_match_id = assigns.selected_match_id || result_id
+
     # Compute available options (filtered, excluding already selected)
     available =
       compute_available_options(
@@ -510,7 +530,9 @@ defmodule GallformersWeb.FormComponents do
         assigns.selected,
         assigns.search_query,
         assigns.item_id,
-        assigns.item_label
+        result_id,
+        selected_match_id,
+        result_label
       )
 
     # Size-based classes
@@ -536,6 +558,8 @@ defmodule GallformersWeb.FormComponents do
     assigns =
       assigns
       |> assign(:available, available)
+      |> assign(:result_id_resolved, result_id)
+      |> assign(:result_label_resolved, result_label)
       |> assign(:container_class, container_class)
       |> assign(:chip_class, chip_class)
       |> assign(:input_class, input_class)
@@ -595,10 +619,10 @@ defmodule GallformersWeb.FormComponents do
               data-typeahead-option
               phx-click={@on_add}
               phx-value-type={@type}
-              phx-value-id={get_item_id(opt, @item_id)}
+              phx-value-id={get_item_id(opt, @result_id_resolved)}
               class="w-full px-2 py-1 text-left text-xs hover:bg-gray-100 data-[highlighted]:bg-gray-100"
             >
-              {get_display_label(opt, @item_label)}
+              {get_display_label(opt, @result_label_resolved)}
             </button>
           </div>
         <% end %>
@@ -608,14 +632,29 @@ defmodule GallformersWeb.FormComponents do
   end
 
   # Compute available options based on mode (static vs async)
-  defp compute_available_options(options, search_results, selected, query, item_id, item_label) do
+  # - item_id: field in selected items for comparison in static mode
+  # - result_id: field in search results/options for comparison
+  # - selected_match_id: field in selected items to match against result_id (for async mode with different structures)
+  # - result_label: field in options for filtering by text
+  defp compute_available_options(
+         options,
+         search_results,
+         selected,
+         query,
+         item_id,
+         result_id,
+         selected_match_id,
+         result_label
+       ) do
     cond do
       # Async mode: use search_results directly (already filtered by server)
+      # Compare result_id from search results against selected_match_id from selected items
       search_results != nil ->
-        selected_ids = MapSet.new(Enum.map(selected, &get_item_id(&1, item_id)))
-        Enum.reject(search_results, &MapSet.member?(selected_ids, get_item_id(&1, item_id)))
+        selected_ids = MapSet.new(Enum.map(selected, &get_item_id(&1, selected_match_id)))
+        Enum.reject(search_results, &MapSet.member?(selected_ids, get_item_id(&1, result_id)))
 
       # Static mode: filter options client-side
+      # Options and selected items typically have same structure, use item_id for both
       options != nil ->
         selected_ids = MapSet.new(Enum.map(selected, &get_item_id(&1, item_id)))
         search_lower = String.downcase(query)
@@ -624,7 +663,7 @@ defmodule GallformersWeb.FormComponents do
         |> Enum.reject(&MapSet.member?(selected_ids, get_item_id(&1, item_id)))
         |> Enum.filter(fn opt ->
           query == "" ||
-            String.contains?(String.downcase(get_display_label(opt, item_label)), search_lower)
+            String.contains?(String.downcase(get_display_label(opt, result_label)), search_lower)
         end)
 
       # No options provided
