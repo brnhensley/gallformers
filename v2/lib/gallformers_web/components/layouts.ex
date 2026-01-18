@@ -266,7 +266,7 @@ defmodule GallformersWeb.Layouts do
               <img class="h-6 w-6 rounded-full" src={@current_user.picture} alt="" />
             <% end %>
             <span class="text-base font-medium text-gf-maroon">
-              {Gallformers.Accounts.User.display_name(@current_user)}
+              {Gallformers.Accounts.Auth0User.display_name(@current_user)}
             </span>
             <a
               href="/auth/logout"
@@ -349,7 +349,7 @@ defmodule GallformersWeb.Layouts do
               <img class="h-6 w-6 rounded-full" src={@current_user.picture} alt="" />
             <% end %>
             <span class="text-base font-medium text-gf-maroon">
-              {Gallformers.Accounts.User.display_name(@current_user)}
+              {Gallformers.Accounts.Auth0User.display_name(@current_user)}
             </span>
           </div>
           <a

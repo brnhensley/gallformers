@@ -11,14 +11,14 @@ defmodule Gallformers.Accounts do
   - `superadmin`: Full access including dangerous operations
   """
 
-  alias Gallformers.Accounts.User
+  alias Gallformers.Accounts.Auth0User
 
   @doc """
   Fetches the current user from the session.
 
   Returns nil if no user is logged in.
   """
-  @spec get_user_from_session(Plug.Conn.t() | map()) :: User.t() | nil
+  @spec get_user_from_session(Plug.Conn.t() | map()) :: Auth0User.t() | nil
   def get_user_from_session(%Plug.Conn{} = conn) do
     Plug.Conn.get_session(conn, :current_user)
   end
@@ -30,8 +30,8 @@ defmodule Gallformers.Accounts do
   @doc """
   Stores the user in the session after successful authentication.
   """
-  @spec put_user_in_session(Plug.Conn.t(), User.t()) :: Plug.Conn.t()
-  def put_user_in_session(conn, %User{} = user) do
+  @spec put_user_in_session(Plug.Conn.t(), Auth0User.t()) :: Plug.Conn.t()
+  def put_user_in_session(conn, %Auth0User{} = user) do
     conn
     |> Plug.Conn.put_session(:current_user, user)
     |> Plug.Conn.configure_session(renew: true)
@@ -48,24 +48,24 @@ defmodule Gallformers.Accounts do
   @doc """
   Creates a User struct from an Ueberauth authentication response.
   """
-  @spec user_from_auth(Ueberauth.Auth.t()) :: User.t()
+  @spec user_from_auth(Ueberauth.Auth.t()) :: Auth0User.t()
   def user_from_auth(%Ueberauth.Auth{} = auth) do
-    User.from_auth(auth)
+    Auth0User.from_auth(auth)
   end
 
   @doc """
   Returns true if the user is an admin (or superadmin).
   """
-  @spec admin?(User.t() | nil) :: boolean()
+  @spec admin?(Auth0User.t() | nil) :: boolean()
   def admin?(nil), do: false
-  def admin?(%User{} = user), do: User.admin?(user)
+  def admin?(%Auth0User{} = user), do: Auth0User.admin?(user)
 
   @doc """
   Returns true if the user is a superadmin.
   """
-  @spec superadmin?(User.t() | nil) :: boolean()
+  @spec superadmin?(Auth0User.t() | nil) :: boolean()
   def superadmin?(nil), do: false
-  def superadmin?(%User{} = user), do: User.superadmin?(user)
+  def superadmin?(%Auth0User{} = user), do: Auth0User.superadmin?(user)
 
   @doc """
   Returns the Auth0 logout URL.

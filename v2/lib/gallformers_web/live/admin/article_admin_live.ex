@@ -14,7 +14,7 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
   # Import the discard_confirm_modal component
   import GallformersWeb.Admin.FormHelpers, only: [discard_confirm_modal: 1]
 
-  alias Gallformers.Accounts.User
+  alias Gallformers.Accounts.Auth0User
   alias Gallformers.Articles
   alias Gallformers.Articles.Article
   alias Gallformers.Images
@@ -485,7 +485,7 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
   @impl true
   def handle_event("new_article", _params, socket) do
     # Pre-populate author from logged in user
-    author = User.display_name(socket.assigns.current_user)
+    author = Auth0User.display_name(socket.assigns.current_user)
 
     article = %Article{author: author}
     changeset = Articles.change_article(article, %{author: author})

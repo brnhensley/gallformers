@@ -1,4 +1,4 @@
-defmodule Gallformers.Accounts.User do
+defmodule Gallformers.Accounts.Auth0User do
   @moduledoc """
   Represents an authenticated user from Auth0.
 
@@ -18,13 +18,13 @@ defmodule Gallformers.Accounts.User do
   defstruct [:id, :email, :name, :nickname, :picture, roles: []]
 
   @doc """
-  Creates a User struct from Ueberauth Auth0 response.
+  Creates an Auth0User struct from Ueberauth Auth0 response.
 
   ## Examples
 
       iex> auth = %Ueberauth.Auth{uid: "auth0|123", info: %{email: "test@example.com"}}
-      iex> User.from_auth(auth)
-      %User{id: "auth0|123", email: "test@example.com", ...}
+      iex> Auth0User.from_auth(auth)
+      %Auth0User{id: "auth0|123", email: "test@example.com", ...}
   """
   @spec from_auth(Ueberauth.Auth.t()) :: t()
   def from_auth(%Ueberauth.Auth{} = auth) do

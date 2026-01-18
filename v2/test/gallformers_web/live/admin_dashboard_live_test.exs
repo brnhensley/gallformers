@@ -5,12 +5,12 @@ defmodule GallformersWeb.AdminDashboardLiveTest do
   use GallformersWeb.ConnCase, async: true
   import Phoenix.LiveViewTest
 
-  alias Gallformers.Accounts.User
+  alias Gallformers.Accounts.Auth0User
 
   describe "Admin dashboard" do
     setup %{conn: conn} do
       # Create a mock user session for admin access (must be a User struct)
-      user = %User{
+      user = %Auth0User{
         id: "test-user-id",
         email: "admin@test.com",
         name: "Test Admin",
@@ -70,7 +70,7 @@ defmodule GallformersWeb.AdminDashboardLiveTest do
 
   describe "Admin dashboard stats" do
     setup %{conn: conn} do
-      user = %User{
+      user = %Auth0User{
         id: "test-user-id",
         email: "admin@test.com",
         name: "Test Admin",
@@ -114,7 +114,7 @@ defmodule GallformersWeb.AdminDashboardLiveTest do
 
   describe "Admin dashboard quick actions" do
     setup %{conn: conn} do
-      user = %User{
+      user = %Auth0User{
         id: "test-user-id",
         email: "admin@test.com",
         name: "Test Admin",
