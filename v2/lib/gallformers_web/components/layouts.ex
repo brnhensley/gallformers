@@ -489,32 +489,6 @@ defmodule GallformersWeb.Layouts do
             </div>
           <% end %>
         </nav>
-
-        <%!-- User Menu --%>
-        <div class="flex-shrink-0 p-4 border-t border-white/20">
-          <div class="flex items-center">
-            <div class="flex-shrink-0">
-              <%= if @current_user.picture do %>
-                <img class="h-8 w-8 rounded-full" src={@current_user.picture} alt="" />
-              <% else %>
-                <div class="h-8 w-8 rounded-full bg-white/20 flex items-center justify-center">
-                  <.icon name="ph-user" class="h-5 w-5 text-white" />
-                </div>
-              <% end %>
-            </div>
-            <div class="ml-3 flex-1 min-w-0">
-              <p class="text-sm font-medium text-white truncate">
-                {Gallformers.Accounts.User.display_name(@current_user)}
-              </p>
-              <a
-                href="/auth/logout"
-                class="text-base font-semibold text-white hover:text-white/80"
-              >
-                Sign out
-              </a>
-            </div>
-          </div>
-        </div>
       </aside>
 
       <%!-- Mobile header --%>
@@ -585,34 +559,12 @@ defmodule GallformersWeb.Layouts do
               </div>
             <% end %>
           </nav>
-
-          <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-white/20">
-            <div class="flex items-center">
-              <div class="flex-shrink-0">
-                <%= if @current_user.picture do %>
-                  <img class="h-8 w-8 rounded-full" src={@current_user.picture} alt="" />
-                <% else %>
-                  <div class="h-8 w-8 rounded-full bg-white/20 flex items-center justify-center">
-                    <.icon name="ph-user" class="h-5 w-5 text-white" />
-                  </div>
-                <% end %>
-              </div>
-              <div class="ml-3 flex-1 min-w-0">
-                <p class="text-sm font-medium text-white truncate">
-                  {Gallformers.Accounts.User.display_name(@current_user)}
-                </p>
-                <a href="/auth/logout" class="text-xs text-white/60 hover:text-white">
-                  Sign out
-                </a>
-              </div>
-            </div>
-          </div>
         </aside>
       </div>
 
       <%!-- Main content area --%>
       <div class="flex-1 lg:pl-64">
-        <main class="pt-14 lg:pt-0">
+        <main class="pt-14 lg:pt-0 pb-16">
           <%!-- Page header --%>
           <%= if @page_title do %>
             <div class="flex items-center h-20 px-4 sm:px-6 lg:px-8 bg-gf-sky-blue border-l border-slate-400/50">
@@ -628,6 +580,7 @@ defmodule GallformersWeb.Layouts do
       </div>
     </div>
 
+    <.site_footer current_user={@current_user} />
     <.flash_group flash={@flash} />
     """
   end

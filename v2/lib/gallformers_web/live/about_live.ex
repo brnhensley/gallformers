@@ -6,7 +6,7 @@ defmodule GallformersWeb.AboutLive do
   """
   use GallformersWeb, :live_view
 
-  alias Gallformers.{Hosts, Sources, Species, Taxonomy}
+  alias Gallformers.{Hosts, Sources, Species, Taxonomy, Version}
 
   @impl true
   def mount(_params, _session, socket) do
@@ -22,7 +22,9 @@ defmodule GallformersWeb.AboutLive do
        page_json_ld: nil,
        stats: stats,
        gen_time: DateTime.utc_now() |> Calendar.strftime("%a, %d %b %Y %H:%M:%S GMT"),
-       show_easter_egg: false
+       show_easter_egg: false,
+       app_version: Version.app_version(),
+       api_version: Version.api_version()
      )}
   end
 
@@ -354,8 +356,13 @@ defmodule GallformersWeb.AboutLive do
             page.
           </p>
 
+          <%!-- Version Info --%>
+          <div class="mt-12 text-center text-sm text-gray-500">
+            App: {@app_version} | API: {@api_version}
+          </div>
+
           <%!-- Easter Egg --%>
-          <div class="mt-12 border-t pt-6">
+          <div class="mt-6 border-t pt-6">
             <button
               phx-click="toggle_easter_egg"
               class="text-gray-500 hover:text-gray-700 text-sm"
