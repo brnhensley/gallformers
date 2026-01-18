@@ -11,6 +11,7 @@ defmodule Gallformers.Accounts.User do
   - `auth0_id` - Unique identifier from Auth0 (e.g., "auth0|12345")
   - `display_name` - User's chosen display name (from Auth0, editable)
   - `nickname` - Fallback display name from Auth0
+  - `about_me` - User's bio/description text
   - `inaturalist_url` - Link to user's iNaturalist profile
   - `social_url` - Link to social media (Twitter, Mastodon, etc.)
   - `personal_url` - Link to personal website
@@ -25,6 +26,7 @@ defmodule Gallformers.Accounts.User do
           auth0_id: String.t(),
           display_name: String.t() | nil,
           nickname: String.t() | nil,
+          about_me: String.t() | nil,
           inaturalist_url: String.t() | nil,
           social_url: String.t() | nil,
           personal_url: String.t() | nil,
@@ -37,6 +39,7 @@ defmodule Gallformers.Accounts.User do
     field :auth0_id, :string
     field :display_name, :string
     field :nickname, :string
+    field :about_me, :string
     field :inaturalist_url, :string
     field :social_url, :string
     field :personal_url, :string
@@ -57,6 +60,7 @@ defmodule Gallformers.Accounts.User do
       :auth0_id,
       :display_name,
       :nickname,
+      :about_me,
       :inaturalist_url,
       :social_url,
       :personal_url,
@@ -80,6 +84,7 @@ defmodule Gallformers.Accounts.User do
     |> cast(attrs, [
       :display_name,
       :nickname,
+      :about_me,
       :inaturalist_url,
       :social_url,
       :personal_url,

@@ -144,6 +144,9 @@ defmodule GallformersWeb.Router do
       live "/source/:id", SourceLive
       live "/section/:id", SectionLive
       live "/place/:id", PlaceLive
+
+      # User profiles
+      live "/user/:nickname", UserProfileLive
     end
   end
 

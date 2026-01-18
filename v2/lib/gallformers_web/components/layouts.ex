@@ -262,12 +262,21 @@ defmodule GallformersWeb.Layouts do
         <%!-- User info or Login - left side (desktop only) --%>
         <%= if @current_user do %>
           <div class="hidden sm:flex items-center gap-2">
-            <%= if @current_user.picture do %>
-              <img class="h-6 w-6 rounded-full" src={@current_user.picture} alt="" />
-            <% end %>
-            <span class="text-base font-medium text-gf-maroon">
-              {Gallformers.Accounts.Auth0User.display_name(@current_user)}
-            </span>
+            <a
+              href={
+                if @current_user.nickname,
+                  do: "/user/#{@current_user.nickname}",
+                  else: "/admin/profile"
+              }
+              class="flex items-center gap-2 hover:opacity-80"
+            >
+              <%= if @current_user.picture do %>
+                <img class="h-6 w-6 rounded-full" src={@current_user.picture} alt="" />
+              <% end %>
+              <span class="text-base font-medium text-gf-maroon">
+                {Gallformers.Accounts.Auth0User.display_name(@current_user)}
+              </span>
+            </a>
             <a
               href="/auth/logout"
               class="text-base font-medium !text-gf-maroon hover:underline"
@@ -344,14 +353,19 @@ defmodule GallformersWeb.Layouts do
         id="footer-menu"
       >
         <%= if @current_user do %>
-          <div class="flex items-center gap-2 py-1 px-4 mb-2 border-b border-gray-300 pb-2">
+          <a
+            href={
+              if @current_user.nickname, do: "/user/#{@current_user.nickname}", else: "/admin/profile"
+            }
+            class="flex items-center gap-2 py-1 px-4 mb-2 border-b border-gray-300 pb-2 hover:opacity-80"
+          >
             <%= if @current_user.picture do %>
               <img class="h-6 w-6 rounded-full" src={@current_user.picture} alt="" />
             <% end %>
             <span class="text-base font-medium text-gf-maroon">
               {Gallformers.Accounts.Auth0User.display_name(@current_user)}
             </span>
-          </div>
+          </a>
           <a
             href="/auth/logout"
             class="block text-base font-medium !text-gf-maroon hover:underline py-1 px-4"

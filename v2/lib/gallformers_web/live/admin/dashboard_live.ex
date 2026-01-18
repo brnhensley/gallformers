@@ -67,7 +67,6 @@ defmodule GallformersWeb.AdminDashboardLive do
         <.action_card label="Create a New Article" href="/admin/articles/new" icon="ph-plus-circle" />
         <%= if Gallformers.Accounts.superadmin?(@current_user) do %>
           <.action_card label="Create a New Place" href="/admin/places/new" icon="ph-plus-circle" />
-          <.action_card label="Manage Users" href="/admin/users" icon="ph-users" />
         <% end %>
         <.action_card
           label="Manage Gall-Host Associations"
@@ -85,6 +84,9 @@ defmodule GallformersWeb.AdminDashboardLive do
           icon="ph-magnifying-glass"
         />
         <.action_card label="Edit My Profile" href="/admin/profile" icon="ph-user-circle" />
+        <%= if Gallformers.Accounts.superadmin?(@current_user) do %>
+          <.action_card label="Manage Users" href="/admin/users" icon="ph-users-three" />
+        <% end %>
       </div>
     </Layouts.admin>
     """

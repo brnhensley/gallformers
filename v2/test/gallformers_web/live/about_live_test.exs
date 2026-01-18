@@ -115,13 +115,14 @@ defmodule GallformersWeb.AboutLiveTest do
       assert html =~ user.display_name
     end
 
-    test "shows profile links when set", %{conn: conn, user_opted_in_with_links: user} do
+    test "shows link to user profile when nickname is set", %{
+      conn: conn,
+      user_opted_in_with_links: user
+    } do
       {:ok, _view, html} = live(conn, ~p"/about")
 
-      # Should have links to iNaturalist, Social, Website
-      assert html =~ user.inaturalist_url or html =~ "iNaturalist"
-      assert html =~ "twitter.com" or html =~ "Social"
-      assert html =~ user.personal_url or html =~ "Website"
+      # Names should link to the user's profile page
+      assert html =~ "/user/#{user.nickname}"
     end
 
     test "does not show link section when user has no links", %{

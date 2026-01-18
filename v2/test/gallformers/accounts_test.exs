@@ -445,6 +445,27 @@ defmodule Gallformers.AccountsTest do
 
       assert Accounts.admin?(user) == false
     end
+
+    test "returns true for map with admin role (session deserialization fallback)" do
+      # Simulates deserialized session data where struct type is not preserved
+      user_map = %{roles: ["admin"]}
+      assert Accounts.admin?(user_map) == true
+    end
+
+    test "returns true for map with superadmin role (session deserialization fallback)" do
+      user_map = %{roles: ["superadmin"]}
+      assert Accounts.admin?(user_map) == true
+    end
+
+    test "returns false for map without admin role" do
+      user_map = %{roles: []}
+      assert Accounts.admin?(user_map) == false
+    end
+
+    test "returns false for map without roles key" do
+      user_map = %{id: "auth0|123"}
+      assert Accounts.admin?(user_map) == false
+    end
   end
 
   describe "superadmin?/1" do
@@ -489,6 +510,21 @@ defmodule Gallformers.AccountsTest do
       }
 
       assert Accounts.superadmin?(user) == false
+    end
+
+    test "returns true for map with superadmin role (session deserialization fallback)" do
+      user_map = %{roles: ["superadmin"]}
+      assert Accounts.superadmin?(user_map) == true
+    end
+
+    test "returns false for map with only admin role" do
+      user_map = %{roles: ["admin"]}
+      assert Accounts.superadmin?(user_map) == false
+    end
+
+    test "returns false for map without roles key" do
+      user_map = %{id: "auth0|123"}
+      assert Accounts.superadmin?(user_map) == false
     end
   end
 

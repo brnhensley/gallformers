@@ -115,28 +115,13 @@ defmodule GallformersWeb.Admin.ProfileLiveTest do
       assert updated_user.show_on_about == true
     end
 
-    test "shows validation errors for invalid URLs", %{conn: conn} do
+    test "URL fields use browser validation", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/admin/profile")
 
-      # Submit form with invalid URL
-      html =
-        view
-        |> form("#profile-form", user: %{inaturalist_url: "not-a-valid-url"})
-        |> render_change()
-
-      assert html =~ "must be a valid URL"
-    end
-
-    test "validates URLs in real-time", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/admin/profile")
-
-      # Trigger validation with invalid URL
-      html =
-        view
-        |> form("#profile-form", user: %{social_url: "invalid"})
-        |> render_change()
-
-      assert html =~ "must be a valid URL"
+      # URL inputs have type="url" for browser validation
+      assert has_element?(view, "input[type='url'][name='user[inaturalist_url]']")
+      assert has_element?(view, "input[type='url'][name='user[social_url]']")
+      assert has_element?(view, "input[type='url'][name='user[personal_url]']")
     end
 
     test "shows success message after save", %{conn: conn} do
@@ -264,7 +249,8 @@ defmodule GallformersWeb.Admin.ProfileLiveTest do
     test "save button exists", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/admin/profile")
 
-      assert has_element?(view, "button", "Save Changes")
+      # Uses standard "Save" label (consistent with other admin pages)
+      assert has_element?(view, "button[type='submit']")
     end
 
     test "back link points to dashboard", %{conn: conn} do

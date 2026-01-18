@@ -84,6 +84,7 @@ The `users` table stores user profile information (managed by `Gallformers.Accou
 | `auth0_id` | text | Unique Auth0 identifier (e.g., "auth0\|12345") |
 | `display_name` | text | User's chosen display name |
 | `nickname` | text | Fallback name from Auth0 |
+| `about_me` | text | User's bio/description text |
 | `inaturalist_url` | text | Link to iNaturalist profile |
 | `social_url` | text | Link to social media |
 | `personal_url` | text | Link to personal website |

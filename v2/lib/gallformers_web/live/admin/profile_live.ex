@@ -5,6 +5,7 @@ defmodule GallformersWeb.Admin.ProfileLive do
   Displays and allows editing of:
   - Display name (editable)
   - Nickname (read-only, synced from Auth0)
+  - About me bio text
   - iNaturalist URL
   - Social media URL
   - Personal website URL
@@ -13,6 +14,8 @@ defmodule GallformersWeb.Admin.ProfileLive do
 
   use GallformersWeb, :live_view
   use GallformersWeb.Admin.FormHelpers
+
+  import GallformersWeb.Admin.FormComponents, only: [form_actions: 1]
 
   alias Gallformers.Accounts
   alias Gallformers.Accounts.User
@@ -25,6 +28,7 @@ defmodule GallformersWeb.Admin.ProfileLive do
       socket
       |> assign(:current_user, current_user)
       |> assign(:page_title, "My Profile")
+      |> assign(:mode, :edit)
       |> init_form_state()
       |> load_user_profile()
 
@@ -100,7 +104,7 @@ defmodule GallformersWeb.Admin.ProfileLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.admin flash={@flash} current_user={@current_user} page_title="My Profile">
+    <Layouts.admin flash={@flash} current_user={@current_user} page_title={@page_title}>
       <Layouts.admin_edit_layout
         back_path={~p"/admin"}
         back_label="Back to Dashboard"
@@ -114,163 +118,100 @@ defmodule GallformersWeb.Admin.ProfileLive do
         <%= if @form do %>
           <.form for={@form} id="profile-form" phx-change="validate" phx-submit="save">
             <%!-- Display Name --%>
-            <div class="mb-4">
-              <label
-                for={@form[:display_name].name}
-                class="block text-sm font-medium text-gray-700 mb-1"
-              >
-                Display Name
-              </label>
+            <div class="mb-3">
+              <label class="block text-sm font-medium text-gray-700 mb-1">Display Name:</label>
               <input
                 type="text"
-                id={@form[:display_name].id}
                 name={@form[:display_name].name}
                 value={Phoenix.HTML.Form.input_value(@form, :display_name)}
                 placeholder="How you want to be known"
-                class="w-full max-w-md px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gf-maroon focus:border-gf-maroon"
+                class="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gf-maroon focus:border-gf-maroon"
               />
-              <p class="mt-1 text-xs text-gray-500">
-                This is how your name will appear on the site
-              </p>
             </div>
 
-            <%!-- Nickname (read-only) --%>
-            <div class="mb-4">
-              <label class="block text-sm font-medium text-gray-700 mb-1">
-                Auth0 Nickname
-              </label>
+            <%!-- Nickname (read-only, from Auth0) --%>
+            <div class="mb-3">
+              <label class="block text-sm font-medium text-gray-700 mb-1">Auth0 Nickname:</label>
               <input
                 type="text"
                 value={@current_user.nickname || "Not set"}
                 disabled
-                class="w-full max-w-md px-3 py-2 border border-gray-200 rounded text-sm bg-gray-50 text-gray-500"
+                class="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded text-gray-500 text-sm"
               />
               <p class="mt-1 text-xs text-gray-500">
-                This is synced from your Auth0 account and cannot be changed here
+                Synced from your Auth0 account and cannot be changed here
               </p>
+            </div>
+
+            <%!-- About Me --%>
+            <div class="mb-3">
+              <label class="block text-sm font-medium text-gray-700 mb-1">About Me:</label>
+              <textarea
+                name={@form[:about_me].name}
+                rows="4"
+                placeholder="Tell us a bit about yourself..."
+                class="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gf-maroon focus:border-gf-maroon"
+              >{Phoenix.HTML.Form.input_value(@form, :about_me)}</textarea>
             </div>
 
             <%!-- iNaturalist URL --%>
-            <div class="mb-4">
-              <label
-                for={@form[:inaturalist_url].name}
-                class="block text-sm font-medium text-gray-700 mb-1"
-              >
-                iNaturalist Profile URL
+            <div class="mb-3">
+              <label class="block text-sm font-medium text-gray-700 mb-1">
+                iNaturalist Profile URL:
               </label>
               <input
                 type="url"
-                id={@form[:inaturalist_url].id}
                 name={@form[:inaturalist_url].name}
                 value={Phoenix.HTML.Form.input_value(@form, :inaturalist_url)}
                 placeholder="https://www.inaturalist.org/people/yourusername"
-                class={[
-                  "w-full max-w-md px-3 py-2 border rounded text-sm focus:outline-none focus:ring-1 focus:ring-gf-maroon focus:border-gf-maroon",
-                  @form[:inaturalist_url].errors != [] && "border-red-500"
-                ]}
+                class="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gf-maroon focus:border-gf-maroon"
               />
-              <%= if @form[:inaturalist_url].errors != [] do %>
-                <p class="mt-1 text-xs text-red-600">
-                  {translate_error(hd(@form[:inaturalist_url].errors))}
-                </p>
-              <% end %>
             </div>
 
             <%!-- Social Media URL --%>
-            <div class="mb-4">
-              <label
-                for={@form[:social_url].name}
-                class="block text-sm font-medium text-gray-700 mb-1"
-              >
-                Social Media URL
-              </label>
+            <div class="mb-3">
+              <label class="block text-sm font-medium text-gray-700 mb-1">Social Media URL:</label>
               <input
                 type="url"
-                id={@form[:social_url].id}
                 name={@form[:social_url].name}
                 value={Phoenix.HTML.Form.input_value(@form, :social_url)}
                 placeholder="https://twitter.com/yourusername"
-                class={[
-                  "w-full max-w-md px-3 py-2 border rounded text-sm focus:outline-none focus:ring-1 focus:ring-gf-maroon focus:border-gf-maroon",
-                  @form[:social_url].errors != [] && "border-red-500"
-                ]}
+                class="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gf-maroon focus:border-gf-maroon"
               />
-              <p class="mt-1 text-xs text-gray-500">
-                Twitter, Mastodon, Bluesky, etc.
-              </p>
-              <%= if @form[:social_url].errors != [] do %>
-                <p class="mt-1 text-xs text-red-600">
-                  {translate_error(hd(@form[:social_url].errors))}
-                </p>
-              <% end %>
             </div>
 
-            <%!-- Personal URL --%>
-            <div class="mb-4">
-              <label
-                for={@form[:personal_url].name}
-                class="block text-sm font-medium text-gray-700 mb-1"
-              >
-                Personal Website URL
+            <%!-- Personal Website URL --%>
+            <div class="mb-3">
+              <label class="block text-sm font-medium text-gray-700 mb-1">
+                Personal Website URL:
               </label>
               <input
                 type="url"
-                id={@form[:personal_url].id}
                 name={@form[:personal_url].name}
                 value={Phoenix.HTML.Form.input_value(@form, :personal_url)}
                 placeholder="https://yourwebsite.com"
-                class={[
-                  "w-full max-w-md px-3 py-2 border rounded text-sm focus:outline-none focus:ring-1 focus:ring-gf-maroon focus:border-gf-maroon",
-                  @form[:personal_url].errors != [] && "border-red-500"
-                ]}
+                class="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gf-maroon focus:border-gf-maroon"
               />
-              <%= if @form[:personal_url].errors != [] do %>
-                <p class="mt-1 text-xs text-red-600">
-                  {translate_error(hd(@form[:personal_url].errors))}
-                </p>
-              <% end %>
             </div>
 
             <%!-- Show on About Page --%>
-            <div class="mb-6">
-              <div class="flex items-center">
-                <input type="hidden" name={@form[:show_on_about].name} value="false" />
+            <div class="mb-3">
+              <input type="hidden" name={@form[:show_on_about].name} value="false" />
+              <label class="flex items-center gap-2">
                 <input
                   type="checkbox"
-                  id={@form[:show_on_about].id}
                   name={@form[:show_on_about].name}
                   value="true"
                   checked={Phoenix.HTML.Form.input_value(@form, :show_on_about) == true}
-                  class="h-4 w-4 text-gf-maroon border-gray-300 rounded focus:ring-gf-maroon"
+                  class="rounded border-gray-300 text-gf-maroon focus:ring-gf-maroon"
                 />
-                <label for={@form[:show_on_about].id} class="ml-2 text-sm font-medium text-gray-700">
-                  List me on the About page
-                </label>
-              </div>
-              <p class="mt-1 text-xs text-gray-500 ml-6">
-                If checked, your display name and profile links will appear in the Administrators
-                section of the About page
-              </p>
+                <span class="text-sm text-gray-700">List me on the About page</span>
+              </label>
             </div>
 
-            <%!-- Hidden field for checkbox when unchecked --%>
-            <input type="hidden" name={@form[:show_on_about].name} value="false" />
-
-            <%!-- Actions --%>
-            <div class="flex justify-end gap-3 pt-4 border-t border-gray-200">
-              <button
-                type="button"
-                phx-click="request_cancel"
-                class="px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                class="px-4 py-2 bg-gf-maroon text-white rounded-md hover:bg-gf-maroon/90 disabled:opacity-50"
-              >
-                Save Changes
-              </button>
+            <%!-- Buttons --%>
+            <div class="flex justify-end pt-4 border-t border-gray-200">
+              <.form_actions form_dirty={@form_dirty} mode={@mode} />
             </div>
           </.form>
 

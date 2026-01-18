@@ -74,64 +74,12 @@ defmodule GallformersWeb.AboutLive do
     |> Repo.one()
   end
 
-  defp admin_name(assigns) do
-    ~H"""
-    <span>
-      {display_name(@admin)}
-      <%= if has_links?(@admin) do %>
-        <span class="text-sm">
-          (<.admin_links admin={@admin} />)
-        </span>
-      <% end %>
-    </span>
-    """
-  end
-
-  defp admin_links(assigns) do
-    links = build_links(assigns.admin)
-    assigns = assign(assigns, :links, links)
-
-    ~H"""
-    <%= for {label, url, index} <- Enum.with_index(@links, fn {l, u}, i -> {l, u, i} end) do %>
-      <%= if index > 0 do %>
-        ,
-      <% end %>
-      <.link
-        href={url}
-        target="_blank"
-        rel="noreferrer"
-        class="text-gf-maroon hover:underline"
-      >
-        {label}
-      </.link>
-    <% end %>
-    """
-  end
-
-  defp build_links(admin) do
-    []
-    |> maybe_add_link(admin.inaturalist_url, "iNaturalist")
-    |> maybe_add_link(admin.social_url, "Social")
-    |> maybe_add_link(admin.personal_url, "Website")
-    |> Enum.reverse()
-  end
-
-  defp maybe_add_link(links, nil, _label), do: links
-  defp maybe_add_link(links, "", _label), do: links
-  defp maybe_add_link(links, url, label), do: [{label, url} | links]
-
   defp display_name(admin) do
     cond do
       admin.display_name && admin.display_name != "" -> admin.display_name
       admin.nickname && admin.nickname != "" -> admin.nickname
       true -> "Anonymous"
     end
-  end
-
-  defp has_links?(admin) do
-    (admin.inaturalist_url && admin.inaturalist_url != "") ||
-      (admin.social_url && admin.social_url != "") ||
-      (admin.personal_url && admin.personal_url != "")
   end
 
   @impl true
@@ -271,7 +219,13 @@ defmodule GallformersWeb.AboutLive do
           <%= if @administrators != [] do %>
             <ul class="list-disc list-inside text-gray-700 mb-8 columns-1 md:columns-2 gap-8">
               <li :for={admin <- @administrators} class="break-inside-avoid mb-1">
-                <.admin_name admin={admin} />
+                <%= if admin.nickname do %>
+                  <.link href={~p"/user/#{admin.nickname}"} class="text-gf-maroon hover:underline">
+                    {display_name(admin)}
+                  </.link>
+                <% else %>
+                  {display_name(admin)}
+                <% end %>
               </li>
             </ul>
           <% end %>

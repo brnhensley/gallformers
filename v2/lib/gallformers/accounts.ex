@@ -106,17 +106,27 @@ defmodule Gallformers.Accounts do
 
   @doc """
   Returns true if the user is an admin (or superadmin).
+
+  Accepts Auth0User structs or any map with a `roles` field (to handle
+  session deserialization where struct types may not be preserved).
   """
-  @spec admin?(Auth0User.t() | nil) :: boolean()
+  @spec admin?(Auth0User.t() | map() | nil) :: boolean()
   def admin?(nil), do: false
   def admin?(%Auth0User{} = user), do: Auth0User.admin?(user)
+  def admin?(%{roles: roles}) when is_list(roles), do: "admin" in roles or "superadmin" in roles
+  def admin?(_), do: false
 
   @doc """
   Returns true if the user is a superadmin.
+
+  Accepts Auth0User structs or any map with a `roles` field (to handle
+  session deserialization where struct types may not be preserved).
   """
-  @spec superadmin?(Auth0User.t() | nil) :: boolean()
+  @spec superadmin?(Auth0User.t() | map() | nil) :: boolean()
   def superadmin?(nil), do: false
   def superadmin?(%Auth0User{} = user), do: Auth0User.superadmin?(user)
+  def superadmin?(%{roles: roles}) when is_list(roles), do: "superadmin" in roles
+  def superadmin?(_), do: false
 
   @doc """
   Returns the Auth0 logout URL.
@@ -172,6 +182,24 @@ defmodule Gallformers.Accounts do
   @spec get_user_by_auth0_id(String.t()) :: User.t() | nil
   def get_user_by_auth0_id(auth0_id) do
     Repo.get_by(User, auth0_id: auth0_id)
+  end
+
+  @doc """
+  Gets a user profile by nickname.
+
+  Returns `nil` if no user with that nickname exists.
+
+  ## Examples
+
+      iex> get_user_by_nickname("alice")
+      %User{}
+
+      iex> get_user_by_nickname("unknown")
+      nil
+  """
+  @spec get_user_by_nickname(String.t()) :: User.t() | nil
+  def get_user_by_nickname(nickname) do
+    Repo.get_by(User, nickname: nickname)
   end
 
   @doc """
