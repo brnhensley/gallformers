@@ -84,6 +84,7 @@ defmodule GallformersWeb.AdminDashboardLive do
           href="/admin/species-sources/find"
           icon="ph-magnifying-glass"
         />
+        <.action_card label="Edit My Profile" href="/admin/profile" icon="ph-user-circle" />
       </div>
     </Layouts.admin>
     """

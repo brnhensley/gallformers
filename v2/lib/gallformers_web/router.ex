@@ -92,6 +92,9 @@ defmodule GallformersWeb.Router do
 
     # Articles admin
     live "/articles", Admin.ArticleAdminLive
+
+    # User profile
+    live "/profile", Admin.ProfileLive
   end
 
   # Super admin routes (require superadmin role)
