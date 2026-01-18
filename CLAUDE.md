@@ -177,6 +177,10 @@ Key tables and relationships:
 
 - **source** - Scientific references and citations
 
+- **users** - User profiles (V2 only, contains PII)
+  - Fields: auth0_id, display_name, nickname, profile URLs
+  - See [runbooks/database-backup.md](runbooks/database-backup.md) for PII handling
+
 See `prisma/schema.prisma` for complete schema details.
 
 ## Development Workflow

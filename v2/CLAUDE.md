@@ -74,6 +74,25 @@ cp ../prisma/gallformers.sqlite priv/gallformers.sqlite
 
 The database must exist at `priv/gallformers.sqlite` before running the app.
 
+### Users Table
+
+The `users` table stores user profile information (managed by `Gallformers.Accounts.User`):
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | integer | Primary key |
+| `auth0_id` | text | Unique Auth0 identifier (e.g., "auth0\|12345") |
+| `display_name` | text | User's chosen display name |
+| `nickname` | text | Fallback name from Auth0 |
+| `inaturalist_url` | text | Link to iNaturalist profile |
+| `social_url` | text | Link to social media |
+| `personal_url` | text | Link to personal website |
+| `show_on_about` | boolean | Display on About page |
+| `inserted_at` | datetime | Creation timestamp |
+| `updated_at` | datetime | Last update timestamp |
+
+**Note**: This table contains PII. Public database downloads have these fields sanitized. See [runbooks/database-backup.md](/runbooks/database-backup.md) for details.
+
 ## Project Structure
 
 ```
