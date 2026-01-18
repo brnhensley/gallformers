@@ -58,6 +58,53 @@ defmodule Gallformers.Accounts do
   end
 
   @doc """
+  Syncs user profile data from Auth0 to the local database.
+
+  On successful login:
+  - If the user doesn't exist, creates a new profile with data from Auth0
+  - If the user exists, updates the nickname and conditionally updates display_name
+
+  The display_name is only updated if the user hasn't customized it (i.e., if it
+  currently matches the old nickname or is nil).
+
+  ## Examples
+
+      iex> sync_user_from_auth0(%Auth0User{id: "auth0|123", name: "Alice", nickname: "alice"})
+      {:ok, %User{}}
+  """
+  @spec sync_user_from_auth0(Auth0User.t()) :: {:ok, User.t()} | {:error, Ecto.Changeset.t()}
+  def sync_user_from_auth0(%Auth0User{} = auth0_user) do
+    case get_user_by_auth0_id(auth0_user.id) do
+      nil ->
+        create_user(%{
+          auth0_id: auth0_user.id,
+          display_name: auth0_user.name,
+          nickname: auth0_user.nickname,
+          show_on_about: false
+        })
+
+      %User{} = user ->
+        attrs = build_update_attrs(user, auth0_user)
+        update_user(user, attrs)
+    end
+  end
+
+  # Build the attributes to update for an existing user.
+  # Always syncs nickname from Auth0.
+  # Only updates display_name if the user hasn't customized it.
+  defp build_update_attrs(%User{} = user, %Auth0User{} = auth0_user) do
+    attrs = %{nickname: auth0_user.nickname}
+
+    # Only update display_name if user hasn't customized it
+    # (i.e., it matches the old nickname or is nil)
+    if user.display_name == user.nickname or is_nil(user.display_name) do
+      Map.put(attrs, :display_name, auth0_user.name)
+    else
+      attrs
+    end
+  end
+
+  @doc """
   Returns true if the user is an admin (or superadmin).
   """
   @spec admin?(Auth0User.t() | nil) :: boolean()

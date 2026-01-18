@@ -41,16 +41,31 @@ defmodule GallformersWeb.AuthController do
   @doc """
   Handles the OAuth callback from Auth0.
 
-  On success, creates a user from the auth response and stores it in the session.
+  On success, creates a user from the auth response, syncs the user profile
+  to the database, and stores the Auth0 user in the session.
   On failure, redirects to the home page with an error message.
   """
   def callback(%{assigns: %{ueberauth_auth: auth}} = conn, _params) do
-    user = Accounts.user_from_auth(auth)
+    auth0_user = Accounts.user_from_auth(auth)
 
-    conn
-    |> Accounts.put_user_in_session(user)
-    |> put_flash(:info, "Welcome back, #{Auth0User.display_name(user)}!")
-    |> redirect(to: get_return_to(conn))
+    # Sync user profile to database (create or update)
+    case Accounts.sync_user_from_auth0(auth0_user) do
+      {:ok, _user} ->
+        conn
+        |> Accounts.put_user_in_session(auth0_user)
+        |> put_flash(:info, "Welcome back, #{Auth0User.display_name(auth0_user)}!")
+        |> redirect(to: get_return_to(conn))
+
+      {:error, changeset} ->
+        require Logger
+        Logger.error("Failed to sync user profile: #{inspect(changeset.errors)}")
+
+        # Still allow login even if profile sync fails
+        conn
+        |> Accounts.put_user_in_session(auth0_user)
+        |> put_flash(:info, "Welcome back, #{Auth0User.display_name(auth0_user)}!")
+        |> redirect(to: get_return_to(conn))
+    end
   end
 
   def callback(%{assigns: %{ueberauth_failure: failure}} = conn, _params) do
