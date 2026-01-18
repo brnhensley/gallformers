@@ -6,11 +6,12 @@ defmodule GallformersWeb.AboutLive do
   """
   use GallformersWeb, :live_view
 
-  alias Gallformers.{Hosts, Sources, Species, Taxonomy, Version}
+  alias Gallformers.{Accounts, Hosts, Sources, Species, Taxonomy, Version}
 
   @impl true
   def mount(_params, _session, socket) do
     stats = get_site_stats()
+    administrators = Accounts.list_users_for_about_page()
 
     {:ok,
      assign(socket,
@@ -21,6 +22,7 @@ defmodule GallformersWeb.AboutLive do
        page_image: nil,
        page_json_ld: nil,
        stats: stats,
+       administrators: administrators,
        gen_time: DateTime.utc_now() |> Calendar.strftime("%a, %d %b %Y %H:%M:%S GMT"),
        show_easter_egg: false,
        app_version: Version.app_version(),
@@ -70,6 +72,66 @@ defmodule GallformersWeb.AboutLive do
       select: count(s.id)
     )
     |> Repo.one()
+  end
+
+  defp admin_name(assigns) do
+    ~H"""
+    <span>
+      {display_name(@admin)}
+      <%= if has_links?(@admin) do %>
+        <span class="text-sm">
+          (<.admin_links admin={@admin} />)
+        </span>
+      <% end %>
+    </span>
+    """
+  end
+
+  defp admin_links(assigns) do
+    links = build_links(assigns.admin)
+    assigns = assign(assigns, :links, links)
+
+    ~H"""
+    <%= for {label, url, index} <- Enum.with_index(@links, fn {l, u}, i -> {l, u, i} end) do %>
+      <%= if index > 0 do %>
+        ,
+      <% end %>
+      <.link
+        href={url}
+        target="_blank"
+        rel="noreferrer"
+        class="text-gf-maroon hover:underline"
+      >
+        {label}
+      </.link>
+    <% end %>
+    """
+  end
+
+  defp build_links(admin) do
+    []
+    |> maybe_add_link(admin.inaturalist_url, "iNaturalist")
+    |> maybe_add_link(admin.social_url, "Social")
+    |> maybe_add_link(admin.personal_url, "Website")
+    |> Enum.reverse()
+  end
+
+  defp maybe_add_link(links, nil, _label), do: links
+  defp maybe_add_link(links, "", _label), do: links
+  defp maybe_add_link(links, url, label), do: [{label, url} | links]
+
+  defp display_name(admin) do
+    cond do
+      admin.display_name && admin.display_name != "" -> admin.display_name
+      admin.nickname && admin.nickname != "" -> admin.nickname
+      true -> "Anonymous"
+    end
+  end
+
+  defp has_links?(admin) do
+    (admin.inaturalist_url && admin.inaturalist_url != "") ||
+      (admin.social_url && admin.social_url != "") ||
+      (admin.personal_url && admin.personal_url != "")
   end
 
   @impl true
@@ -204,64 +266,15 @@ defmodule GallformersWeb.AboutLive do
             would be far poorer. If you are interested in becoming an administrator <.link
               href="mailto:gallformers@gmail.com"
               class="text-gf-maroon hover:underline"
-            >reach out</.link>:
+            >reach out</.link>.
           </p>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-            <ul class="list-disc list-inside text-gray-700">
-              <li>
-                <.link
-                  href="https://www.inaturalist.org/people/joshuacde"
-                  target="_blank"
-                  rel="noreferrer"
-                  class="text-gf-maroon hover:underline"
-                >
-                  Joshua C'deBaca
-                </.link>
-              </li>
-              <li>
-                <.link
-                  href="https://www.inaturalist.org/people/calconey"
-                  target="_blank"
-                  rel="noreferrer"
-                  class="text-gf-maroon hover:underline"
-                >
-                  Tim Frey
-                </.link>
-              </li>
-              <li>
-                <.link
-                  href="https://www.inaturalist.org/people/kemper"
-                  target="_blank"
-                  rel="noreferrer"
-                  class="text-gf-maroon hover:underline"
-                >
-                  Yann Kemper
-                </.link>
+          <%= if @administrators != [] do %>
+            <ul class="list-disc list-inside text-gray-700 mb-8 columns-1 md:columns-2 gap-8">
+              <li :for={admin <- @administrators} class="break-inside-avoid mb-1">
+                <.admin_name admin={admin} />
               </li>
             </ul>
-            <ul class="list-disc list-inside text-gray-700">
-              <li>
-                <.link
-                  href="https://www.inaturalist.org/people/kimberlietx"
-                  target="_blank"
-                  rel="noreferrer"
-                  class="text-gf-maroon hover:underline"
-                >
-                  Kimberlie Sasan
-                </.link>
-              </li>
-              <li>
-                <.link
-                  href="https://www.inaturalist.org/people/73819"
-                  target="_blank"
-                  rel="noreferrer"
-                  class="text-gf-maroon hover:underline"
-                >
-                  Ramsey Sullivan
-                </.link>
-              </li>
-            </ul>
-          </div>
+          <% end %>
 
           <h2 class="text-2xl font-semibold text-gray-800 mt-8 mb-4">Current Site Stats</h2>
           <p class="text-gray-700 mb-2">As of <em>{@gen_time}</em> there are:</p>
