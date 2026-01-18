@@ -227,4 +227,21 @@ defmodule Gallformers.Accounts do
     |> order_by([u], fragment("COALESCE(?, ?) COLLATE NOCASE", u.display_name, u.nickname))
     |> Repo.all()
   end
+
+  @doc """
+  Lists all users ordered alphabetically by display name (with nickname fallback).
+
+  Used by superadmin user management page.
+
+  ## Examples
+
+      iex> list_all_users()
+      [%User{}, ...]
+  """
+  @spec list_all_users() :: [User.t()]
+  def list_all_users do
+    User
+    |> order_by([u], fragment("COALESCE(?, ?) COLLATE NOCASE", u.display_name, u.nickname))
+    |> Repo.all()
+  end
 end

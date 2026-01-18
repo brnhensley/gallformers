@@ -107,6 +107,9 @@ defmodule GallformersWeb.Router do
     live "/filter-terms", Admin.FilterTermsLive.Index, :index
     live "/filter-terms/new", Admin.FilterTermsLive.Form, :new
     live "/filter-terms/:id", Admin.FilterTermsLive.Form, :edit
+
+    # User management (superadmin only)
+    live "/users", Admin.UsersLive, :index
   end
 
   # Public routes
