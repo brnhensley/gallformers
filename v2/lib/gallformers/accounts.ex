@@ -2,16 +2,20 @@ defmodule Gallformers.Accounts do
   @moduledoc """
   The Accounts context handles user authentication and authorization.
 
-  Authentication is handled by Auth0 via Ueberauth. Users are not stored in the
-  local database - instead, we rely on Auth0 for user management and extract
-  user information from the authentication response.
+  Authentication is handled by Auth0 via Ueberauth. User profiles are stored in
+  the local database for preferences and public display (like the About page),
+  but Auth0 remains the source of truth for authentication and authorization.
 
   Authorization is role-based, with roles provided by Auth0 custom claims:
   - `admin`: Can access admin features and modify data
   - `superadmin`: Full access including dangerous operations
   """
 
+  import Ecto.Query
+
   alias Gallformers.Accounts.Auth0User
+  alias Gallformers.Accounts.User
+  alias Gallformers.Repo
 
   @doc """
   Fetches the current user from the session.
@@ -83,5 +87,97 @@ defmodule Gallformers.Accounts do
         "client_id" => client_id,
         "returnTo" => return_to
       })
+  end
+
+  # ============================================================================
+  # User Profile Functions (Database-backed)
+  # ============================================================================
+
+  @doc """
+  Gets a user profile by ID.
+
+  Returns `nil` if the user does not exist.
+
+  ## Examples
+
+      iex> get_user(123)
+      %User{}
+
+      iex> get_user(999)
+      nil
+  """
+  @spec get_user(integer()) :: User.t() | nil
+  def get_user(id), do: Repo.get(User, id)
+
+  @doc """
+  Gets a user profile by Auth0 ID.
+
+  Returns `nil` if no user with that Auth0 ID exists.
+
+  ## Examples
+
+      iex> get_user_by_auth0_id("auth0|123")
+      %User{}
+
+      iex> get_user_by_auth0_id("auth0|unknown")
+      nil
+  """
+  @spec get_user_by_auth0_id(String.t()) :: User.t() | nil
+  def get_user_by_auth0_id(auth0_id) do
+    Repo.get_by(User, auth0_id: auth0_id)
+  end
+
+  @doc """
+  Creates a new user profile.
+
+  ## Examples
+
+      iex> create_user(%{auth0_id: "auth0|123", display_name: "Alice"})
+      {:ok, %User{}}
+
+      iex> create_user(%{})
+      {:error, %Ecto.Changeset{}}
+  """
+  @spec create_user(map()) :: {:ok, User.t()} | {:error, Ecto.Changeset.t()}
+  def create_user(attrs) do
+    %User{}
+    |> User.create_changeset(attrs)
+    |> Repo.insert()
+  end
+
+  @doc """
+  Updates an existing user profile.
+
+  ## Examples
+
+      iex> update_user(user, %{display_name: "New Name"})
+      {:ok, %User{}}
+
+      iex> update_user(user, %{inaturalist_url: "not-a-url"})
+      {:error, %Ecto.Changeset{}}
+  """
+  @spec update_user(User.t(), map()) :: {:ok, User.t()} | {:error, Ecto.Changeset.t()}
+  def update_user(%User{} = user, attrs) do
+    user
+    |> User.update_changeset(attrs)
+    |> Repo.update()
+  end
+
+  @doc """
+  Lists users who have opted in to appear on the About page.
+
+  Returns users ordered by display name (nulls last).
+
+  ## Examples
+
+      iex> list_users_for_about_page()
+      [%User{show_on_about: true}, ...]
+  """
+  @spec list_users_for_about_page() :: [User.t()]
+  def list_users_for_about_page do
+    User
+    |> where([u], u.show_on_about == true)
+    |> order_by([u], fragment("COALESCE(?, ?) COLLATE NOCASE", u.display_name, u.nickname))
+    |> Repo.all()
   end
 end
