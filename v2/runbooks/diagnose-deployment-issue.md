@@ -11,14 +11,14 @@ Determine whether a deployment has failed and identify the root cause.
 
 ## Prerequisites
 - `flyctl` CLI installed and authenticated
-- Access to Fly.io app `gallformers-v2`
+- Access to Fly.io app `gallformers`
 
 ## Procedure
 
 ### 1. Check Application Health
 
 ```bash
-curl -s -o /dev/null -w "%{http_code}" https://gallformers-v2.fly.dev/health
+curl -s -o /dev/null -w "%{http_code}" https://gallformers.fly.dev/health
 ```
 
 | Result | Meaning |
@@ -30,7 +30,7 @@ curl -s -o /dev/null -w "%{http_code}" https://gallformers-v2.fly.dev/health
 ### 2. Check Application Status
 
 ```bash
-fly status -a gallformers-v2
+fly status -a gallformers
 ```
 
 Verify:
@@ -41,11 +41,12 @@ Verify:
 ### 3. Check Recent Logs
 
 ```bash
-fly logs -a gallformers-v2 --no-tail
+fly logs -a gallformers --no-tail
 ```
 
 Look for:
-- `panic:` - Go runtime panic
+- `** (EXIT)` or `** (RuntimeError)` - Elixir process crashes
+- `GenServer terminating` - GenServer failures
 - `FATAL` or `ERROR` - Application errors
 - `database` or `sqlite` - Database connection issues
 - `migration` - Migration failures
@@ -54,7 +55,7 @@ Look for:
 ### 4. Check Recent Releases
 
 ```bash
-fly releases -a gallformers-v2
+fly releases -a gallformers
 ```
 
 Note:
@@ -64,7 +65,7 @@ Note:
 ### 5. Check Machine Health
 
 ```bash
-fly machines list -a gallformers-v2
+fly machines list -a gallformers
 ```
 
 For each machine, verify:

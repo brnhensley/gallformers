@@ -11,7 +11,7 @@ Revert the application to a previous known-good release.
 
 ## Prerequisites
 - `flyctl` CLI installed and authenticated
-- Access to Fly.io app `gallformers-v2`
+- Access to Fly.io app `gallformers`
 - Known-good release version (or will identify in Step 1)
 
 ## Important
@@ -24,7 +24,7 @@ This runbook rolls back **code only**. Database changes persist across deploymen
 List recent releases:
 
 ```bash
-fly releases -a gallformers-v2
+fly releases -a gallformers
 ```
 
 Output example:
@@ -40,15 +40,15 @@ Record the target version: `v____`
 ### 2. Get Target Image
 
 ```bash
-fly releases show v<TARGET_VERSION> -a gallformers-v2
+fly releases show v<TARGET_VERSION> -a gallformers
 ```
 
-Record the image reference: `registry.fly.io/gallformers-v2:deployment-________________`
+Record the image reference: `registry.fly.io/gallformers:deployment-________________`
 
 ### 3. Execute Rollback
 
 ```bash
-fly deploy --image registry.fly.io/gallformers-v2:deployment-<ID> -a gallformers-v2
+fly deploy --image registry.fly.io/gallformers:deployment-<ID> -a gallformers
 ```
 
 Wait for deployment to complete.
@@ -58,7 +58,7 @@ Wait for deployment to complete.
 Run health check:
 
 ```bash
-curl -s -o /dev/null -w "%{http_code}" https://gallformers-v2.fly.dev/health
+curl -s -o /dev/null -w "%{http_code}" https://gallformers.fly.dev/health
 ```
 
 Expected: `200`
@@ -66,7 +66,7 @@ Expected: `200`
 Check logs for clean startup:
 
 ```bash
-fly logs -a gallformers-v2 --no-tail | head -50
+fly logs -a gallformers --no-tail | head -50
 ```
 
 Verify no errors in recent log output.
@@ -79,7 +79,7 @@ Verify no errors in recent log output.
 
 ## Verification Checklist
 
-- [ ] `fly status -a gallformers-v2` shows healthy machines
+- [ ] `fly status -a gallformers` shows healthy machines
 - [ ] Health check returns 200
 - [ ] No error patterns in logs
 - [ ] User-reported issue resolved
@@ -90,8 +90,8 @@ If rollback deployment fails:
 
 1. Try direct machine update:
    ```bash
-   fly machines list -a gallformers-v2
-   fly machines update <MACHINE_ID> --image registry.fly.io/gallformers-v2:deployment-<ID> -a gallformers-v2
+   fly machines list -a gallformers
+   fly machines update <MACHINE_ID> --image registry.fly.io/gallformers:deployment-<ID> -a gallformers
    ```
 
 2. If still failing, see [Incident Response](./incident-response.md)
