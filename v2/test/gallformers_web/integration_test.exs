@@ -5,7 +5,7 @@ defmodule GallformersWeb.IntegrationTest do
   use GallformersWeb.ConnCase, async: true
   import Phoenix.LiveViewTest
 
-  alias Gallformers.Accounts.User
+  alias Gallformers.Accounts.Auth0User
   alias Gallformers.{Hosts, Species}
 
   describe "Public page load flows" do
@@ -163,7 +163,7 @@ defmodule GallformersWeb.IntegrationTest do
     end
 
     test "authenticated user can access admin", %{conn: conn} do
-      user = %User{
+      user = %Auth0User{
         id: "test-user-id",
         email: "admin@test.com",
         name: "Test Admin",

@@ -10,7 +10,7 @@ defmodule GallformersWeb.AuthController do
   plug Ueberauth
 
   alias Gallformers.Accounts
-  alias Gallformers.Accounts.User
+  alias Gallformers.Accounts.Auth0User
 
   @doc """
   Handles the OAuth request phase. This action exists to allow the
@@ -49,7 +49,7 @@ defmodule GallformersWeb.AuthController do
 
     conn
     |> Accounts.put_user_in_session(user)
-    |> put_flash(:info, "Welcome back, #{User.display_name(user)}!")
+    |> put_flash(:info, "Welcome back, #{Auth0User.display_name(user)}!")
     |> redirect(to: get_return_to(conn))
   end
 

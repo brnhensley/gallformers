@@ -12,13 +12,13 @@ defmodule GallformersWeb.Admin.GallhostLiveTest do
   use GallformersWeb.ConnCase, async: false
   import Phoenix.LiveViewTest
 
-  alias Gallformers.Accounts.User
+  alias Gallformers.Accounts.Auth0User
   alias Gallformers.Hosts
   alias Gallformers.Species
 
   # Helper to set up admin session
   defp setup_admin_session(conn) do
-    user = %User{
+    user = %Auth0User{
       id: "test-admin-id",
       email: "admin@test.com",
       name: "Test Admin",
