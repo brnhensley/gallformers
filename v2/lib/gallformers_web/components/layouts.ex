@@ -488,6 +488,16 @@ defmodule GallformersWeb.Layouts do
               </a>
             </div>
           <% end %>
+
+          <%!-- User section --%>
+          <div class="mt-6 pt-4 border-t border-gray-500">
+            <a
+              href="/admin/profile"
+              class="flex items-center px-3 py-3 text-xl font-semibold text-white rounded-md hover:bg-slate-600 group"
+            >
+              <.icon name="ph-user-circle" class="mr-3 h-6 w-6 text-white" /> My Profile
+            </a>
+          </div>
         </nav>
       </aside>
 
@@ -558,6 +568,16 @@ defmodule GallformersWeb.Layouts do
                 </a>
               </div>
             <% end %>
+
+            <%!-- User section --%>
+            <div class="mt-6 pt-4 border-t border-gray-500">
+              <a
+                href="/admin/profile"
+                class="flex items-center px-3 py-3 text-xl font-semibold text-white rounded-md hover:bg-slate-600"
+              >
+                <.icon name="ph-user-circle" class="mr-3 h-6 w-6 text-white" /> My Profile
+              </a>
+            </div>
           </nav>
         </aside>
       </div>
