@@ -401,11 +401,27 @@ The site should be:
 ## External Services
 
 - **Domain**: gallformers.org, gallformers.com (Namecheap)
-- **Hosting**: Digital Ocean Droplet
+- **Hosting**: Digital Ocean Droplet (v1), Fly.io (v2)
 - **Images**: AWS S3 (personal account)
 - **Auth**: Auth0
 - **Monitoring**: AWS Lambda + CloudWatch + Slack
 - **SSL**: Let's Encrypt (auto-renewal)
+
+## AWS Infrastructure
+
+**Region**: `us-east-1` (N. Virginia) - All AWS resources use this region to match Fly.io's `iad` datacenter for low latency.
+
+**S3 Buckets:**
+| Bucket | Access | Purpose |
+|--------|--------|---------|
+| `gallformers` | Public | Production images |
+| `gallformers-backups` | Mixed | Litestream backups (private) + sanitized DB snapshots (public prefix) |
+| `gallformers-full-backups` | Private | Full unsanitized database backups (contains PII) |
+
+**IAM Users:**
+- `litestream-gallformers` - Used by Fly.io and GitHub Actions for database backups
+
+See `v2/docs/backup-setup.md` for detailed S3/IAM configuration.
 
 ## Getting Help
 
