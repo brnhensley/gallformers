@@ -93,10 +93,20 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
     handle_form_event(event, params, socket)
   end
 
+  defp taxonomy_public_url(%{type: "family", id: id}), do: ~p"/family/#{id}"
+  defp taxonomy_public_url(%{type: "genus", id: id}), do: ~p"/genus/#{id}"
+  defp taxonomy_public_url(%{type: "section", id: id}), do: ~p"/section/#{id}"
+  defp taxonomy_public_url(_), do: nil
+
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.admin flash={@flash} current_user={@current_user} page_title={@page_title}>
+    <Layouts.admin
+      flash={@flash}
+      current_user={@current_user}
+      page_title={@page_title}
+      public_url={if @mode == :edit, do: taxonomy_public_url(@taxonomy)}
+    >
       <Layouts.admin_edit_layout
         back_path={~p"/admin/taxonomy"}
         back_label="Back to Taxonomy"

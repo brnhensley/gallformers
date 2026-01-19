@@ -122,7 +122,8 @@ defmodule GallformersWeb.Admin.HostLive.FormTest do
       host = require_host()
       {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
 
-      assert has_element?(view, "a[href='/host/#{host.id}']", "View public page")
+      # The public page link is now an icon in the header with title attribute
+      assert has_element?(view, "a[href='/host/#{host.id}'][title='View public page']")
     end
 
     test "shows range map in edit mode", %{conn: conn} do

@@ -206,7 +206,19 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
         on_cancel={JS.push("request_cancel")}
         class="!max-w-[80vw]"
       >
-        <:header>{if @editing_article.id, do: "Edit Article", else: "New Article"}</:header>
+        <:header>
+          <span>{if @editing_article.id, do: "Edit Article", else: "New Article"}</span>
+          <%= if @editing_article.id do %>
+            <a
+              href={~p"/ref/#{@editing_article.slug}"}
+              target="_blank"
+              title="View public page"
+              class="ml-3 text-gf-maroon hover:text-gf-autumn transition-colors"
+            >
+              <.icon name="ph-eye" class="h-5 w-5 inline" />
+            </a>
+          <% end %>
+        </:header>
         <:body>
           <%!-- Tabs --%>
           <div class="border-b border-gray-200 mb-4">

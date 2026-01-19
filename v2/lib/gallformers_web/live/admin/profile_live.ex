@@ -104,7 +104,12 @@ defmodule GallformersWeb.Admin.ProfileLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.admin flash={@flash} current_user={@current_user} page_title={@page_title}>
+    <Layouts.admin
+      flash={@flash}
+      current_user={@current_user}
+      page_title={@page_title}
+      public_url={if @user && @user.nickname, do: ~p"/user/#{@user.nickname}"}
+    >
       <Layouts.admin_edit_layout
         back_path={~p"/admin"}
         back_label="Back to Dashboard"

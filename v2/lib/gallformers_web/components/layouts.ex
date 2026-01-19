@@ -432,6 +432,7 @@ defmodule GallformersWeb.Layouts do
   attr :flash, :map, required: true, doc: "the map of flash messages"
   attr :current_user, :map, required: true, doc: "the currently logged in user"
   attr :page_title, :string, default: nil, doc: "the page title for the header"
+  attr :public_url, :string, default: nil, doc: "URL to the public page for this item"
 
   slot :inner_block, required: true
 
@@ -603,6 +604,15 @@ defmodule GallformersWeb.Layouts do
           <%= if @page_title do %>
             <div class="flex items-center h-20 px-4 sm:px-6 lg:px-8 bg-gf-sky-blue border-l border-slate-400/50">
               <span class="text-2xl font-bold text-gf-maroon">{@page_title}</span>
+              <%= if @public_url do %>
+                <a
+                  href={@public_url}
+                  title="View public page"
+                  class="ml-3 text-gf-maroon hover:text-gf-autumn transition-colors"
+                >
+                  <.icon name="ph-eye" class="h-6 w-6" />
+                </a>
+              <% end %>
             </div>
           <% end %>
 

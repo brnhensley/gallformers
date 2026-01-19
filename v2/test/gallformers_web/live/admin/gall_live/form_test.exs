@@ -128,7 +128,8 @@ defmodule GallformersWeb.Admin.GallLive.FormTest do
       gall = require_gall()
       {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
 
-      assert has_element?(view, "a[href='/gall/#{gall.id}']", "View public page")
+      # The public page link is now an icon in the header with title attribute
+      assert has_element?(view, "a[href='/gall/#{gall.id}'][title='View public page']")
     end
 
     test "shows filter fields in edit mode", %{conn: conn} do

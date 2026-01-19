@@ -49,7 +49,12 @@ defmodule GallformersWeb.Admin.PlaceLive.Form do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.admin flash={@flash} current_user={@current_user} page_title={@page_title}>
+    <Layouts.admin
+      flash={@flash}
+      current_user={@current_user}
+      page_title={@page_title}
+      public_url={if @mode == :edit, do: ~p"/place/#{@place.id}"}
+    >
       <Layouts.admin_edit_layout
         back_path={~p"/admin/places"}
         back_label="Back to Places"

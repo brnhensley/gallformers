@@ -608,7 +608,12 @@ defmodule GallformersWeb.Admin.GallLive.Form do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.admin flash={@flash} current_user={@current_user} page_title={@page_title}>
+    <Layouts.admin
+      flash={@flash}
+      current_user={@current_user}
+      page_title={@page_title}
+      public_url={if @mode == :edit, do: ~p"/gall/#{@gall.id}"}
+    >
       <Layouts.admin_edit_layout
         back_path={~p"/admin/galls"}
         back_label="Back to Galls"
@@ -951,17 +956,7 @@ defmodule GallformersWeb.Admin.GallLive.Form do
           </div>
 
           <%!-- Action buttons --%>
-          <div class="flex justify-between items-center pt-3 border-t border-gray-200">
-            <div>
-              <%= if @mode == :edit do %>
-                <.link
-                  navigate={~p"/gall/#{@gall.id}"}
-                  class="text-sm text-gf-maroon hover:underline"
-                >
-                  View public page
-                </.link>
-              <% end %>
-            </div>
+          <div class="flex justify-end pt-3 border-t border-gray-200">
             <.form_actions form_dirty={@form_dirty} mode={@mode} />
           </div>
         </.form>
