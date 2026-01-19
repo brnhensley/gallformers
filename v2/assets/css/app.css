@@ -750,3 +750,257 @@ a.gf-btn-primary:hover {
 .gf-card-body {
   padding: 1rem;
 }
+
+/* ============================================
+   Pill Toggle Styles
+   ============================================ */
+
+.gf-pill {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  border: 1px solid;
+  transition: all 0.15s ease-in-out;
+  cursor: pointer;
+}
+
+.gf-pill-selected {
+  background-color: #661419;
+  color: white;
+  border-color: #661419;
+}
+
+.gf-pill-unselected {
+  background-color: white;
+  color: #374151;
+  border-color: #d1d5db;
+}
+
+.gf-pill-unselected:hover {
+  border-color: #661419;
+}
+
+/* ============================================
+   Search Input Styles
+   ============================================ */
+
+.gf-search-input {
+  display: block;
+  width: 100%;
+  padding: 0.75rem 0.75rem 0.75rem 2.5rem;
+  font-size: 1.125rem;
+  line-height: 1.25;
+  color: #1f2937;
+  background-color: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.gf-search-input:focus {
+  outline: none;
+  border-color: #661419;
+  box-shadow: 0 0 0 1px #661419;
+}
+
+.gf-search-input::placeholder {
+  color: #6b7280;
+}
+
+/* ============================================
+   Toggle Switch Styles
+   ============================================ */
+
+.gf-toggle {
+  position: relative;
+  width: 2.75rem;
+  height: 1.5rem;
+  background-color: #e5e7eb;
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: background-color 0.2s ease-in-out;
+}
+
+.gf-toggle::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 1.25rem;
+  height: 1.25rem;
+  background-color: white;
+  border: 1px solid #d1d5db;
+  border-radius: 9999px;
+  transition: transform 0.2s ease-in-out;
+}
+
+.gf-toggle-checked {
+  background-color: #661419;
+}
+
+.gf-toggle-checked::after {
+  transform: translateX(100%);
+  border-color: white;
+}
+
+.gf-toggle:focus-within {
+  box-shadow: 0 0 0 2px rgba(102, 20, 25, 0.5);
+}
+
+.gf-toggle-track {
+  width: 2.75rem;
+  height: 1.5rem;
+  background-color: #e5e7eb;
+  border-radius: 9999px;
+  transition: background-color 0.2s ease-in-out;
+}
+
+.gf-toggle-track::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 1.25rem;
+  height: 1.25rem;
+  background-color: white;
+  border: 1px solid #d1d5db;
+  border-radius: 9999px;
+  transition: transform 0.2s ease-in-out;
+}
+
+/* ============================================
+   Radio Button Styles
+   ============================================ */
+
+.gf-radio {
+  width: 1rem;
+  height: 1rem;
+  color: #661419;
+  border: 1px solid #d1d5db;
+  cursor: pointer;
+}
+
+.gf-radio:checked {
+  background-color: #661419;
+  border-color: #661419;
+}
+
+.gf-radio:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(102, 20, 25, 0.5);
+}
+
+/* ============================================
+   File Dropzone Styles
+   ============================================ */
+
+.gf-dropzone {
+  display: flex;
+  justify-content: center;
+  padding: 1.25rem 1.5rem 1.5rem;
+  border: 2px dashed #d1d5db;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease-in-out;
+}
+
+.gf-dropzone:hover {
+  border-color: #661419;
+}
+
+.gf-dropzone-link {
+  position: relative;
+  cursor: pointer;
+  border-radius: 0.375rem;
+  font-weight: 500;
+  color: #661419;
+}
+
+.gf-dropzone-link:hover {
+  color: rgba(102, 20, 25, 0.8);
+}
+
+/* ============================================
+   Multi-Select Container Styles
+   ============================================ */
+
+.gf-multi-select-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  padding: 0.375rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.25rem;
+  background-color: white;
+  min-height: 2.125rem;
+  cursor: text;
+}
+
+.gf-multi-select-container-md {
+  padding: 0.5rem;
+  border-radius: 0.375rem;
+  min-height: 2.625rem;
+}
+
+.gf-multi-select-input {
+  flex: 1;
+  min-width: 60px;
+  border: 0;
+  padding: 0;
+  font-size: 0.75rem;
+}
+
+.gf-multi-select-input:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+.gf-multi-select-input-md {
+  min-width: 80px;
+  font-size: 1rem;
+}
+
+.gf-multi-select-dropdown {
+  position: absolute;
+  z-index: 20;
+  margin-top: 0.25rem;
+  width: 100%;
+  background-color: white;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  border-radius: 0.25rem;
+  border: 1px solid #e5e7eb;
+  max-height: 8rem;
+  overflow: auto;
+}
+
+.gf-multi-select-dropdown-md {
+  border-radius: 0.375rem;
+  max-height: 12rem;
+}
+
+.gf-multi-select-option {
+  width: 100%;
+  padding: 0.25rem 0.5rem;
+  text-align: left;
+  font-size: 0.75rem;
+}
+
+/* ============================================
+   Form Helper Text Styles
+   ============================================ */
+
+.gf-hint {
+  margin-top: 0.25rem;
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.gf-error {
+  margin-top: 0.25rem;
+  font-size: 0.875rem;
+  color: #dc2626;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
