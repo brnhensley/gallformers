@@ -81,34 +81,62 @@ defmodule GallformersWeb.CoreComponents do
   @doc """
   Renders a button with navigation support.
 
+  ## Variants
+
+    * `primary` - Maroon background, white text
+    * `secondary` - White background, gray text, gray border
+    * `danger` - Red background, white text
+    * `warning` - Yellow background, white text
+    * `ghost` - Transparent background, maroon text
+    * `soft` - Light maroon background, maroon text (default)
+
   ## Examples
 
       <.button>Send!</.button>
       <.button phx-click="go" variant="primary">Send!</.button>
+      <.button variant="danger">Delete</.button>
       <.button navigate={~p"/"}>Home</.button>
+      <.button type="submit" variant="primary">Save</.button>
   """
-  attr :rest, :global, include: ~w(href navigate patch method download name value disabled)
-  attr :class, :any
-  attr :variant, :string, values: ~w(primary)
+  attr :rest, :global,
+    include:
+      ~w(href navigate patch method download name value disabled type form phx-disable-with)
+
+  attr :class, :any, default: nil
+  attr :variant, :string, default: "soft", values: ~w(primary secondary danger warning ghost soft)
+  attr :size, :string, default: "md", values: ~w(sm md lg)
   slot :inner_block, required: true
 
   def button(%{rest: rest} = assigns) do
-    variants = %{"primary" => "gf-btn-primary", nil => "gf-btn-soft"}
+    variants = %{
+      "primary" => "gf-btn-primary",
+      "secondary" => "gf-btn-secondary",
+      "danger" => "gf-btn-danger",
+      "warning" => "gf-btn-warning",
+      "ghost" => "gf-btn-ghost",
+      "soft" => "gf-btn-soft"
+    }
+
+    sizes = %{
+      "sm" => "gf-btn-sm",
+      "md" => nil,
+      "lg" => "gf-btn-lg"
+    }
 
     assigns =
-      assign_new(assigns, :class, fn ->
-        ["gf-btn", Map.fetch!(variants, assigns[:variant])]
-      end)
+      assigns
+      |> assign(:variant_class, Map.fetch!(variants, assigns.variant))
+      |> assign(:size_class, Map.fetch!(sizes, assigns.size))
 
     if rest[:href] || rest[:navigate] || rest[:patch] do
       ~H"""
-      <.link class={@class} {@rest}>
+      <.link class={["gf-btn", @variant_class, @size_class, @class]} {@rest}>
         {render_slot(@inner_block)}
       </.link>
       """
     else
       ~H"""
-      <button class={@class} {@rest}>
+      <button class={["gf-btn", @variant_class, @size_class, @class]} {@rest}>
         {render_slot(@inner_block)}
       </button>
       """
