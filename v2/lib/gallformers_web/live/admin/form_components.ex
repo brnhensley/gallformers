@@ -33,20 +33,14 @@ defmodule GallformersWeb.Admin.FormComponents do
       <button
         type="button"
         phx-click="request_cancel"
-        class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
+        class="gf-btn gf-btn-soft"
       >
         Cancel
       </button>
       <button
         type="submit"
         disabled={not @form_dirty}
-        class={[
-          "px-4 py-2 text-sm rounded",
-          if(@form_dirty,
-            do: "bg-gf-maroon text-white hover:bg-gf-maroon/90",
-            else: "bg-gray-300 text-gray-500 cursor-not-allowed"
-          )
-        ]}
+        class="gf-btn gf-btn-primary"
       >
         {if @mode == :new, do: @create_label, else: @save_label}
       </button>
@@ -85,7 +79,7 @@ defmodule GallformersWeb.Admin.FormComponents do
   def alias_editor(assigns) do
     ~H"""
     <div class="mb-3">
-      <label class="block text-sm font-medium text-gray-700 mb-1">Aliases:</label>
+      <label class="gf-label gf-label-sm">Aliases:</label>
       <div class="border border-gray-300 rounded">
         <table class="w-full text-sm">
           <thead class="bg-gray-50">
@@ -118,14 +112,14 @@ defmodule GallformersWeb.Admin.FormComponents do
                   placeholder="New alias..."
                   phx-keyup="update_new_alias"
                   phx-value-type={@new_alias_type}
-                  class="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                  class="gf-input text-sm"
                 />
               </td>
               <td class="px-3 py-1.5">
                 <select
                   phx-change="update_new_alias"
                   phx-value-name={@new_alias_name}
-                  class="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                  class="gf-select text-sm"
                 >
                   <%= for {label, value} <- alias_type_options() do %>
                     <option value={value} selected={@new_alias_type == value}>
