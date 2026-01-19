@@ -745,7 +745,7 @@ defmodule GallformersWeb.FormComponents do
       data-input-id={"#{@id}-input"}
       class={@class}
     >
-      <label class="block text-base font-medium text-gray-700 mb-1">{@label}</label>
+      <label class="gf-label">{@label}</label>
       <%= if @selected do %>
         <div
           id={"#{@id}-selected"}
@@ -777,7 +777,7 @@ defmodule GallformersWeb.FormComponents do
             phx-keyup={@search_event}
             phx-debounce="200"
             placeholder={@placeholder}
-            class="w-full px-3 py-2 border border-gray-300 rounded-md text-base focus:ring-gf-maroon focus:border-gf-maroon"
+            class="gf-input"
             role="combobox"
             aria-expanded={length(@results) > 0}
             aria-controls={"#{@id}-results"}
@@ -883,20 +883,20 @@ defmodule GallformersWeb.FormComponents do
       data-input-id={@id}
       class="mb-2"
     >
-      <label class="block text-base font-medium text-gray-700 mb-1">{@label}</label>
+      <label class="gf-label">{@label}</label>
       <div class="relative">
         <%!-- Selected tags and input --%>
         <div class="flex flex-wrap gap-1 p-2 border border-gray-300 rounded-md bg-white min-h-[42px]">
           <span
             :for={opt <- @selected_options}
-            class="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-100 text-gray-800 rounded text-sm"
+            class="gf-chip gf-chip-sm"
           >
             {Map.get(opt, @option_label)}
             <button
               type="button"
               phx-click={"#{@name}_remove"}
               phx-value-id={to_string(opt.id)}
-              class="text-gray-500 hover:text-gray-700"
+              class="gf-chip-remove"
             >
               <.icon name="ph-x" class="size-3" />
             </button>

@@ -487,11 +487,8 @@ defmodule GallformersWeb.CoreComponents do
     ~H"""
     <span
       class={[
-        "inline-flex items-center px-2 py-1 text-xs font-medium rounded-full cursor-help",
-        if(@complete,
-          do: "bg-green-100 text-green-800",
-          else: "bg-yellow-100 text-yellow-800"
-        )
+        "gf-badge cursor-help",
+        if(@complete, do: "gf-badge-success", else: "gf-badge-warning")
       ]}
       title={if @complete, do: @complete_tooltip, else: @incomplete_tooltip}
     >

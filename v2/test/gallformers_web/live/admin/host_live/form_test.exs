@@ -59,9 +59,9 @@ defmodule GallformersWeb.Admin.HostLive.FormTest do
     end
 
     test "save button is disabled initially", %{conn: conn} do
-      {:ok, _view, html} = live(conn, ~p"/admin/hosts/new")
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/new")
 
-      assert html =~ "cursor-not-allowed"
+      assert has_element?(view, "button[type='submit'][disabled]")
     end
 
     test "shows back link to hosts list", %{conn: conn} do

@@ -280,16 +280,16 @@ defmodule GallformersWeb.Admin.GallLive.FormTest do
 
     test "update_detachable marks form as dirty", %{conn: conn} do
       gall = require_gall()
-      {:ok, view, html_before} = live(conn, ~p"/admin/galls/#{gall.id}")
+      {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
 
-      # Initially form should not be dirty
-      assert html_before =~ "cursor-not-allowed"
+      # Initially form should not be dirty (save button disabled)
+      assert has_element?(view, "button[type='submit'][disabled]")
 
       # Change detachable value
-      html_after = render_click(view, "update_detachable", %{"value" => "2"})
+      render_click(view, "update_detachable", %{"value" => "2"})
 
       # Form should now be dirty (save button enabled)
-      refute html_after =~ "cursor-not-allowed"
+      refute has_element?(view, "button[type='submit'][disabled]")
     end
 
     test "update_detachable updates the select value", %{conn: conn} do
@@ -310,16 +310,16 @@ defmodule GallformersWeb.Admin.GallLive.FormTest do
 
     test "toggle_undescribed marks form as dirty", %{conn: conn} do
       gall = require_gall()
-      {:ok, view, html_before} = live(conn, ~p"/admin/galls/#{gall.id}")
+      {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
 
-      # Initially form should not be dirty
-      assert html_before =~ "cursor-not-allowed"
+      # Initially form should not be dirty (save button disabled)
+      assert has_element?(view, "button[type='submit'][disabled]")
 
       # Toggle undescribed
-      html_after = render_click(view, "toggle_undescribed", %{})
+      render_click(view, "toggle_undescribed", %{})
 
       # Form should now be dirty (save button enabled)
-      refute html_after =~ "cursor-not-allowed"
+      refute has_element?(view, "button[type='submit'][disabled]")
     end
 
     test "toggle_undescribed toggles checkbox state", %{conn: conn} do
