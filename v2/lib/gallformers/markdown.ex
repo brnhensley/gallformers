@@ -169,7 +169,13 @@ defmodule Gallformers.Markdown do
   defp ensure_ets_table do
     case :ets.whereis(@ets_table) do
       :undefined ->
-        :ets.new(@ets_table, [:named_table, :public, :set])
+        try do
+          :ets.new(@ets_table, [:named_table, :public, :set])
+        catch
+          # Handle race condition: another process created the table between
+          # our whereis check and the new call
+          :error, :badarg -> :ok
+        end
 
       _tid ->
         :ok
