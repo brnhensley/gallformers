@@ -63,10 +63,18 @@ defmodule GallformersWeb.RefArticleLive do
     # Draft articles should not be indexed by search engines
     noindex = not article.is_published
 
+    # Use description if available, otherwise generate from content
+    page_description =
+      if article.description && article.description != "" do
+        article.description
+      else
+        content_description(article.content)
+      end
+
     {:ok,
      assign(socket,
        page_title: article.title,
-       page_description: content_description(article.content),
+       page_description: page_description,
        page_url: "/ref/#{article.slug}",
        page_image: nil,
        page_json_ld: article_json_ld(article),
@@ -92,6 +100,14 @@ defmodule GallformersWeb.RefArticleLive do
   defp content_description(_), do: "Reference article on Gallformers"
 
   defp article_json_ld(article) do
+    # Use published_at if available, otherwise fall back to inserted_at
+    date_published =
+      if article.published_at do
+        DateTime.to_iso8601(article.published_at)
+      else
+        NaiveDateTime.to_iso8601(article.inserted_at)
+      end
+
     json_ld = %{
       "@context" => "https://schema.org",
       "@type" => "Article",
@@ -100,7 +116,7 @@ defmodule GallformersWeb.RefArticleLive do
         "@type" => "Person",
         "name" => article.author
       },
-      "datePublished" => NaiveDateTime.to_iso8601(article.inserted_at),
+      "datePublished" => date_published,
       "dateModified" => NaiveDateTime.to_iso8601(article.updated_at),
       "publisher" => %{
         "@type" => "Organization",
@@ -110,6 +126,11 @@ defmodule GallformersWeb.RefArticleLive do
     }
 
     Phoenix.HTML.raw(~s(<script type="application/ld+json">#{Jason.encode!(json_ld)}</script>))
+  end
+
+  # Returns the date to display (published_at if available, otherwise inserted_at)
+  defp display_date(article) do
+    article.published_at || article.inserted_at
   end
 
   @impl true
@@ -185,7 +206,7 @@ defmodule GallformersWeb.RefArticleLive do
             <div class="flex flex-wrap items-center gap-4 text-gray-600">
               <span>By {@article.author}</span>
               <span>•</span>
-              <span>{format_date(@article.inserted_at)}</span>
+              <span>{format_date(display_date(@article))}</span>
               <%= if @article.updated_at != @article.inserted_at do %>
                 <span class="text-sm text-gray-500">
                   (Updated {format_date(@article.updated_at)})

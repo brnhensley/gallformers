@@ -126,16 +126,42 @@ defmodule Gallformers.ArticlesTest do
       assert {:error, %Ecto.Changeset{}} = Articles.create_article(@invalid_attrs)
     end
 
-    test "enforces unique slug" do
-      assert {:ok, _} = Articles.create_article(@valid_attrs)
-      assert {:error, changeset} = Articles.create_article(@valid_attrs)
-      assert "has already been taken" in errors_on(changeset).slug
+    test "auto-generates unique slug on collision" do
+      assert {:ok, article1} = Articles.create_article(@valid_attrs)
+      assert article1.slug == "test-article"
+
+      # Second article with same title gets a numbered slug
+      assert {:ok, article2} = Articles.create_article(@valid_attrs)
+      assert article2.slug == "test-article-2"
+
+      # Third article gets the next number
+      assert {:ok, article3} = Articles.create_article(@valid_attrs)
+      assert article3.slug == "test-article-3"
     end
 
     test "stores tags as array" do
       attrs = Map.put(@valid_attrs, :tags, ["biology", "ecology"])
       assert {:ok, %Article{} = article} = Articles.create_article(attrs)
       assert article.tags == ["biology", "ecology"]
+    end
+
+    test "stores description" do
+      attrs = Map.put(@valid_attrs, :description, "A brief summary of the article.")
+      assert {:ok, %Article{} = article} = Articles.create_article(attrs)
+      assert article.description == "A brief summary of the article."
+    end
+
+    test "sets published_at when created as published" do
+      attrs = Map.put(@valid_attrs, :is_published, true)
+      assert {:ok, %Article{} = article} = Articles.create_article(attrs)
+      assert article.is_published == true
+      assert article.published_at != nil
+    end
+
+    test "does not set published_at when created as draft" do
+      assert {:ok, %Article{} = article} = Articles.create_article(@valid_attrs)
+      assert article.is_published == false
+      assert article.published_at == nil
     end
   end
 
@@ -151,6 +177,32 @@ defmodule Gallformers.ArticlesTest do
     test "returns error with invalid data" do
       article = create_article()
       assert {:error, %Ecto.Changeset{}} = Articles.update_article(article, @invalid_attrs)
+    end
+
+    test "sets published_at when transitioning from draft to published" do
+      article = create_article(%{is_published: false})
+      assert article.published_at == nil
+
+      {:ok, updated} = Articles.update_article(article, %{is_published: true})
+      assert updated.is_published == true
+      assert updated.published_at != nil
+    end
+
+    test "does not change published_at when already published" do
+      {:ok, article} = Articles.create_article(Map.put(@valid_attrs, :is_published, true))
+      original_published_at = article.published_at
+
+      # Wait a tiny bit to ensure timestamps would differ
+      :timer.sleep(10)
+
+      {:ok, updated} = Articles.update_article(article, %{title: "New Title"})
+      assert updated.published_at == original_published_at
+    end
+
+    test "does not set published_at when remaining as draft" do
+      article = create_article(%{is_published: false})
+      {:ok, updated} = Articles.update_article(article, %{title: "New Title"})
+      assert updated.published_at == nil
     end
   end
 
@@ -218,7 +270,7 @@ defmodule Gallformers.ArticlesTest do
     end
   end
 
-  describe "list_tags/0" do
+  describe "list_tags/1" do
     test "returns empty list when no articles exist" do
       assert Articles.list_tags() == []
     end
@@ -235,6 +287,24 @@ defmodule Gallformers.ArticlesTest do
       assert biology.count == 2
       assert ecology.count == 1
       assert botany.count == 1
+    end
+
+    test "filters by published_only option" do
+      create_article(%{title: "Draft", tags: ["draft-only"], is_published: false})
+      create_article(%{title: "Published", tags: ["published-tag", "shared"], is_published: true})
+      create_article(%{title: "Draft 2", tags: ["shared"], is_published: false})
+
+      # Without filter, all tags included
+      all_tags = Articles.list_tags()
+      assert Enum.find(all_tags, &(&1.tag == "draft-only")).count == 1
+      assert Enum.find(all_tags, &(&1.tag == "published-tag")).count == 1
+      assert Enum.find(all_tags, &(&1.tag == "shared")).count == 2
+
+      # With published_only, only tags from published articles
+      published_tags = Articles.list_tags(published_only: true)
+      assert Enum.find(published_tags, &(&1.tag == "draft-only")) == nil
+      assert Enum.find(published_tags, &(&1.tag == "published-tag")).count == 1
+      assert Enum.find(published_tags, &(&1.tag == "shared")).count == 1
     end
   end
 

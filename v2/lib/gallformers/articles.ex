@@ -100,24 +100,79 @@ defmodule Gallformers.Articles do
 
   @doc """
   Creates an article.
+
+  If the generated slug already exists, appends a number to make it unique.
+  Sets published_at if the article is being created as published.
   """
   @spec create_article(map()) :: {:ok, Article.t()} | {:error, Ecto.Changeset.t()}
   def create_article(attrs \\ %{}) do
     %Article{}
     |> Article.changeset(attrs)
+    |> ensure_unique_slug()
+    |> maybe_set_published_at(nil)
     |> Repo.insert()
     |> broadcast(:article_created)
   end
 
   @doc """
   Updates an article.
+
+  Sets published_at when transitioning from unpublished to published.
   """
   @spec update_article(Article.t(), map()) :: {:ok, Article.t()} | {:error, Ecto.Changeset.t()}
   def update_article(%Article{} = article, attrs) do
     article
     |> Article.changeset(attrs)
+    |> maybe_set_published_at(article)
     |> Repo.update()
     |> broadcast(:article_updated)
+  end
+
+  # Sets published_at when an article transitions to published status
+  defp maybe_set_published_at(changeset, original_article) do
+    is_publishing = Ecto.Changeset.get_field(changeset, :is_published) == true
+    was_published = original_article != nil and original_article.is_published == true
+    has_published_at = Ecto.Changeset.get_field(changeset, :published_at) != nil
+
+    if is_publishing and not was_published and not has_published_at do
+      Ecto.Changeset.put_change(
+        changeset,
+        :published_at,
+        DateTime.utc_now() |> DateTime.truncate(:second)
+      )
+    else
+      changeset
+    end
+  end
+
+  # Ensures the slug is unique by appending a number if necessary
+  defp ensure_unique_slug(changeset) do
+    slug = Ecto.Changeset.get_field(changeset, :slug)
+
+    if slug && slug_exists?(slug, nil) do
+      unique_slug = find_unique_slug(slug, nil, 2)
+      Ecto.Changeset.put_change(changeset, :slug, unique_slug)
+    else
+      changeset
+    end
+  end
+
+  defp slug_exists?(slug, nil) do
+    Repo.exists?(from(a in Article, where: a.slug == ^slug))
+  end
+
+  defp slug_exists?(slug, exclude_id) do
+    Repo.exists?(from(a in Article, where: a.slug == ^slug and a.id != ^exclude_id))
+  end
+
+  defp find_unique_slug(base_slug, exclude_id, n) do
+    candidate = "#{base_slug}-#{n}"
+
+    if slug_exists?(candidate, exclude_id) do
+      find_unique_slug(base_slug, exclude_id, n + 1)
+    else
+      candidate
+    end
   end
 
   @doc """
@@ -176,12 +231,25 @@ defmodule Gallformers.Articles do
   Returns all unique tags with their counts.
 
   Returns a list of maps: `[%{tag: "biology", count: 3}, ...]`
-  """
-  @spec list_tags() :: [%{tag: String.t(), count: integer()}]
-  def list_tags do
-    articles = Repo.all(from(a in Article, select: a.tags))
 
-    articles
+  ## Options
+
+    * `:published_only` - if true, only counts tags from published articles (default: false)
+
+  """
+  @spec list_tags(keyword()) :: [%{tag: String.t(), count: integer()}]
+  def list_tags(opts \\ []) do
+    published_only = Keyword.get(opts, :published_only, false)
+
+    query =
+      if published_only do
+        from(a in Article, where: a.is_published == true, select: a.tags)
+      else
+        from(a in Article, select: a.tags)
+      end
+
+    query
+    |> Repo.all()
     |> Enum.flat_map(fn tags -> tags || [] end)
     |> Enum.frequencies()
     |> Enum.map(fn {tag, count} -> %{tag: tag, count: count} end)

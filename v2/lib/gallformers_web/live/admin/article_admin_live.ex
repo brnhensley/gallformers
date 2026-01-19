@@ -45,6 +45,10 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
       |> assign(:active_tab, :edit)
       |> assign(:show_image_browser, false)
       |> assign(:article_images, [])
+      # Tag dropdown state
+      |> assign(:form_tags, [])
+      |> assign(:tag_search_query, "")
+      |> assign(:tag_dropdown_open, false)
 
     {:ok, socket}
   end
@@ -260,6 +264,18 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
                 <div>
                   <.input field={@form[:author]} label="Author" required />
                 </div>
+                <div>
+                  <.input
+                    type="textarea"
+                    field={@form[:description]}
+                    label="Description"
+                    placeholder="Brief summary for article previews and SEO"
+                    rows={2}
+                  />
+                  <p class="mt-1 text-xs text-gray-500">
+                    Optional. Used for article previews and search engine descriptions.
+                  </p>
+                </div>
                 <div class="flex-1 flex flex-col min-h-0">
                   <label class="gf-label">
                     Content (Markdown)
@@ -313,12 +329,26 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
                   </div>
                 </div>
                 <div>
-                  <.input
-                    field={@form[:tags_input]}
+                  <.multi_select_dropdown
+                    id="article-tags"
                     label="Tags"
-                    placeholder="biology, ecology, identification"
+                    type={:tags}
+                    options={Enum.map(@all_tags, fn tag -> %{id: tag, tag: tag} end)}
+                    selected={Enum.map(@form_tags, fn tag -> %{id: tag, tag: tag} end)}
+                    search_query={@tag_search_query}
+                    dropdown_open={@tag_dropdown_open}
+                    item_id={:id}
+                    item_label={:tag}
+                    placeholder="Select or type tags..."
+                    on_search="tag_search"
+                    on_add="add_tag"
+                    on_remove="remove_tag"
+                    on_open="open_tag_dropdown"
+                    on_close="close_tag_dropdown"
                   />
-                  <p class="mt-1 text-xs text-gray-500">Comma-separated list of tags</p>
+                  <p class="mt-1 text-xs text-gray-500">
+                    Select existing tags or type a new tag and press Enter
+                  </p>
                 </div>
                 <.input type="checkbox" field={@form[:is_published]} label="Published" />
               </.form>
@@ -479,10 +509,13 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
     socket =
       socket
       |> assign(:editing_article, article)
-      |> assign(:form, to_form(changeset_with_tags_input(changeset, article)))
+      |> assign(:form, to_form(changeset))
       |> assign(:form_dirty, false)
       |> assign(:preview_content, nil)
       |> assign(:active_tab, :edit)
+      |> assign(:form_tags, [])
+      |> assign(:tag_search_query, "")
+      |> assign(:tag_dropdown_open, false)
 
     {:noreply, socket}
   end
@@ -495,10 +528,13 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
     socket =
       socket
       |> assign(:editing_article, article)
-      |> assign(:form, to_form(changeset_with_tags_input(changeset, article)))
+      |> assign(:form, to_form(changeset))
       |> assign(:form_dirty, false)
       |> assign(:preview_content, render_preview(article.content))
       |> assign(:active_tab, :edit)
+      |> assign(:form_tags, article.tags || [])
+      |> assign(:tag_search_query, "")
+      |> assign(:tag_dropdown_open, false)
 
     {:noreply, socket}
   end
@@ -506,20 +542,19 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
   @impl true
   def handle_event("validate", %{"article" => params}, socket) do
     article = socket.assigns.editing_article
+    # Include current form_tags in params for validation
+    params_with_tags = Map.put(params, "tags", socket.assigns.form_tags)
 
     changeset =
       article
-      |> Articles.change_article(normalize_params(params))
+      |> Articles.change_article(normalize_params(params_with_tags))
       |> Map.put(:action, :validate)
 
     preview_content = render_preview(params["content"])
 
     socket =
       socket
-      |> assign(
-        :form,
-        to_form(changeset_with_tags_input(changeset, article, params["tags_input"]))
-      )
+      |> assign(:form, to_form(changeset))
       |> assign(:form_dirty, true)
       |> assign(:preview_content, preview_content)
 
@@ -529,7 +564,9 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
   @impl true
   def handle_event("save_article", %{"article" => params}, socket) do
     article = socket.assigns.editing_article
-    params = normalize_params(params)
+    # Include current form_tags in params
+    params_with_tags = Map.put(params, "tags", socket.assigns.form_tags)
+    params = normalize_params(params_with_tags)
 
     result =
       if article.id do
@@ -549,6 +586,9 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
           |> assign(:all_tags, all_tags)
           |> assign(:editing_article, nil)
           |> assign(:form, nil)
+          |> assign(:form_tags, [])
+          |> assign(:tag_search_query, "")
+          |> assign(:tag_dropdown_open, false)
           |> apply_filters()
           |> put_flash(:info, if(article.id, do: "Article updated.", else: "Article created."))
 
@@ -557,10 +597,7 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
       {:error, changeset} ->
         socket =
           socket
-          |> assign(
-            :form,
-            to_form(changeset_with_tags_input(changeset, article, params["tags_input"]))
-          )
+          |> assign(:form, to_form(changeset))
           |> put_flash(:error, "Failed to save article. Check the form for errors.")
 
         {:noreply, socket}
@@ -575,6 +612,9 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
       |> assign(:form, nil)
       |> assign(:form_dirty, false)
       |> assign(:preview_content, nil)
+      |> assign(:form_tags, [])
+      |> assign(:tag_search_query, "")
+      |> assign(:tag_dropdown_open, false)
 
     {:noreply, socket}
   end
@@ -594,7 +634,10 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
          |> assign(:editing_article, nil)
          |> assign(:form, nil)
          |> assign(:form_dirty, false)
-         |> assign(:preview_content, nil)}
+         |> assign(:preview_content, nil)
+         |> assign(:form_tags, [])
+         |> assign(:tag_search_query, "")
+         |> assign(:tag_dropdown_open, false)}
       end
     end
   end
@@ -612,7 +655,10 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
      |> assign(:form, nil)
      |> assign(:form_dirty, false)
      |> assign(:show_discard_confirm, false)
-     |> assign(:preview_content, nil)}
+     |> assign(:preview_content, nil)
+     |> assign(:form_tags, [])
+     |> assign(:tag_search_query, "")
+     |> assign(:tag_dropdown_open, false)}
   end
 
   @impl true
@@ -624,6 +670,66 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
   @impl true
   def handle_event("close_image_browser", _params, socket) do
     {:noreply, assign(socket, :show_image_browser, false)}
+  end
+
+  # Tag dropdown event handlers
+  @impl true
+  def handle_event("tag_search", %{"value" => value}, socket) do
+    {:noreply, assign(socket, :tag_search_query, value)}
+  end
+
+  @impl true
+  def handle_event("open_tag_dropdown", _params, socket) do
+    {:noreply, assign(socket, :tag_dropdown_open, true)}
+  end
+
+  @impl true
+  def handle_event("close_tag_dropdown", _params, socket) do
+    # If the user typed a new tag that doesn't exist, add it
+    search_query = String.trim(socket.assigns.tag_search_query)
+    form_tags = socket.assigns.form_tags
+
+    socket =
+      if search_query != "" and search_query not in form_tags do
+        socket
+        |> assign(:form_tags, form_tags ++ [search_query])
+        |> assign(:form_dirty, true)
+      else
+        socket
+      end
+
+    socket =
+      socket
+      |> assign(:tag_dropdown_open, false)
+      |> assign(:tag_search_query, "")
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("add_tag", %{"id" => tag}, socket) do
+    form_tags = socket.assigns.form_tags
+
+    socket =
+      if tag not in form_tags do
+        socket
+        |> assign(:form_tags, form_tags ++ [tag])
+        |> assign(:form_dirty, true)
+      else
+        socket
+      end
+
+    {:noreply, assign(socket, :tag_search_query, "")}
+  end
+
+  @impl true
+  def handle_event("remove_tag", %{"id" => tag}, socket) do
+    form_tags = Enum.reject(socket.assigns.form_tags, &(&1 == tag))
+
+    {:noreply,
+     socket
+     |> assign(:form_tags, form_tags)
+     |> assign(:form_dirty, true)}
   end
 
   @impl true
@@ -729,27 +835,10 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
     {:noreply, socket}
   end
 
-  # Add tags_input virtual field to changeset for form binding
-  defp changeset_with_tags_input(changeset, article, tags_input \\ nil) do
-    tags_input = tags_input || Enum.join(article.tags || [], ", ")
-
-    changeset
-    |> Ecto.Changeset.put_change(:tags_input, tags_input)
-  end
-
-  # Convert tags_input string to tags array and handle is_published
+  # Normalize form params and handle is_published checkbox
   defp normalize_params(params) do
-    tags =
-      case params["tags_input"] do
-        nil ->
-          []
-
-        "" ->
-          []
-
-        input ->
-          input |> String.split(",") |> Enum.map(&String.trim/1) |> Enum.reject(&(&1 == ""))
-      end
+    # Tags is already a list from form_tags assign
+    tags = params["tags"] || []
 
     params
     |> Map.put("tags", tags)

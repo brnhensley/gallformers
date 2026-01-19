@@ -13,9 +13,11 @@ defmodule Gallformers.Articles.Article do
           slug: String.t() | nil,
           title: String.t() | nil,
           author: String.t() | nil,
+          description: String.t() | nil,
           content: String.t() | nil,
           tags: [String.t()],
           is_published: boolean(),
+          published_at: DateTime.t() | nil,
           inserted_at: NaiveDateTime.t() | nil,
           updated_at: NaiveDateTime.t() | nil
         }
@@ -24,9 +26,11 @@ defmodule Gallformers.Articles.Article do
     field :slug, :string
     field :title, :string
     field :author, :string
+    field :description, :string
     field :content, :string
     field :tags, Gallformers.Articles.TagsType, default: []
     field :is_published, :boolean, default: false
+    field :published_at, :utc_datetime
 
     # Virtual field for form handling
     field :tags_input, :string, virtual: true
@@ -41,7 +45,7 @@ defmodule Gallformers.Articles.Article do
   """
   def changeset(article, attrs) do
     article
-    |> cast(attrs, [:slug, :title, :author, :content, :tags, :is_published])
+    |> cast(attrs, [:slug, :title, :author, :description, :content, :tags, :is_published])
     |> validate_required([:title, :author, :content])
     |> maybe_generate_slug()
     |> validate_required([:slug])

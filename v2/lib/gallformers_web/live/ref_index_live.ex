@@ -10,7 +10,8 @@ defmodule GallformersWeb.RefIndexLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    tags = Articles.list_tags()
+    # Only show tags from published articles on the public index
+    tags = Articles.list_tags(published_only: true)
 
     {:ok,
      assign(socket,
@@ -40,6 +41,15 @@ defmodule GallformersWeb.RefIndexLive do
     {:noreply, assign(socket, selected_tag: selected_tag, articles: articles)}
   end
 
+  # Returns article description if available, otherwise generates a preview from content
+  defp article_preview(article) do
+    if article.description && article.description != "" do
+      article.description
+    else
+      content_preview(article.content)
+    end
+  end
+
   defp content_preview(content) when is_binary(content) do
     content
     |> strip_markdown()
@@ -51,6 +61,11 @@ defmodule GallformersWeb.RefIndexLive do
   end
 
   defp content_preview(_), do: ""
+
+  # Returns the date to display (published_at if available, otherwise inserted_at)
+  defp display_date(article) do
+    article.published_at || article.inserted_at
+  end
 
   # Strip common markdown syntax for plain text preview
   defp strip_markdown(text) do
@@ -166,7 +181,7 @@ defmodule GallformersWeb.RefIndexLive do
                   <div class="text-sm text-gray-500 mb-3">
                     <span>By {article.author}</span>
                     <span class="mx-2">•</span>
-                    <span>{format_date(article.inserted_at)}</span>
+                    <span>{format_date(display_date(article))}</span>
                   </div>
                   <%= if article.tags != [] do %>
                     <div class="flex flex-wrap gap-2 mb-3">
@@ -178,7 +193,7 @@ defmodule GallformersWeb.RefIndexLive do
                     </div>
                   <% end %>
                   <p class="text-gray-600">
-                    {content_preview(article.content)}
+                    {article_preview(article)}
                   </p>
                 </article>
               </.link>
