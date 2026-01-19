@@ -526,6 +526,49 @@ defmodule GallformersWeb.CoreComponents do
   end
 
   @doc """
+  Status badge component.
+
+  ## Examples
+
+      <.badge variant="success">Complete</.badge>
+      <.badge variant="warning">Pending</.badge>
+      <.badge>Default info badge</.badge>
+  """
+  attr :variant, :string, default: "info", values: ~w(success warning info)
+  slot :inner_block, required: true
+
+  def badge(assigns) do
+    ~H"""
+    <span class={"gf-badge gf-badge-#{@variant}"}>
+      {render_slot(@inner_block)}
+    </span>
+    """
+  end
+
+  @doc """
+  Removable chip/tag component.
+
+  ## Examples
+
+      <.chip>Tag</.chip>
+      <.chip size="sm" on_remove={JS.push("remove", value: %{id: 1})}>Removable</.chip>
+  """
+  attr :size, :string, default: "md", values: ~w(sm md)
+  attr :on_remove, JS, default: nil
+  slot :inner_block, required: true
+
+  def chip(assigns) do
+    ~H"""
+    <span class={["gf-chip", @size == "sm" && "gf-chip-sm"]}>
+      {render_slot(@inner_block)}
+      <button :if={@on_remove} type="button" class="gf-chip-remove" phx-click={@on_remove}>
+        <.icon name="ph-x" class="h-3 w-3" />
+      </button>
+    </span>
+    """
+  end
+
+  @doc """
   Renders a generic modal dialog.
 
   ## Examples
