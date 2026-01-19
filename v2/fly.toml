@@ -7,6 +7,9 @@ primary_region = "iad"
 [build]
   dockerfile = "Dockerfile"
 
+[deploy]
+  release_command = "/app/bin/gallformers eval 'Gallformers.Release.migrate()'"
+
 [env]
   DATABASE_PATH = "/data/gallformers.sqlite"
   PHX_HOST = "gallformers.fly.dev"
