@@ -586,19 +586,11 @@ defmodule GallformersWeb.Admin.HostLive.Form do
 
           <%!-- Data Complete checkbox --%>
           <div class="space-y-2 mb-4">
-            <label class="flex items-start gap-2 cursor-pointer">
-              <input type="hidden" name="species[datacomplete]" value="false" />
-              <input
-                type="checkbox"
-                name="species[datacomplete]"
-                value="true"
-                checked={@form[:datacomplete].value}
-                class="mt-0.5 rounded border-gray-300 text-gf-maroon focus:ring-gf-maroon"
-              />
-              <span class="text-sm text-gray-700">
-                All galls known to occur on this plant have been added to the database, and can be filtered by Location and Detachable. However, sources and images for galls associated with this host may be incomplete or absent, and other filters may not have been entered comprehensively or at all.
-              </span>
-            </label>
+            <.input
+              type="checkbox"
+              field={@form[:datacomplete]}
+              label="All galls known to occur on this plant have been added to the database, and can be filtered by Location and Detachable. However, sources and images for galls associated with this host may be incomplete or absent, and other filters may not have been entered comprehensively or at all."
+            />
           </div>
 
           <%!-- Action buttons --%>
