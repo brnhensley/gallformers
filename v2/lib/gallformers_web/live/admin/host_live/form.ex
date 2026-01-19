@@ -587,9 +587,11 @@ defmodule GallformersWeb.Admin.HostLive.Form do
           <%!-- Data Complete checkbox --%>
           <div class="space-y-2 mb-4">
             <label class="flex items-start gap-2 cursor-pointer">
+              <input type="hidden" name="species[datacomplete]" value="false" />
               <input
                 type="checkbox"
                 name="species[datacomplete]"
+                value="true"
                 checked={@form[:datacomplete].value}
                 class="mt-0.5 rounded border-gray-300 text-gf-maroon focus:ring-gf-maroon"
               />
