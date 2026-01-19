@@ -64,38 +64,36 @@ defmodule GallformersWeb.Admin.GlossaryLive.Form do
 
         <.form for={@form} id="glossary-form" phx-change="validate" phx-submit="save">
           <div class="mb-3">
-            <label class="gf-label">Word:</label>
-            <input
+            <.input
+              field={@form[:word]}
               type="text"
-              name={@form[:word].name}
-              value={Phoenix.HTML.Form.input_value(@form, :word)}
+              label="Word:"
               placeholder="Enter term (lowercase unless proper noun)"
               required
-              class="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gf-maroon focus:border-gf-maroon"
             />
             <p class="mt-1 text-xs text-gray-500">Use lowercase unless it's a proper name</p>
           </div>
 
           <div class="mb-3">
-            <label class="gf-label">Definition:</label>
-            <textarea
-              name={@form[:definition].name}
+            <.input
+              field={@form[:definition]}
+              type="textarea"
+              label="Definition:"
               rows="4"
-              required
               placeholder="Enter the definition"
-              class="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gf-maroon focus:border-gf-maroon"
-            >{Phoenix.HTML.Form.input_value(@form, :definition)}</textarea>
+              required
+            />
           </div>
 
           <div class="mb-3">
-            <label class="gf-label">Source URLs:</label>
-            <textarea
-              name={@form[:urls].name}
+            <.input
+              field={@form[:urls]}
+              type="textarea"
+              label="Source URLs:"
               rows="2"
-              required
               placeholder="Enter URLs (one per line)"
-              class="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gf-maroon focus:border-gf-maroon"
-            >{Phoenix.HTML.Form.input_value(@form, :urls)}</textarea>
+              required
+            />
             <p class="mt-1 text-xs text-gray-500">
               Enter one URL per line. These are the sources for the definition.
             </p>

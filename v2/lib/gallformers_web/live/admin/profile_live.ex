@@ -145,13 +145,13 @@ defmodule GallformersWeb.Admin.ProfileLive do
 
             <%!-- About Me --%>
             <div class="mb-3">
-              <label class="gf-label">About Me:</label>
-              <textarea
-                name={@form[:about_me].name}
+              <.input
+                field={@form[:about_me]}
+                type="textarea"
+                label="About Me:"
                 rows="4"
                 placeholder="Tell us a bit about yourself..."
-                class="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gf-maroon focus:border-gf-maroon"
-              >{Phoenix.HTML.Form.input_value(@form, :about_me)}</textarea>
+              />
             </div>
 
             <%!-- iNaturalist URL --%>

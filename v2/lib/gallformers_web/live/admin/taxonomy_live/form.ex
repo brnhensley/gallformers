@@ -109,54 +109,32 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
 
         <.form for={@form} id="taxonomy-form" phx-change="validate" phx-submit="save">
           <div class="mb-3">
-            <label class="gf-label">Name:</label>
-            <input
+            <.input
+              field={@form[:name]}
               type="text"
-              name={@form[:name].name}
-              value={Phoenix.HTML.Form.input_value(@form, :name)}
+              label="Name:"
               placeholder="Enter taxonomy name"
               required
-              class="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gf-maroon focus:border-gf-maroon"
             />
           </div>
 
           <div class="grid grid-cols-2 gap-4 mb-3">
             <div>
-              <label class="gf-label">Type:</label>
-              <select
-                name={@form[:type].name}
+              <.input
+                field={@form[:type]}
+                type="select"
+                label="Type:"
+                prompt="Select type"
+                options={[{"Family", "family"}, {"Genus", "genus"}, {"Section", "section"}]}
                 required
-                class="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gf-maroon focus:border-gf-maroon"
-              >
-                <option value="">Select type</option>
-                <option
-                  value="family"
-                  selected={Phoenix.HTML.Form.input_value(@form, :type) == "family"}
-                >
-                  Family
-                </option>
-                <option
-                  value="genus"
-                  selected={Phoenix.HTML.Form.input_value(@form, :type) == "genus"}
-                >
-                  Genus
-                </option>
-                <option
-                  value="section"
-                  selected={Phoenix.HTML.Form.input_value(@form, :type) == "section"}
-                >
-                  Section
-                </option>
-              </select>
+              />
             </div>
             <div>
-              <label class="gf-label">Description:</label>
-              <input
+              <.input
+                field={@form[:description]}
                 type="text"
-                name={@form[:description].name}
-                value={Phoenix.HTML.Form.input_value(@form, :description)}
+                label="Description:"
                 placeholder="e.g., 'gall' or 'plant'"
-                class="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gf-maroon focus:border-gf-maroon"
               />
               <p class="mt-1 text-xs text-gray-500">For families: "gall" or "plant"</p>
             </div>
@@ -164,20 +142,13 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
 
           <div class="mb-3">
             <%= if @parent_options != [] do %>
-              <label class="gf-label">Parent:</label>
-              <select
-                name={@form[:parent_id].name}
-                class="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gf-maroon focus:border-gf-maroon"
-              >
-                <option value="">Select parent (optional for families)</option>
-                <option
-                  :for={{label, id} <- @parent_options}
-                  value={id}
-                  selected={Phoenix.HTML.Form.input_value(@form, :parent_id) == id}
-                >
-                  {label}
-                </option>
-              </select>
+              <.input
+                field={@form[:parent_id]}
+                type="select"
+                label="Parent:"
+                prompt="Select parent (optional for families)"
+                options={@parent_options}
+              />
               <p class="mt-1 text-xs text-gray-500">
                 Genera belong to families or sections. Sections belong to families.
               </p>

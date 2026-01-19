@@ -142,21 +142,14 @@ defmodule GallformersWeb.Admin.SourceLive.Form do
           <% current_license = Phoenix.HTML.Form.input_value(@form, :license) %>
           <div class="grid grid-cols-2 gap-4 mb-3">
             <div>
-              <label class="gf-label">License:</label>
-              <select
-                name={@form[:license].name}
+              <.input
+                field={@form[:license]}
+                type="select"
+                label="License:"
+                prompt="Select license"
+                options={Enum.map(Source.license_types(), &{&1, &1})}
                 required
-                class="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gf-maroon focus:border-gf-maroon"
-              >
-                <option value="">Select license</option>
-                <option
-                  :for={license <- Source.license_types()}
-                  value={license}
-                  selected={current_license == license}
-                >
-                  {license}
-                </option>
-              </select>
+              />
             </div>
             <div>
               <label class="gf-label">License Link:</label>
@@ -193,14 +186,14 @@ defmodule GallformersWeb.Admin.SourceLive.Form do
 
           <%!-- Row: Citation --%>
           <div class="mb-3">
-            <label class="gf-label">Citation (MLA format):</label>
-            <textarea
-              name={@form[:citation].name}
+            <.input
+              field={@form[:citation]}
+              type="textarea"
+              label="Citation (MLA format):"
               rows="4"
-              required
               placeholder="Enter full citation in MLA format"
-              class="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gf-maroon focus:border-gf-maroon"
-            >{Phoenix.HTML.Form.input_value(@form, :citation)}</textarea>
+              required
+            />
             <p class="mt-1 text-xs text-gray-500">
               Use
               <a

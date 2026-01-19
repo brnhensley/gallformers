@@ -102,25 +102,20 @@ defmodule GallformersWeb.Admin.FilterTermsLive.Index do
 
         <%!-- Type selector and New button --%>
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div class="flex items-center gap-4">
-            <label for="filter-type" class="gf-label mb-0">
-              Filter Type:
-            </label>
-            <select
-              id="filter-type"
+          <form phx-change="change_type" class="flex items-center gap-4">
+            <.input
+              type="select"
               name="type"
-              phx-change="change_type"
-              class="gf-select w-auto"
-            >
-              <option
-                :for={type <- FilterFields.filter_types()}
-                value={type}
-                selected={type == @filter_type}
-              >
-                {FilterFields.type_label(type)} ({@counts[type]})
-              </option>
-            </select>
-          </div>
+              label="Filter Type:"
+              options={
+                Enum.map(
+                  FilterFields.filter_types(),
+                  &{FilterFields.type_label(&1) <> " (#{@counts[&1]})", &1}
+                )
+              }
+              value={@filter_type}
+            />
+          </form>
           <.link
             navigate={~p"/admin/filter-terms/new?type=#{@filter_type}"}
             class="gf-btn gf-btn-primary"

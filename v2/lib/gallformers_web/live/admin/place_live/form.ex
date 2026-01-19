@@ -62,46 +62,35 @@ defmodule GallformersWeb.Admin.PlaceLive.Form do
 
         <.form for={@form} id="place-form" phx-change="validate" phx-submit="save">
           <div class="mb-3">
-            <label class="gf-label">Name:</label>
-            <input
+            <.input
+              field={@form[:name]}
               type="text"
-              name={@form[:name].name}
-              value={Phoenix.HTML.Form.input_value(@form, :name)}
+              label="Name:"
               placeholder="e.g., California, Ontario"
               required
-              class="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gf-maroon focus:border-gf-maroon"
             />
           </div>
 
           <div class="grid grid-cols-2 gap-4 mb-3">
             <div>
-              <label class="gf-label">Code:</label>
-              <input
+              <.input
+                field={@form[:code]}
                 type="text"
-                name={@form[:code].name}
-                value={Phoenix.HTML.Form.input_value(@form, :code)}
+                label="Code:"
                 placeholder="e.g., CA, ON"
                 required
-                class="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gf-maroon focus:border-gf-maroon"
               />
               <p class="mt-1 text-xs text-gray-500">Standard 2-letter postal code</p>
             </div>
             <div>
-              <label class="gf-label">Type:</label>
-              <select
-                name={@form[:type].name}
+              <.input
+                field={@form[:type]}
+                type="select"
+                label="Type:"
+                prompt="Select type"
+                options={Enum.map(Place.place_types(), &{&1, &1})}
                 required
-                class="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gf-maroon focus:border-gf-maroon"
-              >
-                <option value="">Select type</option>
-                <option
-                  :for={type <- Place.place_types()}
-                  value={type}
-                  selected={Phoenix.HTML.Form.input_value(@form, :type) == type}
-                >
-                  {type}
-                </option>
-              </select>
+              />
             </div>
           </div>
 

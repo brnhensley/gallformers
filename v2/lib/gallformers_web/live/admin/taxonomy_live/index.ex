@@ -155,12 +155,15 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Index do
                 phx-debounce="300"
               />
             </form>
-            <select name="type" phx-change="filter_type" class="gf-select !w-auto">
-              <option value="">All Types</option>
-              <option value="family" selected={@filter_type == "family"}>Families</option>
-              <option value="genus" selected={@filter_type == "genus"}>Genera</option>
-              <option value="section" selected={@filter_type == "section"}>Sections</option>
-            </select>
+            <form phx-change="filter_type">
+              <.input
+                type="select"
+                name="type"
+                prompt="All Types"
+                options={[{"Families", "family"}, {"Genera", "genus"}, {"Sections", "section"}]}
+                value={@filter_type}
+              />
+            </form>
           </div>
           <.link navigate={~p"/admin/taxonomy/new"} class="gf-btn gf-btn-primary">
             New Entry

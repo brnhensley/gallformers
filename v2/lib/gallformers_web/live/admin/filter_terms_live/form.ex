@@ -157,13 +157,13 @@ defmodule GallformersWeb.Admin.FilterTermsLive.Form do
 
           <%= if FilterFields.has_description?(@filter_type) do %>
             <div class="mb-3">
-              <label class="gf-label">Description:</label>
-              <textarea
-                name={@form[:description].name}
+              <.input
+                field={@form[:description]}
+                type="textarea"
+                label="Description:"
                 rows="4"
                 placeholder="Enter a description explaining this term"
-                class="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gf-maroon focus:border-gf-maroon"
-              >{Phoenix.HTML.Form.input_value(@form, :description)}</textarea>
+              />
               <p class="mt-1 text-xs text-gray-500">
                 A brief explanation of what this term means, shown in the filter guide.
               </p>
