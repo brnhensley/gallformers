@@ -79,7 +79,7 @@ defmodule GallformersWeb.Admin.FormComponents do
   def alias_editor(assigns) do
     ~H"""
     <div class="mb-3">
-      <label class="gf-label gf-label-sm">Aliases:</label>
+      <label class="gf-label">Aliases:</label>
       <div class="border border-gray-300 rounded">
         <table class="w-full text-sm">
           <thead class="bg-gray-50">

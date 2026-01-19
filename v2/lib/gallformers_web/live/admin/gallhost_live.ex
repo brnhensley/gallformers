@@ -371,7 +371,7 @@ defmodule GallformersWeb.Admin.GallhostLive do
                   </p>
                 <% end %>
               <% else %>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Hosts:</label>
+                <label class="gf-label">Hosts:</label>
                 <div class="flex flex-wrap gap-1 p-2 border border-gray-200 bg-gray-50 rounded min-h-[42px]">
                   <span class="text-gray-400 text-sm">Select a gall first</span>
                 </div>
@@ -381,7 +381,7 @@ defmodule GallformersWeb.Admin.GallhostLive do
             <%!-- Range Section --%>
             <div class="mb-4">
               <div class="flex items-center gap-2 mb-1">
-                <label class="text-sm font-medium text-gray-700">Range:</label>
+                <label class="gf-label mb-0">Range:</label>
                 <span
                   class="text-gray-400 cursor-help"
                   title="By default the range for a gall is the union of all places that the selected Hosts occur in. Click on places to exclude them from the gall's range. Do not exclude places based solely on a lack of observations."

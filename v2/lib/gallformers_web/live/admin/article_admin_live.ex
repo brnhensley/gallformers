@@ -268,7 +268,7 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
                   <.input field={@form[:author]} label="Author" required />
                 </div>
                 <div class="flex-1 flex flex-col min-h-0">
-                  <label class="block text-sm font-medium text-gray-700 mb-1">
+                  <label class="gf-label">
                     Content (Markdown)
                   </label>
                   <textarea
@@ -337,7 +337,7 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
                     checked={Phoenix.HTML.Form.input_value(@form, :is_published) == true}
                     class="rounded border-gray-300 text-gf-maroon focus:ring-gf-maroon"
                   />
-                  <label for={@form[:is_published].id} class="text-sm text-gray-700">
+                  <label for={@form[:is_published].id} class="text-base text-gray-700">
                     Published
                   </label>
                 </div>

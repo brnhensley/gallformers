@@ -319,7 +319,7 @@ defmodule GallformersWeb.Admin.SpeciesSourceLive.QuickFind do
                           >
                             <div class="space-y-4">
                               <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                <label class="gf-label">
                                   Description:
                                 </label>
                                 <.input
@@ -331,7 +331,7 @@ defmodule GallformersWeb.Admin.SpeciesSourceLive.QuickFind do
                               </div>
 
                               <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                <label class="gf-label">
                                   External Link:
                                 </label>
                                 <.input

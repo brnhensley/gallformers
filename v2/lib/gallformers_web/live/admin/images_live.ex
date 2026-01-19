@@ -240,7 +240,7 @@ defmodule GallformersWeb.AdminImagesLive do
           <:body>
             <form id="edit-image-form" phx-submit="save_image" class="space-y-4">
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">
+                <label class="gf-label">
                   Creator / Photographer
                 </label>
                 <input
@@ -251,7 +251,7 @@ defmodule GallformersWeb.AdminImagesLive do
                 />
               </div>
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Attribution</label>
+                <label class="gf-label">Attribution</label>
                 <input
                   type="text"
                   name="attribution"
@@ -260,7 +260,7 @@ defmodule GallformersWeb.AdminImagesLive do
                 />
               </div>
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">License</label>
+                <label class="gf-label">License</label>
                 <select
                   name="license"
                   phx-change="update_license"
@@ -277,7 +277,7 @@ defmodule GallformersWeb.AdminImagesLive do
                 </select>
               </div>
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">License URL</label>
+                <label class="gf-label">License URL</label>
                 <%= if Licenses.url_readonly?(@editing_image.license) do %>
                   <input
                     type="text"
@@ -310,7 +310,7 @@ defmodule GallformersWeb.AdminImagesLive do
                 <% end %>
               </div>
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">
+                <label class="gf-label">
                   Source URL (e.g., iNaturalist)
                 </label>
                 <input
@@ -321,7 +321,7 @@ defmodule GallformersWeb.AdminImagesLive do
                 />
               </div>
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Caption</label>
+                <label class="gf-label">Caption</label>
                 <textarea
                   name="caption"
                   rows="3"
@@ -338,7 +338,7 @@ defmodule GallformersWeb.AdminImagesLive do
                   id="default-checkbox"
                   class="rounded border-gray-300 text-gf-maroon focus:ring-gf-maroon"
                 />
-                <label for="default-checkbox" class="text-sm text-gray-700">
+                <label for="default-checkbox" class="text-base text-gray-700">
                   Set as default image
                 </label>
               </div>

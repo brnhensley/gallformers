@@ -88,7 +88,7 @@ defmodule GallformersWeb.Admin.SourceLive.Form do
         <.form for={@form} id="source-form" phx-change="validate" phx-submit="save">
           <%!-- Row: Title --%>
           <div class="mb-3">
-            <label class="block text-sm font-medium text-gray-700 mb-1">Title:</label>
+            <label class="gf-label">Title:</label>
             <input
               type="text"
               name={@form[:title].name}
@@ -102,7 +102,7 @@ defmodule GallformersWeb.Admin.SourceLive.Form do
           <%!-- Row: Author | Year --%>
           <div class="grid grid-cols-2 gap-4 mb-3">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Author(s):</label>
+              <label class="gf-label">Author(s):</label>
               <input
                 type="text"
                 name={@form[:author].name}
@@ -113,7 +113,7 @@ defmodule GallformersWeb.Admin.SourceLive.Form do
               />
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Publication Year:</label>
+              <label class="gf-label">Publication Year:</label>
               <input
                 type="text"
                 name={@form[:pubyear].name}
@@ -127,7 +127,7 @@ defmodule GallformersWeb.Admin.SourceLive.Form do
 
           <%!-- Row: Reference Link --%>
           <div class="mb-3">
-            <label class="block text-sm font-medium text-gray-700 mb-1">Reference Link:</label>
+            <label class="gf-label">Reference Link:</label>
             <input
               type="url"
               name={@form[:link].name}
@@ -142,7 +142,7 @@ defmodule GallformersWeb.Admin.SourceLive.Form do
           <% current_license = Phoenix.HTML.Form.input_value(@form, :license) %>
           <div class="grid grid-cols-2 gap-4 mb-3">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">License:</label>
+              <label class="gf-label">License:</label>
               <select
                 name={@form[:license].name}
                 required
@@ -159,7 +159,7 @@ defmodule GallformersWeb.Admin.SourceLive.Form do
               </select>
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">License Link:</label>
+              <label class="gf-label">License Link:</label>
               <%= if Licenses.url_readonly?(current_license) do %>
                 <input
                   type="url"
@@ -193,7 +193,7 @@ defmodule GallformersWeb.Admin.SourceLive.Form do
 
           <%!-- Row: Citation --%>
           <div class="mb-3">
-            <label class="block text-sm font-medium text-gray-700 mb-1">Citation (MLA format):</label>
+            <label class="gf-label">Citation (MLA format):</label>
             <textarea
               name={@form[:citation].name}
               rows="4"

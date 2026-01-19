@@ -142,7 +142,7 @@ defmodule GallformersWeb.Admin.FilterTermsLive.Form do
 
         <.form for={@form} id="filter-field-form" phx-change="validate" phx-submit="save">
           <div class="mb-3">
-            <label class="block text-sm font-medium text-gray-700 mb-1">
+            <label class="gf-label">
               {FilterFields.singular_label(@filter_type)}:
             </label>
             <input
@@ -157,7 +157,7 @@ defmodule GallformersWeb.Admin.FilterTermsLive.Form do
 
           <%= if FilterFields.has_description?(@filter_type) do %>
             <div class="mb-3">
-              <label class="block text-sm font-medium text-gray-700 mb-1">Description:</label>
+              <label class="gf-label">Description:</label>
               <textarea
                 name={@form[:description].name}
                 rows="4"

@@ -64,7 +64,7 @@ defmodule GallformersWeb.Admin.GlossaryLive.Form do
 
         <.form for={@form} id="glossary-form" phx-change="validate" phx-submit="save">
           <div class="mb-3">
-            <label class="block text-sm font-medium text-gray-700 mb-1">Word:</label>
+            <label class="gf-label">Word:</label>
             <input
               type="text"
               name={@form[:word].name}
@@ -77,7 +77,7 @@ defmodule GallformersWeb.Admin.GlossaryLive.Form do
           </div>
 
           <div class="mb-3">
-            <label class="block text-sm font-medium text-gray-700 mb-1">Definition:</label>
+            <label class="gf-label">Definition:</label>
             <textarea
               name={@form[:definition].name}
               rows="4"
@@ -88,7 +88,7 @@ defmodule GallformersWeb.Admin.GlossaryLive.Form do
           </div>
 
           <div class="mb-3">
-            <label class="block text-sm font-medium text-gray-700 mb-1">Source URLs:</label>
+            <label class="gf-label">Source URLs:</label>
             <textarea
               name={@form[:urls].name}
               rows="2"

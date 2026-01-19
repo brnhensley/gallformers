@@ -212,7 +212,7 @@ defmodule GallformersWeb.FormComponents do
             class="gf-radio"
             {@rest}
           />
-          <span class="ml-2 text-sm text-gray-700">{option.label}</span>
+          <span class="ml-2 text-base text-gray-700">{option.label}</span>
           <span :if={option[:description]} class="gf-hint ml-1">
             - {option.description}
           </span>

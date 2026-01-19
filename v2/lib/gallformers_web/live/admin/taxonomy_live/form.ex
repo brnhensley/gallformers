@@ -109,7 +109,7 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
 
         <.form for={@form} id="taxonomy-form" phx-change="validate" phx-submit="save">
           <div class="mb-3">
-            <label class="block text-sm font-medium text-gray-700 mb-1">Name:</label>
+            <label class="gf-label">Name:</label>
             <input
               type="text"
               name={@form[:name].name}
@@ -122,7 +122,7 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
 
           <div class="grid grid-cols-2 gap-4 mb-3">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Type:</label>
+              <label class="gf-label">Type:</label>
               <select
                 name={@form[:type].name}
                 required
@@ -150,7 +150,7 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
               </select>
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Description:</label>
+              <label class="gf-label">Description:</label>
               <input
                 type="text"
                 name={@form[:description].name}
@@ -164,7 +164,7 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
 
           <div class="mb-3">
             <%= if @parent_options != [] do %>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Parent:</label>
+              <label class="gf-label">Parent:</label>
               <select
                 name={@form[:parent_id].name}
                 class="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gf-maroon focus:border-gf-maroon"
@@ -182,7 +182,7 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
                 Genera belong to families or sections. Sections belong to families.
               </p>
             <% else %>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Parent:</label>
+              <label class="gf-label">Parent:</label>
               <p class="text-sm text-gray-500 italic px-3 py-2">
                 <%= if Phoenix.HTML.Form.input_value(@form, :type) == "family" do %>
                   Families are top-level entries and have no parent.
