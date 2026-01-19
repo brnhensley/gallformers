@@ -7,8 +7,9 @@ primary_region = "iad"
 [build]
   dockerfile = "Dockerfile"
 
-[deploy]
-  release_command = "/app/bin/gallformers eval 'Gallformers.Release.migrate()'"
+# Note: release_command doesn't work with SQLite volumes on Fly.io because
+# the release machine gets a forked volume snapshot that doesn't persist.
+# Migrations are run in docker-entrypoint.sh instead.
 
 [env]
   DATABASE_PATH = "/data/gallformers.sqlite"
