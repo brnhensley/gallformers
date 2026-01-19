@@ -59,6 +59,12 @@ Before starting cutover tasks, verify all dependencies are complete:
 - [ ] 1.24 Update to T-1 day reminder
 - [ ] 1.25 (Optional) Post to iNaturalist gallformers project
 
+### Repository Preparation
+- [ ] 1.26 Move V1 code into v1/ subdirectory (see `beads-qz6p`)
+  - Moves all Next.js code, configs, and Docker files into v1/
+  - Updates CI workflows, docs, and paths
+  - Cleaner separation before cutover, simplifies post-cutover cleanup
+
 ## 2. Cutover Execution
 
 ### Phase 1: Freeze
@@ -139,19 +145,19 @@ Before starting cutover tasks, verify all dependencies are complete:
 - [ ] 4.6 Delete AWS Lambda monitoring function (replaced by Fly.io alerts)
 
 ### Repository Cleanup
+Note: Task 1.26 (`beads-qz6p`) moves V1 into v1/ before cutover, simplifying cleanup.
+
 - [ ] 4.7 Create branch for v1 code removal
-- [ ] 4.8 Remove v1 directories (pages/, components/, libs/, etc.)
-- [ ] 4.9 Remove v1 config files (next.config.js, tsconfig.json, etc.)
-- [ ] 4.10 Update root Makefile for v2
-- [ ] 4.11 Update README.md for v2
-- [ ] 4.12 Update CLAUDE.md for v2
-- [ ] 4.13 Update .github/workflows for v2 only
-- [ ] 4.14 Decide: move v2/* to root or keep structure
-- [ ] 4.15 Execute repository restructure
-- [ ] 4.16 Verify CI/CD still works after restructure
-- [ ] 4.17 Merge cleanup to main
-- [ ] 4.18 Remove articles seed migration (`v2/priv/repo/migrations/*_seed_articles.exs`) - no longer needed after cutover
-- [ ] 4.19 Remove articles seed generator script (`v2/scripts/generate_articles_seed_migration.exs`)
+- [ ] 4.8 Remove v1/ directory entirely (all V1 code already consolidated there)
+- [ ] 4.9 Update README.md for v2
+- [ ] 4.10 Update CLAUDE.md for v2
+- [ ] 4.11 Update .github/workflows for v2 only
+- [ ] 4.12 Decide: move v2/* to root or keep structure
+- [ ] 4.13 Execute repository restructure (if moving v2 to root)
+- [ ] 4.14 Verify CI/CD still works after restructure
+- [ ] 4.15 Merge cleanup to main
+- [ ] 4.16 Remove articles seed migration (`v2/priv/repo/migrations/*_seed_articles.exs`) - no longer needed after cutover
+- [ ] 4.17 Remove articles seed generator script (`v2/scripts/generate_articles_seed_migration.exs`)
 
 ## 5. Rollback (if needed)
 
