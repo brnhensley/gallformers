@@ -218,6 +218,7 @@ defmodule GallformersWeb.Admin.SourceLive.Form do
           <%!-- Row: Data Complete checkbox --%>
           <div class="mb-3">
             <label class="flex items-center gap-2">
+              <input type="hidden" name={@form[:datacomplete].name} value="false" />
               <input
                 type="checkbox"
                 name={@form[:datacomplete].name}

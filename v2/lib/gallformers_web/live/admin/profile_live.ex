@@ -234,6 +234,7 @@ defmodule GallformersWeb.Admin.ProfileLive do
             <%!-- Show on About Page --%>
             <div class="mb-6">
               <div class="flex items-center">
+                <input type="hidden" name={@form[:show_on_about].name} value="false" />
                 <input
                   type="checkbox"
                   id={@form[:show_on_about].id}

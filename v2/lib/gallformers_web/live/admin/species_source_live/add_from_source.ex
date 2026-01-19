@@ -511,6 +511,7 @@ defmodule GallformersWeb.Admin.SpeciesSourceLive.AddFromSource do
 
                       <div>
                         <label class="flex items-center gap-2 cursor-pointer">
+                          <input type="hidden" name="species_source[useasdefault]" value="false" />
                           <input
                             type="checkbox"
                             name="species_source[useasdefault]"

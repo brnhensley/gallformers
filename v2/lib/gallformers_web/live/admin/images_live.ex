@@ -328,6 +328,7 @@ defmodule GallformersWeb.AdminImagesLive do
               >{@editing_image.caption || ""}</textarea>
             </div>
             <div class="flex items-center gap-2">
+              <input type="hidden" name="default" value="false" />
               <input
                 type="checkbox"
                 name="default"
