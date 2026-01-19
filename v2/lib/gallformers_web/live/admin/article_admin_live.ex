@@ -209,150 +209,152 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
         on_cancel={JS.push("request_cancel")}
         class="!max-w-[80vw]"
       >
-        <:title>{if @editing_article.id, do: "Edit Article", else: "New Article"}</:title>
+        <:header>{if @editing_article.id, do: "Edit Article", else: "New Article"}</:header>
+        <:body>
+          <%!-- Tabs --%>
+          <div class="border-b border-gray-200 mb-4">
+            <nav class="-mb-px flex space-x-8">
+              <button
+                type="button"
+                phx-click="switch_tab"
+                phx-value-tab="edit"
+                class={[
+                  "py-2 px-1 border-b-2 font-medium text-sm",
+                  if(@active_tab == :edit,
+                    do: "border-gf-maroon text-gf-maroon",
+                    else: "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                  )
+                ]}
+              >
+                Edit
+              </button>
+              <button
+                type="button"
+                phx-click="switch_tab"
+                phx-value-tab="preview"
+                class={[
+                  "py-2 px-1 border-b-2 font-medium text-sm",
+                  if(@active_tab == :preview,
+                    do: "border-gf-maroon text-gf-maroon",
+                    else: "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                  )
+                ]}
+              >
+                Preview
+              </button>
+            </nav>
+          </div>
 
-        <%!-- Tabs --%>
-        <div class="border-b border-gray-200 mb-4">
-          <nav class="-mb-px flex space-x-8">
-            <button
-              type="button"
-              phx-click="switch_tab"
-              phx-value-tab="edit"
-              class={[
-                "py-2 px-1 border-b-2 font-medium text-sm",
-                if(@active_tab == :edit,
-                  do: "border-gf-maroon text-gf-maroon",
-                  else: "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                )
-              ]}
-            >
-              Edit
-            </button>
-            <button
-              type="button"
-              phx-click="switch_tab"
-              phx-value-tab="preview"
-              class={[
-                "py-2 px-1 border-b-2 font-medium text-sm",
-                if(@active_tab == :preview,
-                  do: "border-gf-maroon text-gf-maroon",
-                  else: "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                )
-              ]}
-            >
-              Preview
-            </button>
-          </nav>
-        </div>
-
-        <div class="h-[600px]">
-          <%= if @active_tab == :edit do %>
-            <.form
-              for={@form}
-              id="article-form"
-              phx-submit="save_article"
-              phx-change="validate"
-              class="h-full flex flex-col space-y-4"
-            >
-              <div>
-                <.input field={@form[:title]} label="Title" required />
-              </div>
-              <div>
-                <.input
-                  field={@form[:slug]}
-                  label="Slug"
-                  placeholder="auto-generated from title if blank"
-                />
-              </div>
-              <div>
-                <.input field={@form[:author]} label="Author" required />
-              </div>
-              <div class="flex-1 flex flex-col min-h-0">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Content (Markdown)</label>
-                <textarea
-                  name={@form[:content].name}
-                  id={@form[:content].id}
-                  class="flex-1 w-full rounded-md border-gray-300 shadow-sm focus:border-gf-maroon focus:ring-gf-maroon font-mono text-sm resize-none"
-                  required
-                >{Phoenix.HTML.Form.input_value(@form, :content)}</textarea>
-                <div class="mt-2 flex items-center justify-between">
-                  <p class="text-xs text-gray-500">
-                    Supports markdown formatting. Glossary terms are auto-linked.
-                  </p>
-                  <%!-- Image Upload & Browse --%>
-                  <%= if @editing_article.id do %>
-                    <div class="flex items-center gap-2">
-                      <div
-                        id="article-image-upload"
-                        phx-hook="ArticleImageUpload"
-                        phx-update="ignore"
-                        data-content-textarea={@form[:content].id}
-                        class="flex items-center gap-2"
-                      >
+          <div class="h-[600px]">
+            <%= if @active_tab == :edit do %>
+              <.form
+                for={@form}
+                id="article-form"
+                phx-submit="save_article"
+                phx-change="validate"
+                class="h-full flex flex-col space-y-4"
+              >
+                <div>
+                  <.input field={@form[:title]} label="Title" required />
+                </div>
+                <div>
+                  <.input
+                    field={@form[:slug]}
+                    label="Slug"
+                    placeholder="auto-generated from title if blank"
+                  />
+                </div>
+                <div>
+                  <.input field={@form[:author]} label="Author" required />
+                </div>
+                <div class="flex-1 flex flex-col min-h-0">
+                  <label class="block text-sm font-medium text-gray-700 mb-1">
+                    Content (Markdown)
+                  </label>
+                  <textarea
+                    name={@form[:content].name}
+                    id={@form[:content].id}
+                    class="flex-1 w-full rounded-md border-gray-300 shadow-sm focus:border-gf-maroon focus:ring-gf-maroon font-mono text-sm resize-none"
+                    required
+                  >{Phoenix.HTML.Form.input_value(@form, :content)}</textarea>
+                  <div class="mt-2 flex items-center justify-between">
+                    <p class="text-xs text-gray-500">
+                      Supports markdown formatting. Glossary terms are auto-linked.
+                    </p>
+                    <%!-- Image Upload & Browse --%>
+                    <%= if @editing_article.id do %>
+                      <div class="flex items-center gap-2">
+                        <div
+                          id="article-image-upload"
+                          phx-hook="ArticleImageUpload"
+                          phx-update="ignore"
+                          data-content-textarea={@form[:content].id}
+                          class="flex items-center gap-2"
+                        >
+                          <button
+                            type="button"
+                            data-upload-trigger
+                            class="gf-btn gf-btn-secondary text-sm"
+                          >
+                            Upload Image
+                          </button>
+                          <input
+                            data-file-input
+                            type="file"
+                            accept="image/jpeg,image/png"
+                            class="hidden"
+                          />
+                          <span data-status class="text-sm"></span>
+                        </div>
                         <button
                           type="button"
-                          data-upload-trigger
+                          phx-click="open_image_browser"
                           class="gf-btn gf-btn-secondary text-sm"
                         >
-                          Upload Image
+                          Browse Images
                         </button>
-                        <input
-                          data-file-input
-                          type="file"
-                          accept="image/jpeg,image/png"
-                          class="hidden"
-                        />
-                        <span data-status class="text-sm"></span>
                       </div>
-                      <button
-                        type="button"
-                        phx-click="open_image_browser"
-                        class="gf-btn gf-btn-secondary text-sm"
-                      >
-                        Browse Images
-                      </button>
-                    </div>
-                  <% else %>
-                    <p class="text-xs text-gray-400">Save article first to add images</p>
-                  <% end %>
+                    <% else %>
+                      <p class="text-xs text-gray-400">Save article first to add images</p>
+                    <% end %>
+                  </div>
                 </div>
+                <div>
+                  <.input
+                    field={@form[:tags_input]}
+                    label="Tags"
+                    placeholder="biology, ecology, identification"
+                  />
+                  <p class="mt-1 text-xs text-gray-500">Comma-separated list of tags</p>
+                </div>
+                <div class="flex items-center gap-2">
+                  <input type="hidden" name={@form[:is_published].name} value="false" />
+                  <input
+                    type="checkbox"
+                    name={@form[:is_published].name}
+                    id={@form[:is_published].id}
+                    value="true"
+                    checked={Phoenix.HTML.Form.input_value(@form, :is_published) == true}
+                    class="rounded border-gray-300 text-gf-maroon focus:ring-gf-maroon"
+                  />
+                  <label for={@form[:is_published].id} class="text-sm text-gray-700">
+                    Published
+                  </label>
+                </div>
+              </.form>
+            <% else %>
+              <%!-- Preview Tab --%>
+              <div class="prose prose-sm max-w-none h-full overflow-auto border border-gray-200 rounded-md p-4">
+                <%= if @preview_content do %>
+                  {Phoenix.HTML.raw(@preview_content)}
+                <% else %>
+                  <p class="text-gray-500 italic">Enter content to see preview.</p>
+                <% end %>
               </div>
-              <div>
-                <.input
-                  field={@form[:tags_input]}
-                  label="Tags"
-                  placeholder="biology, ecology, identification"
-                />
-                <p class="mt-1 text-xs text-gray-500">Comma-separated list of tags</p>
-              </div>
-              <div class="flex items-center gap-2">
-                <input type="hidden" name={@form[:is_published].name} value="false" />
-                <input
-                  type="checkbox"
-                  name={@form[:is_published].name}
-                  id={@form[:is_published].id}
-                  value="true"
-                  checked={Phoenix.HTML.Form.input_value(@form, :is_published) == true}
-                  class="rounded border-gray-300 text-gf-maroon focus:ring-gf-maroon"
-                />
-                <label for={@form[:is_published].id} class="text-sm text-gray-700">
-                  Published
-                </label>
-              </div>
-            </.form>
-          <% else %>
-            <%!-- Preview Tab --%>
-            <div class="prose prose-sm max-w-none h-full overflow-auto border border-gray-200 rounded-md p-4">
-              <%= if @preview_content do %>
-                {Phoenix.HTML.raw(@preview_content)}
-              <% else %>
-                <p class="text-gray-500 italic">Enter content to see preview.</p>
-              <% end %>
-            </div>
-          <% end %>
-        </div>
-
-        <:actions>
+            <% end %>
+          </div>
+        </:body>
+        <:footer>
           <button
             type="button"
             phx-click="request_cancel"
@@ -374,16 +376,18 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
           >
             {if @editing_article.id, do: "Save Changes", else: "Create Article"}
           </button>
-        </:actions>
+        </:footer>
       </.modal>
 
       <%!-- Delete Confirmation Modal --%>
       <.modal :if={@delete_article} id="delete-modal" show on_cancel={JS.push("cancel_delete")}>
-        <:title>Delete Article</:title>
-        <p class="text-gray-600 mb-4">
-          Are you sure you want to delete "<strong>{@delete_article.title}</strong>"? This action cannot be undone.
-        </p>
-        <:actions>
+        <:header>Delete Article</:header>
+        <:body>
+          <p class="text-gray-600 mb-4">
+            Are you sure you want to delete "<strong>{@delete_article.title}</strong>"? This action cannot be undone.
+          </p>
+        </:body>
+        <:footer>
           <button
             type="button"
             phx-click="cancel_delete"
@@ -399,7 +403,7 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
           >
             Delete
           </button>
-        </:actions>
+        </:footer>
       </.modal>
 
       <%!-- Discard Changes Confirmation Modal --%>
@@ -413,48 +417,49 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
         on_cancel={JS.push("close_image_browser")}
         class="!max-w-[70vw]"
       >
-        <:title>Browse Article Images</:title>
-        <p class="text-sm text-gray-500 mb-4">
-          Click an image to insert its markdown link at the cursor position in the content editor.
-        </p>
+        <:header>Browse Article Images</:header>
+        <:body>
+          <p class="text-sm text-gray-500 mb-4">
+            Click an image to insert its markdown link at the cursor position in the content editor.
+          </p>
 
-        <%= if @article_images == [] do %>
-          <div class="p-8 text-center text-gray-500">
-            <.icon name="ph-images" class="h-12 w-12 mx-auto text-gray-300 mb-4" />
-            <p>No images found. Upload some images first.</p>
-          </div>
-        <% else %>
-          <div class="max-h-[60vh] overflow-y-auto">
-            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-              <%= for image <- @article_images do %>
-                <button
-                  type="button"
-                  phx-click="select_image"
-                  phx-value-url={image.url}
-                  phx-value-name={image.name}
-                  class="group relative aspect-square bg-gray-100 rounded-lg overflow-hidden border-2 border-transparent hover:border-gf-maroon focus:border-gf-maroon focus:outline-none"
-                >
-                  <img
-                    src={image.url}
-                    alt={image.name}
-                    class="w-full h-full object-cover"
-                    loading="lazy"
-                  />
-                  <div class="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
-                    <span class="text-white text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity">
-                      Select
-                    </span>
-                  </div>
-                  <div class="absolute bottom-0 left-0 right-0 bg-black/60 px-2 py-1">
-                    <p class="text-white text-xs truncate">{image.folder}</p>
-                  </div>
-                </button>
-              <% end %>
+          <%= if @article_images == [] do %>
+            <div class="p-8 text-center text-gray-500">
+              <.icon name="ph-images" class="h-12 w-12 mx-auto text-gray-300 mb-4" />
+              <p>No images found. Upload some images first.</p>
             </div>
-          </div>
-        <% end %>
-
-        <:actions>
+          <% else %>
+            <div class="max-h-[60vh] overflow-y-auto">
+              <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                <%= for image <- @article_images do %>
+                  <button
+                    type="button"
+                    phx-click="select_image"
+                    phx-value-url={image.url}
+                    phx-value-name={image.name}
+                    class="group relative aspect-square bg-gray-100 rounded-lg overflow-hidden border-2 border-transparent hover:border-gf-maroon focus:border-gf-maroon focus:outline-none"
+                  >
+                    <img
+                      src={image.url}
+                      alt={image.name}
+                      class="w-full h-full object-cover"
+                      loading="lazy"
+                    />
+                    <div class="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                      <span class="text-white text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+                        Select
+                      </span>
+                    </div>
+                    <div class="absolute bottom-0 left-0 right-0 bg-black/60 px-2 py-1">
+                      <p class="text-white text-xs truncate">{image.folder}</p>
+                    </div>
+                  </button>
+                <% end %>
+              </div>
+            </div>
+          <% end %>
+        </:body>
+        <:footer>
           <button
             type="button"
             phx-click="close_image_browser"
@@ -462,7 +467,7 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
           >
             Close
           </button>
-        </:actions>
+        </:footer>
       </.modal>
     </Layouts.admin>
     """

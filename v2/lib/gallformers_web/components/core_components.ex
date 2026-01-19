@@ -525,7 +525,165 @@ defmodule GallformersWeb.CoreComponents do
     """
   end
 
+  @doc """
+  Renders a generic modal dialog.
+
+  ## Examples
+
+      <.modal id="confirm-delete" on_cancel={JS.exec("data-cancel", to: "#confirm-delete")}>
+        <:header>Confirm Delete</:header>
+        <:body>Are you sure you want to delete this item?</:body>
+        <:footer>
+          <.button phx-click={hide_modal("confirm-delete")}>Cancel</.button>
+          <.button variant="primary" phx-click="delete">Delete</.button>
+        </:footer>
+      </.modal>
+
+  ## Showing the modal
+
+  Use the `show_modal/1` JS command to show the modal:
+
+      <.button phx-click={show_modal("confirm-delete")}>Delete</.button>
+
+  ## Hiding the modal
+
+  Use the `hide_modal/1` JS command to hide the modal. The modal also closes
+  when clicking the backdrop or pressing Escape.
+
+  ## Focus management
+
+  The modal traps focus inside when open. When opened, focus moves to the first
+  focusable element inside the modal (or the close button if no header).
+  """
+  attr :id, :string, required: true
+  attr :show, :boolean, default: false
+  attr :on_cancel, JS, default: %JS{}, doc: "JS command to run when the modal is cancelled"
+  attr :class, :any, default: nil, doc: "additional CSS classes for the modal container"
+
+  slot :header, doc: "optional header content displayed at the top of the modal"
+  slot :body, required: true, doc: "the main content of the modal"
+  slot :footer, doc: "optional footer content, typically for action buttons"
+
+  def modal(assigns) do
+    ~H"""
+    <div
+      id={@id}
+      phx-mounted={@show && show_modal(@id)}
+      phx-remove={hide_modal(@id)}
+      data-cancel={JS.exec(@on_cancel, "phx-remove")}
+      class="gf-modal-backdrop hidden relative z-50"
+    >
+      <div
+        id={"#{@id}-bg"}
+        class="fixed inset-0 bg-black/50 transition-opacity"
+        aria-hidden="true"
+      />
+      <div
+        class="fixed inset-0 overflow-y-auto"
+        aria-labelledby={"#{@id}-title"}
+        aria-describedby={"#{@id}-description"}
+        role="dialog"
+        aria-modal="true"
+        tabindex="0"
+      >
+        <div class="flex min-h-full items-center justify-center p-4">
+          <.focus_wrap
+            id={"#{@id}-container"}
+            phx-window-keydown={JS.exec("data-cancel", to: "##{@id}")}
+            phx-key="escape"
+            phx-click-away={JS.exec("data-cancel", to: "##{@id}")}
+            class={["gf-modal shadow-xl transition", @class]}
+          >
+            <div :if={@header != []} class="gf-modal-header">
+              <h3 id={"#{@id}-title"} class="text-xl font-semibold text-gray-900">
+                {render_slot(@header)}
+              </h3>
+              <button
+                type="button"
+                phx-click={JS.exec("data-cancel", to: "##{@id}")}
+                class="text-gray-400 hover:text-gray-600 cursor-pointer"
+                aria-label={gettext("close")}
+              >
+                <.icon name="ph-x" class="size-6" />
+              </button>
+            </div>
+            <div :if={@header == []} class="absolute right-4 top-4">
+              <button
+                type="button"
+                phx-click={JS.exec("data-cancel", to: "##{@id}")}
+                class="text-gray-400 hover:text-gray-600 cursor-pointer"
+                aria-label={gettext("close")}
+              >
+                <.icon name="ph-x" class="size-6" />
+              </button>
+            </div>
+            <div id={"#{@id}-description"} class="gf-modal-body">
+              {render_slot(@body)}
+            </div>
+            <div :if={@footer != []} class="gf-modal-footer">
+              {render_slot(@footer)}
+            </div>
+          </.focus_wrap>
+        </div>
+      </div>
+    </div>
+    """
+  end
+
   ## JS Commands
+
+  @doc """
+  Shows the modal with the given id.
+
+  ## Example
+
+      <.button phx-click={show_modal("my-modal")}>Open</.button>
+  """
+  def show_modal(id) when is_binary(id) do
+    %JS{}
+    |> JS.show(to: "##{id}")
+    |> JS.show(
+      to: "##{id}-bg",
+      time: 300,
+      transition: {"transition-opacity ease-out duration-300", "opacity-0", "opacity-100"}
+    )
+    |> JS.show(
+      to: "##{id}-container",
+      time: 300,
+      transition:
+        {"transition-all ease-out duration-300",
+         "opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95",
+         "opacity-100 translate-y-0 sm:scale-100"}
+    )
+    |> JS.add_class("overflow-hidden", to: "body")
+    |> JS.focus_first(to: "##{id}-container")
+  end
+
+  @doc """
+  Hides the modal with the given id.
+
+  ## Example
+
+      <.button phx-click={hide_modal("my-modal")}>Close</.button>
+  """
+  def hide_modal(id) when is_binary(id) do
+    %JS{}
+    |> JS.hide(
+      to: "##{id}-bg",
+      time: 200,
+      transition: {"transition-opacity ease-in duration-200", "opacity-100", "opacity-0"}
+    )
+    |> JS.hide(
+      to: "##{id}-container",
+      time: 200,
+      transition:
+        {"transition-all ease-in duration-200", "opacity-100 translate-y-0 sm:scale-100",
+         "opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"}
+    )
+    |> JS.hide(to: "##{id}", time: 200, transition: {"", "", ""})
+    |> JS.remove_class("overflow-hidden", to: "body")
+    |> JS.pop_focus()
+  end
 
   def show(js \\ %JS{}, selector) do
     JS.show(js,
