@@ -7,7 +7,7 @@ defmodule GallformersWeb.SourceLive do
   """
   use GallformersWeb, :live_view
 
-  alias Gallformers.Sources
+  alias Gallformers.{Images, Sources, Species}
 
   @page_size 20
 
@@ -48,9 +48,16 @@ defmodule GallformersWeb.SourceLive do
          )}
 
       source ->
-        # Get connected species
+        # Get connected species and images
         species = Sources.get_species_for_source(source_id) |> Enum.sort_by(& &1.name)
+        images = Images.list_images_for_source(source_id) |> format_images()
         author_text = if source.author, do: " by #{source.author}", else: ""
+
+        page_image =
+          case images do
+            [first | _] -> first.url
+            [] -> nil
+          end
 
         {:ok,
          assign(socket,
@@ -58,11 +65,12 @@ defmodule GallformersWeb.SourceLive do
            page_description:
              "#{source.title}#{author_text} - A source referenced on Gallformers.",
            page_url: "/source/#{source_id}",
-           page_image: nil,
+           page_image: page_image,
            page_json_ld: nil,
            page_noindex: false,
            source: source,
            species: species,
+           images: images,
            current_page: 1,
            page_size: @page_size,
            error: nil
@@ -74,6 +82,38 @@ defmodule GallformersWeb.SourceLive do
   def handle_event("page", %{"page" => page}, socket) do
     page = max(1, min(page, total_pages(socket.assigns.species, socket.assigns.page_size)))
     {:noreply, assign(socket, current_page: page)}
+  end
+
+  @impl true
+  def handle_event("gallery_index_changed", _params, socket) do
+    {:noreply, socket}
+  end
+
+  defp format_images(images) do
+    base_url = Species.Image.base_url()
+
+    Enum.map(images, fn img ->
+      # Replace "original" with size name in the path
+      small_path = String.replace(img.path, "original", "small")
+      full_url = "#{base_url}/#{img.path}"
+
+      %{
+        id: img.id,
+        url: full_url,
+        src: full_url,
+        small_url: "#{base_url}/#{small_path}",
+        alt: "Image from source",
+        creator: img.creator,
+        attribution: img.attribution,
+        license: img.license,
+        licenselink: img.licenselink,
+        sourcelink: img.sourcelink,
+        uploader: img.uploader,
+        lastchangedby: img.lastchangedby,
+        caption: img.caption,
+        species_id: img.species_id
+      }
+    end)
   end
 
   defp paginated_species(species, current_page, page_size) do
@@ -128,40 +168,50 @@ defmodule GallformersWeb.SourceLive do
               <% end %>
             </div>
 
-            <%!-- Source Info Grid --%>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-              <div>
-                <span class="font-semibold text-gray-700">Authors:</span>
-                <span class="text-gray-900">{@source.author || "Not specified"}</span>
-              </div>
-              <div>
-                <span class="font-semibold text-gray-700">License:</span>
-                <%= if @source.licenselink do %>
-                  <.link
-                    href={@source.licenselink}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="text-gf-maroon hover:underline"
-                  >
-                    {@source.license || "View"}
-                  </.link>
-                <% else %>
-                  <span class="text-gray-900">{@source.license || "Not specified"}</span>
+            <%!-- Source Info and Images Grid --%>
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+              <%!-- Source Info Column --%>
+              <div class="lg:col-span-2 space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <span class="font-semibold text-gray-700">Authors:</span>
+                    <span class="text-gray-900">{@source.author || "Not specified"}</span>
+                  </div>
+                  <div>
+                    <span class="font-semibold text-gray-700">License:</span>
+                    <%= if @source.licenselink do %>
+                      <.link
+                        href={@source.licenselink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="text-gf-maroon hover:underline"
+                      >
+                        {@source.license || "View"}
+                      </.link>
+                    <% else %>
+                      <span class="text-gray-900">{@source.license || "Not specified"}</span>
+                    <% end %>
+                  </div>
+                  <div>
+                    <span class="font-semibold text-gray-700">Publication Year:</span>
+                    <span class="text-gray-900">{@source.pubyear || "Not specified"}</span>
+                  </div>
+                </div>
+
+                <%!-- Citation --%>
+                <%= if @source.citation do %>
+                  <div>
+                    <span class="font-semibold text-gray-700">Citation (MLA Form):</span>
+                    <p class="text-gray-900 italic mt-1">{@source.citation}</p>
+                  </div>
                 <% end %>
               </div>
-              <div>
-                <span class="font-semibold text-gray-700">Publication Year:</span>
-                <span class="text-gray-900">{@source.pubyear || "Not specified"}</span>
+
+              <%!-- Images Column --%>
+              <div class="lg:col-span-1">
+                <.image_gallery images={@images} id="source-images" />
               </div>
             </div>
-
-            <%!-- Citation --%>
-            <%= if @source.citation do %>
-              <div class="mb-6">
-                <span class="font-semibold text-gray-700">Citation (MLA Form):</span>
-                <p class="text-gray-900 italic mt-1">{@source.citation}</p>
-              </div>
-            <% end %>
 
             <%!-- Connected Species --%>
             <div class="mt-8">

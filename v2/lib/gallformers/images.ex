@@ -354,6 +354,24 @@ defmodule Gallformers.Images do
   end
 
   @doc """
+  Gets all images for a source, ordered by species name.
+  """
+  @spec list_images_for_source(integer()) :: [ImageSchema.t()]
+  def list_images_for_source(source_id) do
+    alias Gallformers.Species.Species
+
+    from(i in ImageSchema,
+      join: src in assoc(i, :source),
+      left_join: sp in Species,
+      on: i.species_id == sp.id,
+      where: i.source_id == ^source_id,
+      order_by: [asc: sp.name, asc: i.id],
+      preload: [source: src]
+    )
+    |> Repo.all()
+  end
+
+  @doc """
   Returns the total count of images in the database.
   """
   @spec count_images() :: integer()
