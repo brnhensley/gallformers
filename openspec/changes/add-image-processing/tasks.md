@@ -2,146 +2,192 @@
 
 ## Phase 1: Infrastructure Setup
 
-- [ ] 1.1 Configure S3 bucket CORS for presigned URL uploads from web app
-- [ ] 1.2 Verify CloudFront distribution serves v2/ prefix correctly
-- [ ] 1.3 Configure CloudFront cache TTL (1 year for v2/ images)
-- [ ] 1.4 Create IAM role for Lambda with S3 read/write permissions
-- [ ] 1.5 Create IAM user for API server with S3 presigned URL, read permissions, and Lambda invoke permission
-- [ ] 1.6 Store API server IAM credentials as Fly.io secrets
-- [ ] 1.7 Store LAMBDA_CALLBACK_KEY as Fly.io secret (same value as Lambda env var)
-- [ ] 1.8 Configure S3 event trigger for Lambda on `v2/originals/` prefix
-- [ ] 1.9 Document Lambda ARN in Fly.io secrets for API server direct invoke
+- [ ] 1.1 Configure S3 bucket for us-east-1 (or verify existing bucket can serve from both regions)
+- [ ] 1.2 Configure S3 bucket CORS for presigned URL uploads from web app
+- [ ] 1.3 Verify CloudFront distribution serves v2/ prefix correctly
+- [ ] 1.4 Configure CloudFront cache TTL (1 year for v2/ images with versioned URLs)
+- [ ] 1.5 Create IAM user for Fly.io with S3 presigned URL and read/write permissions
+- [ ] 1.6 Store IAM credentials as Fly.io secrets
+- [ ] 1.7 Ensure libvips/libheif available in Fly.io container (for Image library HEIC support)
 
-## Phase 2: Database Schema
+## Phase 2: Oban Setup
 
-- [ ] 2.1 Add `images` table migration to v2 API server (uses sqlc, includes status field)
-- [ ] 2.2 Create indexes for species_id, is_default, and status queries
-- [ ] 2.3 Add image repository/queries in `v2/api/internal/db/`
-- [ ] 2.4 Generate sqlc code for image queries
+- [ ] 2.1 Add Oban dependency to mix.exs
+- [ ] 2.2 Configure Oban with SQLite3 (oban_sqlite) or PostgreSQL
+- [ ] 2.3 Create Oban migration for jobs table
+- [ ] 2.4 Configure image processing queue with concurrency: 1
+- [ ] 2.5 Configure cleanup queue for scheduled maintenance job
 
-## Phase 3: AWS Lambda - Image Processing (Node.js + Sharp)
+## Phase 3: Database Schema
 
-- [ ] 3.1 Create Lambda function project (Node.js 20.x, ARM64)
-- [ ] 3.2 Configure Sharp Lambda layer (cbschuld/sharp-aws-lambda-layer, pin version ARN)
-- [ ] 3.3 Configure Lambda environment variables (S3_BUCKET, S3_REGION, API_BASE_URL, LAMBDA_CALLBACK_KEY)
-- [ ] 3.4 Generate Lambda callback API key (32+ chars) for LAMBDA_CALLBACK_KEY
-- [ ] 3.5 Set up SAM CLI for local Lambda testing
-- [ ] 3.6 Implement two trigger paths: S3 event handler + direct invoke handler
-- [ ] 3.7 Implement URL download with Content-Type validation (jpeg, png, webp only)
-- [ ] 3.8 Implement Content-Length check before download (reject >20MB)
-- [ ] 3.9 Implement download timeout (30 seconds max)
-- [ ] 3.10 Implement image download from S3 originals/ (for S3 trigger path)
-- [ ] 3.11 Implement format detection using Sharp magic bytes
-- [ ] 3.12 Implement S3 key rename if detected format differs from client-provided extension
-- [ ] 3.13 Implement resize to 4 sizes using Sharp (300px, 800px, 1200px, 2000px longest edge)
-- [ ] 3.14 Implement WebP encoding using Sharp
-- [ ] 3.15 Implement upload of processed images to S3
-- [ ] 3.16 Implement partial upload cleanup on failure (delete small/medium/large/xlarge before marking failed)
-- [ ] 3.17 Implement API callback to update image status (with retry logic, 3 retries exponential backoff)
-- [ ] 3.18 Include corrected extension in status update if format was mismatched
-- [ ] 3.19 Add error handling and status update on failure (with failure reason)
-- [ ] 3.20 Configure Lambda: 512MB memory, 60s timeout
-- [ ] 3.21 Deploy Lambda and test with S3 trigger
-- [ ] 3.22 Test Lambda with direct invoke (URL import path)
+- [ ] 3.1 Create Ecto migration for images table with all fields
+- [ ] 3.2 Add indexes for species_id, article_id, default, status, source_id
+- [ ] 3.3 Create Image schema in `lib/gallformers/images/image.ex`
+- [ ] 3.4 Add foreign key constraints (CASCADE for species/article, RESTRICT for source)
 
-## Phase 4: Go API - Core Image Endpoints
+## Phase 4: Images Context - Core Functions
 
-- [ ] 4.1 Add S3 client wrapper in `v2/api/internal/storage/` (presigned URLs with Content-Length condition, 1 hour expiry)
-- [ ] 4.2 Add Lambda client wrapper in `v2/api/internal/lambda/` (direct invoke for URL imports)
-- [ ] 4.3 Implement `GET /api/v1/species/{id}/images` - list images (sorted: default first, then by created_at)
-- [ ] 4.4 Implement `GET /api/v1/images/{id}` - get single image metadata (includes status)
-- [ ] 4.5 Implement `POST /api/v1/images/upload` - create record, return presigned URL
-- [ ] 4.6 Implement `PUT /api/v1/images/{id}` - update metadata
-- [ ] 4.7 Implement `DELETE /api/v1/images/{id}` - delete image and S3 objects
-- [ ] 4.8 Implement `POST /api/v1/images/{id}/default` - set default image
-- [ ] 4.9 Implement `PUT /api/v1/images/{id}/status` - update status (validate X-Lambda-Key header against LAMBDA_CALLBACK_KEY)
-- [ ] 4.10 Update species DELETE handler: query images, delete all S3 objects, then delete species (CASCADE handles DB)
-- [ ] 4.11 Update `GET /api/v1/species/{id}` to include images array
+- [ ] 4.1 Create `lib/gallformers/images.ex` context module
+- [ ] 4.2 Implement S3 presigned URL generation with Content-Length condition (20MB max, 1 hour expiry)
+- [ ] 4.3 Implement path derivation functions (compute all S3 paths from ID + format)
+- [ ] 4.4 Implement versioned URL generation (`?v={updated_at_timestamp}`)
+- [ ] 4.5 Implement `create_image/1` - create pending record
+- [ ] 4.6 Implement `get_image/1` - fetch single image
+- [ ] 4.7 Implement `list_images_for_species/1` - with source-based ordering
+- [ ] 4.8 Implement `list_images_for_article/1`
+- [ ] 4.9 Implement `update_image/2` - update metadata
+- [ ] 4.10 Implement `delete_image/1` - delete record + all S3 objects
+- [ ] 4.11 Implement `set_default/1` - set image as default, unset previous
+- [ ] 4.12 Implement `update_status/2` - update processing status
+- [ ] 4.13 Implement bulk operations: `delete_images/1`, `update_images/2`
 
-## Phase 5: Go API - iNaturalist Import
+## Phase 5: Image Processing Worker
 
-- [ ] 5.1 Implement `POST /api/v1/images/import-url` endpoint
-- [ ] 5.2 Create image record with status "pending"
-- [ ] 5.3 Invoke Lambda directly with image URL (Lambda downloads and processes)
-- [ ] 5.4 Return image ID for client polling
+- [ ] 5.1 Create `lib/gallformers/images/processing_worker.ex` Oban worker
+- [ ] 5.2 Implement S3 download of original image
+- [ ] 5.3 Implement format detection via magic bytes (Image library)
+- [ ] 5.4 Implement dimension extraction and small image detection
+- [ ] 5.5 Implement resize to 4 WebP sizes (300, 800, 1200, 2000 longest edge)
+- [ ] 5.6 Implement JPEG fallback generation (800px)
+- [ ] 5.7 Implement HEIC → WebP/JPEG conversion
+- [ ] 5.8 Implement S3 upload of all variants
+- [ ] 5.9 Implement status update on success
+- [ ] 5.10 Implement error handling with error_message storage
+- [ ] 5.11 Implement PubSub broadcast on status change
 
-## Phase 6: Go API - Testing & Deployment
+## Phase 6: URL Import Worker
 
-- [ ] 6.1 Write unit tests for presigned URL generation
-- [ ] 6.2 Write unit tests for S3 operations (mocked)
-- [ ] 6.3 Write integration tests for image endpoints
-- [ ] 6.4 Update API documentation
-- [ ] 6.5 Deploy API to Fly.io
+- [ ] 6.1 Create `lib/gallformers/images/url_import_worker.ex` Oban worker
+- [ ] 6.2 Implement URL download with timeout (30 seconds)
+- [ ] 6.3 Implement Content-Type validation (jpeg, png, webp, heic only)
+- [ ] 6.4 Implement Content-Length check before download (reject >20MB)
+- [ ] 6.5 Upload downloaded image to S3 originals/
+- [ ] 6.6 Queue processing worker for variants
 
-## Phase 7: Svelte - Gallery Component
+## Phase 7: Cleanup Worker
 
-- [ ] 7.1 Install GLightbox dependency
-- [ ] 7.2 Create `ImageGallery.svelte` component
-- [ ] 7.3 Create `ImageCard.svelte` for individual image display
-- [ ] 7.4 Implement default image display (larger, prominent)
-- [ ] 7.5 Integrate GLightbox for full-size viewing
-- [ ] 7.6 Add no-image placeholder for species without images
-- [ ] 7.7 Add native lazy loading to thumbnails (`loading="lazy"`)
-- [ ] 7.8 Integrate gallery into species detail page
+- [ ] 7.1 Create `lib/gallformers/images/cleanup_worker.ex` scheduled Oban worker
+- [ ] 7.2 Implement abandoned upload detection (pending >24h, no S3 original)
+- [ ] 7.3 Implement DB record cleanup for abandoned uploads
+- [ ] 7.4 Implement stale pending retry (pending >24h, S3 original exists)
+- [ ] 7.5 Configure Oban cron for daily cleanup job
 
-## Phase 8: Svelte - Admin Upload UI
+## Phase 8: LiveView - Gallery Component
 
-- [ ] 8.1 Create `ImageUpload.svelte` component (file picker, presigned URL upload)
-- [ ] 8.2 Create `ImageMetadataForm.svelte` (attribution fields)
-- [ ] 8.3 Implement upload flow: get presigned URL -> upload to S3 -> poll for status
-- [ ] 8.4 Add upload progress indicator and processing status display
-- [ ] 8.5 Add iNat API client in `v2/web/src/lib/inatClient.ts`
-- [ ] 8.6 Create `INatImport.svelte` component (URL input, API call, metadata preview)
-- [ ] 8.7 Implement multi-photo selection for iNat observations
-- [ ] 8.8 Implement iNat import flow (paste URL -> client fetches iNat -> preview -> confirm -> send to API)
-- [ ] 8.9 Add upload button to species detail page (admin-only)
-- [ ] 8.10 Add image management UI (edit metadata, delete, set default)
-- [ ] 8.11 Add processing delay notice in UI ("Processing may take 10-15 seconds")
+- [ ] 8.1 Install GLightbox dependency (npm or vendored)
+- [ ] 8.2 Create `lib/gallformers_web/components/image_gallery.ex` component
+- [ ] 8.3 Implement source-based ordering display
+- [ ] 8.4 Implement default image prominent display
+- [ ] 8.5 Integrate GLightbox for full-size viewing via JS hook
+- [ ] 8.6 Implement `<picture>` element with WebP + JPEG fallback
+- [ ] 8.7 Add native lazy loading (`loading="lazy"`)
+- [ ] 8.8 Add no-image placeholder for species without images
+- [ ] 8.9 Add alt text to images (use caption or "Photo of {species}")
 
-## Phase 9: Svelte - Testing & Polish
+## Phase 9: LiveView - Admin Upload UI
 
-- [ ] 9.1 Write component tests for gallery
-- [ ] 9.2 Write component tests for upload flow
-- [ ] 9.3 Test mobile gallery experience
-- [ ] 9.4 Test lightbox on mobile (touch gestures)
-- [ ] 9.5 Verify admin-only access controls
-- [ ] 9.6 Add alt text to images (use caption or "Photo of {species}")
-- [ ] 9.7 Ensure gallery keyboard navigation (arrow keys, tab)
-- [ ] 9.8 Deploy web app
+- [ ] 9.1 Create/update `lib/gallformers_web/live/admin/images_live.ex`
+- [ ] 9.2 Implement file picker with drag-drop (JS hook)
+- [ ] 9.3 Implement client-side validation (10 file limit, 20MB max, accepted formats)
+- [ ] 9.4 Implement presigned URL request flow
+- [ ] 9.5 Implement direct S3 upload with progress indicator
+- [ ] 9.6 Implement PubSub subscription for real-time status updates
+- [ ] 9.7 Implement processing status display (pending, complete, failed)
+- [ ] 9.8 Implement error display (user-friendly + expandable technical details)
+- [ ] 9.9 Implement retry button for failed images
+- [ ] 9.10 Implement small image warning display
 
-## Phase 10: Migration
+## Phase 10: LiveView - Admin Image Management
+
+- [ ] 10.1 Implement image metadata edit form
+- [ ] 10.2 Implement set default button
+- [ ] 10.3 Implement single image delete with confirmation
+- [ ] 10.4 Implement multi-select UI for images
+- [ ] 10.5 Implement bulk delete with confirmation
+- [ ] 10.6 Implement bulk metadata edit
+
+## Phase 11: LiveView - iNaturalist Import
+
+- [ ] 11.1 Create JS hook for iNat API calls (`assets/js/hooks/inat_import.js`)
+- [ ] 11.2 Implement observation URL parsing
+- [ ] 11.3 Implement iNat API fetch (client-side)
+- [ ] 11.4 Implement photo thumbnail and metadata preview
+- [ ] 11.5 Implement multi-photo selection UI
+- [ ] 11.6 Implement import confirmation flow
+- [ ] 11.7 Handle 429 rate limit errors gracefully
+- [ ] 11.8 Auto-populate attribution fields from iNat data
+
+## Phase 12: Species Integration
+
+- [ ] 12.1 Add image gallery to species detail LiveView
+- [ ] 12.2 Add upload button (admin-only) to species page
+- [ ] 12.3 Update species list to show default image thumbnails
+- [ ] 12.4 Ensure species deletion cleans up all S3 objects
+
+## Phase 13: Source Integration
+
+- [ ] 13.1 Implement ON DELETE RESTRICT handling for source deletion
+- [ ] 13.2 Show linked images when source deletion is attempted
+- [ ] 13.3 Add image carousel to Source public page (see bead gallformers-2ci8)
+
+## Phase 14: Testing
+
+- [ ] 14.1 Write unit tests for path derivation functions
+- [ ] 14.2 Write unit tests for S3 presigned URL generation
+- [ ] 14.3 Write unit tests for image ordering query
+- [ ] 14.4 Write integration tests for processing worker (mocked S3)
+- [ ] 14.5 Write integration tests for upload flow (mocked S3)
+- [ ] 14.6 Write LiveView tests for gallery component
+- [ ] 14.7 Write LiveView tests for upload UI
+- [ ] 14.8 Test mobile gallery experience
+- [ ] 14.9 Test lightbox on mobile (touch gestures)
+- [ ] 14.10 Test HEIC upload and conversion
+- [ ] 14.11 Test JPEG fallback in old browser (or simulated)
+
+## Phase 15: Migration
 
 ### Pre-Migration
-- [ ] 10.1 Add maintenance flag to v1 admin to disable image uploads
-- [ ] 10.2 Create inventory script to snapshot v1 image table with timestamps
-- [ ] 10.3 Test migration on 100 images and estimate total duration
+- [ ] 15.1 Add maintenance flag to v1 admin to disable image uploads
+- [ ] 15.2 Create inventory script to snapshot v1 image table with timestamps
+- [ ] 15.3 Test migration on 100 images and verify output
 
 ### Migration Script
-- [ ] 10.4 Create migration script to read v1 image records
-- [ ] 10.5 Implement fallback download (original → xlarge → large → medium → small)
-- [ ] 10.6 Log warnings for images requiring fallback from original
-- [ ] 10.7 Implement upload to v2 S3 structure
-- [ ] 10.8 Implement Lambda invoke for each migrated image
-- [ ] 10.9 Create v2 image records with new UUID (map all v1 fields, store v1 ID in legacy_id)
-- [ ] 10.10 Add progress tracking and logging (6,531 images)
-- [ ] 10.11 Implement delta migration for images added during long-running migration
+- [ ] 15.4 Create `lib/mix/tasks/images.migrate.ex` Mix task
+- [ ] 15.5 Implement v1 image record reading
+- [ ] 15.6 Implement fallback download (original → xlarge → large → medium → small)
+- [ ] 15.7 Log warnings for images requiring fallback from original
+- [ ] 15.8 Implement upload to v2 S3 structure in us-east-1
+- [ ] 15.9 Implement Oban job queuing for each migrated image
+- [ ] 15.10 Create v2 image records with new UUID (map all v1 fields, store v1 ID in legacy_id)
+- [ ] 15.11 Add progress tracking and logging (6,531 images)
+- [ ] 15.12 Implement batch queuing (100 at a time)
+- [ ] 15.13 Implement delta migration for images added during long-running migration
 
 ### Execution
-- [ ] 10.12 Disable v1 image uploads (set maintenance flag)
-- [ ] 10.13 Run inventory snapshot
-- [ ] 10.14 Run full migration in batches (100 at a time)
-- [ ] 10.15 Run delta migration if needed (images added during migration)
-- [ ] 10.16 Verify all images display correctly
-- [ ] 10.17 Re-enable image uploads (now routes to v2)
-- [ ] 10.18 Update any hardcoded v1 image paths to v2
+- [ ] 15.14 Disable v1 image uploads (set maintenance flag)
+- [ ] 15.15 Run inventory snapshot
+- [ ] 15.16 Run full migration (`mix images.migrate`)
+- [ ] 15.17 Run delta migration if needed
+- [ ] 15.18 Verify all images display correctly
+- [ ] 15.19 Re-enable image uploads (now routes to v2)
+- [ ] 15.20 Update any hardcoded v1 image paths to v2
 
-## Phase 11: Documentation
+## Phase 16: Article Images (After Requirements Defined)
 
-- [ ] 11.1 Update v2/CLAUDE.md with image system overview
-- [ ] 11.2 Document S3/CloudFront/Lambda setup for future reference
-- [ ] 11.3 Document image upload workflow for admin use
+- [ ] 16.1 Define article image requirements (sizes, hero images, etc.)
+- [ ] 16.2 Add article_id column handling in Images context
+- [ ] 16.3 Create article image upload UI
+- [ ] 16.4 Integrate images into article display
 
-## Phase 12: Future/Deferred (Optional)
+## Phase 17: Documentation
 
-- [ ] 12.1 Create orphan S3 object checker script (compare S3 vs DB, report orphans)
-- [ ] 12.2 Add cleanup mode to orphan checker (delete confirmed orphans)
+- [ ] 17.1 Update CLAUDE.md with image system overview
+- [ ] 17.2 Document S3/CloudFront configuration for future reference
+- [ ] 17.3 Document image upload workflow for admin use
+- [ ] 17.4 Document Fly.io machine sizing requirements (1GB RAM minimum)
+
+## Phase 18: Future/Deferred (Optional)
+
+- [ ] 18.1 Create orphan S3 object checker script (compare S3 vs DB, report orphans)
+- [ ] 18.2 Add cleanup mode to orphan checker (delete confirmed orphans)
+- [ ] 18.3 Add custom CloudFront domain (images.gallformers.org) if desired
