@@ -196,17 +196,7 @@ defmodule GallformersWeb.Admin.ProfileLive do
 
             <%!-- Show on About Page --%>
             <div class="mb-3">
-              <input type="hidden" name={@form[:show_on_about].name} value="false" />
-              <label class="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  name={@form[:show_on_about].name}
-                  value="true"
-                  checked={Phoenix.HTML.Form.input_value(@form, :show_on_about) == true}
-                  class="rounded border-gray-300 text-gf-maroon focus:ring-gf-maroon"
-                />
-                <span class="text-sm text-gray-700">List me on the About page</span>
-              </label>
+              <.input type="checkbox" field={@form[:show_on_about]} label="List me on the About page" />
             </div>
 
             <%!-- Buttons --%>

@@ -320,20 +320,7 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
                   />
                   <p class="mt-1 text-xs text-gray-500">Comma-separated list of tags</p>
                 </div>
-                <div class="flex items-center gap-2">
-                  <input type="hidden" name={@form[:is_published].name} value="false" />
-                  <input
-                    type="checkbox"
-                    name={@form[:is_published].name}
-                    id={@form[:is_published].id}
-                    value="true"
-                    checked={Phoenix.HTML.Form.input_value(@form, :is_published) == true}
-                    class="rounded border-gray-300 text-gf-maroon focus:ring-gf-maroon"
-                  />
-                  <label for={@form[:is_published].id} class="text-base text-gray-700">
-                    Published
-                  </label>
-                </div>
+                <.input type="checkbox" field={@form[:is_published]} label="Published" />
               </.form>
             <% else %>
               <%!-- Preview Tab --%>

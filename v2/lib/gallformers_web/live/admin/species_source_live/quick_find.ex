@@ -342,25 +342,11 @@ defmodule GallformersWeb.Admin.SpeciesSourceLive.QuickFind do
                                 />
                               </div>
 
-                              <div>
-                                <label class="flex items-center gap-2 cursor-pointer">
-                                  <input
-                                    type="hidden"
-                                    name="species_source[useasdefault]"
-                                    value="false"
-                                  />
-                                  <input
-                                    type="checkbox"
-                                    name="species_source[useasdefault]"
-                                    value="true"
-                                    checked={@form[:useasdefault].value in [1, "1", true, "true"]}
-                                    class="rounded border-gray-300 text-gf-maroon focus:ring-gf-maroon"
-                                  />
-                                  <span class="text-sm text-gray-700">
-                                    Use as default source for this species
-                                  </span>
-                                </label>
-                              </div>
+                              <.input
+                                type="checkbox"
+                                field={@form[:useasdefault]}
+                                label="Use as default source for this species"
+                              />
 
                               <div class="flex justify-between items-center pt-3 border-t border-gray-200">
                                 <button

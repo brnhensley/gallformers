@@ -210,19 +210,11 @@ defmodule GallformersWeb.Admin.SourceLive.Form do
 
           <%!-- Row: Data Complete checkbox --%>
           <div class="mb-3">
-            <label class="flex items-center gap-2">
-              <input type="hidden" name={@form[:datacomplete].name} value="false" />
-              <input
-                type="checkbox"
-                name={@form[:datacomplete].name}
-                value="true"
-                checked={Phoenix.HTML.Form.input_value(@form, :datacomplete) == true}
-                class="rounded border-gray-300 text-gf-maroon focus:ring-gf-maroon"
-              />
-              <span class="text-sm text-gray-700">
-                All information from this source has been entered into the database
-              </span>
-            </label>
+            <.input
+              type="checkbox"
+              field={@form[:datacomplete]}
+              label="All information from this source has been entered into the database"
+            />
           </div>
 
           <%!-- Buttons --%>

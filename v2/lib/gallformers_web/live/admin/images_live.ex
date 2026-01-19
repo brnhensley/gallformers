@@ -324,20 +324,13 @@ defmodule GallformersWeb.AdminImagesLive do
                   value={@editing_image.caption || ""}
                 />
               </div>
-              <div class="flex items-center gap-2">
-                <input type="hidden" name="default" value="false" />
-                <input
-                  type="checkbox"
-                  name="default"
-                  value="true"
-                  checked={@editing_image.default}
-                  id="default-checkbox"
-                  class="rounded border-gray-300 text-gf-maroon focus:ring-gf-maroon"
-                />
-                <label for="default-checkbox" class="text-base text-gray-700">
-                  Set as default image
-                </label>
-              </div>
+              <.input
+                type="checkbox"
+                name="default"
+                checked={@editing_image.default}
+                id="default-checkbox"
+                label="Set as default image"
+              />
             </form>
           </:body>
           <:footer>

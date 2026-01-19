@@ -923,17 +923,12 @@ defmodule GallformersWeb.IDLive do
     ~H"""
     <div class="mb-2">
       <form phx-change="change_filter" phx-value-filter="undescribed">
-        <label class="flex items-center gap-2 text-base cursor-pointer">
-          <input type="hidden" name="value" value="false" />
-          <input
-            type="checkbox"
-            name="value"
-            value="true"
-            checked={@value}
-            class="h-4 w-4 text-gf-maroon focus:ring-gf-maroon border-gray-300 rounded"
-          />
-          <span class="text-gray-700">Show only undescribed galls</span>
-        </label>
+        <.input
+          type="checkbox"
+          name="value"
+          checked={@value}
+          label="Show only undescribed galls"
+        />
       </form>
     </div>
     """
