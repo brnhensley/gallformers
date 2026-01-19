@@ -489,7 +489,7 @@ defmodule GallformersWeb.Admin.FormHelpers do
   end
 
   use Phoenix.Component
-  import GallformersWeb.UIComponents, only: [modal: 1]
+  import GallformersWeb.CoreComponents, only: [modal: 1]
 
   @doc """
   Renders the discard confirmation modal.
@@ -509,11 +509,13 @@ defmodule GallformersWeb.Admin.FormHelpers do
       show
       on_cancel={Phoenix.LiveView.JS.push("cancel_discard")}
     >
-      <:title>Discard Changes?</:title>
-      <p class="text-gray-600 mb-4">
-        You have unsaved changes. Are you sure you want to discard them?
-      </p>
-      <:actions>
+      <:header>Discard Changes?</:header>
+      <:body>
+        <p class="text-gray-600 mb-4">
+          You have unsaved changes. Are you sure you want to discard them?
+        </p>
+      </:body>
+      <:footer>
         <button
           type="button"
           phx-click="cancel_discard"
@@ -528,7 +530,7 @@ defmodule GallformersWeb.Admin.FormHelpers do
         >
           Discard Changes
         </button>
-      </:actions>
+      </:footer>
     </.modal>
     """
   end

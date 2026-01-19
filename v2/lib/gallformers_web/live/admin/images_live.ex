@@ -236,111 +236,115 @@ defmodule GallformersWeb.AdminImagesLive do
 
         <%!-- Edit Modal --%>
         <.modal :if={@editing_image} id="edit-modal" show on_cancel={JS.push("cancel_edit")}>
-          <:title>Edit Image Metadata</:title>
-          <form id="edit-image-form" phx-submit="save_image" class="space-y-4">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">
-                Creator / Photographer
-              </label>
-              <input
-                type="text"
-                name="creator"
-                value={@editing_image.creator || ""}
-                class="w-full rounded-md border-gray-300 shadow-sm focus:border-gf-maroon focus:ring-gf-maroon"
-              />
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Attribution</label>
-              <input
-                type="text"
-                name="attribution"
-                value={@editing_image.attribution || ""}
-                class="w-full rounded-md border-gray-300 shadow-sm focus:border-gf-maroon focus:ring-gf-maroon"
-              />
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">License</label>
-              <select
-                name="license"
-                phx-change="update_license"
-                class="w-full rounded-md border-gray-300 shadow-sm focus:border-gf-maroon focus:ring-gf-maroon"
-              >
-                <option value="">Select a license</option>
-                <option
-                  :for={license <- Licenses.all()}
-                  value={license}
-                  selected={@editing_image.license == license}
-                >
-                  {license}
-                </option>
-              </select>
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">License URL</label>
-              <%= if Licenses.url_readonly?(@editing_image.license) do %>
+          <:header>Edit Image Metadata</:header>
+          <:body>
+            <form id="edit-image-form" phx-submit="save_image" class="space-y-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">
+                  Creator / Photographer
+                </label>
                 <input
                   type="text"
-                  name="licenselink"
-                  value={Licenses.url(@editing_image.license)}
-                  readonly
-                  class="w-full rounded-md border-gray-300 bg-gray-50 text-gray-500 shadow-sm cursor-not-allowed"
-                />
-                <p class="mt-1 text-xs text-gray-500">
-                  Auto-filled from license selection
-                </p>
-              <% else %>
-                <input
-                  type="text"
-                  name="licenselink"
-                  value={@editing_image.licenselink || Licenses.url(@editing_image.license) || ""}
-                  placeholder={
-                    if @editing_image.license == "All Rights Reserved",
-                      do: "Optional - link to usage terms",
-                      else: ""
-                  }
+                  name="creator"
+                  value={@editing_image.creator || ""}
                   class="w-full rounded-md border-gray-300 shadow-sm focus:border-gf-maroon focus:ring-gf-maroon"
                 />
-                <p
-                  :if={@editing_image.license == "Public Domain / CC0"}
-                  class="mt-1 text-xs text-gray-500"
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Attribution</label>
+                <input
+                  type="text"
+                  name="attribution"
+                  value={@editing_image.attribution || ""}
+                  class="w-full rounded-md border-gray-300 shadow-sm focus:border-gf-maroon focus:ring-gf-maroon"
+                />
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">License</label>
+                <select
+                  name="license"
+                  phx-change="update_license"
+                  class="w-full rounded-md border-gray-300 shadow-sm focus:border-gf-maroon focus:ring-gf-maroon"
                 >
-                  Defaults to CC0, but can be changed for other public domain references
-                </p>
-              <% end %>
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">
-                Source URL (e.g., iNaturalist)
-              </label>
-              <input
-                type="text"
-                name="sourcelink"
-                value={@editing_image.sourcelink || ""}
-                class="w-full rounded-md border-gray-300 shadow-sm focus:border-gf-maroon focus:ring-gf-maroon"
-              />
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Caption</label>
-              <textarea
-                name="caption"
-                rows="3"
-                class="w-full rounded-md border-gray-300 shadow-sm focus:border-gf-maroon focus:ring-gf-maroon"
-              >{@editing_image.caption || ""}</textarea>
-            </div>
-            <div class="flex items-center gap-2">
-              <input type="hidden" name="default" value="false" />
-              <input
-                type="checkbox"
-                name="default"
-                value="true"
-                checked={@editing_image.default}
-                id="default-checkbox"
-                class="rounded border-gray-300 text-gf-maroon focus:ring-gf-maroon"
-              />
-              <label for="default-checkbox" class="text-sm text-gray-700">Set as default image</label>
-            </div>
-          </form>
-          <:actions>
+                  <option value="">Select a license</option>
+                  <option
+                    :for={license <- Licenses.all()}
+                    value={license}
+                    selected={@editing_image.license == license}
+                  >
+                    {license}
+                  </option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">License URL</label>
+                <%= if Licenses.url_readonly?(@editing_image.license) do %>
+                  <input
+                    type="text"
+                    name="licenselink"
+                    value={Licenses.url(@editing_image.license)}
+                    readonly
+                    class="w-full rounded-md border-gray-300 bg-gray-50 text-gray-500 shadow-sm cursor-not-allowed"
+                  />
+                  <p class="mt-1 text-xs text-gray-500">
+                    Auto-filled from license selection
+                  </p>
+                <% else %>
+                  <input
+                    type="text"
+                    name="licenselink"
+                    value={@editing_image.licenselink || Licenses.url(@editing_image.license) || ""}
+                    placeholder={
+                      if @editing_image.license == "All Rights Reserved",
+                        do: "Optional - link to usage terms",
+                        else: ""
+                    }
+                    class="w-full rounded-md border-gray-300 shadow-sm focus:border-gf-maroon focus:ring-gf-maroon"
+                  />
+                  <p
+                    :if={@editing_image.license == "Public Domain / CC0"}
+                    class="mt-1 text-xs text-gray-500"
+                  >
+                    Defaults to CC0, but can be changed for other public domain references
+                  </p>
+                <% end %>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">
+                  Source URL (e.g., iNaturalist)
+                </label>
+                <input
+                  type="text"
+                  name="sourcelink"
+                  value={@editing_image.sourcelink || ""}
+                  class="w-full rounded-md border-gray-300 shadow-sm focus:border-gf-maroon focus:ring-gf-maroon"
+                />
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Caption</label>
+                <textarea
+                  name="caption"
+                  rows="3"
+                  class="w-full rounded-md border-gray-300 shadow-sm focus:border-gf-maroon focus:ring-gf-maroon"
+                >{@editing_image.caption || ""}</textarea>
+              </div>
+              <div class="flex items-center gap-2">
+                <input type="hidden" name="default" value="false" />
+                <input
+                  type="checkbox"
+                  name="default"
+                  value="true"
+                  checked={@editing_image.default}
+                  id="default-checkbox"
+                  class="rounded border-gray-300 text-gf-maroon focus:ring-gf-maroon"
+                />
+                <label for="default-checkbox" class="text-sm text-gray-700">
+                  Set as default image
+                </label>
+              </div>
+            </form>
+          </:body>
+          <:footer>
             <button
               type="button"
               phx-click="cancel_edit"
@@ -355,23 +359,25 @@ defmodule GallformersWeb.AdminImagesLive do
             >
               Save Changes
             </button>
-          </:actions>
+          </:footer>
         </.modal>
 
         <%!-- Delete Confirmation Modal --%>
         <.modal :if={@delete_image} id="delete-modal" show on_cancel={JS.push("cancel_delete")}>
-          <:title>Delete Image</:title>
-          <p class="text-gray-600 mb-4">
-            Are you sure you want to delete this image? This action cannot be undone.
-          </p>
-          <div class="flex justify-center mb-4">
-            <img
-              src={Image.sized_url(@delete_image.path, :medium)}
-              alt="Image to delete"
-              class="max-w-xs rounded"
-            />
-          </div>
-          <:actions>
+          <:header>Delete Image</:header>
+          <:body>
+            <p class="text-gray-600 mb-4">
+              Are you sure you want to delete this image? This action cannot be undone.
+            </p>
+            <div class="flex justify-center mb-4">
+              <img
+                src={Image.sized_url(@delete_image.path, :medium)}
+                alt="Image to delete"
+                class="max-w-xs rounded"
+              />
+            </div>
+          </:body>
+          <:footer>
             <button
               type="button"
               phx-click="cancel_delete"
@@ -387,7 +393,7 @@ defmodule GallformersWeb.AdminImagesLive do
             >
               Delete
             </button>
-          </:actions>
+          </:footer>
         </.modal>
       </div>
     </Layouts.admin>
