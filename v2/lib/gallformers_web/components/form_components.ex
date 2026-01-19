@@ -117,7 +117,7 @@ defmodule GallformersWeb.FormComponents do
   def multi_select(assigns) do
     ~H"""
     <div id={@id} class={@class}>
-      <label :if={@label} class="block text-base font-medium text-gray-700 mb-2">
+      <label :if={@label} class="gf-label mb-2">
         {@label}
       </label>
       <div class="flex flex-wrap gap-2">
@@ -127,11 +127,10 @@ defmodule GallformersWeb.FormComponents do
           phx-click={@on_toggle}
           phx-value-value={option.value}
           class={[
-            "px-3 py-1 rounded-full text-sm border transition-colors",
-            (option.value in @selected || to_string(option.value) in @selected) &&
-              "bg-gf-maroon text-white border-gf-maroon",
+            "gf-pill",
+            (option.value in @selected || to_string(option.value) in @selected) && "gf-pill-selected",
             !(option.value in @selected || to_string(option.value) in @selected) &&
-              "bg-white text-gray-700 border-gray-300 hover:border-gf-maroon"
+              "gf-pill-unselected"
           ]}
         >
           {option.label}
@@ -173,7 +172,7 @@ defmodule GallformersWeb.FormComponents do
         name={@name}
         value={@value}
         placeholder={@placeholder}
-        class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-md leading-5 bg-white text-lg placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-gf-maroon focus:border-gf-maroon"
+        class="gf-search-input"
         {@rest}
       />
     </div>
@@ -203,15 +202,15 @@ defmodule GallformersWeb.FormComponents do
   def field_wrapper(assigns) do
     ~H"""
     <div class={["mb-4", @class]}>
-      <label class="block text-base font-medium text-gray-700 mb-1">
+      <label class="gf-label">
         {@label}
         <span :if={@required} class="text-red-500">*</span>
       </label>
       {render_slot(@inner_block)}
-      <p :if={@hint && !@error} class="mt-1 text-sm text-gray-500">
+      <p :if={@hint && !@error} class="gf-hint">
         {@hint}
       </p>
-      <p :if={@error} class="mt-1 text-sm text-red-500 flex items-center gap-1">
+      <p :if={@error} class="gf-error">
         <.icon name="ph-warning-circle" class="size-4" />
         {@error}
       </p>
@@ -254,10 +253,10 @@ defmodule GallformersWeb.FormComponents do
           class="sr-only peer"
           {@rest}
         />
-        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-gf-maroon/50 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gf-maroon">
+        <div class="gf-toggle-track peer peer-checked:bg-gf-maroon peer-focus:ring-2 peer-focus:ring-gf-maroon/50 peer-checked:after:translate-x-full peer-checked:after:border-white">
         </div>
       </div>
-      <span :if={@label} class="ml-3 text-base font-medium text-gray-700">{@label}</span>
+      <span :if={@label} class="gf-label ml-3 mb-0">{@label}</span>
     </label>
     """
   end
@@ -286,7 +285,7 @@ defmodule GallformersWeb.FormComponents do
   def radio_group(assigns) do
     ~H"""
     <fieldset id={@id} class={@class}>
-      <legend :if={@label} class="text-base font-medium text-gray-700 mb-2">{@label}</legend>
+      <legend :if={@label} class="gf-label mb-2">{@label}</legend>
       <div class="space-y-2">
         <label :for={option <- @options} class="flex items-center">
           <input
@@ -294,11 +293,11 @@ defmodule GallformersWeb.FormComponents do
             name={@name}
             value={option.value}
             checked={@value == option.value || to_string(@value) == to_string(option.value)}
-            class="h-4 w-4 text-gf-maroon focus:ring-gf-maroon border-gray-300"
+            class="gf-radio"
             {@rest}
           />
           <span class="ml-2 text-sm text-gray-700">{option.label}</span>
-          <span :if={option[:description]} class="ml-1 text-sm text-gray-500">
+          <span :if={option[:description]} class="gf-hint ml-1">
             - {option.description}
           </span>
         </label>
@@ -329,23 +328,19 @@ defmodule GallformersWeb.FormComponents do
     ~H"""
     <div
       id={@id}
-      class={[
-        "flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md",
-        "hover:border-gf-maroon transition-colors cursor-pointer",
-        @class
-      ]}
+      class={["gf-dropzone", @class]}
       phx-drop-target={@upload.ref}
     >
       <div class="space-y-1 text-center">
         <.icon name="ph-cloud-arrow-up" class="mx-auto size-12 text-gray-400" />
         <div class="flex text-sm text-gray-600">
-          <label class="relative cursor-pointer rounded-md font-medium text-gf-maroon hover:text-gf-maroon/80">
+          <label class="gf-dropzone-link">
             <span>{gettext("Upload a file")}</span>
             <.live_file_input upload={@upload} class="sr-only" />
           </label>
           <p class="pl-1">{gettext("or drag and drop")}</p>
         </div>
-        <p class="text-xs text-gray-500">{@label}</p>
+        <p class="gf-hint text-xs">{@label}</p>
       </div>
     </div>
     """
@@ -535,39 +530,19 @@ defmodule GallformersWeb.FormComponents do
         result_label
       )
 
-    # Size-based classes
-    {container_class, chip_class, input_class, dropdown_class} =
-      case assigns.size do
-        "sm" ->
-          {
-            "flex flex-wrap gap-1 p-1.5 border border-gray-300 rounded bg-white min-h-[34px] cursor-text",
-            "inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-blue-100 text-blue-800 rounded text-xs",
-            "flex-1 min-w-[60px] border-0 p-0 text-xs focus:ring-0 focus:outline-none",
-            "absolute z-20 mt-1 w-full bg-white shadow-lg rounded border border-gray-200 max-h-32 overflow-auto"
-          }
-
-        "md" ->
-          {
-            "flex flex-wrap gap-1 p-2 border border-gray-300 rounded-md bg-white min-h-[42px] cursor-text",
-            "inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-800 rounded text-sm",
-            "flex-1 min-w-[80px] border-0 p-0 text-base focus:ring-0 focus:outline-none",
-            "absolute z-20 mt-1 w-full bg-white shadow-lg rounded-md border border-gray-200 max-h-48 overflow-auto"
-          }
-      end
+    # Size-based classes - use semantic CSS with size modifiers
+    is_md = assigns.size == "md"
 
     assigns =
       assigns
       |> assign(:available, available)
       |> assign(:result_id_resolved, result_id)
       |> assign(:result_label_resolved, result_label)
-      |> assign(:container_class, container_class)
-      |> assign(:chip_class, chip_class)
-      |> assign(:input_class, input_class)
-      |> assign(:dropdown_class, dropdown_class)
+      |> assign(:is_md, is_md)
 
     ~H"""
     <div class={@class}>
-      <label :if={@label} class="block text-sm font-medium text-gray-700 mb-1">{@label}</label>
+      <label :if={@label} class="gf-label">{@label}</label>
       <div
         id={@id}
         phx-hook="Typeahead"
@@ -575,13 +550,13 @@ defmodule GallformersWeb.FormComponents do
         class="relative"
       >
         <div
-          class={@container_class}
+          class={["gf-multi-select-container", @is_md && "gf-multi-select-container-md"]}
           phx-click={@on_open}
           phx-value-type={@type}
         >
           <span
             :for={item <- @selected}
-            class={@chip_class}
+            class={["gf-chip", !@is_md && "gf-chip-sm"]}
           >
             {get_display_label(item, @item_label)}
             <button
@@ -589,7 +564,7 @@ defmodule GallformersWeb.FormComponents do
               phx-click={@on_remove}
               phx-value-type={@type}
               phx-value-id={get_item_id(item, @item_id)}
-              class="text-blue-600 hover:text-blue-800"
+              class="gf-chip-remove"
             >
               <.icon name="ph-x" class="h-3 w-3" />
             </button>
@@ -603,7 +578,7 @@ defmodule GallformersWeb.FormComponents do
             phx-keyup={@on_search}
             phx-focus={@on_open}
             phx-value-type={@type}
-            class={@input_class}
+            class={["gf-multi-select-input", @is_md && "gf-multi-select-input-md"]}
           />
         </div>
         <%= if @dropdown_open && @available != [] do %>
@@ -611,7 +586,7 @@ defmodule GallformersWeb.FormComponents do
             id={"#{@id}-results"}
             data-typeahead-results
             phx-click-away={@on_close}
-            class={@dropdown_class}
+            class={["gf-multi-select-dropdown", @is_md && "gf-multi-select-dropdown-md"]}
           >
             <button
               :for={opt <- Enum.take(@available, 10)}
@@ -620,7 +595,7 @@ defmodule GallformersWeb.FormComponents do
               phx-click={@on_add}
               phx-value-type={@type}
               phx-value-id={get_item_id(opt, @result_id_resolved)}
-              class="w-full px-2 py-1 text-left text-xs hover:bg-gray-100 data-[highlighted]:bg-gray-100"
+              class="gf-multi-select-option hover:bg-gray-100 data-[highlighted]:bg-gray-100"
             >
               {get_display_label(opt, @result_label_resolved)}
             </button>
