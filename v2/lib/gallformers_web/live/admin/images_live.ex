@@ -260,21 +260,16 @@ defmodule GallformersWeb.AdminImagesLive do
                 />
               </div>
               <div>
-                <label class="gf-label">License</label>
-                <select
-                  name="license"
-                  phx-change="update_license"
-                  class="w-full rounded-md border-gray-300 shadow-sm focus:border-gf-maroon focus:ring-gf-maroon"
-                >
-                  <option value="">Select a license</option>
-                  <option
-                    :for={license <- Licenses.all()}
-                    value={license}
-                    selected={@editing_image.license == license}
-                  >
-                    {license}
-                  </option>
-                </select>
+                <form phx-change="update_license">
+                  <.input
+                    type="select"
+                    name="license"
+                    label="License"
+                    prompt="Select a license"
+                    options={Enum.map(Licenses.all(), &{&1, &1})}
+                    value={@editing_image.license}
+                  />
+                </form>
               </div>
               <div>
                 <label class="gf-label">License URL</label>
@@ -321,12 +316,13 @@ defmodule GallformersWeb.AdminImagesLive do
                 />
               </div>
               <div>
-                <label class="gf-label">Caption</label>
-                <textarea
+                <.input
+                  type="textarea"
                   name="caption"
+                  label="Caption"
                   rows="3"
-                  class="w-full rounded-md border-gray-300 shadow-sm focus:border-gf-maroon focus:ring-gf-maroon"
-                >{@editing_image.caption || ""}</textarea>
+                  value={@editing_image.caption || ""}
+                />
               </div>
               <div class="flex items-center gap-2">
                 <input type="hidden" name="default" value="false" />

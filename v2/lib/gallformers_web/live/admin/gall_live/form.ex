@@ -757,18 +757,15 @@ defmodule GallformersWeb.Admin.GallLive.Form do
           <%= if @mode == :edit do %>
             <%!-- Row: Detachable | Walls | Cells | Alignment --%>
             <div class="grid grid-cols-4 gap-3 mb-3">
-              <div>
-                <label class="gf-label">Detachable:</label>
-                <select
-                  phx-change="update_detachable"
+              <form phx-change="update_detachable">
+                <.input
+                  type="select"
                   name="value"
-                  class="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
-                >
-                  <%= for {label, id} <- @detachable_options do %>
-                    <option value={id} selected={@detachable == id}>{label}</option>
-                  <% end %>
-                </select>
-              </div>
+                  label="Detachable:"
+                  options={@detachable_options}
+                  value={@detachable}
+                />
+              </form>
               <.multi_select_dropdown
                 id="walls"
                 label="Walls:"

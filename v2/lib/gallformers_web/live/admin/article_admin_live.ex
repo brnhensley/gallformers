@@ -76,29 +76,22 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
               />
             </form>
             <form phx-change="filter_tag" id="article-tag-filter" class="w-48">
-              <select
+              <.input
+                type="select"
                 name="tag"
-                class="w-full px-3 py-3 border border-gray-300 rounded-md text-lg focus:outline-none focus:ring-1 focus:ring-gf-maroon focus:border-gf-maroon"
-              >
-                <option value="">All Tags</option>
-                <option :for={tag <- @all_tags} value={tag} selected={@tag_filter == tag}>
-                  {tag}
-                </option>
-              </select>
+                prompt="All Tags"
+                options={Enum.map(@all_tags, &{&1, &1})}
+                value={@tag_filter}
+              />
             </form>
             <form phx-change="filter_status" id="article-status-filter" class="w-40">
-              <select
+              <.input
+                type="select"
                 name="status"
-                class="w-full px-3 py-3 border border-gray-300 rounded-md text-lg focus:outline-none focus:ring-1 focus:ring-gf-maroon focus:border-gf-maroon"
-              >
-                <option value="">All Status</option>
-                <option value="published" selected={@status_filter == "published"}>
-                  Published
-                </option>
-                <option value="draft" selected={@status_filter == "draft"}>
-                  Draft
-                </option>
-              </select>
+                prompt="All Status"
+                options={[{"Published", "published"}, {"Draft", "draft"}]}
+                value={@status_filter}
+              />
             </form>
           </div>
           <button type="button" phx-click="new_article" class="gf-btn gf-btn-primary">

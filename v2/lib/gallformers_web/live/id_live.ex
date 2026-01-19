@@ -732,20 +732,16 @@ defmodule GallformersWeb.IDLive do
 
   defp detachable_filter(assigns) do
     ~H"""
-    <div class="mb-2">
-      <label class="block text-base font-medium text-gray-700 mb-1">Detachable</label>
-      <form phx-change="change_filter" phx-value-filter="detachable">
-        <select
-          name="value"
-          class="w-full px-3 py-2 border border-gray-300 rounded-md text-base focus:ring-gf-maroon focus:border-gf-maroon"
-        >
-          <option value="" selected={@value == nil}>Any</option>
-          <option value="integral" selected={@value == "integral"}>Integral</option>
-          <option value="detachable" selected={@value == "detachable"}>Detachable</option>
-          <option value="both" selected={@value == "both"}>Both</option>
-        </select>
-      </form>
-    </div>
+    <form phx-change="change_filter" phx-value-filter="detachable">
+      <.input
+        type="select"
+        name="value"
+        label="Detachable"
+        prompt="Any"
+        options={[{"Integral", "integral"}, {"Detachable", "detachable"}, {"Both", "both"}]}
+        value={@value}
+      />
+    </form>
     """
   end
 
@@ -755,20 +751,16 @@ defmodule GallformersWeb.IDLive do
 
   defp place_filter(assigns) do
     ~H"""
-    <div class="mb-2">
-      <label class="block text-base font-medium text-gray-700 mb-1">Region</label>
-      <form phx-change="change_filter" phx-value-filter="place">
-        <select
-          name="value"
-          class="w-full px-3 py-2 border border-gray-300 rounded-md text-base focus:ring-gf-maroon focus:border-gf-maroon"
-        >
-          <option value="" selected={@value == nil}>Any Region</option>
-          <option :for={place <- @places} value={place.code} selected={@value == place.code}>
-            {place.name}
-          </option>
-        </select>
-      </form>
-    </div>
+    <form phx-change="change_filter" phx-value-filter="place">
+      <.input
+        type="select"
+        name="value"
+        label="Region"
+        prompt="Any Region"
+        options={Enum.map(@places, &{&1.name, &1.code})}
+        value={@value}
+      />
+    </form>
     """
   end
 
@@ -778,20 +770,16 @@ defmodule GallformersWeb.IDLive do
 
   defp family_filter(assigns) do
     ~H"""
-    <div class="mb-2">
-      <label class="block text-base font-medium text-gray-700 mb-1">Family</label>
-      <form phx-change="change_filter" phx-value-filter="family">
-        <select
-          name="value"
-          class="w-full px-3 py-2 border border-gray-300 rounded-md text-base focus:ring-gf-maroon focus:border-gf-maroon"
-        >
-          <option value="" selected={@value == nil}>Any Family</option>
-          <option :for={fam <- @families} value={fam.id} selected={@value == fam.id}>
-            {fam.name}
-          </option>
-        </select>
-      </form>
-    </div>
+    <form phx-change="change_filter" phx-value-filter="family">
+      <.input
+        type="select"
+        name="value"
+        label="Family"
+        prompt="Any Family"
+        options={Enum.map(@families, &{&1.name, &1.id})}
+        value={@value}
+      />
+    </form>
     """
   end
 
@@ -801,20 +789,16 @@ defmodule GallformersWeb.IDLive do
 
   defp color_filter(assigns) do
     ~H"""
-    <div class="mb-2">
-      <label class="block text-base font-medium text-gray-700 mb-1">Color</label>
-      <form phx-change="change_filter" phx-value-filter="color">
-        <select
-          name="value"
-          class="w-full px-3 py-2 border border-gray-300 rounded-md text-base focus:ring-gf-maroon focus:border-gf-maroon"
-        >
-          <option value="" selected={@value == nil}>Any Color</option>
-          <option :for={opt <- @options} value={opt.id} selected={@value == opt.id}>
-            {opt.color}
-          </option>
-        </select>
-      </form>
-    </div>
+    <form phx-change="change_filter" phx-value-filter="color">
+      <.input
+        type="select"
+        name="value"
+        label="Color"
+        prompt="Any Color"
+        options={Enum.map(@options, &{&1.color, &1.id})}
+        value={@value}
+      />
+    </form>
     """
   end
 
@@ -824,20 +808,16 @@ defmodule GallformersWeb.IDLive do
 
   defp shape_filter(assigns) do
     ~H"""
-    <div class="mb-2">
-      <label class="block text-base font-medium text-gray-700 mb-1">Shape</label>
-      <form phx-change="change_filter" phx-value-filter="shape">
-        <select
-          name="value"
-          class="w-full px-3 py-2 border border-gray-300 rounded-md text-base focus:ring-gf-maroon focus:border-gf-maroon"
-        >
-          <option value="" selected={@value == nil}>Any Shape</option>
-          <option :for={opt <- @options} value={opt.id} selected={@value == opt.id}>
-            {opt.shape}
-          </option>
-        </select>
-      </form>
-    </div>
+    <form phx-change="change_filter" phx-value-filter="shape">
+      <.input
+        type="select"
+        name="value"
+        label="Shape"
+        prompt="Any Shape"
+        options={Enum.map(@options, &{&1.shape, &1.id})}
+        value={@value}
+      />
+    </form>
     """
   end
 
@@ -847,20 +827,16 @@ defmodule GallformersWeb.IDLive do
 
   defp alignment_filter(assigns) do
     ~H"""
-    <div class="mb-2">
-      <label class="block text-base font-medium text-gray-700 mb-1">Alignment</label>
-      <form phx-change="change_filter" phx-value-filter="alignment">
-        <select
-          name="value"
-          class="w-full px-3 py-2 border border-gray-300 rounded-md text-base focus:ring-gf-maroon focus:border-gf-maroon"
-        >
-          <option value="" selected={@value == nil}>Any Alignment</option>
-          <option :for={opt <- @options} value={opt.id} selected={@value == opt.id}>
-            {opt.alignment}
-          </option>
-        </select>
-      </form>
-    </div>
+    <form phx-change="change_filter" phx-value-filter="alignment">
+      <.input
+        type="select"
+        name="value"
+        label="Alignment"
+        prompt="Any Alignment"
+        options={Enum.map(@options, &{&1.alignment, &1.id})}
+        value={@value}
+      />
+    </form>
     """
   end
 
@@ -870,20 +846,16 @@ defmodule GallformersWeb.IDLive do
 
   defp form_filter(assigns) do
     ~H"""
-    <div class="mb-2">
-      <label class="block text-base font-medium text-gray-700 mb-1">Form</label>
-      <form phx-change="change_filter" phx-value-filter="form">
-        <select
-          name="value"
-          class="w-full px-3 py-2 border border-gray-300 rounded-md text-base focus:ring-gf-maroon focus:border-gf-maroon"
-        >
-          <option value="" selected={@value == nil}>Any Form</option>
-          <option :for={opt <- @options} value={opt.id} selected={@value == opt.id}>
-            {opt.form}
-          </option>
-        </select>
-      </form>
-    </div>
+    <form phx-change="change_filter" phx-value-filter="form">
+      <.input
+        type="select"
+        name="value"
+        label="Form"
+        prompt="Any Form"
+        options={Enum.map(@options, &{&1.form, &1.id})}
+        value={@value}
+      />
+    </form>
     """
   end
 
@@ -893,20 +865,16 @@ defmodule GallformersWeb.IDLive do
 
   defp walls_filter(assigns) do
     ~H"""
-    <div class="mb-2">
-      <label class="block text-base font-medium text-gray-700 mb-1">Walls</label>
-      <form phx-change="change_filter" phx-value-filter="walls">
-        <select
-          name="value"
-          class="w-full px-3 py-2 border border-gray-300 rounded-md text-base focus:ring-gf-maroon focus:border-gf-maroon"
-        >
-          <option value="" selected={@value == nil}>Any Walls</option>
-          <option :for={opt <- @options} value={opt.id} selected={@value == opt.id}>
-            {opt.walls}
-          </option>
-        </select>
-      </form>
-    </div>
+    <form phx-change="change_filter" phx-value-filter="walls">
+      <.input
+        type="select"
+        name="value"
+        label="Walls"
+        prompt="Any Walls"
+        options={Enum.map(@options, &{&1.walls, &1.id})}
+        value={@value}
+      />
+    </form>
     """
   end
 
@@ -916,20 +884,16 @@ defmodule GallformersWeb.IDLive do
 
   defp cells_filter(assigns) do
     ~H"""
-    <div class="mb-2">
-      <label class="block text-base font-medium text-gray-700 mb-1">Cells</label>
-      <form phx-change="change_filter" phx-value-filter="cells">
-        <select
-          name="value"
-          class="w-full px-3 py-2 border border-gray-300 rounded-md text-base focus:ring-gf-maroon focus:border-gf-maroon"
-        >
-          <option value="" selected={@value == nil}>Any Cells</option>
-          <option :for={opt <- @options} value={opt.id} selected={@value == opt.id}>
-            {opt.cells}
-          </option>
-        </select>
-      </form>
-    </div>
+    <form phx-change="change_filter" phx-value-filter="cells">
+      <.input
+        type="select"
+        name="value"
+        label="Cells"
+        prompt="Any Cells"
+        options={Enum.map(@options, &{&1.cells, &1.id})}
+        value={@value}
+      />
+    </form>
     """
   end
 
@@ -939,20 +903,16 @@ defmodule GallformersWeb.IDLive do
 
   defp season_filter(assigns) do
     ~H"""
-    <div class="mb-2">
-      <label class="block text-base font-medium text-gray-700 mb-1">Season</label>
-      <form phx-change="change_filter" phx-value-filter="season">
-        <select
-          name="value"
-          class="w-full px-3 py-2 border border-gray-300 rounded-md text-base focus:ring-gf-maroon focus:border-gf-maroon"
-        >
-          <option value="" selected={@value == nil}>Any Season</option>
-          <option :for={opt <- @options} value={opt.id} selected={@value == opt.id}>
-            {opt.season}
-          </option>
-        </select>
-      </form>
-    </div>
+    <form phx-change="change_filter" phx-value-filter="season">
+      <.input
+        type="select"
+        name="value"
+        label="Season"
+        prompt="Any Season"
+        options={Enum.map(@options, &{&1.season, &1.id})}
+        value={@value}
+      />
+    </form>
     """
   end
 
