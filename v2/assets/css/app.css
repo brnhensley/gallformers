@@ -526,6 +526,57 @@ a.gf-btn-primary:hover {
   border-color: #9ca3af;
 }
 
+.gf-btn-danger {
+  background-color: #dc2626;
+  color: #fff;
+  border-color: #dc2626;
+}
+
+.gf-btn-danger:hover:not(:disabled) {
+  background-color: #b91c1c;
+}
+
+.gf-btn-danger:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px rgba(220, 38, 38, 0.5);
+}
+
+.gf-btn-warning {
+  background-color: #eab308;
+  color: #fff;
+  border-color: #eab308;
+}
+
+.gf-btn-warning:hover:not(:disabled) {
+  background-color: #ca8a04;
+}
+
+.gf-btn-warning:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px rgba(234, 179, 8, 0.5);
+}
+
+.gf-btn-ghost {
+  background-color: transparent;
+  color: #661419;
+  border-color: transparent;
+}
+
+.gf-btn-ghost:hover:not(:disabled) {
+  background-color: rgba(102, 20, 25, 0.1);
+}
+
+/* Button sizes */
+.gf-btn-sm {
+  padding: 0.25rem 0.625rem;
+  font-size: 0.875rem;
+}
+
+.gf-btn-lg {
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+}
+
 /* ============================================
    Admin Info Banner
    ============================================ */
