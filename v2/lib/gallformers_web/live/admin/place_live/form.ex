@@ -62,7 +62,7 @@ defmodule GallformersWeb.Admin.PlaceLive.Form do
 
         <.form for={@form} id="place-form" phx-change="validate" phx-submit="save">
           <div class="mb-3">
-            <label class="block text-sm font-medium text-gray-700 mb-1">Name:</label>
+            <label class="gf-label">Name:</label>
             <input
               type="text"
               name={@form[:name].name}
@@ -75,7 +75,7 @@ defmodule GallformersWeb.Admin.PlaceLive.Form do
 
           <div class="grid grid-cols-2 gap-4 mb-3">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Code:</label>
+              <label class="gf-label">Code:</label>
               <input
                 type="text"
                 name={@form[:code].name}
@@ -87,7 +87,7 @@ defmodule GallformersWeb.Admin.PlaceLive.Form do
               <p class="mt-1 text-xs text-gray-500">Standard 2-letter postal code</p>
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Type:</label>
+              <label class="gf-label">Type:</label>
               <select
                 name={@form[:type].name}
                 required

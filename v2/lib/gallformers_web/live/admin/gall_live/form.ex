@@ -661,7 +661,7 @@ defmodule GallformersWeb.Admin.GallLive.Form do
         <.form for={@form} id="gall-form" phx-change="validate" phx-submit="save">
           <%!-- Row: Name --%>
           <div class="mb-3">
-            <label class="block text-sm font-medium text-gray-700 mb-1">Name (binomial):</label>
+            <label class="gf-label">Name (binomial):</label>
             <%= if @mode == :edit do %>
               <div class="flex gap-2">
                 <input
@@ -692,7 +692,7 @@ defmodule GallformersWeb.Admin.GallLive.Form do
           <%!-- Row: Genus | Family --%>
           <div class="grid grid-cols-2 gap-4 mb-3">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">
+              <label class="gf-label">
                 Genus (filled automatically):
               </label>
               <input
@@ -703,7 +703,7 @@ defmodule GallformersWeb.Admin.GallLive.Form do
               />
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">
+              <label class="gf-label">
                 Family (required):
               </label>
               <input
@@ -744,7 +744,7 @@ defmodule GallformersWeb.Admin.GallLive.Form do
                 </p>
               <% end %>
             <% else %>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Hosts (required):</label>
+              <label class="gf-label">Hosts (required):</label>
               <input
                 type="text"
                 disabled
@@ -758,7 +758,7 @@ defmodule GallformersWeb.Admin.GallLive.Form do
             <%!-- Row: Detachable | Walls | Cells | Alignment --%>
             <div class="grid grid-cols-4 gap-3 mb-3">
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Detachable:</label>
+                <label class="gf-label">Detachable:</label>
                 <select
                   phx-change="update_detachable"
                   name="value"
@@ -913,7 +913,7 @@ defmodule GallformersWeb.Admin.GallLive.Form do
                 on_close="close_filter_dropdown"
               />
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Abundance:</label>
+                <label class="gf-label">Abundance:</label>
                 <.input
                   field={@form[:abundance_id]}
                   type="select"

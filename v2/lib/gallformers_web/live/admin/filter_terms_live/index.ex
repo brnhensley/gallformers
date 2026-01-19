@@ -103,7 +103,7 @@ defmodule GallformersWeb.Admin.FilterTermsLive.Index do
         <%!-- Type selector and New button --%>
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div class="flex items-center gap-4">
-            <label for="filter-type" class="text-sm font-medium text-gray-700">
+            <label for="filter-type" class="gf-label mb-0">
               Filter Type:
             </label>
             <select

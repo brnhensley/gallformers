@@ -119,7 +119,7 @@ defmodule GallformersWeb.Admin.ProfileLive do
           <.form for={@form} id="profile-form" phx-change="validate" phx-submit="save">
             <%!-- Display Name --%>
             <div class="mb-3">
-              <label class="block text-sm font-medium text-gray-700 mb-1">Display Name:</label>
+              <label class="gf-label">Display Name:</label>
               <input
                 type="text"
                 name={@form[:display_name].name}
@@ -131,7 +131,7 @@ defmodule GallformersWeb.Admin.ProfileLive do
 
             <%!-- Nickname (read-only, from Auth0) --%>
             <div class="mb-3">
-              <label class="block text-sm font-medium text-gray-700 mb-1">Auth0 Nickname:</label>
+              <label class="gf-label">Auth0 Nickname:</label>
               <input
                 type="text"
                 value={@current_user.nickname || "Not set"}
@@ -145,7 +145,7 @@ defmodule GallformersWeb.Admin.ProfileLive do
 
             <%!-- About Me --%>
             <div class="mb-3">
-              <label class="block text-sm font-medium text-gray-700 mb-1">About Me:</label>
+              <label class="gf-label">About Me:</label>
               <textarea
                 name={@form[:about_me].name}
                 rows="4"
@@ -156,7 +156,7 @@ defmodule GallformersWeb.Admin.ProfileLive do
 
             <%!-- iNaturalist URL --%>
             <div class="mb-3">
-              <label class="block text-sm font-medium text-gray-700 mb-1">
+              <label class="gf-label">
                 iNaturalist Profile URL:
               </label>
               <input
@@ -170,7 +170,7 @@ defmodule GallformersWeb.Admin.ProfileLive do
 
             <%!-- Social Media URL --%>
             <div class="mb-3">
-              <label class="block text-sm font-medium text-gray-700 mb-1">Social Media URL:</label>
+              <label class="gf-label">Social Media URL:</label>
               <input
                 type="url"
                 name={@form[:social_url].name}
@@ -182,7 +182,7 @@ defmodule GallformersWeb.Admin.ProfileLive do
 
             <%!-- Personal Website URL --%>
             <div class="mb-3">
-              <label class="block text-sm font-medium text-gray-700 mb-1">
+              <label class="gf-label">
                 Personal Website URL:
               </label>
               <input

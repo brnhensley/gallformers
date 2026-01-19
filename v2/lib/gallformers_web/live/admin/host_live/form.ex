@@ -432,7 +432,7 @@ defmodule GallformersWeb.Admin.HostLive.Form do
         <.form for={@form} id="host-form" phx-change="validate" phx-submit="save">
           <%!-- Row: Name --%>
           <div class="mb-3">
-            <label class="block text-sm font-medium text-gray-700 mb-1">Name (binomial):</label>
+            <label class="gf-label">Name (binomial):</label>
             <%= if @mode == :edit do %>
               <div class="flex gap-2">
                 <input
@@ -463,7 +463,7 @@ defmodule GallformersWeb.Admin.HostLive.Form do
           <%!-- Row: Genus | Family --%>
           <div class="grid grid-cols-2 gap-4 mb-3">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">
+              <label class="gf-label">
                 Genus (filled automatically):
               </label>
               <input
@@ -474,7 +474,7 @@ defmodule GallformersWeb.Admin.HostLive.Form do
               />
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">
+              <label class="gf-label">
                 Family:
               </label>
               <input
@@ -489,7 +489,7 @@ defmodule GallformersWeb.Admin.HostLive.Form do
           <%!-- Row: Section | Abundance --%>
           <div class="grid grid-cols-2 gap-4 mb-3">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Section:</label>
+              <label class="gf-label">Section:</label>
               <input
                 type="text"
                 value={if @taxonomy && @taxonomy.section, do: @taxonomy.section, else: ""}
@@ -498,7 +498,7 @@ defmodule GallformersWeb.Admin.HostLive.Form do
               />
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Abundance:</label>
+              <label class="gf-label">Abundance:</label>
               <.input
                 field={@form[:abundance_id]}
                 type="select"
@@ -551,7 +551,7 @@ defmodule GallformersWeb.Admin.HostLive.Form do
               </div>
               <%!-- Map --%>
               <div class="col-span-5">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Range:</label>
+                <label class="gf-label">Range:</label>
                 <%= if @mode == :edit do %>
                   <div
                     id="host-range-map"

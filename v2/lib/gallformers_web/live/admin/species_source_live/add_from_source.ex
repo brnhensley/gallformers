@@ -336,7 +336,7 @@ defmodule GallformersWeb.Admin.SpeciesSourceLive.AddFromSource do
           <div class="p-4">
             <%!-- Source Selection (sticky at top) --%>
             <div class="mb-6 pb-4 border-b border-gray-200">
-              <label class="block text-sm font-medium text-gray-700 mb-2">
+              <label class="gf-label mb-2">
                 Source:
               </label>
 
@@ -402,7 +402,7 @@ defmodule GallformersWeb.Admin.SpeciesSourceLive.AddFromSource do
             <%= if @selected_source do %>
               <%!-- Already Mapped Species --%>
               <div class="mb-6">
-                <label class="block text-sm font-medium text-gray-700 mb-2">
+                <label class="gf-label mb-2">
                   Already mapped ({length(@mapped_species)} species):
                 </label>
                 <%= if @mapped_species == [] do %>
@@ -479,7 +479,7 @@ defmodule GallformersWeb.Admin.SpeciesSourceLive.AddFromSource do
                   >
                     <div class="space-y-4">
                       <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                        <label class="gf-label">
                           Description (info from this source about this species):
                         </label>
                         <.input
@@ -495,7 +495,7 @@ defmodule GallformersWeb.Admin.SpeciesSourceLive.AddFromSource do
                       </div>
 
                       <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                        <label class="gf-label">
                           External Link (direct link to description page, if available):
                         </label>
                         <.input
