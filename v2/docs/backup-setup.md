@@ -86,7 +86,8 @@ cat > /tmp/litestream-policy.json << 'EOF'
         "s3:GetObject",
         "s3:PutObject",
         "s3:DeleteObject",
-        "s3:ListBucket"
+        "s3:ListBucket",
+        "s3:GetBucketLocation"
       ],
       "Resource": [
         "arn:aws:s3:::gallformers-backups",
@@ -155,8 +156,10 @@ fly secrets set \
 
 For the daily snapshot workflow (task 13.5), add to GitHub repository secrets:
 
-- `AWS_ACCESS_KEY_ID` - Same as LITESTREAM_ACCESS_KEY_ID
-- `AWS_SECRET_ACCESS_KEY` - Same as LITESTREAM_SECRET_ACCESS_KEY
+- `LITESTREAM_ACCESS_KEY_ID` - The access key ID from step 6
+- `LITESTREAM_SECRET_ACCESS_KEY` - The secret access key from step 6
+
+**Note:** The workflow uses `LITESTREAM_*` prefixed names, not `AWS_*`.
 
 ## Verification
 

@@ -54,22 +54,32 @@ Litestream wraps the application process and continuously streams SQLite WAL (Wr
 
 ### Dockerfile Changes
 
-```dockerfile
-# Add to runtime stage
-FROM alpine:3.19
-RUN apk add --no-cache ca-certificates sqlite
+The Phoenix Dockerfile includes Litestream in the runtime stage:
 
-# Install Litestream
+```dockerfile
+# Stage 2: Runtime
+FROM alpine:3.20 AS runtime
+
+RUN apk add --no-cache libstdc++ openssl ncurses-libs sqlite su-exec
+
+# Install Litestream for continuous SQLite replication
 ADD https://github.com/benbjohnson/litestream/releases/download/v0.3.13/litestream-v0.3.13-linux-amd64.tar.gz /tmp/litestream.tar.gz
 RUN tar -C /usr/local/bin -xzf /tmp/litestream.tar.gz && rm /tmp/litestream.tar.gz
 
 WORKDIR /app
-COPY --from=api-builder /app/gallformers-api /app/gallformers-api
-COPY litestream.yml /etc/litestream.yml
 
-EXPOSE 8080
-CMD ["litestream", "replicate", "-exec", "/app/gallformers-api"]
+# Copy release from builder
+COPY --from=builder --chown=gallformers:gallformers /app/_build/prod/rel/gallformers ./
+COPY --chown=gallformers:gallformers litestream.yml /etc/litestream.yml
+
+EXPOSE 4000
+CMD ["/app/docker-entrypoint.sh"]
 ```
+
+The entrypoint script (`docker-entrypoint.sh`) handles:
+1. Restoring from Litestream backup if database doesn't exist
+2. Running migrations
+3. Starting Litestream with the Phoenix server as the wrapped process
 
 ### litestream.yml
 
@@ -91,7 +101,7 @@ dbs:
 fly secrets set \
   LITESTREAM_ACCESS_KEY_ID=<aws-access-key> \
   LITESTREAM_SECRET_ACCESS_KEY=<aws-secret-key> \
-  -a gallformers-v2
+  -a gallformers
 ```
 
 ## S3 Bucket Setup

@@ -93,7 +93,34 @@ Because [yarn is a PITA](https://github.com/yarnpkg/yarn/issues/3630) you will h
 If you leave them in you will not be able to build with docker as `better-sqlite3` requires python to build and there is no python in the docker container.
 
 ### Backup Strategy
-TBD. For now manual snapshots of the block volume are all we have. All of the source is on github and the site can be re-created from scratch on a new instance from the files there. The only real back up needed is the database.
+
+The database is backed up using two complementary approaches:
+
+1. **Litestream** - Continuous replication to S3 (near real-time)
+2. **Daily snapshots** - GitHub Actions workflow creating point-in-time snapshots
+
+Daily snapshots are stored in two locations:
+- **Public** (`s3://gallformers-backups/public/`) - Sanitized, PII removed
+- **Private** (`s3://gallformers-full-backups/`) - Full backup with PII
+
+See [runbooks/database-backup.md](runbooks/database-backup.md) for complete backup and recovery documentation.
+
+### PII Handling
+
+The `users` table contains personally identifiable information:
+
+| Field | Description |
+|-------|-------------|
+| `auth0_id` | Unique identifier from Auth0 |
+| `display_name` | User's chosen display name |
+| `nickname` | Fallback name from Auth0 |
+| `inaturalist_url` | Link to iNaturalist profile |
+| `social_url` | Link to social media |
+| `personal_url` | Link to personal website |
+
+**Public database downloads are sanitized** - all PII fields are set to NULL and auth0_id is replaced with a placeholder.
+
+To request access to a full (unsanitized) backup for legitimate research or administrative purposes, contact the project maintainers.
 
 ### Front-End
 The front-end is mostly static pages as we expect most of this data to not change frequently.  next.js is built on [React](https://reactjs.org/) so you will need some familiarity with that to work on the site. The look-and-feel is built with [react-bootstrap](https://react-bootstrap.github.io/). Custom components are placed in the [pages/components](pages/components) directory and global layout components in [pages/layouts](pages/layouts). 

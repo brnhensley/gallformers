@@ -22,58 +22,120 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  api:
-    name: Go API
+  phoenix:
+    name: Phoenix
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: v2/api
+        working-directory: v2
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Go
-        uses: actions/setup-go@v5
+      - name: Setup Elixir
+        uses: erlef/setup-beam@v1
         with:
-          go-version: '1.23'
+          elixir-version: '1.19'
+          otp-version: '28'
+
+      - name: Restore dependencies cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            v2/deps
+            v2/_build
+          key: ${{ runner.os }}-mix-${{ hashFiles('v2/mix.lock') }}
+          restore-keys: ${{ runner.os }}-mix-
+
+      - name: Install dependencies
+        run: mix deps.get
 
       - name: Check formatting
-        run: |
-          if [ -n "$(gofmt -l .)" ]; then
-            echo "Code is not formatted. Run 'gofmt -w .'"
-            gofmt -d .
-            exit 1
-          fi
+        run: mix format --check-formatted
 
-      - name: Vet
-        run: go vet ./...
+      - name: Compile (warnings as errors)
+        run: mix compile --warnings-as-errors
 
-      - name: Test
-        run: go test ./... -v
-        env:
-          DATABASE_PATH: ../testdata/seed.sqlite
+      - name: Run tests
+        run: mix test
 
-      - name: Build
-        run: go build ./cmd/server
+      - name: Check code quality (Credo)
+        run: mix credo --strict
+        continue-on-error: true
 
-  web:
-    name: Svelte Web
+  assets:
+    name: Assets
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: v2/web
+        working-directory: v2
+
     steps:
       - uses: actions/checkout@v4
+
+      - name: Setup Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          elixir-version: '1.19'
+          otp-version: '28'
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
+      - name: Restore dependencies cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            v2/deps
+            v2/_build
+          key: ${{ runner.os }}-mix-${{ hashFiles('v2/mix.lock') }}
+          restore-keys: ${{ runner.os }}-mix-
+
       - name: Install dependencies
-        run: npm ci
+        run: mix deps.get
 
-      - name: Test
-        run: npm test
+      - name: Install npm dependencies
+        run: npm ci --prefix assets
 
-      - name: Build
-        run: npm run build
+      - name: Build assets
+        run: mix assets.deploy
+
+  api-version-check:
+    name: API Version Check
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check if API files changed without version bump
+        run: |
+          BASE_SHA=${{ github.event.pull_request.base.sha }}
+          HEAD_SHA=${{ github.event.pull_request.head.sha }}
+
+          # Check if any API controller files changed
+          API_CHANGED=$(git diff --name-only $BASE_SHA $HEAD_SHA -- 'v2/lib/gallformers_web/controllers/api/**' | wc -l)
+
+          # Check if API_VERSION changed
+          VERSION_CHANGED=$(git diff --name-only $BASE_SHA $HEAD_SHA -- 'v2/API_VERSION' | wc -l)
+
+          if [ "$API_CHANGED" -gt 0 ] && [ "$VERSION_CHANGED" -eq 0 ]; then
+            echo "::error::API files changed but v2/API_VERSION was not updated!"
+            echo ""
+            echo "Changed API files:"
+            git diff --name-only $BASE_SHA $HEAD_SHA -- 'v2/lib/gallformers_web/controllers/api/**'
+            echo ""
+            echo "When modifying the REST API, you must bump the version in v2/API_VERSION"
+            echo "Current version: $(cat v2/API_VERSION)"
+            exit 1
+          fi
+
+          if [ "$API_CHANGED" -gt 0 ]; then
+            echo "API files changed and API_VERSION was updated. Good!"
+          else
+            echo "No API files changed. Skipping version check."
+          fi
