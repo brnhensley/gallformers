@@ -6,8 +6,8 @@
 - [x] 1.2 Configure S3 bucket CORS for presigned URL uploads from web app
 - [ ] 1.3 Verify CloudFront distribution serves v2/ prefix correctly
 - [ ] 1.4 Configure CloudFront cache TTL (1 year for v2/ images with versioned URLs)
-- [ ] 1.5 Create IAM user for Fly.io with S3 presigned URL and read/write permissions
-- [ ] 1.6 Store IAM credentials as Fly.io secrets
+- [x] 1.5 Use existing `s3-upload` IAM user (has s3:Put* on gallformers/*)
+- [ ] 1.6 Store IAM credentials as Fly.io secrets: `S3_PUT_AWS_ACCESS_KEY_ID`, `S3_PUT_AWS_SECRET_ACCESS_KEY`
 - [ ] 1.7 Ensure libvips/libheif available in Fly.io container (for Image library HEIC support)
 
 ## Phase 2: Oban Setup
