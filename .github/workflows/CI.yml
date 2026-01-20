@@ -3,22 +3,16 @@ name: CI
 on:
     push:
         branches: [main]
-        paths-ignore:
-            - 'v2/**'
-            - '*.md'
-            - 'docs/**'
-            - 'ref/**'
-            - 'openspec/**'
-            - '.beads/**'
+        paths:
+            - 'v1/**'
     pull_request:
         branches: [main]  # Only run CI on PRs targeting main
-        paths-ignore:
-            - 'v2/**'
-            - '*.md'
-            - 'docs/**'
-            - 'ref/**'
-            - 'openspec/**'
-            - '.beads/**'
+        paths:
+            - 'v1/**'
+
+defaults:
+    run:
+        working-directory: v1
 
 env:
     YARN_ENABLE_IMMUTABLE_INSTALLS: false
@@ -64,10 +58,10 @@ jobs:
               with:
                   path: |
                       ~/.cache/yarn
-                      node_modules
-                      .yarn/cache
-                      .yarn/unplugged
-                  key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+                      v1/node_modules
+                      v1/.yarn/cache
+                      v1/.yarn/unplugged
+                  key: ${{ runner.os }}-yarn-${{ hashFiles('v1/yarn.lock') }}
                   restore-keys: |
                       ${{ runner.os }}-yarn-
 
@@ -110,5 +104,5 @@ jobs:
               if: always()
               with:
                   name: coverage
-                  path: .coverage/
+                  path: v1/.coverage/
                   retention-days: 7

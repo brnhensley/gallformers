@@ -1,3 +1,0 @@
-{
-    "!(v2)/**/*.{ts,tsx}": ["yarn ci-type-check", "yarn lint", "node scripts/check-case-sensitivity.js"]
-}

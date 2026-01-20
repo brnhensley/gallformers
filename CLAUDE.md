@@ -32,84 +32,24 @@ Gallformers (gallformers.org) is a comprehensive online database and reference g
 - **Research**: Serving as a data repository for researchers and naturalists
 
 ## V1 and V2
-There are two versions of the application. V1 is at the root and is a stable legacy implementation. We only fix bugs in it.
-V2 is the bulk of work, using Phoenix/LiveView with Elixir. It is in the `v2/` directory.
 
-## V1 Technical Stack
-
-### Frontend
-- **Next.js 14** (React-based framework) - Server-side rendering and static generation
-- **React 18** with TypeScript
-- **React Bootstrap 2** - UI components and styling
-- **Sass** - Custom styling
-
-### Backend
-- **Next.js API Routes** - Server-side APIs
-- **Prisma** - Database ORM
-- **SQLite** - Database (prod DB on mounted volume, dev DB in repo)
-- **NextAuth** with Auth0 - Authentication (for admin/curation features only)
-
-### Infrastructure
-- **Docker** - Containerized deployment
-- **Digital Ocean Droplet** - Production hosting
-- **AWS S3** - Image storage
-- **Litestream** - Database backup/replication
-- **Let's Encrypt** - SSL certificates
-- **AWS Lambda** - Downtime monitoring
-
-### Development Tools
-- **TypeScript** - Type safety (99%+ coverage required)
-- **ESLint + Prettier** - Code quality and formatting
-- **Jest + Testing Library** - Testing
-- **Husky** - Git hooks
-- **Beads** - Issue tracking and workflow management
+There are two versions of the application:
+- **V1** (`v1/`) - Legacy Next.js implementation. Bug fixes only. See [v1/CLAUDE.md](v1/CLAUDE.md) for details.
+- **V2** (`v2/`) - Active development using Phoenix/LiveView with Elixir. See [v2/CLAUDE.md](v2/CLAUDE.md) for details.
 
 ## Project Structure
 
 ```
 gallformers/
-├── pages/               # Next.js pages (routes)
-│   ├── admin/          # Admin UI for data curation
-│   ├── api/            # API routes
-│   ├── gall/           # Gall species pages
-│   ├── host/           # Host plant pages
-│   ├── family/         # Taxonomic family pages
-│   ├── genus/          # Taxonomic genus pages
-│   ├── ref/            # Reference articles
-│   └── ...
-├── components/          # React components
-├── layouts/            # Page layout components
-├── hooks/              # Custom React hooks
-├── libs/               # Core business logic
-│   ├── api/           # API utilities
-│   ├── db/            # Database access layer
-│   ├── images/        # Image processing
-│   ├── pages/         # Page helpers (markdown, etc)
-│   └── utils/         # General utilities
-├── prisma/             # Database schema and migrations
-├── migrations/         # SQL migration scripts
-├── public/             # Static assets
-├── ref/                # Reference articles (markdown)
-├── __tests__/          # Test files
-├── scripts/            # Build and utility scripts
-├── .beads/             # Beads issue tracking data
-└── v2/                 # V2 rewrite (Phoenix/LiveView) - see below
+├── .beads/              # Beads issue tracking data
+├── .github/             # CI workflows
+├── openspec/            # Change proposal system
+├── prompts/             # AI prompts
+├── research/            # Research docs
+├── usda_plants/         # USDA plants data app
+├── v1/                  # V1 Next.js app (see v1/CLAUDE.md)
+└── v2/                  # V2 Phoenix/LiveView app (see v2/CLAUDE.md)
 ```
-
-## V2 Rewrite
-
-The `v2/` directory contains a complete rewrite of Gallformers using Phoenix/LiveView with Elixir.
-
-**Tech Stack:**
-- **Phoenix Framework** - Elixir web framework with LiveView for real-time UI
-- **Ecto with ecto_sqlite3** - Database layer using existing SQLite database
-- **Tailwind CSS** - Styling (configured via Phoenix defaults)
-- **Fly.io** - Production hosting
-
-Key points:
-- **Isolation**: V2 work must stay within `v2/` - do not modify v1 code when working on v2
-- **Database**: Uses the same SQLite database as v1 via ecto_sqlite3
-- **Hosting**: V2 deploys to Fly.io (v1 stays on Digital Ocean until cutover)
 
 ## Key Domain Concepts
 
@@ -145,145 +85,6 @@ Plants that galls form on, with:
 Standard biological classification:
 - Kingdom → Phylum → Class → Order → Family → Genus → Species
 - The database tracks all taxonomic levels and relationships
-
-## Database Schema Overview
-
-Key tables and relationships:
-
-- **species** - Gall-forming organisms
-  - Links to: taxonomy, abundance, aliases, images, sources
-
-- **gall** - Gall characteristics
-  - Links to: species (many-to-many), morphology tables (shape, color, etc.)
-
-- **host** - Host plants (uses same taxonomy structure)
-  - Links to: species via gallhost table
-
-- **taxonomy** - Taxonomic hierarchy
-  - Self-referential (parent-child relationships)
-  - Links to: species and hosts
-
-- **image** - Images stored on S3
-  - Links to: species, taxonomy, sources
-
-- **source** - Scientific references and citations
-
-- **users** - User profiles (V2 only, contains PII)
-  - Fields: auth0_id, display_name, nickname, profile URLs
-  - See [runbooks/database-backup.md](runbooks/database-backup.md) for PII handling
-
-See `prisma/schema.prisma` for complete schema details.
-
-## Development Workflow
-
-### Setup
-```bash
-# Install dependencies
-nvm use 20
-corepack enable
-yarn install
-
-# Generate Prisma client
-npx prisma generate
-
-# Run dev server
-yarn dev  # http://localhost:3000
-```
-
-### Code Quality
-```bash
-yarn lint              # Run ESLint
-yarn check-types       # TypeScript type checking
-yarn type-coverage     # Verify 99%+ type coverage
-yarn test              # Run tests
-```
-
-### Database Changes
-1. Create migration script in `migrations/` (numbered sequentially)
-2. Add `Up` and `Down` sections to migration
-3. Update `prisma/schema.prisma` to match
-4. Test migration on a copy of the database
-5. Run `yarn migrate` to execute
-6. Run `yarn generate` to regenerate Prisma client
-
-**Note**: Temporarily add `better-sqlite3` dependencies for migrations, then remove (see README.md for details)
-
-### Docker Builds
-```bash
-make build         # Build Docker image
-make run-local     # Run locally in Docker
-make save-image    # Create tar of image
-```
-
-For Apple Silicon Macs, ensure Docker Desktop is configured for `linux/amd64` builds.
-
-## Important Conventions
-
-### Type Safety
-- Maintain 99%+ type coverage (enforced by CI)
-- Use strict TypeScript settings
-- Prefer type-safe database queries via Prisma
-
-### Functional Programming
-- Uses `fp-ts` for functional utilities
-- Uses `monocle-ts` for immutable data manipulation
-- Prefer immutable patterns
-
-### API Design
-- APIs are in `pages/api/`
-- Use Prisma for all database access
-- Validate inputs with Zod or similar
-- Return consistent error formats
-
-### Component Structure
-- Place shared components in `components/`
-- Page-specific components can live in `pages/[page]/`
-- Use React Bootstrap components for consistency
-- Prefer functional components with hooks
-
-### Images
-- All images stored on AWS S3
-- Use `libs/images/images.ts` for image utilities
-- Images are processed with Sharp and Jimp
-- Support for uploading/managing via admin UI
-
-### Authentication
-- Public site requires no auth
-- Admin/curation features require Auth0 login
-- Uses NextAuth for session management
-- Authorization logic in API routes
-
-## Common Tasks
-
-### Finding Code
-- **Species-related logic**: `libs/db/species.ts`
-- **Gall-related logic**: `libs/db/gall.ts`
-- **Host-related logic**: `libs/db/host.ts`
-- **Taxonomy logic**: `libs/db/taxonomy.ts`
-- **Search logic**: `libs/db/search.ts`
-- **Image handling**: `libs/images/images.ts`
-- **API utilities**: `libs/api/`
-
-### Adding a New Page
-1. Create page component in `pages/`
-2. Use `getStaticProps` for static generation (preferred)
-3. Use `getServerSideProps` only if data must be fetched per-request
-4. Add navigation links if needed
-5. Ensure responsive design with Bootstrap
-
-### Adding a New API Endpoint
-1. Create file in `pages/api/`
-2. Export default handler function
-3. Use Prisma for database queries
-4. Add authentication if needed
-5. Handle errors properly
-6. Add TypeScript types
-
-### Working with Reference Articles
-- Articles are markdown files in `ref/`
-- Must include metadata frontmatter (title, date, author, description)
-- Rendered with remark/rehype
-- Can include glossary terms (auto-linked)
 
 ## Beads Workflow
 
@@ -392,14 +193,6 @@ The site should be:
 - Reference articles published under Creative Commons
 - Open source codebase (on GitHub)
 
-## Additional Resources
-
-- **README.md** - Setup and deployment instructions
-- **ref/contributing.md** - How to contribute reference articles
-- **runbooks/deploy.md** - Deployment procedures
-- **prisma/schema.prisma** - Complete database schema
-- **package.json** - Dependencies and scripts
-
 ## External Services
 
 - **Domain**: gallformers.org, gallformers.com (Namecheap)
@@ -428,6 +221,6 @@ See `v2/docs/backup-setup.md` for detailed S3/IAM configuration.
 ## Getting Help
 
 - Check the README.md for setup issues
-- Review the codebase documentation in this file
 - Use `bd doctor` to diagnose Beads issues
-- For deployment questions, see runbooks/deploy.md
+- V1 deployment: see [v1/runbooks/deploy.md](v1/runbooks/deploy.md)
+- V2 deployment: see v2/CLAUDE.md

@@ -1,5 +1,11 @@
 SERVICE_NAME := gallformers
 
+.PHONY: help
+help: ## Show this help
+	@echo "V1 Makefile targets:"
+	@echo ""
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-20s %s\n", $$1, $$2}'
+
 # Check for required .env.local file
 env-check:
 ifeq (,$(wildcard .env.local))
@@ -16,19 +22,9 @@ define cleanup-env
 	rm -f .env
 endef
 
-# Development environment - runs directly with yarn
-.PHONY: dev
-dev: env-check
-ifeq (,$(wildcard .env.development))
-	$(error You must have an .env.development file!)
-endif
-	$(call setup-env,.env.development)
-	yarn dev
-	$(call cleanup-env)
-
 # Production environment - AMD64 Docker build
 .PHONY: prod-build
-prod-build: env-check
+prod-build: env-check ## Build production Docker image (AMD64)
 ifeq (,$(wildcard .env.production))
 	$(error You must have an .env.production file!)
 endif
@@ -37,7 +33,7 @@ endif
 	$(call cleanup-env)
 
 .PHONY: prod-run
-prod-run: env-check
+prod-run: env-check ## Run production Docker container locally
 	$(call setup-env,.env.production)
 	docker stop $(SERVICE_NAME) || true
 	docker rm $(SERVICE_NAME) || true
@@ -52,11 +48,11 @@ prod-run: env-check
 	$(call cleanup-env)
 
 .PHONY: prod
-prod: prod-build prod-run
+prod: prod-build prod-run ## Build and run production Docker
 
-# Local Docker environment - ARM64 Docker build
+# Local Docker environment - ARM64 Docker build (for Apple Silicon)
 .PHONY: local-docker-build
-local-docker-build: env-check
+local-docker-build: env-check ## Build local Docker image (ARM64)
 ifeq (,$(wildcard .env.local-docker))
 	$(error You must have an .env.local-docker file!)
 endif
@@ -65,7 +61,7 @@ endif
 	$(call cleanup-env)
 
 .PHONY: local-docker-run
-local-docker-run: env-check
+local-docker-run: env-check ## Run local Docker container
 	$(call setup-env,.env.local-docker)
 	docker stop $(SERVICE_NAME) || true
 	docker rm $(SERVICE_NAME) || true
@@ -80,40 +76,40 @@ local-docker-run: env-check
 	$(call cleanup-env)
 
 .PHONY: local-docker
-local-docker: local-docker-build local-docker-run
+local-docker: local-docker-build local-docker-run ## Build and run local Docker
 
 # Utility commands
 .PHONY: stop
-stop:
+stop: ## Stop and remove Docker container
 	docker stop $(SERVICE_NAME) || true
 	docker rm $(SERVICE_NAME) || true
 
 .PHONY: clean
-clean: stop
+clean: stop ## Stop container and remove image
 	docker rmi $(SERVICE_NAME):latest || true
 	$(call cleanup-env)
 
 .PHONY: logs
-logs:
+logs: ## Follow Docker container logs
 	docker logs -f $(SERVICE_NAME)
 
 .PHONY: restart-prod
-restart-prod: stop prod-run
+restart-prod: stop prod-run ## Restart production container
 
 .PHONY: restart-local-docker
-restart-local-docker: stop local-docker-run
+restart-local-docker: stop local-docker-run ## Restart local Docker container
 
 # Server deployment commands
 .PHONY: save-image
-save-image:
+save-image: ## Save Docker image to tar file
 	docker save $(SERVICE_NAME):latest > $(SERVICE_NAME)-docker.tar
 
 .PHONY: load-image
-load-image: stop
+load-image: stop ## Load Docker image from tar file
 	docker load < $(SERVICE_NAME)-docker.tar
 
 .PHONY: server-run
-server-run: env-check
+server-run: env-check ## Run container on server (uses mounted volume)
 ifeq (,$(wildcard .env.production))
 	$(error You must have an .env.production file!)
 endif
@@ -131,16 +127,15 @@ endif
 	$(call cleanup-env)
 
 .PHONY: server-restart
-server-restart: stop server-run
+server-restart: stop server-run ## Restart server container
 
 .PHONY: redeploy-and-run
-redeploy-and-run: load-image server-run
+redeploy-and-run: load-image server-run ## Load image and run on server
 
-# Server deployment with maintenance mode
 .PHONY: server-deploy
-server-deploy:
+server-deploy: ## Full server deployment with maintenance mode (run as root)
 	@if [ ! -f $(SERVICE_NAME)-docker.tar ]; then \
-		echo "Error: $(SERVICE_NAME)-docker.tar not found in project root"; \
+		echo "Error: $(SERVICE_NAME)-docker.tar not found"; \
 		exit 1; \
 	fi
 	@if [ "$$(id -u)" != "0" ]; then \
@@ -162,99 +157,21 @@ server-deploy:
 
 # Database management
 .PHONY: update-database
-update-database:
+update-database: ## Copy prisma dir to server volume
 	cp -r prisma /mnt/gallformers_data
 
-# Server bootstrap commands
+# Server bootstrap (one-time setup)
 .PHONY: bootstrap
-bootstrap:
+bootstrap: ## Initial server setup (run once as root)
 	apt-get install haveged
 	update-rc.d haveged defaults
-
 	ufw allow 80
 	ufw allow 443
 	ufw enable
-
 	apt-get install nginx-full
 	ln -s nginx/nginx.conf /etc/nginx/conf.d/nginx.conf
-
 	install core
 	snap refresh core
-
 	snap install --classic certbot
-	ln -s /snap/bin/certbot /usr/bin/certbot	
-	
-	# gets the certs and installs them changing the nginx configuration
+	ln -s /snap/bin/certbot /usr/bin/certbot
 	certbot --nginx
-
-# Fly.io deployment commands
-.PHONY: fly-launch
-fly-launch:
-	@echo "Launching app on fly.io..."
-	fly launch --name gallformers --region iad --no-deploy
-
-.PHONY: fly-volume-create
-fly-volume-create:
-	@echo "Creating persistent volume for SQLite database..."
-	fly volumes create gfdata --size 1 --region iad
-
-.PHONY: fly-secrets
-fly-secrets: env-check
-ifeq (,$(wildcard .env.production))
-	$(error You must have an .env.production file!)
-endif
-	$(call setup-env,.env.production)
-	@echo "Setting secrets from .env.production..."
-	@while IFS='=' read -r key value; do \
-		if [ -n "$$key" ] && [ -n "$$value" ] && [ "$$key" != "#" ]; then \
-			fly secrets set "$$key=$$value"; \
-		fi \
-	done < .env
-	$(call cleanup-env)
-
-.PHONY: fly-deploy
-fly-deploy:
-	@echo "Deploying to fly.io..."
-	fly deploy
-
-.PHONY: fly-setup
-fly-setup: fly-launch fly-volume-create fly-secrets fly-deploy
-
-# Fly.io local testing commands
-.PHONY: fly-local-build
-fly-local-build: env-check
-ifeq (,$(wildcard .env.local-docker))
-	$(error You must have an .env.local-docker file!)
-endif
-	$(call setup-env,.env.local-docker)
-	docker build -f Dockerfile.fly -t $(SERVICE_NAME):fly-local .
-	$(call cleanup-env)
-
-.PHONY: fly-local-run
-fly-local-run: env-check
-	$(call setup-env,.env.local-docker)
-	docker stop $(SERVICE_NAME)-fly || true
-	docker rm $(SERVICE_NAME)-fly || true
-	docker run \
-		-v ${PWD}/prisma:/usr/src/app/prisma \
-		-v ${PWD}/ref:/usr/src/app/ref \
-		-v ${PWD}/data:/data \
-		--env-file .env \
-		--name $(SERVICE_NAME)-fly \
-		-p 3000:3000 \
-		-d $(SERVICE_NAME):fly-local
-	docker start $(SERVICE_NAME)-fly
-	$(call cleanup-env)
-
-.PHONY: fly-local
-fly-local: fly-local-build fly-local-run
-
-.PHONY: fly-local-stop
-fly-local-stop:
-	docker stop $(SERVICE_NAME)-fly || true
-	docker rm $(SERVICE_NAME)-fly || true
-
-.PHONY: fly-local-logs
-fly-local-logs:
-	docker logs -f $(SERVICE_NAME)-fly
-	

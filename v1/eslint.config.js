@@ -36,7 +36,24 @@ Object.keys(jestGlobals).forEach(key => {
 
 export default [
     {
-        ignores: ['.next/**/*', '__tests__/**/*', 'lambdas/**/*', 'eslint.config.js', 'scripts/**/*', '*.cjs', '*.json', 'next.config.mjs', '.yarn/releases/**/*', 'dbsetup.js', 'jest.polyfills.js', 'migrate.js', 'v2/**/*'],
+        ignores: [
+            '.next/**',
+            '__tests__/**',
+            '**/*.test.ts',
+            '**/*.test.tsx',
+            'lambdas/**',
+            'eslint.config.js',
+            'scripts/**',
+            '*.cjs',
+            '*.json',
+            'next.config.mjs',
+            '.yarn/**',
+            '.pnp.*',
+            'dbsetup.js',
+            'jest.polyfills.js',
+            'jest.setup.ts',
+            'migrate.js',
+        ],
     },
     eslint.configs.recommended,
     ...compat.extends('plugin:@typescript-eslint/recommended'),

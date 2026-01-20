@@ -50,3 +50,11 @@ npm-debug.log
 
 # Dialyzer PLT files (large, environment-specific)
 /priv/plts/
+
+# API compiled binaries
+api/bin/
+
+# Environment secrets
+.env
+.env.local
+.env*.local

@@ -9,23 +9,27 @@ on:
     push:
         branches: [main]
         paths:
-            - 'pages/**'
-            - 'components/**'
-            - 'libs/**'
-            - 'hooks/**'
-            - 'layouts/**'
-            - '__tests__/**'
+            - 'v1/pages/**'
+            - 'v1/components/**'
+            - 'v1/libs/**'
+            - 'v1/hooks/**'
+            - 'v1/layouts/**'
+            - 'v1/__tests__/**'
     pull_request:
         branches: [main]
         paths:
-            - 'pages/**'
-            - 'components/**'
-            - 'libs/**'
-            - 'hooks/**'
-            - 'layouts/**'
-            - '__tests__/**'
+            - 'v1/pages/**'
+            - 'v1/components/**'
+            - 'v1/libs/**'
+            - 'v1/hooks/**'
+            - 'v1/layouts/**'
+            - 'v1/__tests__/**'
     schedule:
         - cron: '0 15 * * 5'
+
+defaults:
+    run:
+        working-directory: v1
 
 env:
     YARN_ENABLE_IMMUTABLE_INSTALLS: false

@@ -257,16 +257,13 @@ export const getGalls = (
                 A.map((g) =>
                     pipe(
                         taxonomyForSpecies(g.species_id),
-                        TE.map(
-                            (fgs) =>
-                                ({
-                                    ...g,
-                                    species: {
-                                        ...g.species,
-                                        fgs: fgs,
-                                    },
-                                }) as DBGallWithFGS,
-                        ),
+                        TE.map((fgs) => ({
+                            ...g,
+                            species: {
+                                ...g.species,
+                                fgs: fgs,
+                            },
+                        })),
                     ),
                 ),
             ),
