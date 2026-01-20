@@ -48,7 +48,7 @@ defmodule GallformersWeb.Admin.DeferredChanges do
   """
   @spec init(atom(), list()) :: map()
   def init(collection_name, items) when is_atom(collection_name) and is_list(items) do
-    original_key = String.to_existing_atom("original_#{collection_name}")
+    original_key = String.to_atom("original_#{collection_name}")
 
     %{
       original_key => items,
@@ -158,7 +158,7 @@ defmodule GallformersWeb.Admin.DeferredChanges do
           {list(), MapSet.t()}
   def compute_changes(socket, collection_name, opts \\ []) do
     id_field = Keyword.get(opts, :id_field, :id)
-    original_key = String.to_existing_atom("original_#{collection_name}")
+    original_key = String.to_atom("original_#{collection_name}")
 
     original_items = Map.get(socket.assigns, original_key, [])
     current_items = Map.get(socket.assigns, collection_name, [])
@@ -196,7 +196,7 @@ defmodule GallformersWeb.Admin.DeferredChanges do
   """
   @spec refresh(Phoenix.LiveView.Socket.t(), atom(), list()) :: Phoenix.LiveView.Socket.t()
   def refresh(socket, collection_name, items) do
-    original_key = String.to_existing_atom("original_#{collection_name}")
+    original_key = String.to_atom("original_#{collection_name}")
 
     socket
     |> assign(original_key, items)
@@ -221,7 +221,7 @@ defmodule GallformersWeb.Admin.DeferredChanges do
   @spec has_changes?(Phoenix.LiveView.Socket.t(), atom(), keyword()) :: boolean()
   def has_changes?(socket, collection_name, opts \\ []) do
     id_field = Keyword.get(opts, :id_field, :id)
-    original_key = String.to_existing_atom("original_#{collection_name}")
+    original_key = String.to_atom("original_#{collection_name}")
 
     original_items = Map.get(socket.assigns, original_key, [])
     current_items = Map.get(socket.assigns, collection_name, [])
