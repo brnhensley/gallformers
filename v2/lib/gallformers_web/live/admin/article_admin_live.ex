@@ -1201,9 +1201,11 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
     end
   end
 
+  @valid_tabs ~w(edit preview)
+
   @impl true
-  def handle_event("switch_tab", %{"tab" => tab}, socket) do
-    {:noreply, assign(socket, :active_tab, String.to_existing_atom(tab))}
+  def handle_event("switch_tab", %{"tab" => tab}, socket) when tab in @valid_tabs do
+    {:noreply, assign(socket, :active_tab, String.to_atom(tab))}
   end
 
   @impl true

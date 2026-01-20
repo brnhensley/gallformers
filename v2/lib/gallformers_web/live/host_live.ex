@@ -160,9 +160,11 @@ defmodule GallformersWeb.HostLive do
     {:noreply, socket}
   end
 
+  @valid_sort_fields ~w(name datacomplete)
+
   @impl true
-  def handle_event("sort", %{"field" => field}, socket) do
-    field = String.to_existing_atom(field)
+  def handle_event("sort", %{"field" => field}, socket) when field in @valid_sort_fields do
+    field = String.to_atom(field)
 
     {sort_by, sort_dir} =
       if socket.assigns.sort_by == field do

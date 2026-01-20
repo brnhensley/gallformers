@@ -8,6 +8,8 @@ defmodule GallformersWeb.GlossaryLive do
 
   alias Gallformers.Glossaries
 
+  @valid_sort_columns ~w(word definition)
+
   @impl true
   def mount(_params, _session, socket) do
     entries = Glossaries.list_glossary()
@@ -33,8 +35,8 @@ defmodule GallformersWeb.GlossaryLive do
   end
 
   @impl true
-  def handle_event("sort", %{"column" => column}, socket) do
-    column_atom = String.to_existing_atom(column)
+  def handle_event("sort", %{"column" => column}, socket) when column in @valid_sort_columns do
+    column_atom = String.to_atom(column)
 
     {new_sort_by, new_sort_dir} =
       if socket.assigns.sort_by == column_atom do

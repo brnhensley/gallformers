@@ -971,16 +971,14 @@ defmodule GallformersWeb.Admin.GallLive.Form do
     """
   end
 
-  # Safely convert string filter type to atom using whitelist
-  defp string_to_filter_type(type) when is_binary(type) do
-    atom = String.to_existing_atom(type)
+  # Convert valid filter type strings to atoms (whitelist strings derived from @valid_filter_types)
+  @valid_filter_type_strings Enum.map(@valid_filter_types, &Atom.to_string/1)
 
-    if atom in @valid_filter_types do
-      atom
-    else
-      raise ArgumentError, "Invalid filter type: #{type}"
-    end
-  rescue
-    ArgumentError -> raise ArgumentError, "Invalid filter type: #{type}"
+  defp string_to_filter_type(type) when type in @valid_filter_type_strings do
+    String.to_atom(type)
+  end
+
+  defp string_to_filter_type(type) when is_binary(type) do
+    raise ArgumentError, "Invalid filter type: #{type}"
   end
 end

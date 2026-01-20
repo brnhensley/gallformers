@@ -13,6 +13,8 @@ defmodule GallformersWeb.SearchLive do
 
   alias Gallformers.Search
 
+  @valid_sort_columns ~w(type name relevance)
+
   @impl true
   def mount(_params, _session, socket) do
     {:ok,
@@ -62,8 +64,8 @@ defmodule GallformersWeb.SearchLive do
   end
 
   @impl true
-  def handle_event("sort", %{"column" => column}, socket) do
-    column_atom = String.to_existing_atom(column)
+  def handle_event("sort", %{"column" => column}, socket) when column in @valid_sort_columns do
+    column_atom = String.to_atom(column)
 
     {new_sort_by, new_sort_dir} =
       if socket.assigns.sort_by == column_atom do

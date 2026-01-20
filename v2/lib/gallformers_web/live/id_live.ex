@@ -401,9 +401,13 @@ defmodule GallformersWeb.IDLive do
     {:noreply, socket}
   end
 
+  # Valid filter keys from @url_params
+  @valid_filter_keys ~w(host genus genus_type locations color shape textures alignment detachable place family form walls cells season undescribed)
+
   @impl true
-  def handle_event("change_filter", %{"filter" => filter, "value" => value}, socket) do
-    filter_key = String.to_existing_atom(filter)
+  def handle_event("change_filter", %{"filter" => filter, "value" => value}, socket)
+      when filter in @valid_filter_keys do
+    filter_key = String.to_atom(filter)
 
     parsed_value =
       case filter_key do

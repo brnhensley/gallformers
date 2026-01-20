@@ -6,6 +6,9 @@ defmodule GallformersWeb.Admin.FilterTermsLive.Index do
 
   alias Gallformers.FilterFields
 
+  # Whitelist of valid filter type strings (derived from FilterFields.filter_types/0)
+  @valid_filter_type_strings Enum.map(FilterFields.filter_types(), &Atom.to_string/1)
+
   @impl true
   def mount(_params, session, socket) do
     current_user = session["current_user"]
@@ -25,10 +28,11 @@ defmodule GallformersWeb.Admin.FilterTermsLive.Index do
     filter_type =
       case params["type"] do
         nil -> :alignment
-        type -> String.to_existing_atom(type)
+        type when type in @valid_filter_type_strings -> String.to_atom(type)
+        _invalid -> nil
       end
 
-    if filter_type in FilterFields.filter_types() do
+    if filter_type && filter_type in FilterFields.filter_types() do
       {:noreply,
        socket
        |> assign(:filter_type, filter_type)
@@ -39,8 +43,9 @@ defmodule GallformersWeb.Admin.FilterTermsLive.Index do
   end
 
   @impl true
-  def handle_event("change_type", %{"type" => type}, socket) do
-    filter_type = String.to_existing_atom(type)
+  def handle_event("change_type", %{"type" => type}, socket)
+      when type in @valid_filter_type_strings do
+    filter_type = String.to_atom(type)
 
     {:noreply,
      socket
