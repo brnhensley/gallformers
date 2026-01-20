@@ -33,7 +33,8 @@ jobs:
               uses: actions/setup-node@v4
               with:
                   node-version: '21'
-                  cache: 'npm'
+                  cache: 'yarn'
+                  cache-dependency-path: v1/yarn.lock
 
             - name: Setup Yarn
               run: |

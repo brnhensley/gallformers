@@ -68,7 +68,8 @@ jobs:
               uses: actions/setup-node@v4
               with:
                   node-version: '21'
-                  cache: 'npm'
+                  cache: 'yarn'
+                  cache-dependency-path: v1/yarn.lock
 
             # Setup Yarn 4 (same approach as CI.yml)
             - name: Setup Yarn
