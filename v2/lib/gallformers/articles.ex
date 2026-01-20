@@ -71,6 +71,38 @@ defmodule Gallformers.Articles do
   end
 
   @doc """
+  Returns a list of {id, title} tuples for all articles, sorted by title.
+
+  Useful for dropdown filters in the image browser.
+  """
+  @spec list_article_options() :: [{integer(), String.t()}]
+  def list_article_options do
+    Article
+    |> select([a], {a.id, a.title})
+    |> order_by([a], asc: a.title)
+    |> Repo.all()
+  end
+
+  @doc """
+  Finds all articles that contain a reference to the given image URL in their content.
+
+  Used to check if an image can be safely deleted.
+
+  Returns a list of {id, title} tuples for articles containing the URL.
+  """
+  @spec find_articles_referencing_image(String.t()) :: [{integer(), String.t()}]
+  def find_articles_referencing_image(image_url) when is_binary(image_url) do
+    # Search for the URL in article content
+    search_pattern = "%#{image_url}%"
+
+    Article
+    |> where([a], like(a.content, ^search_pattern))
+    |> select([a], {a.id, a.title})
+    |> order_by([a], asc: a.title)
+    |> Repo.all()
+  end
+
+  @doc """
   Gets an article by ID.
 
   Raises `Ecto.NoResultsError` if not found.

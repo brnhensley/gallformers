@@ -431,13 +431,15 @@ defmodule Gallformers.Images do
   @doc """
   Generates the S3 path for an article image.
 
-  Format: articles/{slug}/{timestamp}.{ext}
+  Format: articles/{article_id}/{timestamp}.{ext}
+
+  Uses article ID instead of slug since slugs can change but IDs are stable.
   """
-  @spec generate_article_path(String.t(), String.t()) :: String.t()
-  def generate_article_path(slug, extension) do
+  @spec generate_article_path(integer(), String.t()) :: String.t()
+  def generate_article_path(article_id, extension) when is_integer(article_id) do
     timestamp = System.system_time(:millisecond)
     ext = String.trim_leading(extension, ".")
-    "articles/#{slug}/#{timestamp}.#{ext}"
+    "articles/#{article_id}/#{timestamp}.#{ext}"
   end
 
   @doc """
@@ -451,18 +453,24 @@ defmodule Gallformers.Images do
   @doc """
   Lists all images in the articles folder on S3.
 
-  Returns a list of maps with :path, :url, :name, and :folder keys.
+  Returns a list of maps with :path, :url, :name, :folder, and :article_id keys.
   """
   @spec list_article_images() :: [map()]
   def list_article_images do
-    list_article_images("articles/")
+    list_article_images_with_prefix("articles/")
   end
 
   @doc """
-  Lists images in a specific articles subfolder on S3.
+  Lists images for a specific article by ID.
   """
-  @spec list_article_images(String.t()) :: [map()]
-  def list_article_images(prefix) do
+  @spec list_article_images_for_article(integer()) :: [map()]
+  def list_article_images_for_article(article_id) do
+    list_article_images_with_prefix("articles/#{article_id}/")
+  end
+
+  # Lists images in a specific articles subfolder on S3.
+  @spec list_article_images_with_prefix(String.t()) :: [map()]
+  defp list_article_images_with_prefix(prefix) do
     case ExAws.S3.list_objects(bucket(), prefix: prefix) |> ExAws.request() do
       {:ok, %{body: body}} ->
         # contents may be missing, nil, or a list depending on S3 response
@@ -487,12 +495,14 @@ defmodule Gallformers.Images do
   defp transform_s3_object(obj) do
     path = obj.key
     parts = String.split(path, "/")
+    folder = extract_folder(parts)
 
     %{
       path: path,
       url: article_image_url(path),
       name: List.last(parts),
-      folder: extract_folder(parts),
+      folder: folder,
+      article_id: parse_article_id(folder),
       last_modified: obj.last_modified,
       size: obj.size
     }
@@ -500,4 +510,32 @@ defmodule Gallformers.Images do
 
   defp extract_folder(parts) when length(parts) >= 2, do: Enum.at(parts, 1)
   defp extract_folder(_parts), do: ""
+
+  defp parse_article_id(folder) do
+    case Integer.parse(folder) do
+      {id, ""} -> id
+      _ -> nil
+    end
+  end
+
+  @doc """
+  Deletes an article image from S3.
+
+  Takes the full S3 path (e.g., "articles/123/1234567890.jpg").
+  Returns :ok on success or {:error, reason} on failure.
+  """
+  @spec delete_article_image(String.t()) :: :ok | {:error, term()}
+  def delete_article_image(path) when is_binary(path) do
+    Logger.info("Attempting to delete article image: #{path} from bucket: #{bucket()}")
+
+    case ExAws.S3.delete_object(bucket(), path) |> ExAws.request() do
+      {:ok, _} ->
+        Logger.info("Successfully deleted article image: #{path}")
+        :ok
+
+      {:error, reason} ->
+        Logger.error("Failed to delete article image: #{path}, reason: #{inspect(reason)}")
+        {:error, reason}
+    end
+  end
 end

@@ -11,6 +11,8 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
 
   use GallformersWeb, :live_view
 
+  require Logger
+
   # Import the discard_confirm_modal component
   import GallformersWeb.Admin.FormHelpers, only: [discard_confirm_modal: 1]
 
@@ -25,6 +27,7 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
     current_user = session["current_user"]
     articles = Articles.list_articles()
     all_tags = Articles.list_all_tags()
+    article_options = Articles.list_article_options()
 
     socket =
       socket
@@ -36,6 +39,7 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
       |> assign(:tag_filter, "")
       |> assign(:status_filter, "")
       |> assign(:all_tags, all_tags)
+      |> assign(:article_options, article_options)
       |> assign(:editing_article, nil)
       |> assign(:form, nil)
       |> assign(:form_dirty, false)
@@ -45,6 +49,14 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
       |> assign(:active_tab, :edit)
       |> assign(:show_image_browser, false)
       |> assign(:article_images, [])
+      |> assign(:image_browser_filter, "")
+      # Image insert modal state
+      |> assign(:show_image_insert_modal, false)
+      |> assign(:selected_image, nil)
+      |> assign(:image_insert_form, nil)
+      # Image delete confirmation state
+      |> assign(:image_to_delete, nil)
+      |> assign(:image_references, [])
       # Tag dropdown state
       |> assign(:form_tags, [])
       |> assign(:tag_search_query, "")
@@ -199,13 +211,7 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
       </div>
 
       <%!-- Edit/Create Modal --%>
-      <.modal
-        :if={@form}
-        id="article-modal"
-        show
-        on_cancel={JS.push("request_cancel")}
-        class="!max-w-[80vw]"
-      >
+      <.modal :if={@form} id="article-modal" show on_cancel={JS.push("request_cancel")} class="!max-w-[80vw]">
         <:header>
           <span>{if @editing_article.id, do: "Edit Article", else: "New Article"}</span>
           <%= if @editing_article.id do %>
@@ -254,14 +260,14 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
             </nav>
           </div>
 
-          <div class="h-[600px]">
+          <div class="max-h-[600px] overflow-y-auto">
             <%= if @active_tab == :edit do %>
               <.form
                 for={@form}
                 id="article-form"
                 phx-submit="save_article"
                 phx-change="validate"
-                class="h-full flex flex-col space-y-4"
+                class="space-y-4"
               >
                 <div>
                   <.input field={@form[:title]} label="Title" required />
@@ -288,14 +294,14 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
                     Optional. Used for article previews and search engine descriptions.
                   </p>
                 </div>
-                <div class="flex-1 flex flex-col min-h-0">
+                <div>
                   <label class="gf-label">
                     Content (Markdown)
                   </label>
                   <textarea
                     name={@form[:content].name}
                     id={@form[:content].id}
-                    class="flex-1 w-full rounded-md border-gray-300 shadow-sm focus:border-gf-maroon focus:ring-gf-maroon font-mono text-sm resize-none"
+                    class="w-full rounded-md border border-gray-300 shadow-sm focus:border-gf-maroon focus:ring-gf-maroon font-mono text-sm resize-y min-h-[300px]"
                     required
                   >{Phoenix.HTML.Form.input_value(@form, :content)}</textarea>
                   <div class="mt-2 flex items-center justify-between">
@@ -375,6 +381,290 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
               </div>
             <% end %>
           </div>
+
+          <%!-- Image Browser Panel (inside article modal) --%>
+          <div :if={@show_image_browser} class="absolute inset-0 bg-white z-10 flex flex-col">
+            <div class="flex items-center justify-between p-4 border-b border-gray-200">
+              <h3 class="text-lg font-semibold text-gray-900">Browse Article Images</h3>
+              <button
+                type="button"
+                phx-click="close_image_browser"
+                class="text-gray-400 hover:text-gray-600"
+              >
+                <.icon name="ph-x" class="h-6 w-6" />
+              </button>
+            </div>
+            <div class="flex-1 overflow-y-auto p-4">
+              <div class="flex items-center justify-between mb-4">
+                <p class="text-sm text-gray-500">
+                  Click an image to insert it at the cursor position.
+                </p>
+                <form phx-change="filter_images_by_article" id="image-article-filter" class="w-64">
+                  <.input
+                    type="select"
+                    name="article_id"
+                    prompt="All Articles"
+                    options={Enum.map(@article_options, fn {id, title} -> {title, id} end)}
+                    value={@image_browser_filter}
+                  />
+                </form>
+              </div>
+
+              <%= if @article_images == [] do %>
+                <div class="p-8 text-center text-gray-500">
+                  <.icon name="ph-images" class="h-12 w-12 mx-auto text-gray-300 mb-4" />
+                  <%= if @image_browser_filter == "" do %>
+                    <p>No images found. Upload some images first.</p>
+                  <% else %>
+                    <p>No images for this article. Try selecting a different article or "All Articles".</p>
+                  <% end %>
+                </div>
+              <% else %>
+                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                  <%= for image <- @article_images do %>
+                    <div class="group relative aspect-square bg-gray-100 rounded-lg overflow-hidden border-2 border-transparent hover:border-gf-maroon">
+                      <img
+                        src={image.url}
+                        alt={image.name}
+                        class="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                      <div class="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center gap-2">
+                        <button
+                          type="button"
+                          phx-click="select_image"
+                          phx-value-url={image.url}
+                          phx-value-name={image.name}
+                          class="opacity-0 group-hover:opacity-100 transition-opacity px-3 py-1.5 bg-gf-maroon text-white text-sm font-medium rounded hover:bg-gf-maroon/80"
+                        >
+                          Insert
+                        </button>
+                        <button
+                          type="button"
+                          phx-click="confirm_delete_image"
+                          phx-value-url={image.url}
+                          phx-value-path={image.path}
+                          phx-value-name={image.name}
+                          class="opacity-0 group-hover:opacity-100 transition-opacity px-3 py-1.5 bg-red-600 text-white text-sm font-medium rounded hover:bg-red-700"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                      <div class="absolute bottom-0 left-0 right-0 bg-black/60 px-2 py-1">
+                        <p class="text-white text-xs truncate">
+                          {get_article_title(@article_options, image.article_id) || image.folder}
+                        </p>
+                      </div>
+                    </div>
+                  <% end %>
+                </div>
+              <% end %>
+            </div>
+            <div class="p-4 border-t border-gray-200 flex justify-end">
+              <button
+                type="button"
+                phx-click="close_image_browser"
+                class="px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
+              >
+                Close
+              </button>
+            </div>
+
+            <%!-- Image Insert Panel (overlay within image browser) --%>
+            <div
+              :if={@show_image_insert_modal && @selected_image}
+              class="absolute inset-0 bg-black/50 flex items-center justify-center z-20"
+            >
+              <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+                <div class="flex items-center justify-between p-4 border-b border-gray-200">
+                  <h4 class="text-lg font-semibold text-gray-900">Insert Image</h4>
+                  <button
+                    type="button"
+                    phx-click="close_image_insert_modal"
+                    class="text-gray-400 hover:text-gray-600"
+                  >
+                    <.icon name="ph-x" class="h-5 w-5" />
+                  </button>
+                </div>
+                <div class="p-4 space-y-4">
+                  <div class="flex justify-center bg-gray-100 rounded-lg p-4">
+                    <img src={@selected_image.url} alt="Preview" class="max-h-48 object-contain rounded" />
+                  </div>
+                  <.form
+                    for={@image_insert_form}
+                    id="image-insert-form"
+                    phx-submit="insert_image"
+                    phx-change="validate_image_insert"
+                    class="space-y-4"
+                  >
+                    <div>
+                      <.input
+                        field={@image_insert_form[:alt_text]}
+                        label="Alt Text"
+                        placeholder="Describe the image for accessibility"
+                        required
+                      />
+                      <p class="mt-1 text-xs text-gray-500">
+                        Required. Describes the image for screen readers.
+                      </p>
+                    </div>
+                    <div>
+                      <.input
+                        field={@image_insert_form[:caption]}
+                        label="Caption (Optional)"
+                        placeholder="Optional visible caption below the image"
+                      />
+                    </div>
+                    <div>
+                      <label class="gf-label">Display Size</label>
+                      <div class="mt-2 space-y-2">
+                        <div class="flex flex-wrap gap-2">
+                          <label class="inline-flex items-center">
+                            <input
+                              type="radio"
+                              name={@image_insert_form[:size_preset].name}
+                              value="small"
+                              checked={Phoenix.HTML.Form.input_value(@image_insert_form, :size_preset) == "small"}
+                              class="mr-2"
+                            /> Small (200px)
+                          </label>
+                          <label class="inline-flex items-center">
+                            <input
+                              type="radio"
+                              name={@image_insert_form[:size_preset].name}
+                              value="medium"
+                              checked={Phoenix.HTML.Form.input_value(@image_insert_form, :size_preset) == "medium"}
+                              class="mr-2"
+                            /> Medium (400px)
+                          </label>
+                          <label class="inline-flex items-center">
+                            <input
+                              type="radio"
+                              name={@image_insert_form[:size_preset].name}
+                              value="large"
+                              checked={Phoenix.HTML.Form.input_value(@image_insert_form, :size_preset) == "large"}
+                              class="mr-2"
+                            /> Large (600px)
+                          </label>
+                          <label class="inline-flex items-center">
+                            <input
+                              type="radio"
+                              name={@image_insert_form[:size_preset].name}
+                              value="full"
+                              checked={Phoenix.HTML.Form.input_value(@image_insert_form, :size_preset) == "full"}
+                              class="mr-2"
+                            /> Full Width
+                          </label>
+                          <label class="inline-flex items-center">
+                            <input
+                              type="radio"
+                              name={@image_insert_form[:size_preset].name}
+                              value="custom"
+                              checked={Phoenix.HTML.Form.input_value(@image_insert_form, :size_preset) == "custom"}
+                              class="mr-2"
+                            /> Custom
+                          </label>
+                        </div>
+                        <%= if Phoenix.HTML.Form.input_value(@image_insert_form, :size_preset) == "custom" do %>
+                          <div class="flex items-center gap-2">
+                            <.input
+                              field={@image_insert_form[:custom_width]}
+                              type="number"
+                              placeholder="Width in pixels"
+                              min="50"
+                              max="2000"
+                              class="w-32"
+                            />
+                            <span class="text-sm text-gray-500">pixels</span>
+                          </div>
+                        <% end %>
+                      </div>
+                    </div>
+                  </.form>
+                </div>
+                <div class="p-4 border-t border-gray-200 flex justify-end gap-2">
+                  <button
+                    type="button"
+                    phx-click="close_image_insert_modal"
+                    class="px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    form="image-insert-form"
+                    class="px-4 py-2 bg-gf-maroon text-white rounded-md hover:bg-gf-maroon/90"
+                  >
+                    Insert Image
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <%!-- Image Delete Confirmation Panel (overlay within image browser) --%>
+            <div
+              :if={@image_to_delete}
+              class="absolute inset-0 bg-black/50 flex items-center justify-center z-20"
+            >
+              <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+                <div class="flex items-center justify-between p-4 border-b border-gray-200">
+                  <h4 class="text-lg font-semibold text-gray-900">Delete Image</h4>
+                  <button
+                    type="button"
+                    phx-click="cancel_delete_image"
+                    class="text-gray-400 hover:text-gray-600"
+                  >
+                    <.icon name="ph-x" class="h-5 w-5" />
+                  </button>
+                </div>
+                <div class="p-4 space-y-4">
+                  <div class="flex justify-center bg-gray-100 rounded-lg p-4">
+                    <img src={@image_to_delete.url} alt="Image to delete" class="max-h-32 object-contain rounded" />
+                  </div>
+                  <%= if @image_references == [] do %>
+                    <p class="text-gray-600">
+                      Are you sure you want to delete this image? This action cannot be undone.
+                    </p>
+                  <% else %>
+                    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                      <div class="flex items-start gap-2">
+                        <.icon name="ph-warning" class="h-5 w-5 text-yellow-600 mt-0.5" />
+                        <div>
+                          <p class="text-yellow-800 font-medium">
+                            This image is referenced in {length(@image_references)} article{if length(@image_references) != 1, do: "s", else: ""}:
+                          </p>
+                          <ul class="mt-2 text-sm text-yellow-700 list-disc list-inside">
+                            <%= for {_id, title} <- @image_references do %>
+                              <li>{title}</li>
+                            <% end %>
+                          </ul>
+                          <p class="mt-2 text-yellow-700 text-sm">
+                            Deleting this image will break these references.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  <% end %>
+                </div>
+                <div class="p-4 border-t border-gray-200 flex justify-end gap-2">
+                  <button
+                    type="button"
+                    phx-click="cancel_delete_image"
+                    class="px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    phx-click="delete_image"
+                    class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                  >
+                    <%= if @image_references == [], do: "Delete", else: "Delete Anyway" %>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         </:body>
         <:footer>
           <button
@@ -431,66 +721,6 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
       <%!-- Discard Changes Confirmation Modal --%>
       <.discard_confirm_modal show={@show_discard_confirm} />
 
-      <%!-- Image Browser Modal --%>
-      <.modal
-        :if={@show_image_browser}
-        id="image-browser-modal"
-        show
-        on_cancel={JS.push("close_image_browser")}
-        class="!max-w-[70vw]"
-      >
-        <:header>Browse Article Images</:header>
-        <:body>
-          <p class="text-sm text-gray-500 mb-4">
-            Click an image to insert its markdown link at the cursor position in the content editor.
-          </p>
-
-          <%= if @article_images == [] do %>
-            <div class="p-8 text-center text-gray-500">
-              <.icon name="ph-images" class="h-12 w-12 mx-auto text-gray-300 mb-4" />
-              <p>No images found. Upload some images first.</p>
-            </div>
-          <% else %>
-            <div class="max-h-[60vh] overflow-y-auto">
-              <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                <%= for image <- @article_images do %>
-                  <button
-                    type="button"
-                    phx-click="select_image"
-                    phx-value-url={image.url}
-                    phx-value-name={image.name}
-                    class="group relative aspect-square bg-gray-100 rounded-lg overflow-hidden border-2 border-transparent hover:border-gf-maroon focus:border-gf-maroon focus:outline-none"
-                  >
-                    <img
-                      src={image.url}
-                      alt={image.name}
-                      class="w-full h-full object-cover"
-                      loading="lazy"
-                    />
-                    <div class="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
-                      <span class="text-white text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity">
-                        Select
-                      </span>
-                    </div>
-                    <div class="absolute bottom-0 left-0 right-0 bg-black/60 px-2 py-1">
-                      <p class="text-white text-xs truncate">{image.folder}</p>
-                    </div>
-                  </button>
-                <% end %>
-              </div>
-            </div>
-          <% end %>
-        </:body>
-        <:footer>
-          <button
-            type="button"
-            phx-click="close_image_browser"
-            class="px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
-          >
-            Close
-          </button>
-        </:footer>
-      </.modal>
     </Layouts.admin>
     """
   end
@@ -633,14 +863,29 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
 
   @impl true
   def handle_event("request_cancel", _params, socket) do
-    # Ignore cancel request if the image browser is open - the user is interacting
-    # with the nested modal, not trying to close the article modal
-    if socket.assigns.show_image_browser do
-      {:noreply, socket}
-    else
-      if socket.assigns.form_dirty do
+    cond do
+      # Close innermost panel first
+      socket.assigns.image_to_delete != nil ->
+        {:noreply,
+         socket
+         |> assign(:image_to_delete, nil)
+         |> assign(:image_references, [])}
+
+      socket.assigns.show_image_insert_modal ->
+        {:noreply,
+         socket
+         |> assign(:show_image_insert_modal, false)
+         |> assign(:selected_image, nil)
+         |> assign(:image_insert_form, nil)}
+
+      socket.assigns.show_image_browser ->
+        {:noreply, assign(socket, :show_image_browser, false)}
+
+      # No panels open - handle modal close
+      socket.assigns.form_dirty ->
         {:noreply, assign(socket, :show_discard_confirm, true)}
-      else
+
+      true ->
         {:noreply,
          socket
          |> assign(:editing_article, nil)
@@ -650,7 +895,6 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
          |> assign(:form_tags, [])
          |> assign(:tag_search_query, "")
          |> assign(:tag_dropdown_open, false)}
-      end
     end
   end
 
@@ -675,13 +919,106 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
 
   @impl true
   def handle_event("open_image_browser", _params, socket) do
-    images = Images.list_article_images()
-    {:noreply, socket |> assign(:article_images, images) |> assign(:show_image_browser, true)}
+    # Default to current article's images if editing an article
+    article = socket.assigns.editing_article
+
+    {images, filter} =
+      if article && article.id do
+        {Images.list_article_images_for_article(article.id), article.id}
+      else
+        {Images.list_article_images(), ""}
+      end
+
+    {:noreply,
+     socket
+     |> assign(:article_images, images)
+     |> assign(:image_browser_filter, filter)
+     |> assign(:show_image_browser, true)}
   end
 
   @impl true
   def handle_event("close_image_browser", _params, socket) do
     {:noreply, assign(socket, :show_image_browser, false)}
+  end
+
+  @impl true
+  def handle_event("filter_images_by_article", %{"article_id" => ""}, socket) do
+    images = Images.list_article_images()
+
+    {:noreply,
+     socket
+     |> assign(:article_images, images)
+     |> assign(:image_browser_filter, "")}
+  end
+
+  @impl true
+  def handle_event("filter_images_by_article", %{"article_id" => article_id}, socket) do
+    article_id = String.to_integer(article_id)
+    images = Images.list_article_images_for_article(article_id)
+
+    {:noreply,
+     socket
+     |> assign(:article_images, images)
+     |> assign(:image_browser_filter, article_id)}
+  end
+
+  @impl true
+  def handle_event(
+        "confirm_delete_image",
+        %{"url" => url, "path" => path, "name" => name},
+        socket
+      ) do
+    # Check which articles reference this image
+    references = Articles.find_articles_referencing_image(url)
+
+    image_to_delete = %{url: url, path: path, name: name}
+
+    {:noreply,
+     socket
+     |> assign(:image_to_delete, image_to_delete)
+     |> assign(:image_references, references)}
+  end
+
+  @impl true
+  def handle_event("cancel_delete_image", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:image_to_delete, nil)
+     |> assign(:image_references, [])}
+  end
+
+  @impl true
+  def handle_event("delete_image", _params, socket) do
+    image = socket.assigns.image_to_delete
+    Logger.info("Deleting image: path=#{inspect(image.path)}, url=#{inspect(image.url)}")
+
+    case Images.delete_article_image(image.path) do
+      :ok ->
+        # Refresh the image list
+        images =
+          case socket.assigns.image_browser_filter do
+            "" -> Images.list_article_images()
+            article_id -> Images.list_article_images_for_article(article_id)
+          end
+
+        {:noreply,
+         socket
+         |> assign(:article_images, images)
+         |> assign(:image_to_delete, nil)
+         |> assign(:image_references, [])
+         |> put_flash(:info, "Image deleted.")}
+
+      {:error, reason} ->
+        Logger.error("Failed to delete image: path=#{inspect(image.path)}, reason=#{inspect(reason)}")
+
+        error_message = format_s3_error(reason)
+
+        {:noreply,
+         socket
+         |> assign(:image_to_delete, nil)
+         |> assign(:image_references, [])
+         |> put_flash(:error, error_message)}
+    end
   end
 
   # Tag dropdown event handlers
@@ -746,17 +1083,83 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
 
   @impl true
   def handle_event("select_image", %{"url" => url, "name" => name}, socket) do
-    # Generate markdown for the image
-    markdown = "![#{name}](#{url})"
+    # Open the image insert modal with default values
+    selected_image = %{url: url, name: name}
 
-    # Push event to client to insert at cursor position
+    form =
+      to_form(%{
+        "alt_text" => "",
+        "caption" => "",
+        "size_preset" => "medium",
+        "custom_width" => ""
+      })
+
     socket =
       socket
-      |> push_event("insert_image_markdown", %{markdown: markdown})
+      |> assign(:selected_image, selected_image)
+      |> assign(:image_insert_form, form)
+      |> assign(:show_image_insert_modal, true)
       |> assign(:show_image_browser, false)
-      |> assign(:form_dirty, true)
 
     {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("validate_image_insert", params, socket) do
+    # Just update the form with new values
+    form = to_form(params)
+    {:noreply, assign(socket, :image_insert_form, form)}
+  end
+
+  @impl true
+  def handle_event("close_image_insert_modal", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:show_image_insert_modal, false)
+     |> assign(:selected_image, nil)
+     |> assign(:image_insert_form, nil)}
+  end
+
+  @impl true
+  def handle_event("insert_image", params, socket) do
+    selected_image = socket.assigns.selected_image
+    alt_text = String.trim(params["alt_text"] || "")
+    caption = String.trim(params["caption"] || "")
+    size_preset = params["size_preset"] || "medium"
+    custom_width = params["custom_width"]
+
+    # Validate alt text is provided
+    if alt_text == "" do
+      socket =
+        socket
+        |> put_flash(:error, "Alt text is required for accessibility")
+
+      {:noreply, socket}
+    else
+      # Calculate width
+      width =
+        case size_preset do
+          "small" -> 200
+          "medium" -> 400
+          "large" -> 600
+          "full" -> nil
+          "custom" -> parse_custom_width(custom_width)
+        end
+
+      # Generate HTML
+      html = generate_image_html(selected_image.url, alt_text, caption, width)
+
+      # Push event to client to insert at cursor position
+      socket =
+        socket
+        |> push_event("insert_image_markdown", %{markdown: html})
+        |> assign(:show_image_insert_modal, false)
+        |> assign(:selected_image, nil)
+        |> assign(:image_insert_form, nil)
+        |> assign(:form_dirty, true)
+
+      {:noreply, socket}
+    end
   end
 
   @impl true
@@ -805,8 +1208,7 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
     article = socket.assigns.editing_article
 
     if article && article.id do
-      slug = article.slug || "article-#{article.id}"
-      path = Images.generate_article_path(slug, ext)
+      path = Images.generate_article_path(article.id, ext)
 
       case Images.presigned_upload_url(path, type) do
         {:ok, url} ->
@@ -835,14 +1237,10 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
   end
 
   @impl true
-  def handle_event("article_image_uploaded", %{"path" => path}, socket) do
-    # Generate the CDN URL and show it to the user
-    image_url = Images.article_image_url(path)
-    markdown = "![Image](#{image_url})"
-
+  def handle_event("article_image_uploaded", %{"path" => _path}, socket) do
     socket =
       socket
-      |> put_flash(:info, "Image uploaded! Markdown copied: #{markdown}")
+      |> put_flash(:info, "Image uploaded! Use 'Browse Images' to insert it.")
 
     {:noreply, socket}
   end
@@ -907,5 +1305,73 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
 
   defp filter_by_status(articles, "draft") do
     Enum.filter(articles, fn article -> not article.is_published end)
+  end
+
+  # Image browser helpers
+
+  defp format_s3_error({:http_error, 403, %{body: body}}) when is_binary(body) do
+    cond do
+      String.contains?(body, "AccessDenied") and String.contains?(body, "DeleteObject") ->
+        "Permission denied: The S3 user doesn't have delete permissions. Contact an administrator."
+
+      String.contains?(body, "AccessDenied") ->
+        "Permission denied: Access to S3 was denied."
+
+      true ->
+        "Failed to delete image (403 Forbidden)"
+    end
+  end
+
+  defp format_s3_error({:http_error, status, _}) do
+    "Failed to delete image (HTTP #{status})"
+  end
+
+  defp format_s3_error(reason) do
+    "Failed to delete image: #{inspect(reason)}"
+  end
+
+  defp get_article_title(_article_options, nil), do: nil
+
+  defp get_article_title(article_options, article_id) do
+    case Enum.find(article_options, fn {id, _title} -> id == article_id end) do
+      {_, title} -> title
+      nil -> nil
+    end
+  end
+
+  # Image insert helpers
+
+  defp parse_custom_width(nil), do: 400
+  defp parse_custom_width(""), do: 400
+
+  defp parse_custom_width(value) when is_binary(value) do
+    case Integer.parse(value) do
+      {width, _} when width >= 50 and width <= 2000 -> width
+      _ -> 400
+    end
+  end
+
+  defp parse_custom_width(_), do: 400
+
+  defp generate_image_html(url, alt_text, caption, width) do
+    # Escape special characters in alt text and caption
+    escaped_alt = Phoenix.HTML.html_escape(alt_text) |> Phoenix.HTML.safe_to_string()
+    width_attr = if width, do: " width=\"#{width}\"", else: ""
+
+    if caption == "" do
+      # Just an img tag
+      "<img src=\"#{url}\" alt=\"#{escaped_alt}\"#{width_attr}>"
+    else
+      # Wrap in figure with figcaption
+      escaped_caption = Phoenix.HTML.html_escape(caption) |> Phoenix.HTML.safe_to_string()
+
+      """
+      <figure>
+        <img src="#{url}" alt="#{escaped_alt}"#{width_attr}>
+        <figcaption>#{escaped_caption}</figcaption>
+      </figure>
+      """
+      |> String.trim()
+    end
   end
 end
