@@ -47,6 +47,16 @@ mix assets.build           # Build CSS/JS
 mix assets.deploy          # Build for production
 ```
 
+## Before Committing
+
+Always run before committing V2 changes:
+
+```bash
+mix precommit    # Runs format, credo, and tests
+```
+
+Do not commit until precommit passes.
+
 ## Database Access
 
 - **Local dev**: Database at `priv/gallformers.sqlite` (not committed to git)
