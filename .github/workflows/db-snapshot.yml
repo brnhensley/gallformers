@@ -23,33 +23,7 @@ jobs:
           litestream restore -o gallformers.sqlite \
             s3://gallformers-backups/litestream
 
-      - name: Upload full backup (private, contains PII)
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.LITESTREAM_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.LITESTREAM_SECRET_ACCESS_KEY }}
-          AWS_DEFAULT_REGION: us-east-1
-        run: |
-          aws s3 cp gallformers.sqlite s3://gallformers-full-backups/$(date +%Y-%m-%d)/gallformers.sqlite
-
-      - name: Sanitize user data (remove PII)
-        run: |
-          # Check if users table exists before attempting sanitization
-          TABLE_EXISTS=$(sqlite3 gallformers.sqlite "SELECT name FROM sqlite_master WHERE type='table' AND name='users';")
-          if [ -n "$TABLE_EXISTS" ]; then
-            echo "Sanitizing users table..."
-            sqlite3 gallformers.sqlite "UPDATE users SET
-              display_name = NULL,
-              nickname = NULL,
-              inaturalist_url = NULL,
-              social_url = NULL,
-              personal_url = NULL,
-              auth0_id = 'redacted-' || id;"
-            echo "Sanitization complete"
-          else
-            echo "Users table does not exist, skipping sanitization"
-          fi
-
-      - name: Upload public snapshot (sanitized)
+      - name: Upload public snapshot
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.LITESTREAM_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.LITESTREAM_SECRET_ACCESS_KEY }}

@@ -1,8 +1,92 @@
-# Gallformers V2 - Makefile
+# Gallformers V2 - Top-level Makefile
 #
-# Phoenix/LiveView development commands
+# Coordinates development across components:
+#   - api/  - Go REST API server
+#   - web/  - Svelte frontend
 
-.PHONY: dev test download-db ci help deps assets setup clean check-db build run-local-release
+.PHONY: dev dev-api dev-web prod prod-api prod-web prod-embedded storybook build test clean download-db help
+
+# Start both API and web dev servers
+# API runs on :8080, web on :5173
+# Ctrl+C kills both
+dev:
+	@echo "Starting API server on http://localhost:8080"
+	@echo "Starting web dev server on http://localhost:5173"
+	@echo "Press Ctrl+C to stop both..."
+	@if [ -f .env ]; then set -a && . ./.env && set +a; fi && \
+		trap 'kill 0' INT && \
+		(cd api && $(MAKE) run) & \
+		(cd web && npm run dev) & \
+		wait
+
+# Start only the API server (loads .env from v2/)
+dev-api:
+	@if [ -f .env ]; then set -a && . ./.env && set +a; fi && \
+		cd api && $(MAKE) run
+
+# Start only the web dev server
+dev-web:
+	cd web && npm run dev
+
+# Start both API and web servers in production mode locally
+# API runs on :8080, web preview on :4173
+# Requires `make build` first
+# Ctrl+C kills both
+prod:
+	@echo "Starting API server on http://localhost:8080"
+	@echo "Starting web preview server on http://localhost:4173"
+	@echo "Press Ctrl+C to stop both..."
+	@if [ -f .env ]; then set -a && . ./.env && set +a; fi && \
+		trap 'kill 0' INT && \
+		(cd api && ./bin/gallformers-api) & \
+		(cd web && npm run preview) & \
+		wait
+
+# Start only the API server in production mode (from built binary)
+prod-api:
+	@if [ -f .env ]; then set -a && . ./.env && set +a; fi && \
+		cd api && ./bin/gallformers-api
+
+# Start only the web preview server (production build)
+prod-web:
+	cd web && npm run preview
+
+# Production-identical local testing (RECOMMENDED for catching deploy issues)
+# Builds web, embeds in Go binary, runs Go server ONLY - exactly like Fly.io
+# No Vite, no preview server - all requests go through Go's static file handler
+prod-embedded:
+	@echo "Building web static files..."
+	cd web && npm run build
+	@echo "Copying to Go embed directory..."
+	rm -rf api/cmd/server/static/* 2>/dev/null || true
+	cp -r web/build/* api/cmd/server/static/
+	@echo "Rebuilding Go binary with embedded files..."
+	cd api && $(MAKE) build
+	@echo ""
+	@echo "Starting Go server on http://localhost:8080"
+	@echo "This is IDENTICAL to production - no Vite/Node involved!"
+	@echo ""
+	@if [ -f .env ]; then set -a && . ./.env && set +a; fi && \
+		cd api && ./bin/gallformers-api
+
+# Start Storybook component explorer
+storybook:
+	cd web && npm run storybook
+
+# Build all components
+build:
+	cd web && npm run build
+	cd api && $(MAKE) build
+
+# Run all tests
+test:
+	cd api && $(MAKE) test
+	cd web && npm test
+
+# Clean all build artifacts
+clean:
+	cd api && $(MAKE) clean
+	cd web && rm -rf build .svelte-kit node_modules
 
 # Download production database for local dev
 # Uses public S3 snapshot (updated daily by GitHub Actions)
@@ -10,97 +94,9 @@ DB_URL ?= https://gallformers-backups.s3.amazonaws.com/public/gallformers.sqlite
 
 download-db:
 	@echo "Downloading database from S3..."
-	@mkdir -p priv
-	curl -L -o priv/gallformers.sqlite $(DB_URL)
-	@echo "Database downloaded to priv/gallformers.sqlite"
-
-# =============================================================================
-# Build Dependencies
-# =============================================================================
-
-# Install Elixir dependencies
-deps:
-	mix deps.get
-
-# Install npm packages and build assets
-assets/node_modules: assets/package.json
-	cd assets && npm install
-	@touch assets/node_modules
-
-assets: assets/node_modules
-	mix assets.setup
-	mix assets.build
-
-# Ensure database exists and has data (not just Ecto's empty schema_migrations)
-check-db:
-	@if [ ! -f priv/gallformers.sqlite ]; then \
-		echo ""; \
-		echo "ERROR: Database not found at priv/gallformers.sqlite"; \
-		echo "Run 'make download-db' to download the database"; \
-		echo ""; \
-		exit 1; \
-	fi
-	@DB_SIZE=$$(stat -f%z priv/gallformers.sqlite 2>/dev/null || stat -c%s priv/gallformers.sqlite 2>/dev/null); \
-	if [ "$$DB_SIZE" -lt 100000 ]; then \
-		echo ""; \
-		echo "ERROR: Database appears empty (only $$DB_SIZE bytes)"; \
-		echo "Run 'make download-db' to download the production database"; \
-		echo ""; \
-		exit 1; \
-	fi
-
-# Full setup (deps + assets + database)
-setup: deps assets check-db
-
-# =============================================================================
-# Development
-# =============================================================================
-
-# Start development server (ensures deps and assets are ready)
-dev: setup
-	mix phx.server
-
-# =============================================================================
-# Production Build
-# =============================================================================
-
-# Build production release locally
-build: deps
-	MIX_ENV=prod mix compile
-	MIX_ENV=prod mix assets.deploy
-	MIX_ENV=prod mix release --overwrite
-
-# Run the locally built production release
-# Requires SECRET_KEY_BASE and DATABASE_PATH environment variables
-run-local-release:
-	@if [ -z "$$SECRET_KEY_BASE" ]; then \
-		echo "Generating SECRET_KEY_BASE..."; \
-		export SECRET_KEY_BASE=$$(mix phx.gen.secret); \
-	fi; \
-	DATABASE_PATH=$${DATABASE_PATH:-$(PWD)/priv/gallformers.sqlite} \
-	PHX_HOST=localhost \
-	PORT=4000 \
-	_build/prod/rel/gallformers/bin/gallformers start
-
-# Run tests
-test:
-	mix test
-
-# Run CI checks (same as GitHub Actions)
-ci: assets/node_modules
-	@echo "==> Checking formatting..."
-	mix format --check-formatted
-	@echo "==> Compiling with warnings as errors..."
-	mix compile --warnings-as-errors
-	@echo "==> Running Credo..."
-	mix credo --strict
-	@echo "==> Running tests..."
-	mix test
-	@echo "==> Building assets (validates JS/CSS bundling)..."
-	mix assets.deploy
-	@echo "==> Running Dialyzer..."
-	mix dialyzer
-	@echo "==> All CI checks passed!"
+	@mkdir -p data
+	curl -L -o data/gallformers.sqlite $(DB_URL)
+	@echo "Database downloaded to data/gallformers.sqlite"
 
 # =============================================================================
 # Git Sync Targets (for multi-agent workflow)
@@ -158,36 +154,37 @@ sync-main-to-integration:
 
 # =============================================================================
 
-# Clean build artifacts
-clean:
-	rm -rf assets/node_modules
-	rm -rf _build
-	rm -rf deps
-	rm -rf priv/static/assets
-
 # Show help
 help:
 	@echo "Gallformers V2 Makefile"
 	@echo ""
 	@echo "Development:"
-	@echo "  make dev               Start Phoenix dev server (:4000) - auto-installs deps"
-	@echo "  make test              Run tests"
-	@echo "  make ci                Run all CI checks (format, compile, credo, test, dialyzer)"
+	@echo "  make dev        Start API (:8080) and web (:5173) together"
+	@echo "  make dev-api    Start only the API server"
+	@echo "  make dev-web    Start only the web dev server"
+	@echo "  make storybook  Start Storybook component explorer (:6006)"
 	@echo ""
-	@echo "Build:"
-	@echo "  make setup             Full setup (deps + assets + db check)"
-	@echo "  make deps              Install Elixir dependencies"
-	@echo "  make assets            Install npm packages and build assets"
-	@echo "  make build             Build production release locally"
-	@echo "  make run-local-release Run the locally built production release"
-	@echo "  make clean             Clean build artifacts (node_modules, _build, deps)"
+	@echo "Production (local):"
+	@echo "  make prod          Start API (:8080) and web preview (:4173) together"
+	@echo "  make prod-api      Start only the API server (built binary)"
+	@echo "  make prod-web      Start only the web preview server"
+	@echo "  make prod-embedded Build & run Go with embedded files (IDENTICAL to Fly.io)"
+	@echo ""
+	@echo "Building:"
+	@echo "  make build      Build all components (web first, then API with embedded files)"
+	@echo ""
+	@echo "Testing:"
+	@echo "  make test       Run all tests"
 	@echo ""
 	@echo "Database:"
-	@echo "  make download-db       Download database snapshot from S3"
+	@echo "  make download-db  Download database snapshot from S3"
 	@echo ""
 	@echo "Git Sync (multi-agent workflow):"
 	@echo "  make sync-start              Reset branch to integration (for code1/code2)"
 	@echo "  MSG=\"desc\" make sync-finish  Push, PR, merge to integration (for code1/code2)"
 	@echo "  make sync-bugfix             Pull latest integration (for bugfix)"
 	@echo "  make sync-main-to-integration  Sync main specs into integration via PR"
+	@echo ""
+	@echo "Other:"
+	@echo "  make clean      Clean build artifacts"
 

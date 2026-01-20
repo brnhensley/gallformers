@@ -2,8 +2,8 @@
 
 ## Prerequisites
 
-- **adopt-phoenix-liveview**: V2 Phoenix/LiveView application must be in place
-- **Oban**: Background job processing library must be configured
+- **define-v2-foundation**: V2 directory structure and deployment pipeline must be in place
+- **add-go-api**: Core Go API endpoints needed before adding image endpoints
 
 ## Why
 
@@ -20,67 +20,58 @@ V2 needs robust, reliable image handling with proper async processing, status tr
 
 ### New Capability: Image Processing System
 
-- **Processing**: Elixir with Oban background jobs using Image library (Vix/libvips)
-- **Storage**: Existing S3 bucket (relocated to `us-east-1`) with optimized CloudFront configuration
-- **API**: Phoenix contexts and LiveView components for upload, import, status, and management
-- **Web UI**: LiveView gallery component, admin upload interface, GLightbox viewer
-- **Real-time Updates**: Phoenix PubSub for instant status notifications
+- **Processing**: AWS Lambda (Node.js + Sharp) for async image processing
+- **Storage**: Existing S3 bucket with optimized CloudFront configuration
+- **API**: New Go endpoints for upload, import, status, and management
+- **Web UI**: Svelte gallery component, admin upload interface, GLightbox viewer
 
 ### Key Features
 
-1. **Two Upload Paths**: Direct upload via presigned S3 URL, or import from iNaturalist URL
+1. **Two Upload Paths**: Direct upload via presigned S3 URL, or import from iNaturalist URL via Lambda
 2. **Multi-size Processing**: Generate small (300px), medium (800px), large (1200px), xlarge (2000px), preserve original
-3. **Modern Formats**: WebP for served sizes + single JPEG fallback for old browser compatibility
-4. **Format Support**: JPEG, PNG, WebP, and HEIC (auto-converted)
-5. **Real-time Status**: pending, complete, failed - PubSub pushes updates to LiveView
-6. **iNaturalist Integration**: Import images by pasting observation URL, auto-populate attribution
-7. **Attribution Tracking**: Creator, license, source URL, license URL, source publication link, uploader audit trail
-8. **Gallery UI**: Mobile-friendly carousel, GLightbox for full-size viewing, accessible
-9. **Bulk Operations**: Multi-select for batch delete and metadata editing
-10. **Article Images**: Same processing pipeline for article/reference image uploads
+3. **Modern Formats**: WebP for served sizes (smaller, faster loading)
+4. **Status Tracking**: pending, complete, failed - clients can poll for completion
+5. **iNaturalist Integration**: Import images by pasting observation URL, auto-populate attribution
+6. **Attribution Tracking**: Creator, license, source URL, license URL, source publication link, uploader audit trail
+7. **Gallery UI**: Mobile-friendly carousel, GLightbox for full-size viewing, accessible
 
 ### Migration
 
-Existing 6,531 images across 2,522 species will be migrated via Elixir Mix task to:
-- Relocate from `us-east-2` to `us-east-1` (match Fly.io region)
-- Generate optimized WebP variants + JPEG fallback
-- Create new UUID-based records with legacy_id traceability
+Existing 6,531 images across 2,522 species will be migrated through the new Lambda pipeline to generate optimized WebP variants.
 
 ## Impact
 
 - **New specs**: `web-images` (gallery UI, upload interface, processing pipeline)
+- **Affected proposals**: `add-go-api` (new image endpoints), `add-svelte-admin` (upload UI), `add-svelte-public` (gallery)
 - **Affected code**:
-  - `v2/lib/gallformers/images.ex` - Images context with S3 operations
-  - `v2/lib/gallformers/images/` - Processing workers, schemas
-  - `v2/lib/gallformers_web/live/` - Gallery and upload LiveView components
-  - `v2/lib/mix/tasks/` - Migration Mix task
+  - `v2/api/internal/` - new handlers, S3 client, Lambda client
+  - `v2/api/internal/db/` - updated images table and queries
+  - `v2/web/src/lib/components/` - gallery, upload, lightbox components
+  - `v2/web/src/routes/` - admin upload integration
 - **Infrastructure**:
-  - S3 bucket CORS configuration
-  - CloudFront cache headers (versioned URLs)
-  - Fly.io machine sizing (1GB RAM minimum)
-  - Oban job queue configuration
+  - AWS Lambda function for image processing
+  - CloudFront distribution optimization
+  - IAM credentials for API server (S3 + Lambda invoke)
 
 ## Out of Scope
 
-- Image categories/types (keep simple - species and article association only)
+- Image categories/types (keep simple - just species association)
 - AI-based image recognition
 - Video support
+- Batch upload from folder (start with single image)
 - Image editing/cropping in-browser
-- Manual image ordering (uses automatic source-based grouping)
 
 ## Dependencies
 
-- Requires `adopt-phoenix-liveview` for Phoenix/LiveView foundation
-- Requires Oban configured for background job processing
+- Requires `define-v2-foundation` to establish v2 directory structure
+- Requires `add-go-api` to have core API patterns in place
 - Blocks: None (this is additive functionality)
 
 ## Success Criteria
 
-1. Presigned URL upload succeeds; Oban processes; PubSub notifies; status becomes "complete"
-2. iNat URL import creates image record, processes via Oban, auto-populates attribution
-3. Gallery displays images sorted by: default first, same source, then grouped by source
-4. Admin can upload (max 10 per batch), edit metadata, set default, bulk delete
-5. Migration Mix task processes all 6,531 existing images with progress tracking
-6. All served images are WebP format with JPEG fallback, significantly smaller than current JPG output
-7. Processing errors show user-friendly message with expandable technical details
-8. Stale pending records are automatically cleaned up by scheduled Oban job
+1. `POST /api/v1/images/upload` returns presigned URL; upload succeeds; Lambda processes; status becomes "complete"
+2. `POST /api/v1/images/import-url` with iNat URL creates image record and triggers Lambda processing
+3. Gallery displays images sorted by default flag, with lazy loading and lightbox
+4. Admin can upload images, edit metadata, set default, delete
+5. Migration script processes all 6,531 existing images with progress tracking
+6. All served images are WebP format, significantly smaller than current JPG output

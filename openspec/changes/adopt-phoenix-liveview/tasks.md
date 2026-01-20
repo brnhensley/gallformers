@@ -181,21 +181,21 @@ Build one page at a time, deploy after each, verify visual parity.
 
 ## 8. ID Tool (LiveView)
 
-- [x] 8.1 Create `IDLive` with filter form
-- [x] 8.2 Implement `handle_params` for URL-based filter state
-- [x] 8.3 Implement filter change handlers with `push_patch`
-- [x] 8.4 Create results grid component
-- [x] 8.5 Implement host picker (LiveView typeahead)
-- [x] 8.6 Implement genus picker (LiveView typeahead)
-- [x] 8.7 Port all filter options (color, shape, texture, location, etc.)
-- [x] 8.8 Test back/forward navigation preserves filters
+- [ ] 8.1 Create `IDLive` with filter form
+- [ ] 8.2 Implement `handle_params` for URL-based filter state
+- [ ] 8.3 Implement filter change handlers with `push_patch`
+- [ ] 8.4 Create results grid component
+- [ ] 8.5 Implement host picker (LiveView typeahead)
+- [ ] 8.6 Implement genus picker (LiveView typeahead)
+- [ ] 8.7 Port all filter options (color, shape, texture, location, etc.)
+- [ ] 8.8 Test back/forward navigation preserves filters
 
-## 9. Explore Page (LiveView) ✅
+## 9. Explore Page (LiveView)
 
-- [x] 9.1 Create `ExploreLive` with browse options
-- [x] 9.2 Implement browse-by-family
-- [x] 9.3 Implement browse-by-host
-- [x] 9.4 Tree expand/collapse handles large datasets (no pagination needed)
+- [ ] 9.1 Create `ExploreLive` with browse options
+- [ ] 9.2 Implement browse-by-family
+- [ ] 9.3 Implement browse-by-host
+- [ ] 9.4 Add pagination for large result sets
 
 ## 10. Range Map (JS Hook)
 
@@ -209,44 +209,41 @@ Build one page at a time, deploy after each, verify visual parity.
 
 ## 11. Admin Pages (LiveView)
 
-### 11.1 Admin Foundation ✅
-- [x] 11.1.1 Configure Auth0 with ueberauth_auth0
-- [x] 11.1.2 Create `Gallformers.Accounts` context
-- [x] 11.1.3 Create admin authentication plugs
-- [x] 11.1.4 Create admin layout with navigation
-- [x] 11.1.5 Create `AdminDashboardLive`
+### 11.1 Admin Foundation
+- [ ] 11.1.1 Configure Auth0 with ueberauth_auth0
+- [ ] 11.1.2 Create `Gallformers.Accounts` context
+- [ ] 11.1.3 Create admin authentication plugs
+- [ ] 11.1.4 Create admin layout with navigation
+- [ ] 11.1.5 Create `AdminDashboardLive`
 
-### 11.2 Species Admin ✅
-- [x] 11.2.1 Create `Admin.SpeciesLive.Index` with listing and search
-- [x] 11.2.2 Create `Admin.SpeciesLive.Form` for create/edit
-- [x] 11.2.3 Implement changeset validation with error display
-- [x] 11.2.4 Create alias/synonym editor (LiveView list management)
-- [x] 11.2.5 Create host association editor
-- [x] 11.2.6 Add PubSub broadcast on save
+### 11.2 Species Admin
+- [ ] 11.2.1 Create `Admin.SpeciesLive.Index` with listing and search
+- [ ] 11.2.2 Create `Admin.SpeciesLive.Form` for create/edit
+- [ ] 11.2.3 Implement changeset validation with error display
+- [ ] 11.2.4 Create alias/synonym editor (LiveView list management)
+- [ ] 11.2.5 Create host association editor
+- [ ] 11.2.6 Add PubSub broadcast on save
 
-### 11.3 Host Admin ✅
-- [x] 11.3.1 Create `Admin.HostLive.Index`
-- [x] 11.3.2 Create `Admin.HostLive.Form`
-- [x] 11.3.3 Add PubSub broadcast on save
+### 11.3 Host Admin
+- [ ] 11.3.1 Create `Admin.HostLive.Index`
+- [ ] 11.3.2 Create `Admin.HostLive.Form`
+- [ ] 11.3.3 Add PubSub broadcast on save
 
-### 11.4 Taxonomy Admin ✅
-- [x] 11.4.1 Create `Admin.TaxonomyLive.Index`
-- [x] 11.4.2 Create `Admin.TaxonomyLive.Form`
-- [x] 11.4.3 Handle parent taxonomy selection (hierarchical picker)
+### 11.4 Taxonomy Admin
+- [ ] 11.4.1 Create `Admin.TaxonomyLive.Index`
+- [ ] 11.4.2 Create `Admin.TaxonomyLive.Form`
+- [ ] 11.4.3 Handle parent taxonomy selection
 
-### 11.5 Other Admin Pages ✅
-- [x] 11.5.1 Create source admin pages (index + form)
-- [x] 11.5.2 Create glossary admin pages (index + form)
-- [x] 11.5.3 Create place admin pages (index + form)
-- [x] 11.5.4 Create super admin filter terms pages (index + form)
-- [x] 11.5.5 Add superadmin authorization and nav separation
-- [x] 11.5.6 Move Places and Filter Terms to superadmin-only routes
+### 11.5 Other Admin Pages
+- [ ] 11.5.1 Create source admin pages
+- [ ] 11.5.2 Create glossary admin pages
+- [ ] 11.5.3 Create place admin pages
 
-### 11.6 Image Management ✅
-- [x] 11.6.1 Create `ImageUpload` hook for drag-drop upload
-- [x] 11.6.2 Implement S3 upload flow (presigned URLs)
-- [x] 11.6.3 Create image reordering with LiveView
-- [x] 11.6.4 Implement image deletion with confirmation
+### 11.6 Image Management
+- [ ] 11.6.1 Create `ImageUpload` hook for drag-drop upload
+- [ ] 11.6.2 Implement S3 upload flow (presigned URLs)
+- [ ] 11.6.3 Create image reordering with LiveView
+- [ ] 11.6.4 Implement image deletion with confirmation
 
 ## 12. Real-time Updates (PubSub)
 
@@ -256,61 +253,65 @@ Build one page at a time, deploy after each, verify visual parity.
 - [ ] 12.4 Handle `:entity_updated` messages to refresh assigns
 - [ ] 12.5 Test admin edit → public page auto-update
 
-## 13. Public API ✅
+## 13. Public API
 
-### 13.1 API Foundation ✅
-- [x] 13.1.1 Create API router scope with JSON pipeline
-- [x] 13.1.2 Configure CORS for API routes
-- [x] 13.1.3 Create API error view (JSON format per v2_old pattern)
+### 13.1 API Foundation
+- [ ] 13.1.1 Create API router scope with JSON pipeline
+- [ ] 13.1.2 Configure CORS for API routes
+- [ ] 13.1.3 Create API error view (JSON format per v2_old pattern)
 
-### 13.2 Public Read Endpoints ✅
+### 13.2 Public Read Endpoints
 Port endpoints matching v2_old patterns (see `v2_old/api/internal/handlers/`):
 
-- [x] 13.2.1 GET /api/v2/species (list with pagination)
-- [x] 13.2.2 GET /api/v2/species/:id
-- [x] 13.2.3 GET /api/v2/galls (list with filtering)
-- [x] 13.2.4 GET /api/v2/galls/:id
-- [x] 13.2.5 GET /api/v2/galls/random (home page feature)
-- [x] 13.2.6 GET /api/v2/galls/id (ID tool filtering)
-- [x] 13.2.7 GET /api/v2/galls/:id/images
-- [x] 13.2.8 GET /api/v2/galls/:id/related
-- [x] 13.2.9 GET /api/v2/hosts (list with pagination)
-- [x] 13.2.10 GET /api/v2/hosts/:id
-- [x] 13.2.11 GET /api/v2/taxonomy/:id
-- [x] 13.2.12 GET /api/v2/sources (list with pagination)
-- [x] 13.2.13 GET /api/v2/sources/:id
-- [x] 13.2.14 GET /api/v2/families, /api/v2/families/:id
-- [x] 13.2.15 GET /api/v2/glossary
-- [x] 13.2.16 GET /api/v2/glossary/:id
-- [x] 13.2.17 GET /api/v2/glossary/by-word/:word
-- [x] 13.2.18 GET /api/v2/places
-- [x] 13.2.19 GET /api/v2/places/:id
-- [x] 13.2.20 GET /api/v2/genera/:id, /api/v2/sections/:id
-- [x] 13.2.21 GET /api/v2/filter-fields
-- [x] 13.2.22 GET /api/v2/search
-- [x] 13.2.23 GET /api/v2/explore
-- [x] 13.2.24 GET /api/v2/stats
+- [ ] 13.2.1 GET /api/v2/species (list with pagination)
+- [ ] 13.2.2 GET /api/v2/species/:id
+- [ ] 13.2.3 GET /api/v2/galls (list with filtering)
+- [ ] 13.2.4 GET /api/v2/galls/:id
+- [ ] 13.2.5 GET /api/v2/galls/random (home page feature)
+- [ ] 13.2.6 GET /api/v2/galls/id (ID tool filtering)
+- [ ] 13.2.7 GET /api/v2/galls/:id/images
+- [ ] 13.2.8 GET /api/v2/galls/:id/related
+- [ ] 13.2.9 GET /api/v2/hosts (list with pagination)
+- [ ] 13.2.10 GET /api/v2/hosts/:id
+- [ ] 13.2.11 GET /api/v2/taxonomy
+- [ ] 13.2.12 GET /api/v2/sources (list with pagination)
+- [ ] 13.2.13 GET /api/v2/sources/:id
+- [ ] 13.2.14 GET /api/v2/sources/by-title/:title
+- [ ] 13.2.15 GET /api/v2/glossary
+- [ ] 13.2.16 GET /api/v2/glossary/:id
+- [ ] 13.2.17 GET /api/v2/glossary/by-word/:word
+- [ ] 13.2.18 GET /api/v2/places
+- [ ] 13.2.19 GET /api/v2/places/:id
+- [ ] 13.2.20 GET /api/v2/places/by-name/:name
+- [ ] 13.2.21 GET /api/v2/filter-fields (list types)
+- [ ] 13.2.22 GET /api/v2/filter-fields/:type
+- [ ] 13.2.23 GET /api/v2/filter-fields/:type/:id
+- [ ] 13.2.24 GET /api/v2/speciessources
+- [ ] 13.2.25 GET /api/v2/gallhosts
+- [ ] 13.2.26 GET /api/v2/search
+- [ ] 13.2.27 GET /api/v2/explore
+- [ ] 13.2.28 GET /api/v2/stats
 
-### 13.3 API Documentation ✅
-- [x] 13.3.1 Add open_api_spex dependency
-- [x] 13.3.2 Define OpenAPI schemas for all response types
-- [x] 13.3.3 Create ApiSpec module for OpenAPI configuration
-- [x] 13.3.4 Serve Swagger UI at /api/docs
-- [x] 13.3.5 Serve openapi.json at /api/docs/openapi.json
+### 13.3 API Documentation
+- [ ] 13.3.1 Add open_api_spex dependency
+- [ ] 13.3.2 Define OpenAPI schemas for all response types
+- [ ] 13.3.3 Add OpenAPI operation specs to controllers
+- [ ] 13.3.4 Serve Swagger UI at /api/docs (with testable endpoints)
+- [ ] 13.3.5 Serve openapi.json at /api/docs/openapi.json
 
-### 13.4 Rate Limiting ✅
-- [x] 13.4.1 Add Hammer rate limiting library
-- [x] 13.4.2 Configure limits: 100 req/min for public reads
-- [x] 13.4.3 Return 429 with Retry-After header when exceeded
+### 13.4 Rate Limiting
+- [ ] 13.4.1 Add rate limiting library (Hammer or ExRated)
+- [ ] 13.4.2 Configure limits: 100 req/min for public reads
+- [ ] 13.4.3 Return 429 with Retry-After header when exceeded
 
-## 14. SEO ✅
+## 14. SEO
 
-- [x] 14.1 Create `meta_tags` component for title, description, canonical
-- [x] 14.2 Create `og_tags` component for Open Graph
-- [x] 14.3 Add meta tags to all public pages
-- [x] 14.4 Create `/sitemap.xml` route with all public URLs
-- [x] 14.5 Create `/robots.txt` (allow public, disallow admin)
-- [x] 14.6 Add JSON-LD structured data to species pages
+- [ ] 14.1 Create `meta_tags` component for title, description, canonical
+- [ ] 14.2 Create `og_tags` component for Open Graph
+- [ ] 14.3 Add meta tags to all public pages
+- [ ] 14.4 Create `/sitemap.xml` route with all public URLs
+- [ ] 14.5 Create `/robots.txt` (allow public, disallow admin)
+- [ ] 14.6 Add JSON-LD structured data to species pages
 
 ## 15. Markdown & Glossary
 
@@ -320,29 +321,29 @@ Port endpoints matching v2_old patterns (see `v2_old/api/internal/handlers/`):
 - [x] 15.4 Cache compiled markdown in ETS or process state
 - [x] 15.5 Test markdown rendering in source descriptions
 
-## 16. Testing ✅
+## 16. Testing
 
-### 16.1 Unit Tests ✅
-- [x] 16.1.1 Test Ecto schemas and changesets
-- [x] 16.1.2 Test context functions
-- [x] 16.1.3 Test markdown processing
-- [x] 16.1.4 Test glossary linking
+### 16.1 Unit Tests
+- [ ] 16.1.1 Test Ecto schemas and changesets
+- [ ] 16.1.2 Test context functions
+- [ ] 16.1.3 Test markdown processing
+- [ ] 16.1.4 Test glossary linking
 
-### 16.2 LiveView Tests ✅
-- [x] 16.2.1 Test public page LiveViews render correctly
-- [x] 16.2.2 Test search LiveView events
-- [x] 16.2.3 Test ID tool filter events
-- [x] 16.2.4 Test admin form submission
+### 16.2 LiveView Tests
+- [ ] 16.2.1 Test public page LiveViews render correctly
+- [ ] 16.2.2 Test search LiveView events
+- [ ] 16.2.3 Test ID tool filter events
+- [ ] 16.2.4 Test admin form submission
 
-### 16.3 Integration Tests ✅
-- [x] 16.3.1 Test full page load flows
-- [x] 16.3.2 Test authentication flow
-- [x] 16.3.3 Test PubSub broadcast → LiveView update
+### 16.3 Integration Tests
+- [ ] 16.3.1 Test full page load flows
+- [ ] 16.3.2 Test authentication flow
+- [ ] 16.3.3 Test PubSub broadcast → LiveView update
 
-### 16.4 API Tests ✅
-- [x] 16.4.1 Test API endpoints return correct JSON
-- [x] 16.4.2 Test API error responses
-- [x] 16.4.3 Test CORS headers
+### 16.4 API Tests
+- [ ] 16.4.1 Test API endpoints return correct JSON
+- [ ] 16.4.2 Test API error responses
+- [ ] 16.4.3 Test CORS headers
 
 ## 17. Visual Parity Verification
 
