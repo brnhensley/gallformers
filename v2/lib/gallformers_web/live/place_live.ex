@@ -138,11 +138,9 @@ defmodule GallformersWeb.PlaceLive do
               </div>
 
               <%!-- Parent info --%>
-              <%= if @parent do %>
-                <p class="text-gray-600">
-                  {format_parent_info(@place, @parent)}
-                </p>
-              <% end %>
+              <p :if={@parent} class="text-gray-600">
+                {format_parent_info(@place, @parent)}
+              </p>
             </div>
 
             <%!-- Hosts list --%>
@@ -159,18 +157,16 @@ defmodule GallformersWeb.PlaceLive do
                       </tr>
                     </thead>
                     <tbody>
-                      <%= for host <- @hosts do %>
-                        <tr>
-                          <td>
-                            <.link
-                              href={"/host/#{host.id}"}
-                              class="hover:underline"
-                            >
-                              <em>{host.name}</em>
-                            </.link>
-                          </td>
-                        </tr>
-                      <% end %>
+                      <tr :for={host <- @hosts}>
+                        <td>
+                          <.link
+                            href={"/host/#{host.id}"}
+                            class="hover:underline"
+                          >
+                            <em>{host.name}</em>
+                          </.link>
+                        </td>
+                      </tr>
                     </tbody>
                   </table>
                 </div>

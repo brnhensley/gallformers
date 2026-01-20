@@ -365,11 +365,9 @@ defmodule GallformersWeb.Admin.GallhostLive do
                   on_close="close_host_dropdown"
                   size="md"
                 />
-                <%= if @hosts == [] do %>
-                  <p class="text-red-600 text-xs mt-1">
-                    You must map this gall to at least one host.
-                  </p>
-                <% end %>
+                <p :if={@hosts == []} class="text-red-600 text-xs mt-1">
+                  You must map this gall to at least one host.
+                </p>
               <% else %>
                 <label class="gf-label">Hosts:</label>
                 <div class="flex flex-wrap gap-1 p-2 border border-gray-200 bg-gray-50 rounded min-h-[42px]">
@@ -478,33 +476,29 @@ defmodule GallformersWeb.Admin.GallhostLive do
             </div>
 
             <%!-- Range Info --%>
-            <%= if @selected_gall do %>
-              <div class="text-sm text-gray-600 mb-4">
-                <span class="font-medium">Range summary:</span>
-                {length(@in_range)} places in range, {length(@excluded_places)} excluded, {length(
-                  @host_places
-                )} total from hosts
-              </div>
-            <% end %>
+            <div :if={@selected_gall} class="text-sm text-gray-600 mb-4">
+              <span class="font-medium">Range summary:</span>
+              {length(@in_range)} places in range, {length(@excluded_places)} excluded, {length(
+                @host_places
+              )} total from hosts
+            </div>
 
             <%!-- Actions --%>
             <div class="flex justify-between items-center pt-3 border-t border-gray-200">
-              <div>
-                <%= if @selected_gall do %>
-                  <.link
-                    navigate={~p"/gall/#{@selected_gall.id}"}
-                    class="text-sm hover:underline"
-                  >
-                    View public page
-                  </.link>
-                  <span class="mx-2 text-gray-300">|</span>
-                  <.link
-                    navigate={~p"/admin/galls/#{@selected_gall.id}"}
-                    class="text-sm hover:underline"
-                  >
-                    Edit gall details
-                  </.link>
-                <% end %>
+              <div :if={@selected_gall}>
+                <.link
+                  navigate={~p"/gall/#{@selected_gall.id}"}
+                  class="text-sm hover:underline"
+                >
+                  View public page
+                </.link>
+                <span class="mx-2 text-gray-300">|</span>
+                <.link
+                  navigate={~p"/admin/galls/#{@selected_gall.id}"}
+                  class="text-sm hover:underline"
+                >
+                  Edit gall details
+                </.link>
               </div>
               <div>
                 <.link

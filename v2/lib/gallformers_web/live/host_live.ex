@@ -204,14 +204,8 @@ defmodule GallformersWeb.HostLive do
 
   defp sort_indicator(assigns) do
     ~H"""
-    <span class="text-gray-400 text-xs">
-      <%= if @sort_by == @field do %>
-        <%= if @sort_dir == :asc do %>
-          ▲
-        <% else %>
-          ▼
-        <% end %>
-      <% end %>
+    <span :if={@sort_by == @field} class="text-gray-400 text-xs">
+      {if @sort_dir == :asc, do: "▲", else: "▼"}
     </span>
     """
   end
@@ -253,52 +247,46 @@ defmodule GallformersWeb.HostLive do
                 />
               </div>
 
-              <%= if @taxonomy do %>
-                <p>
-                  <strong>Family:</strong>
-                  <.link
-                    href={"/family/#{@taxonomy.family_id}"}
-                    class="hover:underline"
-                  >
-                    {@taxonomy.family}
-                  </.link>
-                  <%= if @taxonomy.section do %>
-                    <span class="mx-1">|</span>
-                    <strong>Section:</strong>
-                    <.link
-                      href={"/section/#{@taxonomy.section_id}"}
-                      class="hover:underline"
-                    >
-                      <em>{@taxonomy.section}</em>
-                    </.link>
-                  <% end %>
+              <p :if={@taxonomy}>
+                <strong>Family:</strong>
+                <.link
+                  href={"/family/#{@taxonomy.family_id}"}
+                  class="hover:underline"
+                >
+                  {@taxonomy.family}
+                </.link>
+                <span :if={@taxonomy.section}>
                   <span class="mx-1">|</span>
-                  <strong>Genus:</strong>
+                  <strong>Section:</strong>
                   <.link
-                    href={"/genus/#{@taxonomy.genus_id}"}
+                    href={"/section/#{@taxonomy.section_id}"}
                     class="hover:underline"
                   >
-                    <em>{@taxonomy.genus}</em>
+                    <em>{@taxonomy.section}</em>
                   </.link>
-                </p>
-              <% end %>
+                </span>
+                <span class="mx-1">|</span>
+                <strong>Genus:</strong>
+                <.link
+                  href={"/genus/#{@taxonomy.genus_id}"}
+                  class="hover:underline"
+                >
+                  <em>{@taxonomy.genus}</em>
+                </.link>
+              </p>
 
-              <%= if @host.abundance_name do %>
-                <p><strong>Abundance:</strong> {@host.abundance_name}</p>
-              <% end %>
+              <p :if={@host.abundance_name}><strong>Abundance:</strong> {@host.abundance_name}</p>
 
-              <%= if @host.aliases && length(@host.aliases) > 0 do %>
-                <div>
-                  <strong>Also known as:</strong>
-                  <span class="text-gray-700">
-                    <%= for {a, i} <- Enum.with_index(@host.aliases) do %>
-                      <em>{a.name}</em>{if a.type, do: " (#{a.type})"}{if i <
-                                                                            length(@host.aliases) - 1,
-                                                                          do: ", "}
-                    <% end %>
+              <div :if={@host.aliases && length(@host.aliases) > 0}>
+                <strong>Also known as:</strong>
+                <span class="text-gray-700">
+                  <span :for={{a, i} <- Enum.with_index(@host.aliases)}>
+                    <em>{a.name}</em>{if a.type, do: " (#{a.type})"}{if i <
+                                                                          length(@host.aliases) - 1,
+                                                                        do: ", "}
                   </span>
-                </div>
-              <% end %>
+                </span>
+              </div>
 
               <div class="pt-2">
                 <%= if length(@host.galls) > 0 do %>
@@ -334,69 +322,75 @@ defmodule GallformersWeb.HostLive do
                         </tr>
                       </thead>
                       <tbody>
-                        <%= for gall <- paginated_galls(sorted_galls(@host.galls, @sort_by, @sort_dir), @current_page, @page_size) do %>
-                          <tr>
-                            <td>
-                              <.link
-                                href={"/gall/#{gall.id}"}
-                                class="hover:underline"
-                              >
-                                <em>{gall.name}</em>
-                              </.link>
-                            </td>
-                            <td class="text-center">
-                              <%= if gall.datacomplete in [true, 1] do %>
-                                <span class="text-green-600">
-                                  <.icon name="ph-check" class="size-5 inline-block" />
-                                </span>
-                              <% else %>
-                                <span class="text-red-500">
-                                  <.icon name="ph-x" class="size-5 inline-block" />
-                                </span>
-                              <% end %>
-                            </td>
-                            <td :if={@current_user} class="text-center">
-                              <.link
-                                href={~p"/admin/gallhost?id=#{gall.id}"}
-                                class="text-gray-400 hover:text-gf-maroon"
-                                title="Edit gall-host mappings"
-                              >
-                                <.icon name="ph-pencil-simple" class="h-4 w-4" />
-                              </.link>
-                            </td>
-                          </tr>
-                        <% end %>
+                        <tr :for={
+                          gall <-
+                            paginated_galls(
+                              sorted_galls(@host.galls, @sort_by, @sort_dir),
+                              @current_page,
+                              @page_size
+                            )
+                        }>
+                          <td>
+                            <.link
+                              href={"/gall/#{gall.id}"}
+                              class="hover:underline"
+                            >
+                              <em>{gall.name}</em>
+                            </.link>
+                          </td>
+                          <td class="text-center">
+                            <%= if gall.datacomplete in [true, 1] do %>
+                              <span class="text-green-600">
+                                <.icon name="ph-check" class="size-5 inline-block" />
+                              </span>
+                            <% else %>
+                              <span class="text-red-500">
+                                <.icon name="ph-x" class="size-5 inline-block" />
+                              </span>
+                            <% end %>
+                          </td>
+                          <td :if={@current_user} class="text-center">
+                            <.link
+                              href={~p"/admin/gallhost?id=#{gall.id}"}
+                              class="text-gray-400 hover:text-gf-maroon"
+                              title="Edit gall-host mappings"
+                            >
+                              <.icon name="ph-pencil-simple" class="h-4 w-4" />
+                            </.link>
+                          </td>
+                        </tr>
                       </tbody>
                     </table>
-                    <%= if total_pages(@host.galls, @page_size) > 1 do %>
-                      <div class="flex items-center justify-between px-3 py-1 bg-white border-t border-gray-200">
-                        <div class="text-sm">
-                          {(@current_page - 1) * @page_size + 1}-{min(
-                            @current_page * @page_size,
-                            length(@host.galls)
-                          )} of {length(@host.galls)}
-                        </div>
-                        <div class="flex items-center gap-2">
-                          <button
-                            class="px-2 py-0.5 text-sm border rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                            disabled={@current_page == 1}
-                            phx-click="prev_page"
-                          >
-                            Previous
-                          </button>
-                          <span class="text-sm">
-                            Page {@current_page} of {total_pages(@host.galls, @page_size)}
-                          </span>
-                          <button
-                            class="px-2 py-0.5 text-sm border rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                            disabled={@current_page == total_pages(@host.galls, @page_size)}
-                            phx-click="next_page"
-                          >
-                            Next
-                          </button>
-                        </div>
+                    <div
+                      :if={total_pages(@host.galls, @page_size) > 1}
+                      class="flex items-center justify-between px-3 py-1 bg-white border-t border-gray-200"
+                    >
+                      <div class="text-sm">
+                        {(@current_page - 1) * @page_size + 1}-{min(
+                          @current_page * @page_size,
+                          length(@host.galls)
+                        )} of {length(@host.galls)}
                       </div>
-                    <% end %>
+                      <div class="flex items-center gap-2">
+                        <button
+                          class="px-2 py-0.5 text-sm border rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                          disabled={@current_page == 1}
+                          phx-click="prev_page"
+                        >
+                          Previous
+                        </button>
+                        <span class="text-sm">
+                          Page {@current_page} of {total_pages(@host.galls, @page_size)}
+                        </span>
+                        <button
+                          class="px-2 py-0.5 text-sm border rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                          disabled={@current_page == total_pages(@host.galls, @page_size)}
+                          phx-click="next_page"
+                        >
+                          Next
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 <% else %>
                   <p class="italic">No galls recorded for this host.</p>
@@ -423,92 +417,89 @@ defmodule GallformersWeb.HostLive do
 
           <hr class="border-gray-200 my-4" />
 
-          <%= if @has_gallformers_notes && !@notes_alert_dismissed do %>
-            <div
-              class="flex items-center gap-3 p-3 mb-4 bg-white border border-blue-200 border-l-4 border-l-blue-400 rounded text-sm text-gray-700"
-              role="alert"
+          <div
+            :if={@has_gallformers_notes && !@notes_alert_dismissed}
+            class="flex items-center gap-3 p-3 mb-4 bg-white border border-blue-200 border-l-4 border-l-blue-400 rounded text-sm text-gray-700"
+            role="alert"
+          >
+            <.icon name="ph-info" class="h-5 w-5 text-blue-500 shrink-0" />
+            <p class="flex-1">
+              Our ID Notes may contain important tips necessary for distinguishing this host
+              from similar plants and/or important information about its taxonomy.
+            </p>
+            <button
+              type="button"
+              class="text-gray-400 hover:text-gray-600"
+              phx-click="dismiss_notes_alert"
+              aria-label="Dismiss"
             >
-              <.icon name="ph-info" class="h-5 w-5 text-blue-500 shrink-0" />
-              <p class="flex-1">
-                Our ID Notes may contain important tips necessary for distinguishing this host
-                from similar plants and/or important information about its taxonomy.
-              </p>
-              <button
-                type="button"
-                class="text-gray-400 hover:text-gray-600"
-                phx-click="dismiss_notes_alert"
-                aria-label="Dismiss"
-              >
-                <.icon name="ph-x" class="h-4 w-4" />
-              </button>
-            </div>
-          <% end %>
+              <.icon name="ph-x" class="h-4 w-4" />
+            </button>
+          </div>
 
           <%= if length(@sources) > 0 do %>
             <h3 class="font-semibold mb-2">Further Information ({length(@sources)})</h3>
             <div class="space-y-2">
-              <%= for source <- @sources do %>
-                <div class={"p-3 rounded border bg-white #{if source.id == 58, do: "border-blue-200 border-l-4 border-l-blue-400", else: "border-gray-200"}"}>
-                  <div>
-                    <%= if source.id == 58 do %>
-                      <.icon
-                        name="ph-info"
-                        class="h-5 w-5 text-blue-500 inline-block align-text-bottom mr-1"
-                      />
-                    <% end %>
-                    <.link
-                      href={"/source/#{source.id}"}
-                      class="font-medium hover:underline"
-                    >
-                      {source.title}
-                    </.link>
-                    {if source.author, do: " - #{source.author}"}
-                    {if source.pubyear, do: " (#{source.pubyear})"}
-                    <%= if source.externallink do %>
-                      <.link
-                        href={source.externallink}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="ml-2 hover:underline"
-                      >
-                        [Link]
-                      </.link>
-                    <% end %>
-                    <.link
-                      :if={@current_user}
-                      href={
-                        ~p"/admin/species-sources/find?species_id=#{@host.id}&source_id=#{source.id}"
-                      }
-                      class="ml-2 text-gray-400 hover:text-gf-maroon"
-                      title="Edit species-source mapping"
-                    >
-                      <.icon name="ph-pencil-simple" class="h-4 w-4 inline-block align-text-bottom" />
-                    </.link>
-                  </div>
-                  <%= if source.description do %>
-                    <div class="mt-1 text-gray-700 [&_p]:mb-2 [&_a]:text-gf-maroon [&_a]:underline">
-                      {Phoenix.HTML.raw(Markdown.render!(source.description))}
-                    </div>
-                  <% end %>
-                  <%= if source.license do %>
-                    <p class="mt-1 text-sm text-gray-500">
-                      License:
-                      <%= if source.licenselink do %>
-                        <.link
-                          href={source.licenselink}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          class="hover:underline"
-                        >
-                          {source.license}
-                        </.link>
-                      <% else %>
-                        {source.license}
-                      <% end %>
-                    </p>
-                  <% end %>
+              <div
+                :for={source <- @sources}
+                class={"p-3 rounded border bg-white #{if source.id == 58, do: "border-blue-200 border-l-4 border-l-blue-400", else: "border-gray-200"}"}
+              >
+                <div>
+                  <.icon
+                    :if={source.id == 58}
+                    name="ph-info"
+                    class="h-5 w-5 text-blue-500 inline-block align-text-bottom mr-1"
+                  />
+                  <.link
+                    href={"/source/#{source.id}"}
+                    class="font-medium hover:underline"
+                  >
+                    {source.title}
+                  </.link>
+                  {if source.author, do: " - #{source.author}"}
+                  {if source.pubyear, do: " (#{source.pubyear})"}
+                  <.link
+                    :if={source.externallink}
+                    href={source.externallink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="ml-2 hover:underline"
+                  >
+                    [Link]
+                  </.link>
+                  <.link
+                    :if={@current_user}
+                    href={
+                      ~p"/admin/species-sources/find?species_id=#{@host.id}&source_id=#{source.id}"
+                    }
+                    class="ml-2 text-gray-400 hover:text-gf-maroon"
+                    title="Edit species-source mapping"
+                  >
+                    <.icon name="ph-pencil-simple" class="h-4 w-4 inline-block align-text-bottom" />
+                  </.link>
                 </div>
-              <% end %>
+                <div
+                  :if={source.description}
+                  class="mt-1 text-gray-700 [&_p]:mb-2 [&_a]:text-gf-maroon [&_a]:underline"
+                >
+                  {Phoenix.HTML.raw(Markdown.render!(source.description))}
+                </div>
+                <p :if={source.license} class="mt-1 text-sm text-gray-500">
+                  License:
+                  <%= if source.licenselink do %>
+                    <.link
+                      href={source.licenselink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="hover:underline"
+                    >
+                      {source.license}
+                    </.link>
+                  <% else %>
+                    {source.license}
+                  <% end %>
+                </p>
+              </div>
             </div>
           <% else %>
             <p class="italic">No further information available for this species.</p>

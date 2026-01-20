@@ -163,24 +163,25 @@ defmodule GallformersWeb.RefArticleLive do
           </div>
         <% else %>
           <%!-- Draft preview banner --%>
-          <%= if @is_draft_preview do %>
-            <div class="mb-6 px-4 py-3 bg-yellow-100 border border-yellow-300 rounded-lg">
-              <div class="flex items-center gap-2 text-yellow-800">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                  />
-                </svg>
-                <span class="font-medium">Draft Preview</span>
-                <span class="text-sm">
-                  — This article is not published and only visible to administrators.
-                </span>
-              </div>
+          <div
+            :if={@is_draft_preview}
+            class="mb-6 px-4 py-3 bg-yellow-100 border border-yellow-300 rounded-lg"
+          >
+            <div class="flex items-center gap-2 text-yellow-800">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                />
+              </svg>
+              <span class="font-medium">Draft Preview</span>
+              <span class="text-sm">
+                — This article is not published and only visible to administrators.
+              </span>
             </div>
-          <% end %>
+          </div>
 
           <%!-- Back link --%>
           <div class="mb-6">
@@ -207,24 +208,19 @@ defmodule GallformersWeb.RefArticleLive do
               <span>By {@article.author}</span>
               <span>•</span>
               <span>{format_date(display_date(@article))}</span>
-              <%= if @article.updated_at != @article.inserted_at do %>
-                <span class="text-sm text-gray-500">
-                  (Updated {format_date(@article.updated_at)})
-                </span>
-              <% end %>
+              <span :if={@article.updated_at != @article.inserted_at} class="text-sm text-gray-500">
+                (Updated {format_date(@article.updated_at)})
+              </span>
             </div>
-            <%= if @article.tags != [] do %>
-              <div class="flex flex-wrap gap-2 mt-4">
-                <%= for tag <- @article.tags do %>
-                  <.link
-                    href={~p"/refindex?tag=#{tag}"}
-                    class="px-3 py-1 bg-gray-100 text-gray-700 text-sm rounded-full hover:bg-gray-200 transition-colors"
-                  >
-                    {tag}
-                  </.link>
-                <% end %>
-              </div>
-            <% end %>
+            <div :if={@article.tags != []} class="flex flex-wrap gap-2 mt-4">
+              <.link
+                :for={tag <- @article.tags}
+                href={~p"/refindex?tag=#{tag}"}
+                class="px-3 py-1 bg-gray-100 text-gray-700 text-sm rounded-full hover:bg-gray-200 transition-colors"
+              >
+                {tag}
+              </.link>
+            </div>
           </header>
 
           <%!-- Article content --%>
@@ -233,22 +229,19 @@ defmodule GallformersWeb.RefArticleLive do
           </article>
 
           <%!-- Related articles --%>
-          <%= if @related_articles != [] do %>
-            <aside class="mt-12 pt-8 border-t border-gray-200">
-              <h2 class="text-xl font-semibold text-gray-800 mb-4">Related Articles</h2>
-              <div class="space-y-4">
-                <%= for related <- @related_articles do %>
-                  <.link
-                    navigate={~p"/ref/#{related.slug}"}
-                    class="block p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-                  >
-                    <h3 class="font-medium hover:underline">{related.title}</h3>
-                    <p class="text-sm text-gray-500 mt-1">By {related.author}</p>
-                  </.link>
-                <% end %>
-              </div>
-            </aside>
-          <% end %>
+          <aside :if={@related_articles != []} class="mt-12 pt-8 border-t border-gray-200">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">Related Articles</h2>
+            <div class="space-y-4">
+              <.link
+                :for={related <- @related_articles}
+                navigate={~p"/ref/#{related.slug}"}
+                class="block p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                <h3 class="font-medium hover:underline">{related.title}</h3>
+                <p class="text-sm text-gray-500 mt-1">By {related.author}</p>
+              </.link>
+            </div>
+          </aside>
         <% end %>
       </div>
     </Layouts.app>

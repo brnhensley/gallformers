@@ -264,121 +264,128 @@ defmodule GallformersWeb.Admin.SpeciesSourceLive.QuickFind do
                 <p class="text-gray-500 italic py-4">No mappings found matching your search.</p>
               <% else %>
                 <div class="space-y-2">
-                  <%= for result <- @results do %>
-                    <div class={[
+                  <div
+                    :for={result <- @results}
+                    class={[
                       "border rounded",
                       @editing_id == result.id && "border-gf-maroon bg-amber-50",
                       @editing_id != result.id && "border-gray-200 hover:border-gray-300"
-                    ]}>
-                      <%!-- Result Header (always visible) --%>
-                      <div
-                        class={[
-                          "px-4 py-3 cursor-pointer",
-                          @editing_id != result.id && "hover:bg-gray-50"
-                        ]}
-                        phx-click="edit"
-                        phx-value-id={result.id}
-                      >
-                        <div class="flex justify-between items-start">
-                          <div class="flex-1">
-                            <div class="font-medium text-gray-900 italic">
-                              {result.species_name}
-                            </div>
-                            <div class="text-sm text-gray-600">
-                              {result.source_title}
-                              <span class="text-gray-400">
-                                ({result.source_author}, {result.source_pubyear})
-                              </span>
-                            </div>
-                            <%= if result.description && result.description != "" && @editing_id != result.id do %>
-                              <div class="text-sm text-gray-500 mt-1">
-                                {truncate_description(result.description)}
-                              </div>
-                            <% end %>
+                    ]}
+                  >
+                    <%!-- Result Header (always visible) --%>
+                    <div
+                      class={[
+                        "px-4 py-3 cursor-pointer",
+                        @editing_id != result.id && "hover:bg-gray-50"
+                      ]}
+                      phx-click="edit"
+                      phx-value-id={result.id}
+                    >
+                      <div class="flex justify-between items-start">
+                        <div class="flex-1">
+                          <div class="font-medium text-gray-900 italic">
+                            {result.species_name}
                           </div>
-                          <div class="flex items-center gap-2 ml-4">
-                            <%= if result.useasdefault == 1 do %>
-                              <span class="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded">
-                                default
-                              </span>
-                            <% end %>
-                            <span class="text-xs text-gray-400">{result.species_taxoncode}</span>
+                          <div class="text-sm text-gray-600">
+                            {result.source_title}
+                            <span class="text-gray-400">
+                              ({result.source_author}, {result.source_pubyear})
+                            </span>
                           </div>
+                          <div
+                            :if={
+                              result.description && result.description != "" &&
+                                @editing_id != result.id
+                            }
+                            class="text-sm text-gray-500 mt-1"
+                          >
+                            {truncate_description(result.description)}
+                          </div>
+                        </div>
+                        <div class="flex items-center gap-2 ml-4">
+                          <span
+                            :if={result.useasdefault == 1}
+                            class="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded"
+                          >
+                            default
+                          </span>
+                          <span class="text-xs text-gray-400">{result.species_taxoncode}</span>
                         </div>
                       </div>
-
-                      <%!-- Edit Form (shown when editing) --%>
-                      <%= if @editing_id == result.id do %>
-                        <div class="px-4 pb-4 border-t border-gray-200 bg-white">
-                          <.form
-                            for={@form}
-                            id={"edit-form-#{result.id}"}
-                            phx-change="validate"
-                            phx-submit="save"
-                            class="mt-4"
-                          >
-                            <div class="space-y-4">
-                              <div>
-                                <label class="gf-label">
-                                  Description:
-                                </label>
-                                <.input
-                                  field={@form[:description]}
-                                  type="textarea"
-                                  rows={5}
-                                  class="w-full"
-                                />
-                              </div>
-
-                              <div>
-                                <label class="gf-label">
-                                  External Link:
-                                </label>
-                                <.input
-                                  field={@form[:externallink]}
-                                  type="url"
-                                  placeholder="https://..."
-                                  class="w-full"
-                                />
-                              </div>
-
-                              <.input
-                                type="checkbox"
-                                field={@form[:useasdefault]}
-                                label="Use as default source for this species"
-                              />
-
-                              <div class="flex justify-between items-center pt-3 border-t border-gray-200">
-                                <button
-                                  type="button"
-                                  phx-click="delete"
-                                  data-confirm="Are you sure you want to delete this mapping?"
-                                  class="text-sm text-red-600 hover:text-red-800"
-                                >
-                                  Delete
-                                </button>
-                                <div class="flex gap-2">
-                                  <button
-                                    type="button"
-                                    phx-click="cancel_edit"
-                                    class="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800"
-                                  >
-                                    Cancel
-                                  </button>
-                                  <button
-                                    type="submit"
-                                    class="px-3 py-1.5 text-sm bg-gf-maroon text-white rounded hover:bg-gf-maroon/90"
-                                  >
-                                    Save
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-                          </.form>
-                        </div>
-                      <% end %>
                     </div>
-                  <% end %>
+
+                    <%!-- Edit Form (shown when editing) --%>
+                    <div
+                      :if={@editing_id == result.id}
+                      class="px-4 pb-4 border-t border-gray-200 bg-white"
+                    >
+                      <.form
+                        for={@form}
+                        id={"edit-form-#{result.id}"}
+                        phx-change="validate"
+                        phx-submit="save"
+                        class="mt-4"
+                      >
+                        <div class="space-y-4">
+                          <div>
+                            <label class="gf-label">
+                              Description:
+                            </label>
+                            <.input
+                              field={@form[:description]}
+                              type="textarea"
+                              rows={5}
+                              class="w-full"
+                            />
+                          </div>
+
+                          <div>
+                            <label class="gf-label">
+                              External Link:
+                            </label>
+                            <.input
+                              field={@form[:externallink]}
+                              type="url"
+                              placeholder="https://..."
+                              class="w-full"
+                            />
+                          </div>
+
+                          <.input
+                            type="checkbox"
+                            field={@form[:useasdefault]}
+                            label="Use as default source for this species"
+                          />
+
+                          <div class="flex justify-between items-center pt-3 border-t border-gray-200">
+                            <button
+                              type="button"
+                              phx-click="delete"
+                              data-confirm="Are you sure you want to delete this mapping?"
+                              class="text-sm text-red-600 hover:text-red-800"
+                            >
+                              Delete
+                            </button>
+                            <div class="flex gap-2">
+                              <button
+                                type="button"
+                                phx-click="cancel_edit"
+                                class="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                type="submit"
+                                class="px-3 py-1.5 text-sm bg-gf-maroon text-white rounded hover:bg-gf-maroon/90"
+                              >
+                                Save
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </.form>
+                    </div>
+                  </div>
                 </div>
               <% end %>
             <% else %>

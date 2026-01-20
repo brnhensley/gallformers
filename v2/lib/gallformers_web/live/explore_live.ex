@@ -201,31 +201,30 @@ defmodule GallformersWeb.ExploreLive do
         <%!-- Tabs --%>
         <div class="border-b border-gray-200 mb-4">
           <nav class="-mb-px flex space-x-8" aria-label="Tabs">
-            <%= for tab <- @tabs do %>
-              <button
-                phx-click="switch_tab"
-                phx-value-tab={tab}
-                class={[
-                  "whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg",
-                  if(@active_tab == tab,
-                    do: "border-gf-maroon text-gf-maroon",
-                    else: "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                  )
-                ]}
-                aria-current={if @active_tab == tab, do: "page", else: false}
-              >
-                {tab_label(tab)}
-                <span class={[
-                  "ml-2 py-0.5 px-2 rounded-full text-xs",
-                  if(@active_tab == tab,
-                    do: "bg-gf-maroon text-white",
-                    else: "bg-gray-100 text-gray-600"
-                  )
-                ]}>
-                  {tab_count(assigns, tab)}
-                </span>
-              </button>
-            <% end %>
+            <button
+              :for={tab <- @tabs}
+              phx-click="switch_tab"
+              phx-value-tab={tab}
+              class={[
+                "whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg",
+                if(@active_tab == tab,
+                  do: "border-gf-maroon text-gf-maroon",
+                  else: "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                )
+              ]}
+              aria-current={if @active_tab == tab, do: "page", else: false}
+            >
+              {tab_label(tab)}
+              <span class={[
+                "ml-2 py-0.5 px-2 rounded-full text-xs",
+                if(@active_tab == tab,
+                  do: "bg-gf-maroon text-white",
+                  else: "bg-gray-100 text-gray-600"
+                )
+              ]}>
+                {tab_count(assigns, tab)}
+              </span>
+            </button>
           </nav>
         </div>
 
@@ -327,46 +326,48 @@ defmodule GallformersWeb.ExploreLive do
   defp tree_menu(assigns) do
     ~H"""
     <ul class={["list-none", if(@level > 0, do: "ml-5", else: "")]}>
-      <%= for node <- @nodes do %>
-        <li class="py-1">
-          <%= if Map.has_key?(node, :nodes) and node.nodes != [] do %>
-            <%!-- Branch node (family or genus) --%>
-            <button
-              phx-click="toggle_node"
-              phx-value-key={node.key}
-              phx-value-tab={@tab}
-              class="flex items-center gap-1 text-left hover:text-gf-maroon focus:outline-none focus:text-gf-maroon"
-            >
-              <span class={[
-                "inline-block w-4 h-4 transition-transform",
-                if(MapSet.member?(@expanded, node.key), do: "rotate-90", else: "")
-              ]}>
-                <.icon name="ph-caret-right" class="w-4 h-4" />
-              </span>
-              <span class={[
-                "font-medium",
-                if(String.starts_with?(node.key, "f-"), do: "text-gf-maroon", else: "")
-              ]}>
-                {node.label}
-              </span>
-              <span class="text-xs text-gray-400 ml-1">
-                ({length(node.nodes)})
-              </span>
-            </button>
-            <%= if MapSet.member?(@expanded, node.key) do %>
-              <.tree_menu nodes={node.nodes} expanded={@expanded} tab={@tab} level={@level + 1} />
-            <% end %>
-          <% else %>
-            <%!-- Leaf node (species) --%>
-            <.link
-              href={node.url}
-              class="flex items-center gap-1 ml-5 hover:underline"
-            >
-              <em>{node.label}</em>
-            </.link>
-          <% end %>
-        </li>
-      <% end %>
+      <li :for={node <- @nodes} class="py-1">
+        <%= if Map.has_key?(node, :nodes) and node.nodes != [] do %>
+          <%!-- Branch node (family or genus) --%>
+          <button
+            phx-click="toggle_node"
+            phx-value-key={node.key}
+            phx-value-tab={@tab}
+            class="flex items-center gap-1 text-left hover:text-gf-maroon focus:outline-none focus:text-gf-maroon"
+          >
+            <span class={[
+              "inline-block w-4 h-4 transition-transform",
+              if(MapSet.member?(@expanded, node.key), do: "rotate-90", else: "")
+            ]}>
+              <.icon name="ph-caret-right" class="w-4 h-4" />
+            </span>
+            <span class={[
+              "font-medium",
+              if(String.starts_with?(node.key, "f-"), do: "text-gf-maroon", else: "")
+            ]}>
+              {node.label}
+            </span>
+            <span class="text-xs text-gray-400 ml-1">
+              ({length(node.nodes)})
+            </span>
+          </button>
+          <.tree_menu
+            :if={MapSet.member?(@expanded, node.key)}
+            nodes={node.nodes}
+            expanded={@expanded}
+            tab={@tab}
+            level={@level + 1}
+          />
+        <% else %>
+          <%!-- Leaf node (species) --%>
+          <.link
+            href={node.url}
+            class="flex items-center gap-1 ml-5 hover:underline"
+          >
+            <em>{node.label}</em>
+          </.link>
+        <% end %>
+      </li>
     </ul>
     """
   end

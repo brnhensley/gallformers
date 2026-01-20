@@ -154,62 +154,54 @@ defmodule GallformersWeb.FamilyLive do
                 <div class="flex items-center justify-between">
                   <h1 class="text-2xl font-bold text-gf-maroon">
                     {@family.name}
-                    <%= if @family.description do %>
-                      <span class="text-lg font-normal text-gray-600">
-                        - {@family.description}
-                      </span>
-                    <% end %>
+                    <span :if={@family.description} class="text-lg font-normal text-gray-600">
+                      - {@family.description}
+                    </span>
                   </h1>
                 </div>
               </div>
               <div class="p-4">
                 <%= if length(@tree_data) > 0 do %>
                   <div class="space-y-2">
-                    <%= for genus <- @tree_data do %>
-                      <div class="border rounded">
-                        <button
-                          phx-click="toggle_genus"
-                          phx-value-id={genus.id}
-                          class="w-full px-3 py-2 text-left bg-gray-50 hover:bg-gray-100 flex justify-between items-center"
-                        >
-                          <span>
-                            <em class="font-medium">{genus.name}</em>
-                            <%= if genus.description do %>
-                              <span class="text-gray-600">&nbsp;- {genus.description}</span>
-                            <% end %>
-                            <span class="text-sm text-gray-500 ml-2">
-                              ({length(genus.children)} species)
-                            </span>
+                    <div :for={genus <- @tree_data} class="border rounded">
+                      <button
+                        phx-click="toggle_genus"
+                        phx-value-id={genus.id}
+                        class="w-full px-3 py-2 text-left bg-gray-50 hover:bg-gray-100 flex justify-between items-center"
+                      >
+                        <span>
+                          <em class="font-medium">{genus.name}</em>
+                          <span :if={genus.description} class="text-gray-600">
+                            &nbsp;- {genus.description}
                           </span>
-                          <svg
-                            class={"w-5 h-5 text-gray-500 transition-transform #{if MapSet.member?(@expanded_keys, genus.id), do: "rotate-180"}"}
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              stroke-linecap="round"
-                              stroke-linejoin="round"
-                              stroke-width="2"
-                              d="M19 9l-7 7-7-7"
-                            />
-                          </svg>
-                        </button>
-                        <%= if MapSet.member?(@expanded_keys, genus.id) do %>
-                          <div class="border-t bg-white">
-                            <ul class="divide-y">
-                              <%= for species <- genus.children do %>
-                                <li class="px-6 py-2 hover:bg-gray-50">
-                                  <.link href={species.url} class="hover:underline">
-                                    <em>{species.name}</em>
-                                  </.link>
-                                </li>
-                              <% end %>
-                            </ul>
-                          </div>
-                        <% end %>
+                          <span class="text-sm text-gray-500 ml-2">
+                            ({length(genus.children)} species)
+                          </span>
+                        </span>
+                        <svg
+                          class={"w-5 h-5 text-gray-500 transition-transform #{if MapSet.member?(@expanded_keys, genus.id), do: "rotate-180"}"}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M19 9l-7 7-7-7"
+                          />
+                        </svg>
+                      </button>
+                      <div :if={MapSet.member?(@expanded_keys, genus.id)} class="border-t bg-white">
+                        <ul class="divide-y">
+                          <li :for={species <- genus.children} class="px-6 py-2 hover:bg-gray-50">
+                            <.link href={species.url} class="hover:underline">
+                              <em>{species.name}</em>
+                            </.link>
+                          </li>
+                        </ul>
                       </div>
-                    <% end %>
+                    </div>
                   </div>
                 <% else %>
                   <p class="text-gray-500 italic">No genera or species found for this family.</p>

@@ -118,20 +118,19 @@ defmodule GallformersWeb.RefIndexLive do
               >
                 All
               </.link>
-              <%= for tag_info <- @tags do %>
-                <.link
-                  patch={~p"/refindex?tag=#{tag_info.tag}"}
-                  class={[
-                    "px-3 py-1 rounded-full text-sm font-medium transition-colors",
-                    if(@selected_tag == tag_info.tag,
-                      do: "bg-gf-maroon text-white",
-                      else: "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                    )
-                  ]}
-                >
-                  {tag_info.tag} ({tag_info.count})
-                </.link>
-              <% end %>
+              <.link
+                :for={tag_info <- @tags}
+                patch={~p"/refindex?tag=#{tag_info.tag}"}
+                class={[
+                  "px-3 py-1 rounded-full text-sm font-medium transition-colors",
+                  if(@selected_tag == tag_info.tag,
+                    do: "bg-gf-maroon text-white",
+                    else: "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                  )
+                ]}
+              >
+                {tag_info.tag} ({tag_info.count})
+              </.link>
             </div>
           </div>
         <% end %>
@@ -172,32 +171,29 @@ defmodule GallformersWeb.RefIndexLive do
           </div>
         <% else %>
           <div class="space-y-6">
-            <%= for article <- @articles do %>
-              <.link navigate={~p"/ref/#{article.slug}"} class="block group">
-                <article class="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
-                  <h2 class="text-xl font-semibold text-gf-maroon group-hover:underline mb-2">
-                    {article.title}
-                  </h2>
-                  <div class="text-sm text-gray-500 mb-3">
-                    <span>By {article.author}</span>
-                    <span class="mx-2">•</span>
-                    <span>{format_date(display_date(article))}</span>
-                  </div>
-                  <%= if article.tags != [] do %>
-                    <div class="flex flex-wrap gap-2 mb-3">
-                      <%= for tag <- article.tags do %>
-                        <span class="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded">
-                          {tag}
-                        </span>
-                      <% end %>
-                    </div>
-                  <% end %>
-                  <p class="text-gray-600">
-                    {article_preview(article)}
-                  </p>
-                </article>
-              </.link>
-            <% end %>
+            <.link :for={article <- @articles} navigate={~p"/ref/#{article.slug}"} class="block group">
+              <article class="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
+                <h2 class="text-xl font-semibold text-gf-maroon group-hover:underline mb-2">
+                  {article.title}
+                </h2>
+                <div class="text-sm text-gray-500 mb-3">
+                  <span>By {article.author}</span>
+                  <span class="mx-2">•</span>
+                  <span>{format_date(display_date(article))}</span>
+                </div>
+                <div :if={article.tags != []} class="flex flex-wrap gap-2 mb-3">
+                  <span
+                    :for={tag <- article.tags}
+                    class="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded"
+                  >
+                    {tag}
+                  </span>
+                </div>
+                <p class="text-gray-600">
+                  {article_preview(article)}
+                </p>
+              </article>
+            </.link>
           </div>
 
           <div class="mt-6 text-sm text-gray-500">

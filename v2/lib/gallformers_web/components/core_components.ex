@@ -422,9 +422,9 @@ defmodule GallformersWeb.CoreComponents do
           </td>
           <td :if={@action != []} class="w-0 font-semibold">
             <div class="flex gap-4">
-              <%= for action <- @action do %>
+              <span :for={action <- @action}>
                 {render_slot(action, @row_item.(row))}
-              <% end %>
+              </span>
             </div>
           </td>
         </tr>

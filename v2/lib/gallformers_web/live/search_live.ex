@@ -271,9 +271,9 @@ defmodule GallformersWeb.SearchLive do
                         phx-value-column="type"
                       >
                         Type
-                        <%= if @sort_by == :type do %>
-                          <span class="ml-1">{if @sort_dir == :asc, do: "↑", else: "↓"}</span>
-                        <% end %>
+                        <span :if={@sort_by == :type} class="ml-1">
+                          {if @sort_dir == :asc, do: "↑", else: "↓"}
+                        </span>
                       </th>
                       <th
                         class="cursor-pointer hover:bg-gray-100"
@@ -281,50 +281,50 @@ defmodule GallformersWeb.SearchLive do
                         phx-value-column="name"
                       >
                         Name
-                        <%= if @sort_by == :name do %>
-                          <span class="ml-1">{if @sort_dir == :asc, do: "↑", else: "↓"}</span>
-                        <% end %>
+                        <span :if={@sort_by == :name} class="ml-1">
+                          {if @sort_dir == :asc, do: "↑", else: "↓"}
+                        </span>
                       </th>
                     </tr>
                   </thead>
                   <tbody>
-                    <%= for {result, index} <- Enum.with_index(@sorted_results) do %>
-                      <tr
-                        id={"result-#{index}"}
-                        class={[
-                          "cursor-pointer",
-                          if(index == @selected_index, do: "!bg-canary")
-                        ]}
-                        phx-click="select_result"
-                        phx-value-index={index}
-                      >
-                        <td class="!py-1 !px-2 w-16 align-middle">
-                          <div class="w-12 h-8 flex items-center justify-center">
-                            <.icon
-                              name={type_icon(result.type)}
-                              class={search_result_icon_class(result.type)}
-                            />
-                          </div>
-                        </td>
-                        <td class="!py-1 !px-2 align-middle">
-                          <.link
-                            href={result_link(result)}
-                            class="hover:underline"
-                          >
-                            <%= if italicized?(result.type) do %>
-                              <em>{format_name(result)}</em>
-                            <% else %>
-                              {format_name(result)}
-                            <% end %>
-                          </.link>
-                          <%= if Map.get(result, :aliases, []) != [] do %>
-                            <span class="text-sm text-gray-500 ml-2">
-                              (also: {Enum.join(result.aliases, ", ")})
-                            </span>
+                    <tr
+                      :for={{result, index} <- Enum.with_index(@sorted_results)}
+                      id={"result-#{index}"}
+                      class={[
+                        "cursor-pointer",
+                        if(index == @selected_index, do: "!bg-canary")
+                      ]}
+                      phx-click="select_result"
+                      phx-value-index={index}
+                    >
+                      <td class="!py-1 !px-2 w-16 align-middle">
+                        <div class="w-12 h-8 flex items-center justify-center">
+                          <.icon
+                            name={type_icon(result.type)}
+                            class={search_result_icon_class(result.type)}
+                          />
+                        </div>
+                      </td>
+                      <td class="!py-1 !px-2 align-middle">
+                        <.link
+                          href={result_link(result)}
+                          class="hover:underline"
+                        >
+                          <%= if italicized?(result.type) do %>
+                            <em>{format_name(result)}</em>
+                          <% else %>
+                            {format_name(result)}
                           <% end %>
-                        </td>
-                      </tr>
-                    <% end %>
+                        </.link>
+                        <span
+                          :if={Map.get(result, :aliases, []) != []}
+                          class="text-sm text-gray-500 ml-2"
+                        >
+                          (also: {Enum.join(result.aliases, ", ")})
+                        </span>
+                      </td>
+                    </tr>
                   </tbody>
                 </table>
               </div>

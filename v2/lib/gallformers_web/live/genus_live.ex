@@ -124,9 +124,7 @@ defmodule GallformersWeb.GenusLive do
                   <.link href={"/family/#{@family.id}"} class="hover:underline">
                     <em>{@family.name}</em>
                   </.link>
-                  <%= if @family.description do %>
-                    <span class="text-gray-600">({@family.description})</span>
-                  <% end %>
+                  <span :if={@family.description} class="text-gray-600">({@family.description})</span>
                 </div>
               <% end %>
             </div>
@@ -145,18 +143,16 @@ defmodule GallformersWeb.GenusLive do
                       </tr>
                     </thead>
                     <tbody>
-                      <%= for species <- @species do %>
-                        <tr>
-                          <td>
-                            <.link
-                              href={"#{if species.taxoncode == "gall", do: "/gall", else: "/host"}/#{species.id}"}
-                              class="hover:underline"
-                            >
-                              <em>{species.name}</em>
-                            </.link>
-                          </td>
-                        </tr>
-                      <% end %>
+                      <tr :for={species <- @species}>
+                        <td>
+                          <.link
+                            href={"#{if species.taxoncode == "gall", do: "/gall", else: "/host"}/#{species.id}"}
+                            class="hover:underline"
+                          >
+                            <em>{species.name}</em>
+                          </.link>
+                        </td>
+                      </tr>
                     </tbody>
                   </table>
                 </div>

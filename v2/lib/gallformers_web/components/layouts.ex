@@ -90,14 +90,13 @@ defmodule GallformersWeb.Layouts do
           <%!-- Desktop Navigation --%>
           <div class="hidden md:flex md:items-center gap-1">
             <%!-- Admin link (when logged in) --%>
-            <%= if @current_user do %>
-              <a
-                href="/admin"
-                class="px-2 text-lg font-medium hover:underline"
-              >
-                Admin
-              </a>
-            <% end %>
+            <a
+              :if={@current_user}
+              href="/admin"
+              class="px-2 text-lg font-medium hover:underline"
+            >
+              Admin
+            </a>
 
             <a
               :for={link <- @nav_links}
@@ -188,14 +187,13 @@ defmodule GallformersWeb.Layouts do
         <div class="hidden md:hidden" id="mobile-menu">
           <div class="space-y-1 px-2 pb-3 pt-2">
             <%!-- Mobile Admin link (when logged in) --%>
-            <%= if @current_user do %>
-              <a
-                href="/admin"
-                class="block rounded-md px-3 py-2 text-lg font-medium hover:bg-white/50"
-              >
-                Admin
-              </a>
-            <% end %>
+            <a
+              :if={@current_user}
+              href="/admin"
+              class="block rounded-md px-3 py-2 text-lg font-medium hover:bg-white/50"
+            >
+              Admin
+            </a>
 
             <a
               :for={link <- @nav_links}
@@ -282,9 +280,12 @@ defmodule GallformersWeb.Layouts do
               }
               class="flex items-center gap-2 hover:opacity-80"
             >
-              <%= if @current_user.picture do %>
-                <img class="h-6 w-6 rounded-full" src={@current_user.picture} alt="" />
-              <% end %>
+              <img
+                :if={@current_user.picture}
+                class="h-6 w-6 rounded-full"
+                src={@current_user.picture}
+                alt=""
+              />
               <span class="text-base font-medium text-gf-maroon">
                 {Gallformers.Accounts.Auth0User.display_name(@current_user)}
               </span>
@@ -371,9 +372,12 @@ defmodule GallformersWeb.Layouts do
             }
             class="flex items-center gap-2 py-1 px-4 mb-2 border-b border-gray-300 pb-2 hover:opacity-80"
           >
-            <%= if @current_user.picture do %>
-              <img class="h-6 w-6 rounded-full" src={@current_user.picture} alt="" />
-            <% end %>
+            <img
+              :if={@current_user.picture}
+              class="h-6 w-6 rounded-full"
+              src={@current_user.picture}
+              alt=""
+            />
             <span class="text-base font-medium text-gf-maroon">
               {Gallformers.Accounts.Auth0User.display_name(@current_user)}
             </span>
@@ -500,21 +504,19 @@ defmodule GallformersWeb.Layouts do
           </a>
 
           <%!-- Super Admin section - only shown to superadmins --%>
-          <%= if @is_superadmin do %>
-            <div class="mt-6 pt-4 border-t border-gray-500">
-              <p class="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
-                Super Admin
-              </p>
-              <a
-                :for={link <- @superadmin_nav_links}
-                href={link.href}
-                class="flex items-center px-3 py-3 text-xl font-semibold text-white rounded-md hover:bg-slate-600 group"
-              >
-                <.icon name={link.icon} class="mr-3 h-6 w-6 text-white" />
-                {link.label}
-              </a>
-            </div>
-          <% end %>
+          <div :if={@is_superadmin} class="mt-6 pt-4 border-t border-gray-500">
+            <p class="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
+              Super Admin
+            </p>
+            <a
+              :for={link <- @superadmin_nav_links}
+              href={link.href}
+              class="flex items-center px-3 py-3 text-xl font-semibold text-white rounded-md hover:bg-slate-600 group"
+            >
+              <.icon name={link.icon} class="mr-3 h-6 w-6 text-white" />
+              {link.label}
+            </a>
+          </div>
 
           <%!-- User section --%>
           <div class="mt-6 pt-4 border-t border-gray-500">
@@ -580,21 +582,19 @@ defmodule GallformersWeb.Layouts do
             </a>
 
             <%!-- Super Admin section - only shown to superadmins --%>
-            <%= if @is_superadmin do %>
-              <div class="mt-6 pt-4 border-t border-gray-500">
-                <p class="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
-                  Super Admin
-                </p>
-                <a
-                  :for={link <- @superadmin_nav_links}
-                  href={link.href}
-                  class="flex items-center px-3 py-3 text-xl font-semibold text-white rounded-md hover:bg-slate-600"
-                >
-                  <.icon name={link.icon} class="mr-3 h-6 w-6 text-white" />
-                  {link.label}
-                </a>
-              </div>
-            <% end %>
+            <div :if={@is_superadmin} class="mt-6 pt-4 border-t border-gray-500">
+              <p class="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
+                Super Admin
+              </p>
+              <a
+                :for={link <- @superadmin_nav_links}
+                href={link.href}
+                class="flex items-center px-3 py-3 text-xl font-semibold text-white rounded-md hover:bg-slate-600"
+              >
+                <.icon name={link.icon} class="mr-3 h-6 w-6 text-white" />
+                {link.label}
+              </a>
+            </div>
 
             <%!-- User section --%>
             <div class="mt-6 pt-4 border-t border-gray-500">
@@ -613,20 +613,20 @@ defmodule GallformersWeb.Layouts do
       <div class="flex-1 lg:pl-64">
         <main class="pt-14 lg:pt-0 pb-16">
           <%!-- Page header --%>
-          <%= if @page_title do %>
-            <div class="flex items-center h-20 px-4 sm:px-6 lg:px-8 bg-gf-sky-blue border-l border-slate-400/50">
-              <span class="text-2xl font-bold text-gf-maroon">{@page_title}</span>
-              <%= if @public_url do %>
-                <a
-                  href={@public_url}
-                  title="View public page"
-                  class="ml-3 text-gf-maroon hover:text-gf-autumn transition-colors"
-                >
-                  <.icon name="ph-eye" class="h-6 w-6" />
-                </a>
-              <% end %>
-            </div>
-          <% end %>
+          <div
+            :if={@page_title}
+            class="flex items-center h-20 px-4 sm:px-6 lg:px-8 bg-gf-sky-blue border-l border-slate-400/50"
+          >
+            <span class="text-2xl font-bold text-gf-maroon">{@page_title}</span>
+            <a
+              :if={@public_url}
+              href={@public_url}
+              title="View public page"
+              class="ml-3 text-gf-maroon hover:text-gf-autumn transition-colors"
+            >
+              <.icon name="ph-eye" class="h-6 w-6" />
+            </a>
+          </div>
 
           <%!-- Page content --%>
           <div class="px-4 py-6 sm:px-6 lg:px-8">

@@ -139,64 +139,62 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
                 </tr>
               </thead>
               <tbody>
-                <%= for article <- @filtered_articles do %>
-                  <tr>
-                    <td>
-                      <button
-                        type="button"
+                <tr :for={article <- @filtered_articles}>
+                  <td>
+                    <button
+                      type="button"
+                      phx-click="edit_article"
+                      phx-value-id={article.id}
+                      class="font-medium hover:underline text-left"
+                    >
+                      {article.title}
+                    </button>
+                  </td>
+                  <td class="text-gray-600">{article.author}</td>
+                  <td>
+                    <%= if article.is_published do %>
+                      <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                        Published
+                      </span>
+                    <% else %>
+                      <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
+                        Draft
+                      </span>
+                    <% end %>
+                  </td>
+                  <td class="text-gray-600 text-sm">
+                    <%= if article.tags != [] do %>
+                      {Enum.join(article.tags, ", ")}
+                    <% else %>
+                      <span class="text-gray-400">—</span>
+                    <% end %>
+                  </td>
+                  <td class="text-gray-600 text-sm">{format_date(article.updated_at, :short)}</td>
+                  <td class="text-right">
+                    <.table_actions>
+                      <.action_button
+                        icon="ph-pencil-simple"
+                        label="Edit"
+                        variant="primary"
                         phx-click="edit_article"
                         phx-value-id={article.id}
-                        class="font-medium hover:underline text-left"
-                      >
-                        {article.title}
-                      </button>
-                    </td>
-                    <td class="text-gray-600">{article.author}</td>
-                    <td>
-                      <%= if article.is_published do %>
-                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
-                          Published
-                        </span>
-                      <% else %>
-                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
-                          Draft
-                        </span>
-                      <% end %>
-                    </td>
-                    <td class="text-gray-600 text-sm">
-                      <%= if article.tags != [] do %>
-                        {Enum.join(article.tags, ", ")}
-                      <% else %>
-                        <span class="text-gray-400">—</span>
-                      <% end %>
-                    </td>
-                    <td class="text-gray-600 text-sm">{format_date(article.updated_at, :short)}</td>
-                    <td class="text-right">
-                      <.table_actions>
-                        <.action_button
-                          icon="ph-pencil-simple"
-                          label="Edit"
-                          variant="primary"
-                          phx-click="edit_article"
-                          phx-value-id={article.id}
-                        />
-                        <.action_button
-                          icon="ph-arrow-square-out"
-                          label={if article.is_published, do: "View", else: "Preview"}
-                          href={~p"/ref/#{article.slug}"}
-                          target="_blank"
-                        />
-                        <.action_button
-                          icon="ph-trash"
-                          label="Delete"
-                          variant="danger"
-                          phx-click="confirm_delete"
-                          phx-value-id={article.id}
-                        />
-                      </.table_actions>
-                    </td>
-                  </tr>
-                <% end %>
+                      />
+                      <.action_button
+                        icon="ph-arrow-square-out"
+                        label={if article.is_published, do: "View", else: "Preview"}
+                        href={~p"/ref/#{article.slug}"}
+                        target="_blank"
+                      />
+                      <.action_button
+                        icon="ph-trash"
+                        label="Delete"
+                        variant="danger"
+                        phx-click="confirm_delete"
+                        phx-value-id={article.id}
+                      />
+                    </.table_actions>
+                  </td>
+                </tr>
               </tbody>
             </table>
           <% end %>
@@ -220,16 +218,15 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
       >
         <:header>
           <span>{if @editing_article.id, do: "Edit Article", else: "New Article"}</span>
-          <%= if @editing_article.id do %>
-            <a
-              href={~p"/ref/#{@editing_article.slug}"}
-              target="_blank"
-              title="View public page"
-              class="ml-3 text-gf-maroon hover:text-gf-autumn transition-colors"
-            >
-              <.icon name="ph-eye" class="h-5 w-5 inline" />
-            </a>
-          <% end %>
+          <a
+            :if={@editing_article.id}
+            href={~p"/ref/#{@editing_article.slug}"}
+            target="_blank"
+            title="View public page"
+            class="ml-3 text-gf-maroon hover:text-gf-autumn transition-colors"
+          >
+            <.icon name="ph-eye" class="h-5 w-5 inline" />
+          </a>
         </:header>
         <:body>
           <%!-- Tabs --%>
@@ -429,42 +426,43 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
                 </div>
               <% else %>
                 <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                  <%= for image <- @article_images do %>
-                    <div class="group relative aspect-square bg-gray-100 rounded-lg overflow-hidden border-2 border-transparent hover:border-gf-maroon">
-                      <img
-                        src={image.url}
-                        alt={image.name}
-                        class="w-full h-full object-cover"
-                        loading="lazy"
-                      />
-                      <div class="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center gap-2">
-                        <button
-                          type="button"
-                          phx-click="select_image"
-                          phx-value-url={image.url}
-                          phx-value-name={image.name}
-                          class="opacity-0 group-hover:opacity-100 transition-opacity px-3 py-1.5 bg-gf-maroon text-white text-sm font-medium rounded hover:bg-gf-maroon/80"
-                        >
-                          Insert
-                        </button>
-                        <button
-                          type="button"
-                          phx-click="confirm_delete_image"
-                          phx-value-url={image.url}
-                          phx-value-path={image.path}
-                          phx-value-name={image.name}
-                          class="opacity-0 group-hover:opacity-100 transition-opacity px-3 py-1.5 bg-red-600 text-white text-sm font-medium rounded hover:bg-red-700"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                      <div class="absolute bottom-0 left-0 right-0 bg-black/60 px-2 py-1">
-                        <p class="text-white text-xs truncate">
-                          {get_article_title(@article_options, image.article_id) || image.folder}
-                        </p>
-                      </div>
+                  <div
+                    :for={image <- @article_images}
+                    class="group relative aspect-square bg-gray-100 rounded-lg overflow-hidden border-2 border-transparent hover:border-gf-maroon"
+                  >
+                    <img
+                      src={image.url}
+                      alt={image.name}
+                      class="w-full h-full object-cover"
+                      loading="lazy"
+                    />
+                    <div class="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center gap-2">
+                      <button
+                        type="button"
+                        phx-click="select_image"
+                        phx-value-url={image.url}
+                        phx-value-name={image.name}
+                        class="opacity-0 group-hover:opacity-100 transition-opacity px-3 py-1.5 bg-gf-maroon text-white text-sm font-medium rounded hover:bg-gf-maroon/80"
+                      >
+                        Insert
+                      </button>
+                      <button
+                        type="button"
+                        phx-click="confirm_delete_image"
+                        phx-value-url={image.url}
+                        phx-value-path={image.path}
+                        phx-value-name={image.name}
+                        class="opacity-0 group-hover:opacity-100 transition-opacity px-3 py-1.5 bg-red-600 text-white text-sm font-medium rounded hover:bg-red-700"
+                      >
+                        Delete
+                      </button>
                     </div>
-                  <% end %>
+                    <div class="absolute bottom-0 left-0 right-0 bg-black/60 px-2 py-1">
+                      <p class="text-white text-xs truncate">
+                        {get_article_title(@article_options, image.article_id) || image.folder}
+                      </p>
+                    </div>
+                  </div>
                 </div>
               <% end %>
             </div>
@@ -592,19 +590,23 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
                             /> Custom
                           </label>
                         </div>
-                        <%= if Phoenix.HTML.Form.input_value(@image_insert_form, :size_preset) == "custom" do %>
-                          <div class="flex items-center gap-2">
-                            <.input
-                              field={@image_insert_form[:custom_width]}
-                              type="number"
-                              placeholder="Width in pixels"
-                              min="50"
-                              max="2000"
-                              class="w-32"
-                            />
-                            <span class="text-sm text-gray-500">pixels</span>
-                          </div>
-                        <% end %>
+                        <div
+                          :if={
+                            Phoenix.HTML.Form.input_value(@image_insert_form, :size_preset) ==
+                              "custom"
+                          }
+                          class="flex items-center gap-2"
+                        >
+                          <.input
+                            field={@image_insert_form[:custom_width]}
+                            type="number"
+                            placeholder="Width in pixels"
+                            min="50"
+                            max="2000"
+                            class="w-32"
+                          />
+                          <span class="text-sm text-gray-500">pixels</span>
+                        </div>
                       </div>
                     </div>
                   </.form>
@@ -671,9 +673,7 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
                                                                                                  ""}:
                           </p>
                           <ul class="mt-2 text-sm text-yellow-700 list-disc list-inside">
-                            <%= for {_id, title} <- @image_references do %>
-                              <li>{title}</li>
-                            <% end %>
+                            <li :for={{_id, title} <- @image_references}>{title}</li>
                           </ul>
                           <p class="mt-2 text-yellow-700 text-sm">
                             Deleting this image will break these references.

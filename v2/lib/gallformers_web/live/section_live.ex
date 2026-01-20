@@ -138,19 +138,17 @@ defmodule GallformersWeb.SectionLive do
                       </tr>
                     </thead>
                     <tbody>
-                      <%= for species <- @species do %>
-                        <tr>
-                          <td>
-                            <%!-- Sections are for hosts (plants) --%>
-                            <.link
-                              href={"/host/#{species.id}"}
-                              class="hover:underline"
-                            >
-                              <em>{species.name}</em>
-                            </.link>
-                          </td>
-                        </tr>
-                      <% end %>
+                      <tr :for={species <- @species}>
+                        <td>
+                          <%!-- Sections are for hosts (plants) --%>
+                          <.link
+                            href={"/host/#{species.id}"}
+                            class="hover:underline"
+                          >
+                            <em>{species.name}</em>
+                          </.link>
+                        </td>
+                      </tr>
                     </tbody>
                   </table>
                 </div>

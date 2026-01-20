@@ -653,18 +653,16 @@ defmodule GallformersWeb.Admin.GallLive.Form do
         </:quick_links>
 
         <%!-- Add Undescribed button (new mode only) --%>
-        <%= if @mode == :new do %>
-          <div class="mb-3">
-            <button
-              type="button"
-              disabled
-              class="px-3 py-1 text-sm bg-gray-100 text-gray-400 border border-gray-300 rounded cursor-not-allowed"
-              title="Coming Soon"
-            >
-              Add Undescribed (Coming Soon)
-            </button>
-          </div>
-        <% end %>
+        <div :if={@mode == :new} class="mb-3">
+          <button
+            type="button"
+            disabled
+            class="px-3 py-1 text-sm bg-gray-100 text-gray-400 border border-gray-300 rounded cursor-not-allowed"
+            title="Coming Soon"
+          >
+            Add Undescribed (Coming Soon)
+          </button>
+        </div>
 
         <.form for={@form} id="gall-form" phx-change="validate" phx-submit="save">
           <%!-- Row: Name --%>
@@ -746,11 +744,9 @@ defmodule GallformersWeb.Admin.GallLive.Form do
                 on_open="open_host_dropdown"
                 on_close="close_host_dropdown"
               />
-              <%= if @hosts == [] do %>
-                <p class="text-red-600 text-xs mt-1">
-                  You must map this gall to at least one host.
-                </p>
-              <% end %>
+              <p :if={@hosts == []} class="text-red-600 text-xs mt-1">
+                You must map this gall to at least one host.
+              </p>
             <% else %>
               <label class="gf-label">Hosts (required):</label>
               <input
@@ -945,17 +941,15 @@ defmodule GallformersWeb.Admin.GallLive.Form do
               label="All sources containing unique information relevant to this gall have been added and are reflected in its associated data. However, filter criteria may not be comprehensive in every field."
             />
 
-            <%= if @mode == :edit do %>
-              <label class="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={@undescribed}
-                  phx-click="toggle_undescribed"
-                  class="rounded border-gray-300 text-gf-maroon focus:ring-gf-maroon"
-                />
-                <span class="text-sm text-gray-700">Undescribed?</span>
-              </label>
-            <% end %>
+            <label :if={@mode == :edit} class="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={@undescribed}
+                phx-click="toggle_undescribed"
+                class="rounded border-gray-300 text-gf-maroon focus:ring-gf-maroon"
+              />
+              <span class="text-sm text-gray-700">Undescribed?</span>
+            </label>
           </div>
 
           <%!-- Action buttons --%>

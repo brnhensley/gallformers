@@ -153,14 +153,10 @@ defmodule GallformersWeb.FilterGuideLive do
         {@title}
       </h2>
       <dl class="space-y-2">
-        <%= for item <- @items do %>
-          <div>
-            <dt class="inline font-medium text-gray-900">{item.field}</dt>
-            <%= if item.description do %>
-              <dd class="inline text-gray-700">– {item.description}</dd>
-            <% end %>
-          </div>
-        <% end %>
+        <div :for={item <- @items}>
+          <dt class="inline font-medium text-gray-900">{item.field}</dt>
+          <dd :if={item.description} class="inline text-gray-700">– {item.description}</dd>
+        </div>
       </dl>
       <%= if @note do %>
         <p class="mt-3 text-sm text-gray-600 italic">Note: {@note}</p>

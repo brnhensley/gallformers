@@ -121,11 +121,13 @@ defmodule GallformersWeb.Admin.FormComponents do
                   phx-value-name={@new_alias_name}
                   class="gf-select text-sm"
                 >
-                  <%= for {label, value} <- alias_type_options() do %>
-                    <option value={value} selected={@new_alias_type == value}>
-                      {label}
-                    </option>
-                  <% end %>
+                  <option
+                    :for={{label, value} <- alias_type_options()}
+                    value={value}
+                    selected={@new_alias_type == value}
+                  >
+                    {label}
+                  </option>
                 </select>
               </td>
               <td class="px-3 py-1.5">

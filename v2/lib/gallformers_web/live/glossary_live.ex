@@ -98,9 +98,9 @@ defmodule GallformersWeb.GlossaryLive do
                     phx-value-column="word"
                   >
                     Word
-                    <%= if @sort_by == :word do %>
-                      <span class="ml-1">{if @sort_dir == :asc, do: "↑", else: "↓"}</span>
-                    <% end %>
+                    <span :if={@sort_by == :word} class="ml-1">
+                      {if @sort_dir == :asc, do: "↑", else: "↓"}
+                    </span>
                   </th>
                   <th
                     class="cursor-pointer hover:bg-gray-100"
@@ -108,9 +108,9 @@ defmodule GallformersWeb.GlossaryLive do
                     phx-value-column="definition"
                   >
                     Definition
-                    <%= if @sort_by == :definition do %>
-                      <span class="ml-1">{if @sort_dir == :asc, do: "↑", else: "↓"}</span>
-                    <% end %>
+                    <span :if={@sort_by == :definition} class="ml-1">
+                      {if @sort_dir == :asc, do: "↑", else: "↓"}
+                    </span>
                   </th>
                   <th class="w-24">
                     Refs
@@ -118,31 +118,27 @@ defmodule GallformersWeb.GlossaryLive do
                 </tr>
               </thead>
               <tbody>
-                <%= for entry <- @sorted_entries do %>
-                  <tr id={String.downcase(entry.word)}>
-                    <td class="font-bold">
-                      {entry.word}
-                    </td>
-                    <td>
-                      {entry.definition}
-                    </td>
-                    <td class="text-gray-500">
-                      <%= for ref <- format_refs(entry.urls) do %>
-                        <.link
-                          href={ref.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          class="hover:underline"
-                        >
-                          {ref.index}
-                        </.link>
-                        <%= if ref.index < length(format_refs(entry.urls)) do %>
-                          <span>, </span>
-                        <% end %>
-                      <% end %>
-                    </td>
-                  </tr>
-                <% end %>
+                <tr :for={entry <- @sorted_entries} id={String.downcase(entry.word)}>
+                  <td class="font-bold">
+                    {entry.word}
+                  </td>
+                  <td>
+                    {entry.definition}
+                  </td>
+                  <td class="text-gray-500">
+                    <span :for={ref <- format_refs(entry.urls)}>
+                      <.link
+                        href={ref.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        class="hover:underline"
+                      >
+                        {ref.index}
+                      </.link>
+                      <span :if={ref.index < length(format_refs(entry.urls))}>, </span>
+                    </span>
+                  </td>
+                </tr>
               </tbody>
             </table>
           </div>

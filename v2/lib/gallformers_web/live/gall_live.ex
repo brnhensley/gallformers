@@ -314,89 +314,81 @@ defmodule GallformersWeb.GallLive do
                 />
               </div>
 
-              <%= if @gall.undescribed do %>
-                <div class="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                  <p class="text-red-600 font-medium mb-2">
-                    The inducer of this gall is unknown or undescribed.
-                  </p>
-                  <p class="text-sm mb-2">
-                    <span class="font-medium text-gray-700">Gallformers Code:</span>
-                    <button
-                      id="copy-gallformers-code"
-                      phx-hook="CopyToClipboard"
-                      data-copy-text={get_gallformers_code(@gall.name, @taxonomy && @taxonomy.genus)}
-                      class="ml-1 cursor-pointer hover:opacity-70"
-                    >
-                      <code class="px-2 py-0.5 bg-white border border-amber-200 rounded font-mono text-amber-800">
-                        {get_gallformers_code(@gall.name, @taxonomy && @taxonomy.genus)}
-                      </code>
-                      <span class="ml-2 text-xs hover:underline">
-                        Click to Copy
-                      </span>
-                    </button>
-                  </p>
-                  <p class="text-sm text-gray-600">
-                    Observations are tagged with this code on iNaturalist. You can view these observations with this <a
-                      href={"https://www.inaturalist.org/observations?verifiable=any&place_id=any&field:Gallformers%20Code=#{URI.encode(get_gallformers_code(@gall.name, @taxonomy && @taxonomy.genus))}"}
-                      target="_blank"
-                      rel="noreferrer"
-                      class="hover:underline"
-                    >link</a>.
-                  </p>
-                </div>
-              <% end %>
+              <div :if={@gall.undescribed} class="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                <p class="text-red-600 font-medium mb-2">
+                  The inducer of this gall is unknown or undescribed.
+                </p>
+                <p class="text-sm mb-2">
+                  <span class="font-medium text-gray-700">Gallformers Code:</span>
+                  <button
+                    id="copy-gallformers-code"
+                    phx-hook="CopyToClipboard"
+                    data-copy-text={get_gallformers_code(@gall.name, @taxonomy && @taxonomy.genus)}
+                    class="ml-1 cursor-pointer hover:opacity-70"
+                  >
+                    <code class="px-2 py-0.5 bg-white border border-amber-200 rounded font-mono text-amber-800">
+                      {get_gallformers_code(@gall.name, @taxonomy && @taxonomy.genus)}
+                    </code>
+                    <span class="ml-2 text-xs hover:underline">
+                      Click to Copy
+                    </span>
+                  </button>
+                </p>
+                <p class="text-sm text-gray-600">
+                  Observations are tagged with this code on iNaturalist. You can view these observations with this <a
+                    href={"https://www.inaturalist.org/observations?verifiable=any&place_id=any&field:Gallformers%20Code=#{URI.encode(get_gallformers_code(@gall.name, @taxonomy && @taxonomy.genus))}"}
+                    target="_blank"
+                    rel="noreferrer"
+                    class="hover:underline"
+                  >link</a>.
+                </p>
+              </div>
 
               <div class="flex flex-col md:flex-row md:items-start gap-4">
                 <div class="flex-1 space-y-2">
-                  <%= if @taxonomy do %>
-                    <p>
-                      <%= if @taxonomy.family do %>
-                        <strong>Family:</strong>
-                        <.link
-                          href={"/family/#{@taxonomy.family_id}"}
-                          class="hover:underline"
-                        >
-                          {@taxonomy.family}
-                        </.link>
-                      <% end %>
-                      <%= if @taxonomy.family && @taxonomy.genus do %>
-                        <span class="mx-1">|</span>
-                      <% end %>
-                      <%= if @taxonomy.genus do %>
-                        <strong>Genus:</strong>
-                        <.link
-                          href={"/genus/#{@taxonomy.genus_id}"}
-                          class="hover:underline"
-                        >
-                          <em>{@taxonomy.genus}</em>
-                        </.link>
-                      <% end %>
-                    </p>
-                  <% end %>
-
-                  <%= if @gall.hosts && length(@gall.hosts) > 0 do %>
-                    <div class="flex items-center gap-1">
-                      <div>
-                        <strong>Hosts:</strong>
-                        <em>
-                          <%= for {host, idx} <- Enum.with_index(@gall.hosts) do %>
-                            {if idx > 0, do: " / "}<.link
-                              href={"/host/#{host.host_species_id}"}
-                              class="hover:underline"
-                            >{host.host_name}</.link>
-                          <% end %>
-                        </em>
-                      </div>
+                  <p :if={@taxonomy}>
+                    <span :if={@taxonomy.family}>
+                      <strong>Family:</strong>
                       <.link
-                        :if={@current_user}
-                        href={~p"/admin/gallhost?id=#{@gall.id}"}
-                        class="text-gray-400 hover:text-gf-maroon"
-                        title="Edit gall-host mappings"
+                        href={"/family/#{@taxonomy.family_id}"}
+                        class="hover:underline"
                       >
-                        <.icon name="ph-pencil-simple" class="h-4 w-4" />
+                        {@taxonomy.family}
                       </.link>
+                    </span>
+                    <span :if={@taxonomy.family && @taxonomy.genus} class="mx-1">|</span>
+                    <span :if={@taxonomy.genus}>
+                      <strong>Genus:</strong>
+                      <.link
+                        href={"/genus/#{@taxonomy.genus_id}"}
+                        class="hover:underline"
+                      >
+                        <em>{@taxonomy.genus}</em>
+                      </.link>
+                    </span>
+                  </p>
+
+                  <div :if={@gall.hosts && length(@gall.hosts) > 0} class="flex items-center gap-1">
+                    <div>
+                      <strong>Hosts:</strong>
+                      <em>
+                        <span :for={{host, idx} <- Enum.with_index(@gall.hosts)}>
+                          {if idx > 0, do: " / "}<.link
+                            href={"/host/#{host.host_species_id}"}
+                            class="hover:underline"
+                          >{host.host_name}</.link>
+                        </span>
+                      </em>
                     </div>
-                  <% end %>
+                    <.link
+                      :if={@current_user}
+                      href={~p"/admin/gallhost?id=#{@gall.id}"}
+                      class="text-gray-400 hover:text-gf-maroon"
+                      title="Edit gall-host mappings"
+                    >
+                      <.icon name="ph-pencil-simple" class="h-4 w-4" />
+                    </.link>
+                  </div>
 
                   <div class="grid grid-cols-1 md:grid-cols-2 gap-x-4">
                     <div class="space-y-1">
@@ -429,43 +421,40 @@ defmodule GallformersWeb.GallLive do
                 </div>
               </div>
 
-              <%= if @gall.aliases && length(@gall.aliases) > 0 do %>
-                <div class="mt-4">
-                  <h3 class="font-semibold text-gray-800 mb-2">
-                    Synonymy ({length(@gall.aliases)})
-                  </h3>
-                  <div class="bg-white rounded border border-gray-200 overflow-hidden">
-                    <table class="gf-table gf-table-compact">
-                      <thead>
-                        <tr>
-                          <th>Name</th>
-                          <th>Type</th>
-                          <th>Notes</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <%= for a <- paginated_aliases(@gall.aliases, @aliases_page, @aliases_page_size) do %>
-                          <tr>
-                            <td><em>{a.name}</em></td>
-                            <td class="text-gray-600">{a.type || "—"}</td>
-                            <td class="text-gray-600">{a.description || "—"}</td>
-                          </tr>
-                        <% end %>
-                      </tbody>
-                    </table>
-                  </div>
-                  <%= if aliases_total_pages(@gall.aliases, @aliases_page_size) > 1 do %>
-                    <.pagination
-                      page={@aliases_page}
-                      total_pages={aliases_total_pages(@gall.aliases, @aliases_page_size)}
-                      total_items={length(@gall.aliases)}
-                      page_size={@aliases_page_size}
-                      on_page_change={fn page -> JS.push("aliases_page", value: %{page: page}) end}
-                      class="mt-4"
-                    />
-                  <% end %>
+              <div :if={@gall.aliases && length(@gall.aliases) > 0} class="mt-4">
+                <h3 class="font-semibold text-gray-800 mb-2">
+                  Synonymy ({length(@gall.aliases)})
+                </h3>
+                <div class="bg-white rounded border border-gray-200 overflow-hidden">
+                  <table class="gf-table gf-table-compact">
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>Type</th>
+                        <th>Notes</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr :for={
+                        a <- paginated_aliases(@gall.aliases, @aliases_page, @aliases_page_size)
+                      }>
+                        <td><em>{a.name}</em></td>
+                        <td class="text-gray-600">{a.type || "—"}</td>
+                        <td class="text-gray-600">{a.description || "—"}</td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
-              <% end %>
+                <.pagination
+                  :if={aliases_total_pages(@gall.aliases, @aliases_page_size) > 1}
+                  page={@aliases_page}
+                  total_pages={aliases_total_pages(@gall.aliases, @aliases_page_size)}
+                  total_items={length(@gall.aliases)}
+                  page_size={@aliases_page_size}
+                  on_page_change={fn page -> JS.push("aliases_page", value: %{page: page}) end}
+                  class="mt-4"
+                />
+              </div>
             </div>
 
             <div class="lg:col-span-1">
@@ -480,93 +469,90 @@ defmodule GallformersWeb.GallLive do
 
           <hr class="border-gray-200 my-4" />
 
-          <%= if @has_gallformers_notes && !@notes_alert_dismissed do %>
-            <div
-              class="flex items-center gap-3 p-3 mb-4 bg-white border border-blue-200 border-l-4 border-l-blue-400 rounded text-sm text-gray-700"
-              role="alert"
+          <div
+            :if={@has_gallformers_notes && !@notes_alert_dismissed}
+            class="flex items-center gap-3 p-3 mb-4 bg-white border border-blue-200 border-l-4 border-l-blue-400 rounded text-sm text-gray-700"
+            role="alert"
+          >
+            <.icon name="ph-info" class="h-5 w-5 text-blue-500 shrink-0" />
+            <p class="flex-1">
+              Our ID Notes may contain important tips necessary for distinguishing this gall
+              from similar galls and/or important information about the taxonomic status of
+              this gall inducer.
+            </p>
+            <button
+              type="button"
+              class="text-gray-400 hover:text-gray-600"
+              phx-click="dismiss_notes_alert"
+              aria-label="Dismiss"
             >
-              <.icon name="ph-info" class="h-5 w-5 text-blue-500 shrink-0" />
-              <p class="flex-1">
-                Our ID Notes may contain important tips necessary for distinguishing this gall
-                from similar galls and/or important information about the taxonomic status of
-                this gall inducer.
-              </p>
-              <button
-                type="button"
-                class="text-gray-400 hover:text-gray-600"
-                phx-click="dismiss_notes_alert"
-                aria-label="Dismiss"
-              >
-                <.icon name="ph-x" class="h-4 w-4" />
-              </button>
-            </div>
-          <% end %>
+              <.icon name="ph-x" class="h-4 w-4" />
+            </button>
+          </div>
 
           <%= if length(@sources) > 0 do %>
             <h3 class="font-semibold mb-2">Further Information ({length(@sources)})</h3>
             <div class="space-y-2">
-              <%= for source <- @sources do %>
-                <div class={"p-3 rounded border bg-white #{if source.id == 58, do: "border-blue-200 border-l-4 border-l-blue-400", else: "border-gray-200"}"}>
-                  <div>
-                    <%= if source.id == 58 do %>
-                      <.icon
-                        name="ph-info"
-                        class="h-5 w-5 text-blue-500 inline-block align-text-bottom mr-1"
-                      />
-                    <% end %>
-                    <.link
-                      href={"/source/#{source.id}"}
-                      class="font-medium hover:underline"
-                    >
-                      {source.title}
-                    </.link>
-                    {if source.author, do: " - #{source.author}"}
-                    {if source.pubyear, do: " (#{source.pubyear})"}
-                    <%= if source.externallink do %>
-                      <.link
-                        href={source.externallink}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="ml-2 hover:underline"
-                      >
-                        [Link]
-                      </.link>
-                    <% end %>
-                    <.link
-                      :if={@current_user}
-                      href={
-                        ~p"/admin/species-sources/find?species_id=#{@gall.id}&source_id=#{source.id}"
-                      }
-                      class="ml-2 text-gray-400 hover:text-gf-maroon"
-                      title="Edit species-source mapping"
-                    >
-                      <.icon name="ph-pencil-simple" class="h-4 w-4 inline-block align-text-bottom" />
-                    </.link>
-                  </div>
-                  <%= if source.description do %>
-                    <div class="mt-1 text-gray-700 [&_p]:mb-2 [&_a]:text-gf-maroon [&_a]:underline">
-                      {Phoenix.HTML.raw(Markdown.render!(source.description))}
-                    </div>
-                  <% end %>
-                  <%= if source.license do %>
-                    <p class="mt-1 text-sm text-gray-500">
-                      License:
-                      <%= if source.licenselink do %>
-                        <.link
-                          href={source.licenselink}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          class="hover:underline"
-                        >
-                          {source.license}
-                        </.link>
-                      <% else %>
-                        {source.license}
-                      <% end %>
-                    </p>
-                  <% end %>
+              <div
+                :for={source <- @sources}
+                class={"p-3 rounded border bg-white #{if source.id == 58, do: "border-blue-200 border-l-4 border-l-blue-400", else: "border-gray-200"}"}
+              >
+                <div>
+                  <.icon
+                    :if={source.id == 58}
+                    name="ph-info"
+                    class="h-5 w-5 text-blue-500 inline-block align-text-bottom mr-1"
+                  />
+                  <.link
+                    href={"/source/#{source.id}"}
+                    class="font-medium hover:underline"
+                  >
+                    {source.title}
+                  </.link>
+                  {if source.author, do: " - #{source.author}"}
+                  {if source.pubyear, do: " (#{source.pubyear})"}
+                  <.link
+                    :if={source.externallink}
+                    href={source.externallink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="ml-2 hover:underline"
+                  >
+                    [Link]
+                  </.link>
+                  <.link
+                    :if={@current_user}
+                    href={
+                      ~p"/admin/species-sources/find?species_id=#{@gall.id}&source_id=#{source.id}"
+                    }
+                    class="ml-2 text-gray-400 hover:text-gf-maroon"
+                    title="Edit species-source mapping"
+                  >
+                    <.icon name="ph-pencil-simple" class="h-4 w-4 inline-block align-text-bottom" />
+                  </.link>
                 </div>
-              <% end %>
+                <div
+                  :if={source.description}
+                  class="mt-1 text-gray-700 [&_p]:mb-2 [&_a]:text-gf-maroon [&_a]:underline"
+                >
+                  {Phoenix.HTML.raw(Markdown.render!(source.description))}
+                </div>
+                <p :if={source.license} class="mt-1 text-sm text-gray-500">
+                  License:
+                  <%= if source.licenselink do %>
+                    <.link
+                      href={source.licenselink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="hover:underline"
+                    >
+                      {source.license}
+                    </.link>
+                  <% else %>
+                    {source.license}
+                  <% end %>
+                </p>
+              </div>
             </div>
           <% else %>
             <p class="italic">No further information available for this species.</p>

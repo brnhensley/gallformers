@@ -228,34 +228,31 @@ defmodule GallformersWeb.SourceLive do
                       </tr>
                     </thead>
                     <tbody>
-                      <%= for species <- paginated_species(@species, @current_page, @page_size) do %>
-                        <tr>
-                          <td>
-                            <.link
-                              href={"#{if species.taxoncode == "gall", do: "/gall", else: "/host"}/#{species.id}"}
-                              class="hover:underline"
-                            >
-                              <em>{species.name}</em>
-                            </.link>
-                          </td>
-                          <td class="text-gray-600">
-                            {if species.taxoncode == "gall", do: "Gall", else: "Host"}
-                          </td>
-                        </tr>
-                      <% end %>
+                      <tr :for={species <- paginated_species(@species, @current_page, @page_size)}>
+                        <td>
+                          <.link
+                            href={"#{if species.taxoncode == "gall", do: "/gall", else: "/host"}/#{species.id}"}
+                            class="hover:underline"
+                          >
+                            <em>{species.name}</em>
+                          </.link>
+                        </td>
+                        <td class="text-gray-600">
+                          {if species.taxoncode == "gall", do: "Gall", else: "Host"}
+                        </td>
+                      </tr>
                     </tbody>
                   </table>
                 </div>
-                <%= if total_pages(@species, @page_size) > 1 do %>
-                  <.pagination
-                    page={@current_page}
-                    total_pages={total_pages(@species, @page_size)}
-                    total_items={length(@species)}
-                    page_size={@page_size}
-                    on_page_change={fn page -> JS.push("page", value: %{page: page}) end}
-                    class="mt-4"
-                  />
-                <% end %>
+                <.pagination
+                  :if={total_pages(@species, @page_size) > 1}
+                  page={@current_page}
+                  total_pages={total_pages(@species, @page_size)}
+                  total_items={length(@species)}
+                  page_size={@page_size}
+                  on_page_change={fn page -> JS.push("page", value: %{page: page}) end}
+                  class="mt-4"
+                />
               <% else %>
                 <p class="text-gray-500 italic">No species connected to this source.</p>
               <% end %>
