@@ -79,14 +79,16 @@ bd close bd-42 --reason "Completed" --json
 4. **Discover new work?** Create linked issue:
    - `bd create "Found bug" -p 1 --deps discovered-from:<parent-id>`
 5. **Complete**: `bd close <id> --reason "Done"`
-6. **Commit together**: Always commit the `.beads/issues.jsonl` file together with the code changes so issue state stays in sync with code state
+6. **Beads auto-syncs**: The daemon commits beads changes to the `beads-sync` branch automatically - no manual commit needed
 
 ### Auto-Sync
 
-bd automatically syncs with git:
+bd automatically syncs with git via a dedicated `beads-sync` branch:
+- Daemon commits beads changes to `beads-sync` (not your working branch)
 - Exports to `.beads/issues.jsonl` after changes (5s debounce)
-- Imports from JSONL when newer (e.g., after `git pull`)
-- No manual export/import needed!
+- Auto-pushes and pulls from remote `beads-sync`
+- Your code branches stay clean of beads commits
+- No manual sync needed!
 
 ### GitHub Copilot Integration
 

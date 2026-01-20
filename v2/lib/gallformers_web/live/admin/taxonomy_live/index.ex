@@ -1,0 +1,272 @@
+defmodule GallformersWeb.Admin.TaxonomyLive.Index do
+  @moduledoc """
+  Admin page for listing and managing taxonomic classifications.
+
+  Displays families, genera, and sections with their hierarchical relationships.
+  """
+  use GallformersWeb, :live_view
+
+  alias Gallformers.Taxonomy
+
+  @page_size 50
+
+  @impl true
+  def mount(_params, session, socket) do
+    current_user = session["current_user"]
+
+    if connected?(socket), do: Taxonomy.subscribe()
+
+    socket =
+      socket
+      |> assign(:current_user, current_user)
+      |> assign(:page_title, "Taxonomy")
+      |> assign(:search_query, "")
+      |> assign(:filter_type, nil)
+      |> assign(:current_page, 1)
+      |> assign(:page_size, @page_size)
+      |> load_taxonomies()
+
+    {:ok, socket}
+  end
+
+  @impl true
+  def handle_params(params, _url, socket) do
+    {:noreply, apply_action(socket, socket.assigns.live_action, params)}
+  end
+
+  defp apply_action(socket, :index, _params) do
+    socket
+    |> assign(:page_title, "Taxonomy")
+  end
+
+  @impl true
+  def handle_event("search", %{"query" => query}, socket) do
+    socket =
+      socket
+      |> assign(:search_query, query)
+      |> assign(:current_page, 1)
+      |> load_taxonomies()
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("filter_type", %{"type" => type}, socket) do
+    filter_type = if type == "", do: nil, else: type
+
+    socket =
+      socket
+      |> assign(:filter_type, filter_type)
+      |> assign(:current_page, 1)
+      |> load_taxonomies()
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("page", %{"page" => page}, socket) do
+    page = max(1, min(page, total_pages(socket.assigns.taxonomies, socket.assigns.page_size)))
+    {:noreply, assign(socket, current_page: page)}
+  end
+
+  @impl true
+  def handle_event("delete", %{"id" => id}, socket) do
+    taxonomy = Taxonomy.get_taxonomy!(String.to_integer(id))
+
+    case Taxonomy.delete_taxonomy(taxonomy) do
+      {:ok, _} ->
+        {:noreply,
+         socket
+         |> put_flash(:info, "Taxonomy deleted successfully")
+         |> load_taxonomies()}
+
+      {:error, _changeset} ->
+        {:noreply, put_flash(socket, :error, "Failed to delete taxonomy")}
+    end
+  end
+
+  @impl true
+  def handle_info({event, _taxonomy}, socket)
+      when event in [:taxonomy_created, :taxonomy_updated, :taxonomy_deleted] do
+    {:noreply, load_taxonomies(socket)}
+  end
+
+  defp load_taxonomies(socket) do
+    taxonomies =
+      case {socket.assigns.search_query, socket.assigns.filter_type} do
+        {"", nil} -> Taxonomy.list_taxonomies_with_parent()
+        {"", type} -> Taxonomy.list_taxonomies_with_parent(type)
+        {query, type} -> search_and_filter(query, type)
+      end
+
+    assign(socket, :taxonomies, taxonomies)
+  end
+
+  defp search_and_filter(query, type) do
+    Taxonomy.search_taxonomies(query, type, 500)
+    |> Enum.map(fn t ->
+      parent = if t.parent_id, do: Taxonomy.get_taxonomy(t.parent_id), else: nil
+
+      %{
+        id: t.id,
+        name: t.name,
+        description: t.description,
+        type: t.type,
+        parent_id: t.parent_id,
+        parent_name: parent && parent.name,
+        parent_type: parent && parent.type
+      }
+    end)
+  end
+
+  defp paginated_taxonomies(taxonomies, current_page, page_size) do
+    taxonomies
+    |> Enum.drop((current_page - 1) * page_size)
+    |> Enum.take(page_size)
+  end
+
+  defp total_pages(taxonomies, page_size) do
+    max(1, ceil(length(taxonomies) / page_size))
+  end
+
+  @impl true
+  def render(assigns) do
+    ~H"""
+    <Layouts.admin flash={@flash} current_user={@current_user} page_title="Taxonomy">
+      <div class="space-y-6">
+        <%!-- Info banner --%>
+        <div class="gf-admin-info">
+          <.icon name="ph-info" class="h-5 w-5 text-blue-400 mr-2 flex-shrink-0" />
+          <p>
+            Taxonomy entries organize species into families, genera, and sections.
+            Each entry can have a parent to form the taxonomic hierarchy.
+          </p>
+        </div>
+
+        <%!-- Header with search, filter, and new button --%>
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div class="flex items-center gap-4 flex-1 max-w-2xl">
+            <form phx-change="search" phx-submit="search" id="taxonomy-search-form" class="flex-1">
+              <.search_input
+                id="taxonomy-search"
+                name="query"
+                value={@search_query}
+                placeholder="Search taxonomy..."
+                phx-debounce="300"
+              />
+            </form>
+            <form phx-change="filter_type">
+              <.input
+                type="select"
+                name="type"
+                prompt="All Types"
+                options={[{"Families", "family"}, {"Genera", "genus"}, {"Sections", "section"}]}
+                value={@filter_type}
+              />
+            </form>
+          </div>
+          <.link navigate={~p"/admin/taxonomy/new"} class="gf-btn gf-btn-primary">
+            New Entry
+          </.link>
+        </div>
+
+        <%!-- Taxonomy list table --%>
+        <div class="bg-white shadow rounded-lg overflow-hidden">
+          <table class="gf-table gf-table-dark">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Description</th>
+                <th>Parent</th>
+                <th class="text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr :for={taxonomy <- paginated_taxonomies(@taxonomies, @current_page, @page_size)}>
+                <td>
+                  <.link
+                    navigate={~p"/admin/taxonomy/#{taxonomy.id}"}
+                    class="hover:underline font-medium"
+                  >
+                    {taxonomy.name}
+                  </.link>
+                </td>
+                <td>
+                  <.type_badge type={taxonomy.type} />
+                </td>
+                <td class="text-gray-500">
+                  {taxonomy.description || "—"}
+                </td>
+                <td>
+                  <%= if taxonomy.parent_name do %>
+                    <span class="text-gray-900">{taxonomy.parent_name}</span>
+                    <span class="text-gray-500 text-xs ml-1">({taxonomy.parent_type})</span>
+                  <% else %>
+                    <span class="text-gray-400">—</span>
+                  <% end %>
+                </td>
+                <td class="text-right">
+                  <.table_actions>
+                    <.action_button
+                      icon="ph-pencil-simple"
+                      label="Edit"
+                      navigate={~p"/admin/taxonomy/#{taxonomy.id}"}
+                      variant="primary"
+                    />
+                    <.action_button
+                      icon="ph-trash"
+                      label="Delete"
+                      variant="danger"
+                      phx-click="delete"
+                      phx-value-id={taxonomy.id}
+                      confirm="Are you sure? This will also affect species in this taxonomy."
+                    />
+                  </.table_actions>
+                </td>
+              </tr>
+              <tr :if={@taxonomies == []}>
+                <td colspan="5" class="text-center text-gray-500">
+                  No taxonomy entries found.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <%= if total_pages(@taxonomies, @page_size) > 1 do %>
+          <.pagination
+            page={@current_page}
+            total_pages={total_pages(@taxonomies, @page_size)}
+            total_items={length(@taxonomies)}
+            page_size={@page_size}
+            on_page_change={fn page -> JS.push("page", value: %{page: page}) end}
+          />
+        <% else %>
+          <p class="text-sm text-gray-500">
+            Showing {length(@taxonomies)} entries
+          </p>
+        <% end %>
+      </div>
+    </Layouts.admin>
+    """
+  end
+
+  defp type_badge(assigns) do
+    color_class =
+      case assigns.type do
+        "family" -> "bg-blue-100 text-blue-800"
+        "genus" -> "bg-green-100 text-green-800"
+        "section" -> "bg-purple-100 text-purple-800"
+        _ -> "bg-gray-100 text-gray-800"
+      end
+
+    assigns = assign(assigns, :color_class, color_class)
+
+    ~H"""
+    <span class={"inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium #{@color_class}"}>
+      {@type}
+    </span>
+    """
+  end
+end

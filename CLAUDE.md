@@ -33,7 +33,7 @@ Gallformers (gallformers.org) is a comprehensive online database and reference g
 
 ## V1 and V2
 There are two versions of the application. V1 is at the root and is a stable legacy implementation. We only fix bugs in it.
-V2 is the bulk of work, it is all in the v2/ directory. See the CLAUDE.md in that directory for more details.
+V2 is the bulk of work, using Phoenix/LiveView with Elixir. It is in the `v2/` directory.
 
 ## V1 Technical Stack
 
@@ -93,20 +93,23 @@ gallformers/
 ├── __tests__/          # Test files
 ├── scripts/            # Build and utility scripts
 ├── .beads/             # Beads issue tracking data
-└── v2/                  # V2 rewrite (Go + Svelte) - see below
+└── v2/                 # V2 rewrite (Phoenix/LiveView) - see below
 ```
 
 ## V2 Rewrite
 
-The `v2/` directory contains a complete rewrite of Gallformers using Go and Svelte. **This directory has its own `v2/CLAUDE.md` with specific instructions.**
+The `v2/` directory contains a complete rewrite of Gallformers using Phoenix/LiveView with Elixir.
+
+**Tech Stack:**
+- **Phoenix Framework** - Elixir web framework with LiveView for real-time UI
+- **Ecto with ecto_sqlite3** - Database layer using existing SQLite database
+- **Tailwind CSS** - Styling (configured via Phoenix defaults)
+- **Fly.io** - Production hosting
 
 Key points:
 - **Isolation**: V2 work must stay within `v2/` - do not modify v1 code when working on v2
-- **Separate stack**: Go API + SvelteKit frontend (not Next.js/Prisma)
+- **Database**: Uses the same SQLite database as v1 via ecto_sqlite3
 - **Hosting**: V2 deploys to Fly.io (v1 stays on Digital Ocean until cutover)
-- **Instructions**: Follow `v2/CLAUDE.md` for all v2 development
-
-When working on v2 features, always read `v2/CLAUDE.md` first for the isolation rules and development workflow.
 
 ## Key Domain Concepts
 
@@ -164,6 +167,10 @@ Key tables and relationships:
   - Links to: species, taxonomy, sources
 
 - **source** - Scientific references and citations
+
+- **users** - User profiles (V2 only, contains PII)
+  - Fields: auth0_id, display_name, nickname, profile URLs
+  - See [runbooks/database-backup.md](runbooks/database-backup.md) for PII handling
 
 See `prisma/schema.prisma` for complete schema details.
 
@@ -310,12 +317,12 @@ This project uses **watchmen** for time tracking. A hook automatically starts th
 **Push approval rules:**
 | Change Type | Approval Required | Notes |
 |-------------|-------------------|-------|
-| Beads (`.beads/`) | No | Daemon auto-syncs to main |
+| Beads | No | Daemon auto-syncs to `beads-sync` branch (isolated from code branches) |
 | Everything else | **Yes** | Always ask user before pushing to main |
 
 **Commit messages:** Present tense, imperative mood.
 
-CRITICAL: Never push to main without explicit approval from the user, unless it is beads changes only.
+CRITICAL: Never push to main without explicit approval from the user.
 
 ## Multi-Agent Workflow
 
@@ -336,6 +343,13 @@ Multiple agents can work in parallel using separate git worktrees.
 - Commit your work before ending the session
 - NEVER push to main unless you are explicitly told to
 - Do not run git operations that affect other branches
+
+**Beads across worktrees:**
+- Beads uses a dedicated `beads-sync` branch for all issue tracking data
+- The daemon auto-commits beads changes to `beads-sync`, not your working branch
+- All agents see the same beads state regardless of which branch they're on
+- No need to manually commit `.beads/` files - the daemon handles sync automatically
+- Run `bd sync --status` to check sync state if needed
 
 **Role-specific rules:**
 
@@ -389,11 +403,27 @@ The site should be:
 ## External Services
 
 - **Domain**: gallformers.org, gallformers.com (Namecheap)
-- **Hosting**: Digital Ocean Droplet
+- **Hosting**: Digital Ocean Droplet (v1), Fly.io (v2)
 - **Images**: AWS S3 (personal account)
 - **Auth**: Auth0
 - **Monitoring**: AWS Lambda + CloudWatch + Slack
 - **SSL**: Let's Encrypt (auto-renewal)
+
+## AWS Infrastructure
+
+**Region**: `us-east-1` (N. Virginia) - All AWS resources use this region to match Fly.io's `iad` datacenter for low latency.
+
+**S3 Buckets:**
+| Bucket | Access | Purpose |
+|--------|--------|---------|
+| `gallformers` | Public | Production images |
+| `gallformers-backups` | Mixed | Litestream backups (private) + sanitized DB snapshots (public prefix) |
+| `gallformers-full-backups` | Private | Full unsanitized database backups (contains PII) |
+
+**IAM Users:**
+- `litestream-gallformers` - Used by Fly.io and GitHub Actions for database backups
+
+See `v2/docs/backup-setup.md` for detailed S3/IAM configuration.
 
 ## Getting Help
 
