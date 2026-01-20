@@ -319,7 +319,7 @@ defmodule GallformersWeb.Admin.SpeciesSourceLive.AddFromSource do
     <Layouts.admin flash={@flash} current_user={@current_user} page_title={@page_title}>
       <div class="max-w-5xl mx-auto">
         <div class="mb-4">
-          <.link navigate={~p"/admin/sources"} class="text-gf-maroon hover:underline text-sm">
+          <.link navigate={~p"/admin/sources"} class="hover:underline text-sm">
             &larr; Back to Sources
           </.link>
         </div>

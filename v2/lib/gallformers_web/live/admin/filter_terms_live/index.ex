@@ -141,7 +141,7 @@ defmodule GallformersWeb.Admin.FilterTermsLive.Index do
                 <td>
                   <.link
                     navigate={~p"/admin/filter-terms/#{item.id}?type=#{@filter_type}"}
-                    class="text-gf-maroon hover:underline font-medium"
+                    class="hover:underline font-medium"
                   >
                     {get_field_value(item, @filter_type)}
                   </.link>

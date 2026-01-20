@@ -123,7 +123,7 @@ defmodule GallformersWeb.Admin.SourceLive.Index do
                 <td>
                   <.link
                     navigate={~p"/admin/sources/#{source.id}"}
-                    class="text-gf-maroon hover:underline font-medium"
+                    class="hover:underline font-medium"
                   >
                     {truncate(source.title, 60)}
                   </.link>

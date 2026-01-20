@@ -118,7 +118,7 @@ defmodule GallformersWeb.Admin.GallLive.Index do
                 <td>
                   <.link
                     navigate={~p"/admin/galls/#{gall.id}"}
-                    class="text-gf-maroon hover:underline font-medium italic"
+                    class="hover:underline font-medium italic"
                   >
                     {gall.name}
                   </.link>

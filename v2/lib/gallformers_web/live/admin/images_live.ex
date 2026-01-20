@@ -30,7 +30,7 @@ defmodule GallformersWeb.AdminImagesLive do
       |> assign(:images, [])
       |> assign(:editing_image, nil)
       |> assign(:delete_image, nil)
-      |> assign(:show_upload, false)
+      |> assign(:viewing_image, nil)
 
     {:ok, socket}
   end
@@ -68,14 +68,6 @@ defmodule GallformersWeb.AdminImagesLive do
     ~H"""
     <Layouts.admin flash={@flash} current_user={@current_user} page_title="Image Management">
       <div class="space-y-6">
-        <%!-- Header --%>
-        <div class="flex items-center justify-between">
-          <h1 class="text-2xl font-bold text-gf-maroon">Image Management</h1>
-          <.link navigate="/admin" class="text-gf-maroon hover:underline">
-            &larr; Back to Dashboard
-          </.link>
-        </div>
-
         <%!-- Species Search --%>
         <div class="bg-white rounded-lg border border-gray-200 p-6">
           <h2 class="text-lg font-medium text-gray-900 mb-4">Select Species</h2>
@@ -102,21 +94,88 @@ defmodule GallformersWeb.AdminImagesLive do
 
         <%!-- Image Management Section --%>
         <div :if={@selected_species} class="space-y-6">
-          <%!-- Upload Section --%>
+          <%!-- Image Grid --%>
           <div class="bg-white rounded-lg border border-gray-200 p-6">
             <div class="flex items-center justify-between mb-4">
-              <h2 class="text-lg font-medium text-gray-900">Upload Images</h2>
-              <button
-                type="button"
-                phx-click="toggle_upload"
-                class="text-gf-maroon hover:text-gf-autumn"
-              >
-                {if @show_upload, do: "Hide Upload", else: "Show Upload"}
-              </button>
+              <h2 class="text-lg font-medium text-gray-900">
+                Images ({length(@images)})
+              </h2>
+              <p :if={@images != []} class="text-sm text-gray-500">
+                Drag to reorder. First image is the default.
+              </p>
             </div>
 
             <div
-              :if={@show_upload}
+              :if={@images == []}
+              class="text-center py-8 text-gray-500"
+            >
+              No images uploaded yet.
+            </div>
+
+            <div
+              :if={@images != []}
+              id="sortable-images"
+              phx-hook="SortableImages"
+              phx-update="ignore"
+              class="flex flex-wrap gap-6"
+            >
+              <div
+                :for={image <- @images}
+                data-image-id={image.id}
+                class={[
+                  "relative group cursor-move",
+                  image.default && "ring-2 ring-gf-maroon ring-offset-2"
+                ]}
+              >
+                <img
+                  src={Image.sized_url(image.path, :medium)}
+                  alt={image.caption || "Species image"}
+                  class="w-48 h-48 object-cover rounded"
+                />
+                <div
+                  :if={image.default}
+                  class="absolute top-2 left-2 bg-gf-maroon text-white text-sm px-2 py-1 rounded"
+                >
+                  Default
+                </div>
+                <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded flex items-center justify-center gap-4">
+                  <button
+                    type="button"
+                    phx-click="view_image"
+                    phx-value-id={image.id}
+                    class="p-2 bg-white rounded text-gray-700 hover:text-gf-maroon"
+                    aria-label="View image"
+                  >
+                    <.icon name="ph-eye" class="h-6 w-6" />
+                  </button>
+                  <button
+                    type="button"
+                    phx-click="edit_image"
+                    phx-value-id={image.id}
+                    class="p-2 bg-white rounded text-gray-700 hover:text-gf-maroon"
+                    aria-label="Edit image"
+                  >
+                    <.icon name="ph-pencil" class="h-6 w-6" />
+                  </button>
+                  <button
+                    type="button"
+                    phx-click="confirm_delete"
+                    phx-value-id={image.id}
+                    class="p-2 bg-white rounded text-gray-700 hover:text-red-600"
+                    aria-label="Delete image"
+                  >
+                    <.icon name="ph-trash" class="h-6 w-6" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <%!-- Upload Section --%>
+          <div class="bg-white rounded-lg border border-gray-200 p-6">
+            <h2 class="text-lg font-medium text-gray-900 mb-4">Upload Images</h2>
+
+            <div
               id="image-uploader"
               phx-hook="ImageUpload"
               phx-update="ignore"
@@ -164,74 +223,6 @@ defmodule GallformersWeb.AdminImagesLive do
               </div>
             </div>
           </div>
-
-          <%!-- Image Grid --%>
-          <div class="bg-white rounded-lg border border-gray-200 p-6">
-            <div class="flex items-center justify-between mb-4">
-              <h2 class="text-lg font-medium text-gray-900">
-                Images ({length(@images)})
-              </h2>
-              <p :if={@images != []} class="text-sm text-gray-500">
-                Drag to reorder. First image is the default.
-              </p>
-            </div>
-
-            <div
-              :if={@images == []}
-              class="text-center py-8 text-gray-500"
-            >
-              No images uploaded yet.
-            </div>
-
-            <div
-              :if={@images != []}
-              id="sortable-images"
-              phx-hook="SortableImages"
-              phx-update="ignore"
-              class="flex flex-wrap gap-4"
-            >
-              <div
-                :for={image <- @images}
-                data-image-id={image.id}
-                class={[
-                  "relative group cursor-move",
-                  image.default && "ring-2 ring-gf-maroon ring-offset-2"
-                ]}
-              >
-                <img
-                  src={Image.sized_url(image.path, :small)}
-                  alt={image.caption || "Species image"}
-                  class="w-24 h-24 object-cover rounded"
-                />
-                <div
-                  :if={image.default}
-                  class="absolute top-1 left-1 bg-gf-maroon text-white text-xs px-1 rounded"
-                >
-                  Default
-                </div>
-                <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded flex items-center justify-center gap-2">
-                  <button
-                    type="button"
-                    phx-click="edit_image"
-                    phx-value-id={image.id}
-                    class="p-1 bg-white rounded text-gray-700 hover:text-gf-maroon"
-                    title="Edit"
-                  >
-                    <.icon name="ph-pencil" class="h-4 w-4" />
-                  </button>
-                  <button
-                    type="button"
-                    phx-click="confirm_delete"
-                    phx-value-id={image.id}
-                    class="p-1 bg-white rounded text-gray-700 hover:text-red-600"
-                    title="Delete"
-                  >
-                    <.icon name="ph-trash" class="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
 
         <%!-- Edit Modal --%>
@@ -239,91 +230,74 @@ defmodule GallformersWeb.AdminImagesLive do
           <:header>Edit Image Metadata</:header>
           <:body>
             <form id="edit-image-form" phx-submit="save_image" class="space-y-4">
-              <div>
-                <label class="gf-label">
-                  Creator / Photographer
+              <.input
+                type="text"
+                name="creator"
+                label="Creator / Photographer"
+                value={@editing_image.creator || ""}
+              />
+              <.input
+                type="text"
+                name="attribution"
+                label="Attribution"
+                value={@editing_image.attribution || ""}
+              />
+              <div class="fieldset">
+                <label>
+                  <span class="label mb-2 text-base font-medium text-gray-700">License</span>
+                  <select name="license" class="gf-select" phx-change="update_license">
+                    <option value="">Select a license</option>
+                    <option
+                      :for={license <- Licenses.all()}
+                      value={license}
+                      selected={license == @editing_image.license}
+                    >
+                      {license}
+                    </option>
+                  </select>
                 </label>
-                <input
-                  type="text"
-                  name="creator"
-                  value={@editing_image.creator || ""}
-                  class="w-full rounded-md border-gray-300 shadow-sm focus:border-gf-maroon focus:ring-gf-maroon"
-                />
               </div>
-              <div>
-                <label class="gf-label">Attribution</label>
-                <input
-                  type="text"
-                  name="attribution"
-                  value={@editing_image.attribution || ""}
-                  class="w-full rounded-md border-gray-300 shadow-sm focus:border-gf-maroon focus:ring-gf-maroon"
-                />
-              </div>
-              <div>
-                <form phx-change="update_license">
-                  <.input
-                    type="select"
-                    name="license"
-                    label="License"
-                    prompt="Select a license"
-                    options={Enum.map(Licenses.all(), &{&1, &1})}
-                    value={@editing_image.license}
-                  />
-                </form>
-              </div>
-              <div>
-                <label class="gf-label">License URL</label>
-                <%= if Licenses.url_readonly?(@editing_image.license) do %>
-                  <input
-                    type="text"
-                    name="licenselink"
-                    value={Licenses.url(@editing_image.license)}
-                    readonly
-                    class="w-full rounded-md border-gray-300 bg-gray-50 text-gray-500 shadow-sm cursor-not-allowed"
-                  />
-                  <p class="mt-1 text-xs text-gray-500">
-                    Auto-filled from license selection
-                  </p>
-                <% else %>
-                  <input
-                    type="text"
-                    name="licenselink"
-                    value={@editing_image.licenselink || Licenses.url(@editing_image.license) || ""}
-                    placeholder={
-                      if @editing_image.license == "All Rights Reserved",
-                        do: "Optional - link to usage terms",
-                        else: ""
-                    }
-                    class="w-full rounded-md border-gray-300 shadow-sm focus:border-gf-maroon focus:ring-gf-maroon"
-                  />
-                  <p
-                    :if={@editing_image.license == "Public Domain / CC0"}
-                    class="mt-1 text-xs text-gray-500"
-                  >
-                    Defaults to CC0, but can be changed for other public domain references
-                  </p>
-                <% end %>
-              </div>
-              <div>
-                <label class="gf-label">
-                  Source URL (e.g., iNaturalist)
-                </label>
-                <input
-                  type="text"
-                  name="sourcelink"
-                  value={@editing_image.sourcelink || ""}
-                  class="w-full rounded-md border-gray-300 shadow-sm focus:border-gf-maroon focus:ring-gf-maroon"
-                />
-              </div>
-              <div>
+              <.input
+                :if={Licenses.url_readonly?(@editing_image.license)}
+                type="text"
+                name="licenselink"
+                label="License URL"
+                value={Licenses.url(@editing_image.license)}
+                readonly
+                class="gf-input bg-gray-50 text-gray-500 cursor-not-allowed"
+              />
+              <div :if={not Licenses.url_readonly?(@editing_image.license)}>
                 <.input
-                  type="textarea"
-                  name="caption"
-                  label="Caption"
-                  rows="3"
-                  value={@editing_image.caption || ""}
+                  type="text"
+                  name="licenselink"
+                  label="License URL"
+                  value={@editing_image.licenselink || Licenses.url(@editing_image.license) || ""}
+                  placeholder={
+                    if @editing_image.license == "All Rights Reserved",
+                      do: "Optional - link to usage terms",
+                      else: ""
+                  }
                 />
+                <p
+                  :if={@editing_image.license == "Public Domain / CC0"}
+                  class="mt-1 text-xs text-gray-500"
+                >
+                  Defaults to CC0, but can be changed for other public domain references
+                </p>
               </div>
+              <.input
+                type="text"
+                name="sourcelink"
+                label="Source URL (e.g., iNaturalist)"
+                value={@editing_image.sourcelink || ""}
+              />
+              <.input
+                type="textarea"
+                name="caption"
+                label="Caption"
+                rows="3"
+                value={@editing_image.caption || ""}
+              />
               <.input
                 type="checkbox"
                 name="default"
@@ -334,20 +308,12 @@ defmodule GallformersWeb.AdminImagesLive do
             </form>
           </:body>
           <:footer>
-            <button
-              type="button"
-              phx-click="cancel_edit"
-              class="px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
-            >
+            <.button type="button" variant="secondary" phx-click="cancel_edit">
               Cancel
-            </button>
-            <button
-              type="submit"
-              form="edit-image-form"
-              class="px-4 py-2 bg-gf-maroon text-white rounded-md hover:bg-gf-maroon/90"
-            >
+            </.button>
+            <.button type="submit" variant="primary" form="edit-image-form">
               Save Changes
-            </button>
+            </.button>
           </:footer>
         </.modal>
 
@@ -367,22 +333,37 @@ defmodule GallformersWeb.AdminImagesLive do
             </div>
           </:body>
           <:footer>
-            <button
-              type="button"
-              phx-click="cancel_delete"
-              class="px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
-            >
+            <.button type="button" variant="secondary" phx-click="cancel_delete">
               Cancel
-            </button>
-            <button
+            </.button>
+            <.button
               type="button"
+              variant="danger"
               phx-click="delete_image"
               phx-value-id={@delete_image.id}
-              class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
             >
               Delete
-            </button>
+            </.button>
           </:footer>
+        </.modal>
+
+        <%!-- View Image Modal --%>
+        <.modal
+          :if={@viewing_image}
+          id="view-modal"
+          show
+          on_cancel={JS.push("cancel_view")}
+          class="max-w-7xl"
+        >
+          <:body>
+            <div class="flex justify-center">
+              <img
+                src={Image.sized_url(@viewing_image.path, :original)}
+                alt={@viewing_image.caption || "Species image"}
+                class="max-h-[90vh] w-auto object-contain"
+              />
+            </div>
+          </:body>
         </.modal>
       </div>
     </Layouts.admin>
@@ -431,11 +412,6 @@ defmodule GallformersWeb.AdminImagesLive do
       |> push_patch(to: ~p"/admin/images")
 
     {:noreply, socket}
-  end
-
-  @impl true
-  def handle_event("toggle_upload", _params, socket) do
-    {:noreply, assign(socket, :show_upload, !socket.assigns.show_upload)}
   end
 
   # Handle presigned URL requests from JS hook
@@ -538,9 +514,26 @@ defmodule GallformersWeb.AdminImagesLive do
   end
 
   @impl true
+  def handle_event("view_image", %{"id" => id}, socket) do
+    image = Images.get_image!(String.to_integer(id))
+    {:noreply, assign(socket, :viewing_image, image)}
+  end
+
+  @impl true
+  def handle_event("cancel_view", _params, socket) do
+    {:noreply, assign(socket, :viewing_image, nil)}
+  end
+
+  @impl true
   def handle_event("update_license", %{"license" => license}, socket) do
-    # Update the editing_image's license to trigger UI update for license URL field
-    updated_image = %{socket.assigns.editing_image | license: license}
+    # Update both license and licenselink to reflect the new selection
+    # For CC licenses, use the canonical URL; for others, use the canonical URL as a starting point
+    updated_image = %{
+      socket.assigns.editing_image
+      | license: license,
+        licenselink: Licenses.url(license)
+    }
+
     {:noreply, assign(socket, :editing_image, updated_image)}
   end
 

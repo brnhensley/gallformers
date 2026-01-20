@@ -159,8 +159,9 @@ Colors are defined in `assets/css/app.css` via `@theme`. Use these classes:
 
 **Links:**
 ```heex
-<.link href="..." class="text-gf-maroon hover:underline">Link text</.link>
+<.link href="..." class="hover:underline">Link text</.link>
 ```
+Note: Link color is inherited from the base `a` style in `app.css` (Bootstrap blue #0d6efd).
 
 **Cards (v1-style):**
 ```heex

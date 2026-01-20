@@ -292,7 +292,7 @@ defmodule GallformersWeb.Admin.GallhostLive do
     <Layouts.admin flash={@flash} current_user={@current_user} page_title={@page_title}>
       <div class="max-w-7xl mx-auto">
         <div class="mb-4">
-          <.link navigate={~p"/admin"} class="text-gf-maroon hover:underline text-sm">
+          <.link navigate={~p"/admin"} class="hover:underline text-sm">
             &larr; Back to Admin
           </.link>
         </div>
@@ -310,7 +310,7 @@ defmodule GallformersWeb.Admin.GallhostLive do
             </p>
             <p class="text-sm text-gray-600 mb-4">
               At least one host species must exist before mapping.
-              <.link navigate={~p"/admin/hosts"} class="text-gf-maroon hover:underline">
+              <.link navigate={~p"/admin/hosts"} class="hover:underline">
                 Go add one
               </.link>
               now if you need to.
@@ -493,14 +493,14 @@ defmodule GallformersWeb.Admin.GallhostLive do
                 <%= if @selected_gall do %>
                   <.link
                     navigate={~p"/gall/#{@selected_gall.id}"}
-                    class="text-sm text-gf-maroon hover:underline"
+                    class="text-sm hover:underline"
                   >
                     View public page
                   </.link>
                   <span class="mx-2 text-gray-300">|</span>
                   <.link
                     navigate={~p"/admin/galls/#{@selected_gall.id}"}
-                    class="text-sm text-gf-maroon hover:underline"
+                    class="text-sm hover:underline"
                   >
                     Edit gall details
                   </.link>

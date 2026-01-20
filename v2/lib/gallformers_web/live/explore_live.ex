@@ -246,7 +246,7 @@ defmodule GallformersWeb.ExploreLive do
             <button
               phx-click="expand_all"
               phx-value-tab={@active_tab}
-              class="text-sm text-gf-maroon hover:underline"
+              class="text-sm hover:underline"
             >
               Expand All
             </button>
@@ -254,7 +254,7 @@ defmodule GallformersWeb.ExploreLive do
             <button
               phx-click="collapse_all"
               phx-value-tab={@active_tab}
-              class="text-sm text-gf-maroon hover:underline"
+              class="text-sm hover:underline"
             >
               Collapse All
             </button>
@@ -360,7 +360,7 @@ defmodule GallformersWeb.ExploreLive do
             <%!-- Leaf node (species) --%>
             <.link
               href={node.url}
-              class="flex items-center gap-1 ml-5 text-gf-maroon hover:underline"
+              class="flex items-center gap-1 ml-5 hover:underline"
             >
               <em>{node.label}</em>
             </.link>

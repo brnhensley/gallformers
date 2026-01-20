@@ -35,7 +35,7 @@ defmodule GallformersWeb.ResourcesLive do
           <h2 class="text-2xl font-semibold text-gray-800 mb-4">Identification Tools</h2>
           <div class="bg-white rounded-lg shadow-md divide-y">
             <div class="p-4">
-              <.link href="/id" class="text-gf-maroon hover:underline font-medium">
+              <.link href="/id" class="hover:underline font-medium">
                 Gallformers ID Tool
               </.link>
               <p class="text-gray-600 text-sm mt-1">
@@ -47,7 +47,7 @@ defmodule GallformersWeb.ResourcesLive do
                 href="https://megachile.shinyapps.io/doycalc/"
                 target="_blank"
                 rel="noreferrer"
-                class="text-gf-maroon hover:underline font-medium"
+                class="hover:underline font-medium"
               >
                 Gall Phenology Tool
               </.link>
@@ -67,7 +67,7 @@ defmodule GallformersWeb.ResourcesLive do
                 href="https://www.inaturalist.org"
                 target="_blank"
                 rel="noreferrer"
-                class="text-gf-maroon hover:underline font-medium"
+                class="hover:underline font-medium"
               >
                 iNaturalist
               </.link>
@@ -80,7 +80,7 @@ defmodule GallformersWeb.ResourcesLive do
                 href="https://bugguide.net"
                 target="_blank"
                 rel="noreferrer"
-                class="text-gf-maroon hover:underline font-medium"
+                class="hover:underline font-medium"
               >
                 BugGuide
               </.link>
@@ -93,7 +93,7 @@ defmodule GallformersWeb.ResourcesLive do
                 href="https://www.biodiversitylibrary.org"
                 target="_blank"
                 rel="noreferrer"
-                class="text-gf-maroon hover:underline font-medium"
+                class="hover:underline font-medium"
               >
                 Biodiversity Heritage Library
               </.link>
@@ -106,7 +106,7 @@ defmodule GallformersWeb.ResourcesLive do
                 href="https://scholar.google.com"
                 target="_blank"
                 rel="noreferrer"
-                class="text-gf-maroon hover:underline font-medium"
+                class="hover:underline font-medium"
               >
                 Google Scholar
               </.link>
@@ -122,7 +122,7 @@ defmodule GallformersWeb.ResourcesLive do
           <h2 class="text-2xl font-semibold text-gray-800 mb-4">Learning Resources</h2>
           <div class="bg-white rounded-lg shadow-md divide-y">
             <div class="p-4">
-              <.link href="/glossary" class="text-gf-maroon hover:underline font-medium">
+              <.link href="/glossary" class="hover:underline font-medium">
                 Gallformers Glossary
               </.link>
               <p class="text-gray-600 text-sm mt-1">
@@ -130,7 +130,7 @@ defmodule GallformersWeb.ResourcesLive do
               </p>
             </div>
             <div class="p-4">
-              <.link href="/filterguide" class="text-gf-maroon hover:underline font-medium">
+              <.link href="/filterguide" class="hover:underline font-medium">
                 Filter Guide
               </.link>
               <p class="text-gray-600 text-sm mt-1">
@@ -138,7 +138,7 @@ defmodule GallformersWeb.ResourcesLive do
               </p>
             </div>
             <div class="p-4">
-              <.link href="/refindex" class="text-gf-maroon hover:underline font-medium">
+              <.link href="/refindex" class="hover:underline font-medium">
                 Reference Articles
               </.link>
               <p class="text-gray-600 text-sm mt-1">
@@ -157,7 +157,7 @@ defmodule GallformersWeb.ResourcesLive do
                 href="https://www.inaturalist.org/projects/galls-of-north-america"
                 target="_blank"
                 rel="noreferrer"
-                class="text-gf-maroon hover:underline font-medium"
+                class="hover:underline font-medium"
               >
                 Galls of North America (iNaturalist Project)
               </.link>
@@ -170,7 +170,7 @@ defmodule GallformersWeb.ResourcesLive do
                 href="https://twitter.com/gallformers"
                 target="_blank"
                 rel="noreferrer"
-                class="text-gf-maroon hover:underline font-medium"
+                class="hover:underline font-medium"
               >
                 @gallformers on Twitter
               </.link>
@@ -183,7 +183,7 @@ defmodule GallformersWeb.ResourcesLive do
                 href="https://www.patreon.com/gallformers"
                 target="_blank"
                 rel="noreferrer"
-                class="text-gf-maroon hover:underline font-medium"
+                class="hover:underline font-medium"
               >
                 Gallformers Patreon
               </.link>
@@ -203,7 +203,7 @@ defmodule GallformersWeb.ResourcesLive do
                 href="https://github.com/jeffdc/gallformers"
                 target="_blank"
                 rel="noreferrer"
-                class="text-gf-maroon hover:underline font-medium"
+                class="hover:underline font-medium"
               >
                 Gallformers on GitHub
               </.link>

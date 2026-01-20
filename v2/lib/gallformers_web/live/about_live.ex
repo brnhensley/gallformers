@@ -93,13 +93,13 @@ defmodule GallformersWeb.AboutLive do
           <p class="text-gray-700 mb-4">
             Gallformers is the product of curious amateurs becoming obsessed. If you are here then you too have at
             least been touched, if not bitten, by the gall bug. It grows in you, but it is not a
-            <.link href="/glossary#parasitism" class="text-gf-maroon hover:underline">parasite</.link>
-            nor an <.link href="/glossary#inquiline" class="text-gf-maroon hover:underline">inquiline</.link>.
+            <.link href="/glossary#parasitism" class="hover:underline">parasite</.link>
+            nor an <.link href="/glossary#inquiline" class="hover:underline">inquiline</.link>.
           </p>
           <p class="text-gray-700 mb-4">
             While you are here we hope that we can help you both ID an unknown plant gall as well as to learn about
             galls. Whether your interests are very casual, you are a burgeoning scientist, or even a full-fledged
-            <.link href="/glossary#cecidiology" class="text-gf-maroon hover:underline">
+            <.link href="/glossary#cecidiology" class="hover:underline">
               cecidiologist
             </.link>
             we strive to provide useful tools.
@@ -110,7 +110,7 @@ defmodule GallformersWeb.AboutLive do
               href="https://github.com/jeffdc/gallformers"
               target="_blank"
               rel="noreferrer"
-              class="text-gf-maroon hover:underline"
+              class="hover:underline"
             >
               GitHub
             </.link>.
@@ -122,7 +122,7 @@ defmodule GallformersWeb.AboutLive do
               href="https://www.patreon.com/gallformers"
               target="_blank"
               rel="noreferrer"
-              class="text-gf-maroon hover:underline"
+              class="hover:underline"
             >
               Patreon
             </.link>
@@ -132,7 +132,7 @@ defmodule GallformersWeb.AboutLive do
           <h2 class="text-2xl font-semibold text-gray-800 mt-8 mb-4">Contacting Us</h2>
           <p class="text-gray-700 mb-6">
             You can contact us at
-            <.link href="mailto:gallformers@gmail.com" class="text-gf-maroon hover:underline">
+            <.link href="mailto:gallformers@gmail.com" class="hover:underline">
               gallformers@gmail.com
             </.link>
             or
@@ -140,7 +140,7 @@ defmodule GallformersWeb.AboutLive do
               href="https://twitter.com/gallformers"
               target="_blank"
               rel="noreferrer"
-              class="text-gf-maroon hover:underline"
+              class="hover:underline"
             >
               @gallformers
             </.link>
@@ -162,7 +162,7 @@ defmodule GallformersWeb.AboutLive do
                   href="https://www.inaturalist.org/people/megachile"
                   target="_blank"
                   rel="noreferrer"
-                  class="text-gf-maroon hover:underline"
+                  class="hover:underline"
                 >
                   iNaturalist
                 </.link>
@@ -170,7 +170,7 @@ defmodule GallformersWeb.AboutLive do
                   href="https://twitter.com/adam_kranz"
                   target="_blank"
                   rel="noreferrer"
-                  class="text-gf-maroon hover:underline"
+                  class="hover:underline"
                 >
                   Twitter
                 </.link>
@@ -190,7 +190,7 @@ defmodule GallformersWeb.AboutLive do
                   href="https://www.inaturalist.org/people/jeffdc"
                   target="_blank"
                   rel="noreferrer"
-                  class="text-gf-maroon hover:underline"
+                  class="hover:underline"
                 >
                   iNaturalist
                 </.link>
@@ -198,7 +198,7 @@ defmodule GallformersWeb.AboutLive do
                   href="https://mastodon.social/@jeffdc"
                   target="_blank"
                   rel="noreferrer"
-                  class="text-gf-maroon hover:underline"
+                  class="hover:underline"
                 >
                   Mastodon
                 </.link>
@@ -213,14 +213,14 @@ defmodule GallformersWeb.AboutLive do
             We also have an ever growing list of people that help us out as site administrators, without whom the site
             would be far poorer. If you are interested in becoming an administrator <.link
               href="mailto:gallformers@gmail.com"
-              class="text-gf-maroon hover:underline"
+              class="hover:underline"
             >reach out</.link>.
           </p>
           <%= if @administrators != [] do %>
             <ul class="list-disc list-inside text-gray-700 mb-8 columns-1 md:columns-2 gap-8">
               <li :for={admin <- @administrators} class="break-inside-avoid mb-1">
                 <%= if admin.nickname do %>
-                  <.link href={~p"/user/#{admin.nickname}"} class="text-gf-maroon hover:underline">
+                  <.link href={~p"/user/#{admin.nickname}"} class="hover:underline">
                     {display_name(admin)}
                   </.link>
                 <% else %>
@@ -257,7 +257,7 @@ defmodule GallformersWeb.AboutLive do
                 href="https://www.nsf.gov/awardsearch/showAward?AWD_ID=2418250&HistoricalAwards=false"
                 target="_blank"
                 rel="noreferrer"
-                class="text-gf-maroon hover:underline"
+                class="hover:underline"
               >
                 Grant No. 2418250
               </.link>.
@@ -271,7 +271,7 @@ defmodule GallformersWeb.AboutLive do
               href="https://creativecommons.org/licenses/by/4.0/"
               target="_blank"
               rel="noreferrer"
-              class="text-gf-maroon hover:underline"
+              class="hover:underline"
             >
               CC-BY
             </.link>
@@ -282,14 +282,14 @@ defmodule GallformersWeb.AboutLive do
             the many individuals that have allowed usage of their wonderful photos. We have made every effort to
             verify and document the license for all content that we use. If you find anything that you think is
             incorrect please contact us:
-            <.link href="mailto:gallformers@gmail.com" class="text-gf-maroon hover:underline">
+            <.link href="mailto:gallformers@gmail.com" class="hover:underline">
               Email
             </.link>
             or <.link
               href="https://twitter.com/gallformers"
               target="_blank"
               rel="noreferrer"
-              class="text-gf-maroon hover:underline"
+              class="hover:underline"
             >
               Twitter
             </.link>.
@@ -317,7 +317,7 @@ defmodule GallformersWeb.AboutLive do
           </p>
           <p class="text-gray-700 mb-6">
             View the full API documentation and try it out interactively at our
-            <.link href="/api/docs" class="text-gf-maroon hover:underline">
+            <.link href="/api/docs" class="hover:underline">
               API Documentation
             </.link>
             page.

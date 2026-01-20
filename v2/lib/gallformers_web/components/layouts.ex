@@ -93,7 +93,7 @@ defmodule GallformersWeb.Layouts do
             <%= if @current_user do %>
               <a
                 href="/admin"
-                class="px-2 text-lg font-medium !text-gf-maroon hover:underline"
+                class="px-2 text-lg font-medium hover:underline"
               >
                 Admin
               </a>
@@ -102,7 +102,7 @@ defmodule GallformersWeb.Layouts do
             <a
               :for={link <- @nav_links}
               href={link.href}
-              class="px-2 text-lg font-medium !text-gf-maroon hover:underline"
+              class="px-2 text-lg font-medium hover:underline"
             >
               {link.label}
             </a>
@@ -130,7 +130,8 @@ defmodule GallformersWeb.Layouts do
             <div class="relative group">
               <button
                 type="button"
-                class="flex items-center px-2 text-lg font-medium text-gf-maroon hover:underline"
+                phx-click={toggle_resources_menu()}
+                class="flex items-center px-2 text-lg font-medium hover:underline"
               >
                 Resources
                 <svg class="ml-1 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -142,13 +143,16 @@ defmodule GallformersWeb.Layouts do
                   />
                 </svg>
               </button>
-              <div class="absolute right-0 z-10 mt-1 w-48 origin-top-right rounded-md bg-white py-1 shadow-lg
-                          ring-1 ring-black ring-opacity-5 opacity-0 invisible group-hover:opacity-100
-                          group-hover:visible transition-all duration-150">
+              <div
+                id="resources-menu"
+                phx-click-away={hide_resources_menu()}
+                class="hidden absolute right-0 z-10 mt-1 w-48 origin-top-right rounded-md bg-white py-1 shadow-lg
+                          ring-1 ring-black ring-opacity-5 group-hover:block"
+              >
                 <a
                   :for={link <- @resource_links}
                   href={link.href}
-                  class="block px-4 py-2 text-lg !text-gf-maroon hover:bg-gray-100"
+                  class="block px-4 py-2 text-lg hover:bg-gray-100"
                 >
                   {link.label}
                 </a>
@@ -187,7 +191,7 @@ defmodule GallformersWeb.Layouts do
             <%= if @current_user do %>
               <a
                 href="/admin"
-                class="block rounded-md px-3 py-2 text-lg font-medium !text-gf-maroon hover:bg-white/50"
+                class="block rounded-md px-3 py-2 text-lg font-medium hover:bg-white/50"
               >
                 Admin
               </a>
@@ -196,7 +200,7 @@ defmodule GallformersWeb.Layouts do
             <a
               :for={link <- @nav_links}
               href={link.href}
-              class="block rounded-md px-3 py-2 text-lg font-medium !text-gf-maroon hover:bg-white/50"
+              class="block rounded-md px-3 py-2 text-lg font-medium hover:bg-white/50"
             >
               {link.label}
             </a>
@@ -230,7 +234,7 @@ defmodule GallformersWeb.Layouts do
               <a
                 :for={link <- @resource_links}
                 href={link.href}
-                class="block rounded-md px-3 py-2 text-lg font-medium !text-gf-maroon hover:bg-white/50"
+                class="block rounded-md px-3 py-2 text-lg font-medium hover:bg-white/50"
               >
                 {link.label}
               </a>
@@ -244,6 +248,14 @@ defmodule GallformersWeb.Layouts do
 
   defp toggle_mobile_menu do
     JS.toggle(to: "#mobile-menu")
+  end
+
+  defp toggle_resources_menu do
+    JS.toggle(to: "#resources-menu")
+  end
+
+  defp hide_resources_menu do
+    JS.hide(to: "#resources-menu")
   end
 
   @doc """
@@ -279,7 +291,7 @@ defmodule GallformersWeb.Layouts do
             </a>
             <a
               href="/auth/logout"
-              class="text-base font-medium !text-gf-maroon hover:underline"
+              class="text-base font-medium hover:underline"
             >
               Log Out
             </a>
@@ -287,7 +299,7 @@ defmodule GallformersWeb.Layouts do
         <% else %>
           <a
             href="/auth/auth0"
-            class="hidden sm:block text-base font-medium !text-gf-maroon hover:underline"
+            class="hidden sm:block text-base font-medium hover:underline"
           >
             Login
           </a>
@@ -300,7 +312,7 @@ defmodule GallformersWeb.Layouts do
             href="https://creativecommons.org/licenses/by-nc-sa/4.0/"
             target="_blank"
             rel="noopener noreferrer"
-            class="!text-gf-maroon hover:underline"
+            class="hover:underline"
           >
             CC BY-NC-SA 4.0
           </a>
@@ -312,7 +324,7 @@ defmodule GallformersWeb.Layouts do
             href="https://megachile.shinyapps.io/doycalc/"
             target="_blank"
             rel="noopener noreferrer"
-            class="text-base font-medium !text-gf-maroon hover:underline"
+            class="text-base font-medium hover:underline"
           >
             Phenology Tool
           </a>
@@ -320,11 +332,11 @@ defmodule GallformersWeb.Layouts do
             href="https://www.patreon.com/gallformers"
             target="_blank"
             rel="noopener noreferrer"
-            class="text-base font-medium !text-gf-maroon hover:underline"
+            class="text-base font-medium hover:underline"
           >
             Donate
           </a>
-          <a href="/about" class="text-base font-medium !text-gf-maroon hover:underline">
+          <a href="/about" class="text-base font-medium hover:underline">
             About
           </a>
         </nav>
@@ -368,14 +380,14 @@ defmodule GallformersWeb.Layouts do
           </a>
           <a
             href="/auth/logout"
-            class="block text-base font-medium !text-gf-maroon hover:underline py-1 px-4"
+            class="block text-base font-medium hover:underline py-1 px-4"
           >
             Log Out
           </a>
         <% else %>
           <a
             href="/auth/auth0"
-            class="block text-base font-medium !text-gf-maroon hover:underline py-1 px-4"
+            class="block text-base font-medium hover:underline py-1 px-4"
           >
             Login
           </a>
@@ -384,7 +396,7 @@ defmodule GallformersWeb.Layouts do
           href="https://megachile.shinyapps.io/doycalc/"
           target="_blank"
           rel="noopener noreferrer"
-          class="block text-base font-medium !text-gf-maroon hover:underline py-1 px-4"
+          class="block text-base font-medium hover:underline py-1 px-4"
         >
           Phenology Tool
         </a>
@@ -392,11 +404,11 @@ defmodule GallformersWeb.Layouts do
           href="https://www.patreon.com/gallformers"
           target="_blank"
           rel="noopener noreferrer"
-          class="block text-base font-medium !text-gf-maroon hover:underline py-1 px-4"
+          class="block text-base font-medium hover:underline py-1 px-4"
         >
           Donate
         </a>
-        <a href="/about" class="block text-base font-medium !text-gf-maroon hover:underline py-1 px-4">
+        <a href="/about" class="block text-base font-medium hover:underline py-1 px-4">
           About
         </a>
         <%!-- Copyright in mobile menu --%>
@@ -406,7 +418,7 @@ defmodule GallformersWeb.Layouts do
             href="https://creativecommons.org/licenses/by-nc-sa/4.0/"
             target="_blank"
             rel="noopener noreferrer"
-            class="!text-gf-maroon hover:underline"
+            class="hover:underline"
           >
             CC BY-NC-SA 4.0
           </a>
@@ -689,7 +701,7 @@ defmodule GallformersWeb.Layouts do
   def back_link(assigns) do
     ~H"""
     <div class="mb-6">
-      <.link navigate={@navigate} class="text-gf-maroon hover:underline">
+      <.link navigate={@navigate} class="hover:underline">
         <.icon name="ph-arrow-left" class="h-4 w-4 inline" /> {@label}
       </.link>
     </div>
@@ -737,7 +749,7 @@ defmodule GallformersWeb.Layouts do
     ~H"""
     <div class="max-w-7xl mx-auto">
       <div class="mb-4">
-        <.link navigate={@back_path} class="text-gf-maroon hover:underline text-sm">
+        <.link navigate={@back_path} class="hover:underline text-sm">
           &larr; {@back_label}
         </.link>
       </div>

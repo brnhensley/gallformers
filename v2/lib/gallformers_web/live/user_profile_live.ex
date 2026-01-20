@@ -69,7 +69,7 @@ defmodule GallformersWeb.UserProfileLive do
               <%= if @is_own_profile do %>
                 <a
                   href="/admin/profile"
-                  class="flex items-center gap-1 text-sm text-gf-maroon hover:underline"
+                  class="flex items-center gap-1 text-sm hover:underline"
                   title="Edit profile"
                 >
                   <.icon name="ph-pencil-simple" class="h-4 w-4" /> Edit
@@ -92,7 +92,7 @@ defmodule GallformersWeb.UserProfileLive do
                     href={@user.inaturalist_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    class="text-gf-maroon hover:underline"
+                    class="hover:underline"
                   >
                     iNaturalist
                   </a>
@@ -102,7 +102,7 @@ defmodule GallformersWeb.UserProfileLive do
                     href={@user.social_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    class="text-gf-maroon hover:underline"
+                    class="hover:underline"
                   >
                     Social
                   </a>
@@ -112,7 +112,7 @@ defmodule GallformersWeb.UserProfileLive do
                     href={@user.personal_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    class="text-gf-maroon hover:underline"
+                    class="hover:underline"
                   >
                     Website
                   </a>

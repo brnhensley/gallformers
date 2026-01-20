@@ -411,24 +411,24 @@ defmodule GallformersWeb.Admin.HostLive.Form do
         <:intro>
           This is for all of the details about a Host. To add a description (which must be referenced to a source) go add <.link
             navigate={~p"/admin/sources"}
-            class="text-gf-maroon hover:underline"
+            class="hover:underline"
           >Sources</.link>,
           if they do not already exist, then map species to sources with description.
           If you want to assign a
-          <.link navigate={~p"/admin/taxonomy"} class="text-gf-maroon hover:underline">Family</.link>
+          <.link navigate={~p"/admin/taxonomy"} class="hover:underline">Family</.link>
           or Section then you will need to have created them first if they do not exist.
         </:intro>
 
         <:quick_links :if={@mode == :edit}>
           <.link
             navigate={~p"/admin/images?species_id=#{@host.id}"}
-            class="text-sm text-gf-maroon hover:underline mr-4"
+            class="text-sm hover:underline mr-4"
           >
             Manage Images
           </.link>
           <.link
             navigate={~p"/admin/species-sources/find?species_id=#{@host.id}"}
-            class="text-sm text-gf-maroon hover:underline"
+            class="text-sm hover:underline"
           >
             Species-Source Mappings
           </.link>

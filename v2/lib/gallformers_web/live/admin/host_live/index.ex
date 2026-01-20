@@ -109,7 +109,7 @@ defmodule GallformersWeb.Admin.HostLive.Index do
                 <td>
                   <.link
                     navigate={~p"/admin/hosts/#{host.id}"}
-                    class="text-gf-maroon hover:underline font-medium italic"
+                    class="hover:underline font-medium italic"
                   >
                     {host.name}
                   </.link>

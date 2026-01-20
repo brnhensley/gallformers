@@ -164,7 +164,7 @@ defmodule GallformersWeb.PlaceLive do
                           <td>
                             <.link
                               href={"/host/#{host.id}"}
-                              class="text-gf-maroon hover:underline"
+                              class="hover:underline"
                             >
                               <em>{host.name}</em>
                             </.link>

@@ -622,7 +622,7 @@ defmodule GallformersWeb.Admin.GallLive.Form do
         <:intro>
           This is for all of the details about a Gall. To add a description (which must be referenced to a source) go add <.link
             navigate={~p"/admin/sources"}
-            class="text-gf-maroon hover:underline"
+            class="hover:underline"
           >Sources</.link>,
           if they do not already exist, then map species to sources with description.
           To associate a gall with all plants in a genus, add one species here first, then go to Gall-Host Mappings.
@@ -631,19 +631,19 @@ defmodule GallformersWeb.Admin.GallLive.Form do
         <:quick_links :if={@mode == :edit}>
           <.link
             navigate={~p"/admin/images?species_id=#{@gall.id}"}
-            class="text-sm text-gf-maroon hover:underline mr-4"
+            class="text-sm hover:underline mr-4"
           >
             Manage Images
           </.link>
           <.link
             navigate={~p"/admin/gallhost?id=#{@gall.id}"}
-            class="text-sm text-gf-maroon hover:underline mr-4"
+            class="text-sm hover:underline mr-4"
           >
             Gall-Host Mappings
           </.link>
           <.link
             navigate={~p"/admin/species-sources/find?species_id=#{@gall.id}"}
-            class="text-sm text-gf-maroon hover:underline"
+            class="text-sm hover:underline"
           >
             Species-Source Mappings
           </.link>

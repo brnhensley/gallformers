@@ -123,7 +123,7 @@ defmodule GallformersWeb.Admin.PlaceLive.Index do
                 <td>
                   <.link
                     navigate={~p"/admin/places/#{place.id}"}
-                    class="text-gf-maroon hover:underline font-medium"
+                    class="hover:underline font-medium"
                   >
                     {place.name}
                   </.link>

@@ -667,7 +667,7 @@ defmodule GallformersWeb.IDLive do
             <button
               type="button"
               phx-click="toggle_advanced"
-              class="text-sm text-gf-maroon hover:underline"
+              class="text-sm hover:underline"
             >
               {if @show_advanced, do: "Hide Advanced Filters", else: "Show Advanced Filters"}
             </button>
@@ -969,7 +969,7 @@ defmodule GallformersWeb.IDLive do
             <p class="mt-2">
               However, before giving up, try <.link
                 href="/ref/IDGuide#troubleshooting"
-                class="text-gf-maroon underline"
+                class="underline"
               >altering your filter choices</.link>.
             </p>
           </div>
@@ -981,7 +981,7 @@ defmodule GallformersWeb.IDLive do
             <p>
               If none of these results match your gall, you may have found an undescribed species. However, before concluding that your gall is not in the database, try <.link
                 href="/ref/IDGuide#troubleshooting"
-                class="text-gf-maroon underline"
+                class="underline"
               >altering your filter choices</.link>.
             </p>
           </div>
@@ -1001,7 +1001,7 @@ defmodule GallformersWeb.IDLive do
         <div class="aspect-square bg-gray-100">
           <img
             src={@gall.image_url || ~p"/images/noimage.jpg"}
-            alt={@gall.name}
+            alt=""
             class={[
               "w-full h-full object-cover",
               !@gall.image_url && "opacity-60"

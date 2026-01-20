@@ -200,7 +200,7 @@ defmodule GallformersWeb.FamilyLive do
                             <ul class="divide-y">
                               <%= for species <- genus.children do %>
                                 <li class="px-6 py-2 hover:bg-gray-50">
-                                  <.link href={species.url} class="text-gf-maroon hover:underline">
+                                  <.link href={species.url} class="hover:underline">
                                     <em>{species.name}</em>
                                   </.link>
                                 </li>

@@ -73,6 +73,7 @@ defmodule GallformersWeb.FormComponents do
   attr :name, :string, required: true, doc: "input name"
   attr :value, :string, default: "", doc: "current value"
   attr :placeholder, :string, default: "Search...", doc: "placeholder text"
+  attr :label, :string, default: nil, doc: "accessible label for screen readers"
   attr :class, :any, default: nil, doc: "additional CSS classes"
   attr :rest, :global, include: ~w(phx-change phx-submit phx-debounce form data-typeahead-input)
 
@@ -88,6 +89,7 @@ defmodule GallformersWeb.FormComponents do
         name={@name}
         value={@value}
         placeholder={@placeholder}
+        aria-label={@label || @placeholder}
         class="gf-search-input"
         {@rest}
       />
@@ -599,8 +601,6 @@ defmodule GallformersWeb.FormComponents do
           data-typeahead-selected
           class="flex items-center gap-2 p-2 bg-gray-50 rounded border focus:ring-2 focus:ring-gf-maroon focus:border-gf-maroon cursor-text"
           tabindex="0"
-          role="combobox"
-          aria-expanded="false"
           aria-label={"Selected: #{@display_fn.(@selected)}. Type to search, or press Escape to clear."}
         >
           <span class="flex-1 text-base italic">{@display_fn.(@selected)}</span>

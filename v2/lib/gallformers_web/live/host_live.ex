@@ -258,7 +258,7 @@ defmodule GallformersWeb.HostLive do
                   <strong>Family:</strong>
                   <.link
                     href={"/family/#{@taxonomy.family_id}"}
-                    class="text-gf-maroon hover:underline"
+                    class="hover:underline"
                   >
                     {@taxonomy.family}
                   </.link>
@@ -267,7 +267,7 @@ defmodule GallformersWeb.HostLive do
                     <strong>Section:</strong>
                     <.link
                       href={"/section/#{@taxonomy.section_id}"}
-                      class="text-gf-maroon hover:underline"
+                      class="hover:underline"
                     >
                       <em>{@taxonomy.section}</em>
                     </.link>
@@ -276,7 +276,7 @@ defmodule GallformersWeb.HostLive do
                   <strong>Genus:</strong>
                   <.link
                     href={"/genus/#{@taxonomy.genus_id}"}
-                    class="text-gf-maroon hover:underline"
+                    class="hover:underline"
                   >
                     <em>{@taxonomy.genus}</em>
                   </.link>
@@ -339,7 +339,7 @@ defmodule GallformersWeb.HostLive do
                             <td>
                               <.link
                                 href={"/gall/#{gall.id}"}
-                                class="text-gf-maroon hover:underline"
+                                class="hover:underline"
                               >
                                 <em>{gall.name}</em>
                               </.link>
@@ -458,7 +458,7 @@ defmodule GallformersWeb.HostLive do
                     <% end %>
                     <.link
                       href={"/source/#{source.id}"}
-                      class="font-medium text-gf-maroon hover:underline"
+                      class="font-medium hover:underline"
                     >
                       {source.title}
                     </.link>
@@ -469,7 +469,7 @@ defmodule GallformersWeb.HostLive do
                         href={source.externallink}
                         target="_blank"
                         rel="noopener noreferrer"
-                        class="ml-2 text-gf-maroon hover:underline"
+                        class="ml-2 hover:underline"
                       >
                         [Link]
                       </.link>
@@ -498,7 +498,7 @@ defmodule GallformersWeb.HostLive do
                           href={source.licenselink}
                           target="_blank"
                           rel="noopener noreferrer"
-                          class="text-gf-maroon hover:underline"
+                          class="hover:underline"
                         >
                           {source.license}
                         </.link>

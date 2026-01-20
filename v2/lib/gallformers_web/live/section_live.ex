@@ -144,7 +144,7 @@ defmodule GallformersWeb.SectionLive do
                             <%!-- Sections are for hosts (plants) --%>
                             <.link
                               href={"/host/#{species.id}"}
-                              class="text-gf-maroon hover:underline"
+                              class="hover:underline"
                             >
                               <em>{species.name}</em>
                             </.link>

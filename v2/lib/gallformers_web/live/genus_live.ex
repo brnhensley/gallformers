@@ -121,7 +121,7 @@ defmodule GallformersWeb.GenusLive do
               <%= if @family do %>
                 <div class="text-gray-700">
                   <span class="font-semibold">Family:</span>
-                  <.link href={"/family/#{@family.id}"} class="text-gf-maroon hover:underline">
+                  <.link href={"/family/#{@family.id}"} class="hover:underline">
                     <em>{@family.name}</em>
                   </.link>
                   <%= if @family.description do %>
@@ -150,7 +150,7 @@ defmodule GallformersWeb.GenusLive do
                           <td>
                             <.link
                               href={"#{if species.taxoncode == "gall", do: "/gall", else: "/host"}/#{species.id}"}
-                              class="text-gf-maroon hover:underline"
+                              class="hover:underline"
                             >
                               <em>{species.name}</em>
                             </.link>

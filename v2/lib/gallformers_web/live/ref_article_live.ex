@@ -157,7 +157,7 @@ defmodule GallformersWeb.RefArticleLive do
             </div>
             <h1 class="text-2xl font-bold text-gray-700 mb-2">Article Not Found</h1>
             <p class="text-gray-600 mb-4">{@error}</p>
-            <.link href={~p"/refindex"} class="text-gf-maroon hover:underline">
+            <.link href={~p"/refindex"} class="hover:underline">
               Browse all articles
             </.link>
           </div>
@@ -186,7 +186,7 @@ defmodule GallformersWeb.RefArticleLive do
           <div class="mb-6">
             <.link
               href={~p"/refindex"}
-              class="text-gf-maroon hover:underline inline-flex items-center gap-1"
+              class="hover:underline inline-flex items-center gap-1"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
@@ -242,7 +242,7 @@ defmodule GallformersWeb.RefArticleLive do
                     navigate={~p"/ref/#{related.slug}"}
                     class="block p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
                   >
-                    <h3 class="font-medium text-gf-maroon hover:underline">{related.title}</h3>
+                    <h3 class="font-medium hover:underline">{related.title}</h3>
                     <p class="text-sm text-gray-500 mt-1">By {related.author}</p>
                   </.link>
                 <% end %>

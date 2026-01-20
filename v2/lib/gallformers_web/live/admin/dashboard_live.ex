@@ -44,7 +44,7 @@ defmodule GallformersWeb.AdminDashboardLive do
             Welcome to the Gallformers admin panel. If you need help ask in the <a
               href="https://discord.com/channels/1178401400821125122/1180224727978094632"
               target="_blank"
-              class="text-gf-maroon hover:underline"
+              class="hover:underline"
             >Discord</a>.
           </p>
           <p class="text-lg text-red-600 font-bold">

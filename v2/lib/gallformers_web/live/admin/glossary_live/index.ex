@@ -121,7 +121,7 @@ defmodule GallformersWeb.Admin.GlossaryLive.Index do
                 <td>
                   <.link
                     navigate={~p"/admin/glossary/#{entry.id}"}
-                    class="text-gf-maroon hover:underline font-medium"
+                    class="hover:underline font-medium"
                   >
                     {entry.word}
                   </.link>

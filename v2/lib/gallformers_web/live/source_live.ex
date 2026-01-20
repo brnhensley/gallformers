@@ -161,7 +161,7 @@ defmodule GallformersWeb.SourceLive do
                   href={@source.link}
                   target="_blank"
                   rel="noopener noreferrer"
-                  class="text-gf-maroon hover:underline break-all"
+                  class="hover:underline break-all"
                 >
                   {@source.link}
                 </.link>
@@ -184,7 +184,7 @@ defmodule GallformersWeb.SourceLive do
                         href={@source.licenselink}
                         target="_blank"
                         rel="noopener noreferrer"
-                        class="text-gf-maroon hover:underline"
+                        class="hover:underline"
                       >
                         {@source.license || "View"}
                       </.link>
@@ -233,7 +233,7 @@ defmodule GallformersWeb.SourceLive do
                           <td>
                             <.link
                               href={"#{if species.taxoncode == "gall", do: "/gall", else: "/host"}/#{species.id}"}
-                              class="text-gf-maroon hover:underline"
+                              class="hover:underline"
                             >
                               <em>{species.name}</em>
                             </.link>

@@ -75,7 +75,7 @@ defmodule GallformersWeb.Admin.SourceLive.Form do
       >
         <:intro>
           Sources are scientific references and publications. After adding a source, you can
-          <.link navigate={~p"/admin/species-sources/add"} class="text-gf-maroon hover:underline">
+          <.link navigate={~p"/admin/species-sources/add"} class="hover:underline">
             map species to this source
           </.link>
           to add descriptions and external links.
@@ -84,7 +84,7 @@ defmodule GallformersWeb.Admin.SourceLive.Form do
         <:quick_links :if={@mode == :edit}>
           <.link
             navigate={~p"/admin/species-sources/add?source_id=#{@source.id}"}
-            class="text-sm text-gf-maroon hover:underline"
+            class="text-sm hover:underline"
           >
             Add Species from this Source
           </.link>
@@ -205,7 +205,7 @@ defmodule GallformersWeb.Admin.SourceLive.Form do
                 href="https://www.mybib.com/tools/mla-citation-generator"
                 target="_blank"
                 rel="noopener"
-                class="text-gf-maroon hover:underline"
+                class="hover:underline"
               >
                 MLA Citation Generator
               </a>

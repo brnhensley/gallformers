@@ -164,7 +164,7 @@ defmodule GallformersWeb.RefIndexLive do
             <%= if @selected_tag do %>
               <.link
                 patch={~p"/refindex"}
-                class="text-gf-maroon hover:underline"
+                class="hover:underline"
               >
                 View all articles
               </.link>

@@ -309,7 +309,7 @@ defmodule GallformersWeb.SearchLive do
                         <td class="!py-1 !px-2 align-middle">
                           <.link
                             href={result_link(result)}
-                            class="text-gf-maroon hover:underline"
+                            class="hover:underline"
                           >
                             <%= if italicized?(result.type) do %>
                               <em>{format_name(result)}</em>

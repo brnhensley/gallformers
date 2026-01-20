@@ -76,17 +76,17 @@ defmodule GallformersWeb.HomeLive do
         <.card title="Stuff you can do.">
           <ul class="space-y-2">
             <li>
-              <.link href="/id" class="text-gf-maroon hover:underline font-medium">
+              <.link href="/id" class="hover:underline font-medium">
                 Identify Galls
               </.link>
             </li>
             <li>
-              <.link href="/refindex" class="text-gf-maroon hover:underline font-medium">
+              <.link href="/refindex" class="hover:underline font-medium">
                 Learn More About Galls
               </.link>
             </li>
             <li>
-              <.link href="/explore" class="text-gf-maroon hover:underline font-medium">
+              <.link href="/explore" class="hover:underline font-medium">
                 Explore the Data
               </.link>
             </li>
@@ -114,7 +114,7 @@ defmodule GallformersWeb.HomeLive do
                 <% else %>
                   This one is called
                 <% end %>
-                <.link href={"/gall/#{@random_gall.id}"} class="text-gf-maroon hover:underline">
+                <.link href={"/gall/#{@random_gall.id}"} class="hover:underline">
                   <em>{@random_gall.name}</em>
                 </.link>.
               </p>
@@ -146,13 +146,13 @@ defmodule GallformersWeb.HomeLive do
                 href="https://www.patreon.com/gallformers"
                 target="_blank"
                 rel="noreferrer"
-                class="text-gf-maroon hover:underline font-medium"
+                class="hover:underline font-medium"
               >
                 Help cover operational costs via donations to our Patreon
               </.link>
             </li>
             <li>
-              <.link href="/about#administrators" class="text-gf-maroon hover:underline font-medium">
+              <.link href="/about#administrators" class="hover:underline font-medium">
                 Help add and maintain our data as an Administrator
               </.link>
             </li>
@@ -161,7 +161,7 @@ defmodule GallformersWeb.HomeLive do
                 href="https://github.com/jeffdc/gallformers"
                 target="_blank"
                 rel="noreferrer"
-                class="text-gf-maroon hover:underline font-medium"
+                class="hover:underline font-medium"
               >
                 Help fix bugs and add new features
               </.link>

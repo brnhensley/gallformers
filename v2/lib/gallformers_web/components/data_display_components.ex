@@ -105,7 +105,7 @@ defmodule GallformersWeb.DataDisplayComponents do
             href={get_img_field(@first_image, :sourcelink)}
             target="_blank"
             rel="noopener noreferrer"
-            class="text-gf-maroon hover:underline"
+            class="hover:underline"
           >
             Image
           </a>
@@ -119,7 +119,7 @@ defmodule GallformersWeb.DataDisplayComponents do
           href={get_img_field(@first_image, :licenselink)}
           target="_blank"
           rel="noopener noreferrer"
-          class="text-gf-maroon hover:underline"
+          class="hover:underline"
         >
           <span data-license>{get_img_field(@first_image, :license)}</span>
         </a>
@@ -191,7 +191,7 @@ defmodule GallformersWeb.DataDisplayComponents do
               <img
                 data-info-image
                 src={@first_image[:src] || @first_image["src"]}
-                alt=""
+                alt={@first_image[:alt] || @first_image["alt"] || "Image preview"}
                 class="w-80 h-80 object-contain rounded border border-gray-200 bg-gray-50"
               />
             </div>
@@ -203,7 +203,7 @@ defmodule GallformersWeb.DataDisplayComponents do
                   href={get_img_field(@first_image, :sourcelink)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  class="text-gf-maroon hover:underline"
+                  class="hover:underline"
                 >
                   {get_img_field(@first_image, :source_title) ||
                     get_img_field(@first_image, :sourcelink)}
@@ -216,7 +216,7 @@ defmodule GallformersWeb.DataDisplayComponents do
                   href={get_img_field(@first_image, :licenselink)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  class="text-gf-maroon hover:underline"
+                  class="hover:underline"
                 >
                   {get_img_field(@first_image, :license)}
                 </a>
@@ -406,7 +406,7 @@ defmodule GallformersWeb.DataDisplayComponents do
           </div>
         </div>
         <div class="p-4">
-          <h3 class="text-lg font-medium text-gf-maroon hover:underline">
+          <h3 class="text-lg font-medium hover:underline">
             <em>{@species[:name] || @species["name"]}</em>
           </h3>
           <p

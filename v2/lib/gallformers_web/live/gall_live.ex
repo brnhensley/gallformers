@@ -332,7 +332,7 @@ defmodule GallformersWeb.GallLive do
                       <code class="px-2 py-0.5 bg-white border border-amber-200 rounded font-mono text-amber-800">
                         {get_gallformers_code(@gall.name, @taxonomy && @taxonomy.genus)}
                       </code>
-                      <span class="ml-2 text-xs text-gf-maroon hover:underline">
+                      <span class="ml-2 text-xs hover:underline">
                         Click to Copy
                       </span>
                     </button>
@@ -342,7 +342,7 @@ defmodule GallformersWeb.GallLive do
                       href={"https://www.inaturalist.org/observations?verifiable=any&place_id=any&field:Gallformers%20Code=#{URI.encode(get_gallformers_code(@gall.name, @taxonomy && @taxonomy.genus))}"}
                       target="_blank"
                       rel="noreferrer"
-                      class="text-gf-maroon hover:underline"
+                      class="hover:underline"
                     >link</a>.
                   </p>
                 </div>
@@ -356,7 +356,7 @@ defmodule GallformersWeb.GallLive do
                         <strong>Family:</strong>
                         <.link
                           href={"/family/#{@taxonomy.family_id}"}
-                          class="text-gf-maroon hover:underline"
+                          class="hover:underline"
                         >
                           {@taxonomy.family}
                         </.link>
@@ -368,7 +368,7 @@ defmodule GallformersWeb.GallLive do
                         <strong>Genus:</strong>
                         <.link
                           href={"/genus/#{@taxonomy.genus_id}"}
-                          class="text-gf-maroon hover:underline"
+                          class="hover:underline"
                         >
                           <em>{@taxonomy.genus}</em>
                         </.link>
@@ -384,7 +384,7 @@ defmodule GallformersWeb.GallLive do
                           <%= for {host, idx} <- Enum.with_index(@gall.hosts) do %>
                             {if idx > 0, do: " / "}<.link
                               href={"/host/#{host.host_species_id}"}
-                              class="hover:underline text-gf-maroon"
+                              class="hover:underline"
                             >{host.host_name}</.link>
                           <% end %>
                         </em>
@@ -518,7 +518,7 @@ defmodule GallformersWeb.GallLive do
                     <% end %>
                     <.link
                       href={"/source/#{source.id}"}
-                      class="font-medium text-gf-maroon hover:underline"
+                      class="font-medium hover:underline"
                     >
                       {source.title}
                     </.link>
@@ -529,7 +529,7 @@ defmodule GallformersWeb.GallLive do
                         href={source.externallink}
                         target="_blank"
                         rel="noopener noreferrer"
-                        class="ml-2 text-gf-maroon hover:underline"
+                        class="ml-2 hover:underline"
                       >
                         [Link]
                       </.link>
@@ -558,7 +558,7 @@ defmodule GallformersWeb.GallLive do
                           href={source.licenselink}
                           target="_blank"
                           rel="noopener noreferrer"
-                          class="text-gf-maroon hover:underline"
+                          class="hover:underline"
                         >
                           {source.license}
                         </.link>

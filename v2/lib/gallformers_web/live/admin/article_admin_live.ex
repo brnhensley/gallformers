@@ -134,7 +134,7 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
                         type="button"
                         phx-click="edit_article"
                         phx-value-id={article.id}
-                        class="font-medium text-gf-maroon hover:underline text-left"
+                        class="font-medium hover:underline text-left"
                       >
                         {article.title}
                       </button>

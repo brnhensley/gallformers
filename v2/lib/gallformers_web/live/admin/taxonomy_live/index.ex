@@ -187,7 +187,7 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Index do
                 <td>
                   <.link
                     navigate={~p"/admin/taxonomy/#{taxonomy.id}"}
-                    class="text-gf-maroon hover:underline font-medium"
+                    class="hover:underline font-medium"
                   >
                     {taxonomy.name}
                   </.link>

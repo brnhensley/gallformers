@@ -132,7 +132,7 @@ defmodule GallformersWeb.Admin.GlossaryLive.Form do
                         href={url}
                         target="_blank"
                         rel="noopener"
-                        class="text-sm text-gf-maroon hover:underline"
+                        class="text-sm hover:underline"
                       >
                         {truncate_url(url)}
                       </a>

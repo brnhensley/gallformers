@@ -132,7 +132,7 @@ defmodule GallformersWeb.GlossaryLive do
                           href={ref.url}
                           target="_blank"
                           rel="noreferrer"
-                          class="text-gf-maroon hover:underline"
+                          class="hover:underline"
                         >
                           {ref.index}
                         </.link>
