@@ -43,8 +43,9 @@ npm-debug.log
 # Database files
 *.db
 *.db-*
-*.sqlite
-*.sqlite-*
+# Keep gallformers_test.sqlite (tracked for tests) but ignore WAL files
+*.sqlite-shm
+*.sqlite-wal
 
 # Dialyzer PLT files (large, environment-specific)
 /priv/plts/

@@ -8,7 +8,9 @@ config :gallformers, Gallformers.Repo,
   database: Path.expand("../priv/gallformers_test.sqlite", __DIR__),
   pool_size: 5,
   pool: Ecto.Adapters.SQL.Sandbox,
-  journal_mode: :wal,
+  # Use :delete instead of :wal to prevent the main DB file from being modified
+  # when WAL checkpoints occur (even with sandbox rollbacks)
+  journal_mode: :delete,
   busy_timeout: 5000
 
 # We don't run a server during test. If one is required,
