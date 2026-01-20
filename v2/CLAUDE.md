@@ -183,55 +183,47 @@ Applied automatically via layouts:
 
 ---
 
-## Phoenix Guidelines
+## Coding Standards
 
-### Project guidelines
+**See [CODING_STANDARDS.md](./CODING_STANDARDS.md)** for general Elixir/Phoenix conventions including:
+- Module structure and organization
+- Documentation (`@moduledoc`, `@doc`, `@spec`)
+- Naming conventions
+- Ecto patterns
+- LiveView patterns
+- Testing conventions
+
+This file documents **project-specific** patterns and gotchas only.
+
+---
+
+## Project-Specific Guidelines
 
 - Use `mix precommit` alias when you are done with all changes and fix any pending issues
-- Use the already included `:req` (`Req`) library for HTTP requests, **avoid** `:httpoison`, `:tesla`, and `:httpc`
+- Use the already included `:req` (`Req`) library for HTTP requests - **avoid** `:httpoison`, `:tesla`, and `:httpc`
 
-### Phoenix v1.8 guidelines
+### Authentication & current_scope
 
-- **Always** begin your LiveView templates with `<Layouts.app flash={@flash} ...>` which wraps all inner content
-- The `GallformersWeb.Layouts` module is aliased in `gallformers_web.ex`, so you can use it without needing to alias it again
-- Anytime you run into errors with no `current_scope` assign:
-  - You failed to follow the Authenticated Routes guidelines, or you failed to pass `current_scope` to `<Layouts.app>`
-  - **Always** fix the `current_scope` error by moving your routes to the proper `live_session` and ensure you pass `current_scope` as needed
-- Phoenix v1.8 moved the `<.flash_group>` component to the `Layouts` module. You are **forbidden** from calling `<.flash_group>` outside of the `layouts.ex` module
-- Out of the box, `core_components.ex` imports an `<.icon name="hero-x-mark" class="w-5 h-5"/>` component for hero icons. **Always** use the `<.icon>` component for icons, **never** use `Heroicons` modules or similar
-- **Always** use the imported `<.input>` component for form inputs from `core_components.ex` when available
-- If you override the default input classes, no default classes are inherited, so your custom classes must fully style the input
+This project uses `current_scope` for authentication context. If you encounter errors about missing `current_scope` assign:
 
-### JS and CSS guidelines
-
-- **Use Tailwind CSS classes and custom CSS rules** to create polished, responsive interfaces
-- Tailwindcss v4 **no longer needs a tailwind.config.js** and uses a new import syntax in `app.css`
-- **Never** use `@apply` when writing raw CSS
-- Out of the box **only the app.js and app.css bundles are supported**
-  - You cannot reference an external vendor'd script `src` or link `href` in the layouts
-  - You must import the vendor deps into app.js and app.css to use them
-  - **Never write inline `<script>` tags within templates**
+1. Ensure routes are in the correct `live_session` (authenticated vs public)
+2. Pass `current_scope` to `<Layouts.app>` when required
+3. Check router.ex for the proper live_session configuration
 
 ---
 
-## Elixir Guidelines
+## Elixir Gotchas
 
-- Elixir lists **do not support index-based access via the access syntax**. Use `Enum.at`, pattern matching, or `List` functions instead
-- Elixir variables are immutable but can be rebound. For block expressions like `if`, `case`, `cond`, etc., you *must* bind the result of the expression to a variable
-- **Never** nest multiple modules in the same file as it can cause cyclic dependencies
-- **Never** use map access syntax (`changeset[:field]`) on structs. Use `my_struct.field` or `Ecto.Changeset.get_field/2`
-- Don't use `String.to_atom/1` on user input (memory leak risk)
-- Predicate function names should end in a question mark, not start with `is_`
+- Elixir lists **do not support index-based access** (`list[0]`). Use `Enum.at/2`, pattern matching, or `hd/1`/`tl/1`
+- Block expressions (`if`, `case`, `cond`) return values - you *must* bind the result to use it
 
 ---
 
-## Ecto Guidelines
+## Ecto Gotchas
 
-- **Always** preload Ecto associations in queries when they'll be accessed in templates
-- `Ecto.Schema` fields always use the `:string` type, even for `:text` columns
-- You **must** use `Ecto.Changeset.get_field(changeset, :field)` to access changeset fields
-- Fields set programmatically (like `user_id`) must not be in `cast` calls - set them explicitly
-- **Always** invoke `mix ecto.gen.migration migration_name_using_underscores` when generating migrations
+- `Ecto.Schema` fields always use the `:string` type, even for database `:text` columns
+- Use `Ecto.Changeset.get_field(changeset, :field)` to access fields - not `changeset.field`
+- Generate migrations with: `mix ecto.gen.migration migration_name_using_underscores`
 
 ### SQLite Compatibility
 
@@ -264,113 +256,9 @@ group_by: [t.id, t.name]
 
 ---
 
-## Phoenix HTML Guidelines
-
-- Phoenix templates **always** use `~H` or .html.heex files (HEEx), **never** use `~E`
-- **Always** use `Phoenix.Component.form/1` and `Phoenix.Component.inputs_for/1` to build forms
-- **Always** use `to_form/2` for forms: `assign(socket, form: to_form(...))`
-- **Always** add unique DOM IDs to key elements (forms, buttons, etc.)
-- HEEx class attrs support lists with conditional classes:
-
-```heex
-<a class={[
-  "px-2 text-white",
-  @some_flag && "py-5",
-  if(@other_condition, do: "border-red-500", else: "border-blue-100")
-]}>Text</a>
-```
-
-- **Never** use `<% Enum.each %>` for generating template content, use `<%= for item <- @collection do %>`
-- HEEx HTML comments use `<%!-- comment --%>`
-- Use `{...}` for interpolation in attributes and tag bodies. Use `<%= %>` only for block constructs (if, cond, case, for)
-
----
-
-## Phoenix LiveView Guidelines
-
-- **Never** use the deprecated `live_redirect` and `live_patch` functions. Use `<.link navigate={href}>` and `<.link patch={href}>` in templates, and `push_navigate` and `push_patch` in LiveViews
-- **Avoid LiveComponent's** unless you have a strong, specific need for them
-- LiveViews should be named like `GallformersWeb.WeatherLive`, with a `Live` suffix
-
-### LiveView Streams
-
-- **Always** use LiveView streams for collections to avoid memory issues:
-  - Basic append: `stream(socket, :messages, [new_msg])`
-  - Reset stream: `stream(socket, :messages, [new_msg], reset: true)`
-  - Prepend: `stream(socket, :messages, [new_msg], at: -1)`
-  - Delete: `stream_delete(socket, :messages, msg)`
-
-- Template must set `phx-update="stream"` on parent and use `@streams.stream_name`:
-
-```heex
-<div id="messages" phx-update="stream">
-  <div :for={{id, msg} <- @streams.messages} id={id}>
-    {msg.text}
-  </div>
-</div>
-```
-
-- LiveView streams are *not* enumerable. To filter, refetch data and re-stream with `reset: true`
-
-### LiveView JavaScript Interop
-
-- Anytime you use `phx-hook="MyHook"` and that JS hook manages its own DOM, you **must** also set `phx-update="ignore"`
-- **Always** provide a unique DOM id alongside `phx-hook`
-
-#### Inline Colocated JS Hooks
-
-**Never** write raw embedded `<script>` tags. Use colocated hooks:
-
-```heex
-<input type="text" id="phone" phx-hook=".PhoneNumber" />
-<script :type={Phoenix.LiveView.ColocatedHook} name=".PhoneNumber">
-  export default {
-    mounted() {
-      this.el.addEventListener("input", e => {
-        // format phone number
-      })
-    }
-  }
-</script>
-```
-
-- Colocated hooks names **MUST** start with a `.` prefix, i.e. `.PhoneNumber`
-
-#### External phx-hook
-
-Place in `assets/js/` and pass to LiveSocket:
-
-```javascript
-const MyHook = {
-  mounted() { ... }
-}
-let liveSocket = new LiveSocket("/live", Socket, {
-  hooks: { MyHook }
-});
-```
-
-### Form Handling
-
-**Always** use `to_form/2` and the `<.input>` component:
-
-```heex
-<.form for={@form} id="todo-form" phx-change="validate" phx-submit="save">
-  <.input field={@form[:field]} type="text" />
-</.form>
-```
-
-- You are **FORBIDDEN** from accessing the changeset directly in the template
-- **Never** use `<.form let={f} ...>`, **always use `<.form for={@form} ...>`**
-
----
-
 ## Test Guidelines
 
-- **Always use `start_supervised!/1`** to start processes in tests
-- **Avoid** `Process.sleep/1` and `Process.alive?/1` in tests. Use `Process.monitor/1` instead
-- Use `Phoenix.LiveViewTest` and `LazyHTML` for LiveView tests
-- **Always** reference key element IDs in tests: `assert has_element?(view, "#my-form")`
-- **Never** test against raw HTML, **always** use `element/2`, `has_element/2`, etc.
+This project uses `LazyHTML` for HTML assertions in tests. See `CODING_STANDARDS.md` for general testing patterns.
 
 ---
 
