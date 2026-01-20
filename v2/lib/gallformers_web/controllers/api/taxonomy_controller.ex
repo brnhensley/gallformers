@@ -9,6 +9,7 @@ defmodule GallformersWeb.API.TaxonomyController do
   import Ecto.Query
 
   alias Gallformers.Repo
+  alias Gallformers.Species.Species
   alias Gallformers.Taxonomy
   alias GallformersWeb.Schemas
 
@@ -233,8 +234,6 @@ defmodule GallformersWeb.API.TaxonomyController do
   defp get_species_by_ids([]), do: []
 
   defp get_species_by_ids(ids) do
-    alias Gallformers.Species.Species
-
     from(s in Species,
       where: s.id in ^ids,
       order_by: s.name,

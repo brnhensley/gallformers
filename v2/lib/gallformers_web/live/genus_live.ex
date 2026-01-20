@@ -6,6 +6,10 @@ defmodule GallformersWeb.GenusLive do
   """
   use GallformersWeb, :live_view
 
+  import Ecto.Query
+
+  alias Gallformers.Repo
+  alias Gallformers.Species.Species
   alias Gallformers.Taxonomy
 
   @impl true
@@ -76,10 +80,6 @@ defmodule GallformersWeb.GenusLive do
   end
 
   defp get_species_info(species_ids) do
-    import Ecto.Query
-    alias Gallformers.Repo
-    alias Gallformers.Species.Species
-
     from(s in Species,
       where: s.id in ^species_ids,
       order_by: s.name,

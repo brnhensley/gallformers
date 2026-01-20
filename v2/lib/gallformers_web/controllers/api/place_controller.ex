@@ -11,6 +11,7 @@ defmodule GallformersWeb.API.PlaceController do
   alias Gallformers.Places
   alias Gallformers.Places.Place
   alias Gallformers.Repo
+  alias Gallformers.Species.Species
   alias GallformersWeb.Schemas
 
   tags(["Places"])
@@ -111,8 +112,6 @@ defmodule GallformersWeb.API.PlaceController do
   end
 
   defp get_hosts_for_place(place_id) do
-    alias Gallformers.Species.Species
-
     from(s in Species,
       join: sp in "speciesplace",
       on: sp.species_id == s.id,

@@ -11,7 +11,7 @@ defmodule GallformersWeb.API.StatsController do
   import Ecto.Query
 
   alias Gallformers.{Glossary, Hosts, Repo, Sources, Species}
-  alias Gallformers.Species.{Gall, GallSpecies}
+  alias Gallformers.Species.{Gall, GallSpecies, Image}
   alias Gallformers.Species.Species, as: SpeciesSchema
   alias GallformersWeb.Schemas
 
@@ -55,8 +55,6 @@ defmodule GallformersWeb.API.StatsController do
   end
 
   defp count_images do
-    alias Gallformers.Species.Image
-
     from(i in Image, select: count(i.id))
     |> Repo.one()
   end

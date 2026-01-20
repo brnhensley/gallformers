@@ -6,7 +6,11 @@ defmodule GallformersWeb.API.SpeciesController do
   use GallformersWeb, :controller
   use OpenApiSpex.ControllerSpecs
 
+  import Ecto.Query
+
+  alias Gallformers.Repo
   alias Gallformers.Species
+  alias Gallformers.Species.Species, as: SpeciesSchema
   alias GallformersWeb.Schemas
 
   tags(["Species"])
@@ -121,11 +125,7 @@ defmodule GallformersWeb.API.SpeciesController do
   defp search_species(query) do
     search_term = "%#{String.downcase(query)}%"
 
-    import Ecto.Query
-    alias Gallformers.Repo
-    alias Gallformers.Species.Species
-
-    from(s in Species,
+    from(s in SpeciesSchema,
       where: fragment("lower(?) LIKE ?", s.name, ^search_term),
       order_by: s.name,
       select: %{

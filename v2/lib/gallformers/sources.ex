@@ -8,6 +8,7 @@ defmodule Gallformers.Sources do
   import Ecto.Query
   alias Gallformers.Repo
   alias Gallformers.Sources.Source
+  alias Gallformers.Species.Species
   alias Gallformers.Species.SpeciesSource
 
   @doc """
@@ -140,8 +141,6 @@ defmodule Gallformers.Sources do
   """
   @spec get_species_for_source(integer()) :: [map()]
   def get_species_for_source(source_id) do
-    alias Gallformers.Species.Species
-
     from(ss in SpeciesSource,
       join: sp in Species,
       on: ss.species_id == sp.id,
@@ -319,8 +318,6 @@ defmodule Gallformers.Sources do
   def search_species_source_mappings(query, limit \\ 50) do
     search_term = "%#{String.downcase(query)}%"
 
-    alias Gallformers.Species.Species
-
     from(ss in SpeciesSource,
       join: sp in Species,
       on: ss.species_id == sp.id,
@@ -355,8 +352,6 @@ defmodule Gallformers.Sources do
   """
   @spec get_species_source_for_edit(integer()) :: map() | nil
   def get_species_source_for_edit(id) do
-    alias Gallformers.Species.Species
-
     from(ss in SpeciesSource,
       join: sp in Species,
       on: ss.species_id == sp.id,

@@ -8,7 +8,8 @@ defmodule Gallformers.Species do
   import Ecto.Query
   alias Gallformers.Repo
   alias Gallformers.Search.Ranking
-  alias Gallformers.Species.{Abundance, Gall, GallSpecies, Image, Species}
+  alias Gallformers.Hosts.Host
+  alias Gallformers.Species.{Abundance, Alias, Gall, GallSpecies, Image, Species}
 
   @doc """
   Returns a random gall that has a default image.
@@ -298,8 +299,6 @@ defmodule Gallformers.Species do
   """
   @spec get_aliases_for_species(integer()) :: [map()]
   def get_aliases_for_species(species_id) do
-    alias Gallformers.Species.Alias
-
     from(a in Alias,
       join: als in "aliasspecies",
       on: als.alias_id == a.id,
@@ -770,8 +769,6 @@ defmodule Gallformers.Species do
   end
 
   defp add_rename_alias(species_id, old_name) do
-    alias Gallformers.Species.Alias
-
     alias_changeset =
       %Alias{}
       |> Ecto.Changeset.cast(
@@ -808,8 +805,6 @@ defmodule Gallformers.Species do
   @spec create_alias_for_species(integer(), map()) ::
           {:ok, Gallformers.Species.Alias.t()} | {:error, Ecto.Changeset.t()}
   def create_alias_for_species(species_id, alias_attrs) do
-    alias Gallformers.Species.Alias
-
     result =
       Repo.transaction(fn ->
         # Create the alias
@@ -866,8 +861,6 @@ defmodule Gallformers.Species do
   @spec add_host_to_species(integer(), integer()) ::
           {:ok, Gallformers.Hosts.Host.t()} | {:error, Ecto.Changeset.t()}
   def add_host_to_species(gall_species_id, host_species_id) do
-    alias Gallformers.Hosts.Host
-
     attrs = %{gall_species_id: gall_species_id, host_species_id: host_species_id}
 
     case %Host{} |> Host.changeset(attrs) |> Repo.insert() do
@@ -885,8 +878,6 @@ defmodule Gallformers.Species do
   """
   @spec remove_host_from_species(integer()) :: {:ok, map()} | {:error, :not_found}
   def remove_host_from_species(host_relation_id) do
-    alias Gallformers.Hosts.Host
-
     case Repo.get(Host, host_relation_id) do
       nil ->
         {:error, :not_found}

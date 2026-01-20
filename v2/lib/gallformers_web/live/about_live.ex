@@ -6,7 +6,11 @@ defmodule GallformersWeb.AboutLive do
   """
   use GallformersWeb, :live_view
 
-  alias Gallformers.{Accounts, Hosts, Sources, Species, Taxonomy, Version}
+  import Ecto.Query
+
+  alias Gallformers.{Accounts, Hosts, Repo, Sources, Species, Taxonomy, Version}
+  alias Gallformers.Species.{Gall, GallSpecies}
+  alias Gallformers.Species.Species, as: SpeciesSchema
 
   @impl true
   def mount(_params, _session, socket) do
@@ -59,11 +63,7 @@ defmodule GallformersWeb.AboutLive do
   end
 
   defp count_undescribed_galls do
-    import Ecto.Query
-    alias Gallformers.Repo
-    alias Gallformers.Species.{Gall, GallSpecies, Species}
-
-    from(s in Species,
+    from(s in SpeciesSchema,
       join: gs in GallSpecies,
       on: gs.species_id == s.id,
       join: g in Gall,

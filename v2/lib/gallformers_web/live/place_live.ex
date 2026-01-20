@@ -6,6 +6,11 @@ defmodule GallformersWeb.PlaceLive do
   """
   use GallformersWeb, :live_view
 
+  import Ecto.Query
+
+  alias Gallformers.Repo
+  alias Gallformers.Species.Species
+
   @impl true
   def mount(%{"id" => id}, _session, socket) do
     case Integer.parse(id) do
@@ -67,9 +72,6 @@ defmodule GallformersWeb.PlaceLive do
   end
 
   defp get_place(place_id) do
-    import Ecto.Query
-    alias Gallformers.Repo
-
     from(p in "place",
       where: p.id == ^place_id,
       select: %{
@@ -84,10 +86,6 @@ defmodule GallformersWeb.PlaceLive do
   end
 
   defp get_hosts_for_place(place_id) do
-    import Ecto.Query
-    alias Gallformers.Repo
-    alias Gallformers.Species.Species
-
     from(s in Species,
       join: sp in "speciesplace",
       on: sp.species_id == s.id,

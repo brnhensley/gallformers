@@ -11,6 +11,7 @@ defmodule Gallformers.Images do
   import Ecto.Query
   alias Gallformers.Repo
   alias Gallformers.Species.Image, as: ImageSchema
+  alias Gallformers.Species.Species
 
   # Image processing library (vix-based)
   alias Image, as: ImageLib
@@ -358,8 +359,6 @@ defmodule Gallformers.Images do
   """
   @spec list_images_for_source(integer()) :: [ImageSchema.t()]
   def list_images_for_source(source_id) do
-    alias Gallformers.Species.Species
-
     from(i in ImageSchema,
       join: src in assoc(i, :source),
       left_join: sp in Species,
@@ -385,8 +384,6 @@ defmodule Gallformers.Images do
   """
   @spec list_species_with_images() :: [map()]
   def list_species_with_images do
-    alias Gallformers.Species.Species
-
     from(i in ImageSchema,
       join: s in Species,
       on: i.species_id == s.id,
@@ -406,8 +403,6 @@ defmodule Gallformers.Images do
   """
   @spec search_species(String.t()) :: [map()]
   def search_species(query) when is_binary(query) do
-    alias Gallformers.Species.Species
-
     search_term = "%#{String.downcase(query)}%"
 
     from(s in Species,
