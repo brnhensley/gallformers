@@ -229,179 +229,20 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
           </a>
         </:header>
         <:body>
-          <%!-- Tabs --%>
-          <div class="border-b border-gray-200 mb-4">
-            <nav class="-mb-px flex space-x-8">
-              <button
-                type="button"
-                phx-click="switch_tab"
-                phx-value-tab="edit"
-                class={[
-                  "py-2 px-1 border-b-2 font-medium text-sm",
-                  if(@active_tab == :edit,
-                    do: "border-gf-maroon text-gf-maroon",
-                    else: "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                  )
-                ]}
-              >
-                Edit
-              </button>
-              <button
-                type="button"
-                phx-click="switch_tab"
-                phx-value-tab="preview"
-                class={[
-                  "py-2 px-1 border-b-2 font-medium text-sm",
-                  if(@active_tab == :preview,
-                    do: "border-gf-maroon text-gf-maroon",
-                    else: "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                  )
-                ]}
-              >
-                Preview
-              </button>
-            </nav>
-          </div>
-
-          <div class="max-h-[600px] overflow-y-auto">
-            <%= if @active_tab == :edit do %>
-              <.form
-                for={@form}
-                id="article-form"
-                phx-submit="save_article"
-                phx-change="validate"
-                class="space-y-4"
-              >
-                <div>
-                  <.input field={@form[:title]} label="Title" required />
+          <%= if @show_image_browser do %>
+            <%!-- Image Browser (inline, replaces edit/preview content) --%>
+            <div class="flex flex-col h-[600px]">
+              <div class="flex items-center justify-between pb-4 border-b border-gray-200">
+                <div class="flex items-center gap-3">
+                  <button
+                    type="button"
+                    phx-click="close_image_browser"
+                    class="text-gray-500 hover:text-gray-700"
+                  >
+                    <.icon name="ph-arrow-left" class="h-5 w-5" />
+                  </button>
+                  <h3 class="text-lg font-semibold text-gray-900">Browse Article Images</h3>
                 </div>
-                <div>
-                  <.input
-                    field={@form[:slug]}
-                    label="Slug"
-                    placeholder="auto-generated from title if blank"
-                  />
-                </div>
-                <div>
-                  <.input field={@form[:author]} label="Author" required />
-                </div>
-                <div>
-                  <.input
-                    type="textarea"
-                    field={@form[:description]}
-                    label="Description"
-                    placeholder="Brief summary for article previews and SEO"
-                    rows={2}
-                  />
-                  <p class="mt-1 text-xs text-gray-500">
-                    Optional. Used for article previews and search engine descriptions.
-                  </p>
-                </div>
-                <div>
-                  <label class="gf-label">
-                    Content (Markdown)
-                  </label>
-                  <textarea
-                    name={@form[:content].name}
-                    id={@form[:content].id}
-                    class="w-full rounded-md border border-gray-300 shadow-sm focus:border-gf-maroon focus:ring-gf-maroon font-mono text-sm resize-y min-h-[300px]"
-                    required
-                  >{Phoenix.HTML.Form.input_value(@form, :content)}</textarea>
-                  <div class="mt-2 flex items-center justify-between">
-                    <p class="text-xs text-gray-500">
-                      Supports markdown formatting. Glossary terms are auto-linked.
-                    </p>
-                    <%!-- Image Upload & Browse --%>
-                    <%= if @editing_article.id do %>
-                      <div class="flex items-center gap-2">
-                        <div
-                          id="article-image-upload"
-                          phx-hook="ArticleImageUpload"
-                          phx-update="ignore"
-                          data-content-textarea={@form[:content].id}
-                          class="flex items-center gap-2"
-                        >
-                          <button
-                            type="button"
-                            data-upload-trigger
-                            class="gf-btn gf-btn-secondary text-sm"
-                          >
-                            Upload Image
-                          </button>
-                          <input
-                            data-file-input
-                            type="file"
-                            accept="image/jpeg,image/png"
-                            class="hidden"
-                          />
-                          <span data-status class="text-sm"></span>
-                        </div>
-                        <button
-                          type="button"
-                          phx-click="open_image_browser"
-                          class="gf-btn gf-btn-secondary text-sm"
-                        >
-                          Browse Images
-                        </button>
-                      </div>
-                    <% else %>
-                      <p class="text-xs text-gray-400">Save article first to add images</p>
-                    <% end %>
-                  </div>
-                </div>
-                <div>
-                  <.multi_select_dropdown
-                    id="article-tags"
-                    label="Tags"
-                    type={:tags}
-                    options={Enum.map(@all_tags, fn tag -> %{id: tag, tag: tag} end)}
-                    selected={Enum.map(@form_tags, fn tag -> %{id: tag, tag: tag} end)}
-                    search_query={@tag_search_query}
-                    dropdown_open={@tag_dropdown_open}
-                    item_id={:id}
-                    item_label={:tag}
-                    placeholder="Select or type tags..."
-                    on_search="tag_search"
-                    on_add="add_tag"
-                    on_remove="remove_tag"
-                    on_open="open_tag_dropdown"
-                    on_close="close_tag_dropdown"
-                  />
-                  <p class="mt-1 text-xs text-gray-500">
-                    Select existing tags or type a new tag and press Enter
-                  </p>
-                </div>
-                <.input type="checkbox" field={@form[:is_published]} label="Published" />
-              </.form>
-            <% else %>
-              <%!-- Preview Tab --%>
-              <div class="prose prose-sm max-w-none h-full overflow-auto border border-gray-200 rounded-md p-4">
-                <%= if @preview_content do %>
-                  {Phoenix.HTML.raw(@preview_content)}
-                <% else %>
-                  <p class="text-gray-500 italic">Enter content to see preview.</p>
-                <% end %>
-              </div>
-            <% end %>
-          </div>
-
-          <%!-- Image Browser Panel (inside article modal) --%>
-          <div :if={@show_image_browser} class="absolute inset-0 bg-white z-10 flex flex-col">
-            <div class="flex items-center justify-between p-4 border-b border-gray-200">
-              <h3 class="text-lg font-semibold text-gray-900">Browse Article Images</h3>
-              <button
-                type="button"
-                phx-click="close_image_browser"
-                class="text-gray-400 hover:text-gray-600"
-              >
-                <.icon name="ph-x" class="h-6 w-6" />
-              </button>
-            </div>
-            <div class="flex-1 overflow-y-auto p-4">
-              <div class="flex items-center justify-between mb-4">
-                <p class="text-sm text-gray-500">
-                  Click an image to insert it at the cursor position.
-                </p>
                 <form phx-change="filter_images_by_article" id="image-article-filter" class="w-64">
                   <.input
                     type="select"
@@ -413,295 +254,456 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
                 </form>
               </div>
 
-              <%= if @article_images == [] do %>
-                <div class="p-8 text-center text-gray-500">
-                  <.icon name="ph-images" class="h-12 w-12 mx-auto text-gray-300 mb-4" />
-                  <%= if @image_browser_filter == "" do %>
-                    <p>No images found. Upload some images first.</p>
-                  <% else %>
-                    <p>
-                      No images for this article. Try selecting a different article or "All Articles".
-                    </p>
-                  <% end %>
-                </div>
-              <% else %>
-                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                  <div
-                    :for={image <- @article_images}
-                    class="group relative aspect-square bg-gray-100 rounded-lg overflow-hidden border-2 border-transparent hover:border-gf-maroon"
-                  >
-                    <img
-                      src={image.url}
-                      alt={image.name}
-                      class="w-full h-full object-cover"
-                      loading="lazy"
-                    />
-                    <div class="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center gap-2">
-                      <button
-                        type="button"
-                        phx-click="select_image"
-                        phx-value-url={image.url}
-                        phx-value-name={image.name}
-                        class="opacity-0 group-hover:opacity-100 transition-opacity px-3 py-1.5 bg-gf-maroon text-white text-sm font-medium rounded hover:bg-gf-maroon/80"
-                      >
-                        Insert
-                      </button>
-                      <button
-                        type="button"
-                        phx-click="confirm_delete_image"
-                        phx-value-url={image.url}
-                        phx-value-path={image.path}
-                        phx-value-name={image.name}
-                        class="opacity-0 group-hover:opacity-100 transition-opacity px-3 py-1.5 bg-red-600 text-white text-sm font-medium rounded hover:bg-red-700"
-                      >
-                        Delete
-                      </button>
+              <div class="flex-1 overflow-y-auto py-4">
+                <%= cond do %>
+                  <% @image_to_delete != nil -> %>
+                    <%!-- Delete Confirmation (inline) --%>
+                    <div class="max-w-md mx-auto">
+                      <div class="bg-white rounded-lg border border-gray-200 shadow-sm">
+                        <div class="p-4 border-b border-gray-200">
+                          <h4 class="text-lg font-semibold text-gray-900">Delete Image</h4>
+                        </div>
+                        <div class="p-4 space-y-4">
+                          <div class="flex justify-center bg-gray-100 rounded-lg p-4">
+                            <img
+                              src={@image_to_delete.url}
+                              alt="Image to delete"
+                              class="max-h-32 object-contain rounded"
+                            />
+                          </div>
+                          <%= if @image_references == [] do %>
+                            <p class="text-gray-600">
+                              Are you sure you want to delete this image? This action cannot be undone.
+                            </p>
+                          <% else %>
+                            <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                              <div class="flex items-start gap-2">
+                                <.icon name="ph-warning" class="h-5 w-5 text-yellow-600 mt-0.5" />
+                                <div>
+                                  <p class="text-yellow-800 font-medium">
+                                    This image is referenced in {length(@image_references)} article{if length(
+                                                                                                         @image_references
+                                                                                                       ) !=
+                                                                                                         1,
+                                                                                                       do:
+                                                                                                         "s",
+                                                                                                       else:
+                                                                                                         ""}:
+                                  </p>
+                                  <ul class="mt-2 text-sm text-yellow-700 list-disc list-inside">
+                                    <li :for={{_id, title} <- @image_references}>{title}</li>
+                                  </ul>
+                                  <p class="mt-2 text-yellow-700 text-sm">
+                                    Deleting this image will break these references.
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          <% end %>
+                        </div>
+                        <div class="p-4 border-t border-gray-200 flex justify-end gap-2">
+                          <button
+                            type="button"
+                            phx-click="cancel_delete_image"
+                            class="px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            phx-click="delete_image"
+                            class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                          >
+                            {if @image_references == [], do: "Delete", else: "Delete Anyway"}
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                    <div class="absolute bottom-0 left-0 right-0 bg-black/60 px-2 py-1">
-                      <p class="text-white text-xs truncate">
-                        {get_article_title(@article_options, image.article_id) || image.folder}
+                  <% @show_image_insert_modal && @selected_image -> %>
+                    <%!-- Image Insert Form (inline) --%>
+                    <div class="max-w-md mx-auto">
+                      <div class="bg-white rounded-lg border border-gray-200 shadow-sm">
+                        <div class="flex items-center justify-between p-4 border-b border-gray-200">
+                          <h4 class="text-lg font-semibold text-gray-900">Insert Image</h4>
+                          <button
+                            type="button"
+                            phx-click="close_image_insert_modal"
+                            class="text-gray-400 hover:text-gray-600"
+                          >
+                            <.icon name="ph-x" class="h-5 w-5" />
+                          </button>
+                        </div>
+                        <div class="p-4 space-y-4">
+                          <div class="flex justify-center bg-gray-100 rounded-lg p-4">
+                            <img
+                              src={@selected_image.url}
+                              alt="Preview"
+                              class="max-h-48 object-contain rounded"
+                            />
+                          </div>
+                          <.form
+                            for={@image_insert_form}
+                            id="image-insert-form"
+                            phx-submit="insert_image"
+                            phx-change="validate_image_insert"
+                            class="space-y-4"
+                          >
+                            <div>
+                              <.input
+                                field={@image_insert_form[:alt_text]}
+                                label="Alt Text"
+                                placeholder="Describe the image for accessibility"
+                                required
+                              />
+                              <p class="mt-1 text-xs text-gray-500">
+                                Required. Describes the image for screen readers.
+                              </p>
+                            </div>
+                            <div>
+                              <.input
+                                field={@image_insert_form[:caption]}
+                                label="Caption (Optional)"
+                                placeholder="Optional visible caption below the image"
+                              />
+                            </div>
+                            <div>
+                              <label class="gf-label">Display Size</label>
+                              <div class="mt-2 space-y-2">
+                                <div class="flex flex-wrap gap-2">
+                                  <label class="inline-flex items-center">
+                                    <input
+                                      type="radio"
+                                      name={@image_insert_form[:size_preset].name}
+                                      value="small"
+                                      checked={
+                                        Phoenix.HTML.Form.input_value(
+                                          @image_insert_form,
+                                          :size_preset
+                                        ) ==
+                                          "small"
+                                      }
+                                      class="mr-2"
+                                    /> Small (200px)
+                                  </label>
+                                  <label class="inline-flex items-center">
+                                    <input
+                                      type="radio"
+                                      name={@image_insert_form[:size_preset].name}
+                                      value="medium"
+                                      checked={
+                                        Phoenix.HTML.Form.input_value(
+                                          @image_insert_form,
+                                          :size_preset
+                                        ) ==
+                                          "medium"
+                                      }
+                                      class="mr-2"
+                                    /> Medium (400px)
+                                  </label>
+                                  <label class="inline-flex items-center">
+                                    <input
+                                      type="radio"
+                                      name={@image_insert_form[:size_preset].name}
+                                      value="large"
+                                      checked={
+                                        Phoenix.HTML.Form.input_value(
+                                          @image_insert_form,
+                                          :size_preset
+                                        ) ==
+                                          "large"
+                                      }
+                                      class="mr-2"
+                                    /> Large (600px)
+                                  </label>
+                                  <label class="inline-flex items-center">
+                                    <input
+                                      type="radio"
+                                      name={@image_insert_form[:size_preset].name}
+                                      value="full"
+                                      checked={
+                                        Phoenix.HTML.Form.input_value(
+                                          @image_insert_form,
+                                          :size_preset
+                                        ) ==
+                                          "full"
+                                      }
+                                      class="mr-2"
+                                    /> Full Width
+                                  </label>
+                                  <label class="inline-flex items-center">
+                                    <input
+                                      type="radio"
+                                      name={@image_insert_form[:size_preset].name}
+                                      value="custom"
+                                      checked={
+                                        Phoenix.HTML.Form.input_value(
+                                          @image_insert_form,
+                                          :size_preset
+                                        ) ==
+                                          "custom"
+                                      }
+                                      class="mr-2"
+                                    /> Custom
+                                  </label>
+                                </div>
+                                <div
+                                  :if={
+                                    Phoenix.HTML.Form.input_value(@image_insert_form, :size_preset) ==
+                                      "custom"
+                                  }
+                                  class="flex items-center gap-2"
+                                >
+                                  <.input
+                                    field={@image_insert_form[:custom_width]}
+                                    type="number"
+                                    placeholder="Width in pixels"
+                                    min="50"
+                                    max="2000"
+                                    class="w-32"
+                                  />
+                                  <span class="text-sm text-gray-500">pixels</span>
+                                </div>
+                              </div>
+                            </div>
+                          </.form>
+                        </div>
+                        <div class="p-4 border-t border-gray-200 flex justify-end gap-2">
+                          <button
+                            type="button"
+                            phx-click="close_image_insert_modal"
+                            class="px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="submit"
+                            form="image-insert-form"
+                            class="px-4 py-2 bg-gf-maroon text-white rounded-md hover:bg-gf-maroon/90"
+                          >
+                            Insert Image
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  <% true -> %>
+                    <%!-- Image Grid --%>
+                    <p class="text-sm text-gray-500 mb-4">
+                      Click an image to insert it at the cursor position.
+                    </p>
+                    <%= if @article_images == [] do %>
+                      <div class="p-8 text-center text-gray-500">
+                        <.icon name="ph-images" class="h-12 w-12 mx-auto text-gray-300 mb-4" />
+                        <%= if @image_browser_filter == "" do %>
+                          <p>No images found. Upload some images first.</p>
+                        <% else %>
+                          <p>
+                            No images for this article. Try selecting a different article or "All Articles".
+                          </p>
+                        <% end %>
+                      </div>
+                    <% else %>
+                      <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                        <div
+                          :for={image <- @article_images}
+                          class="group relative aspect-square bg-gray-100 rounded-lg overflow-hidden border-2 border-transparent hover:border-gf-maroon"
+                        >
+                          <img
+                            src={image.url}
+                            alt={image.name}
+                            class="w-full h-full object-cover"
+                            loading="lazy"
+                          />
+                          <div class="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center gap-2">
+                            <button
+                              type="button"
+                              phx-click="select_image"
+                              phx-value-url={image.url}
+                              phx-value-name={image.name}
+                              class="opacity-0 group-hover:opacity-100 transition-opacity px-3 py-1.5 bg-gf-maroon text-white text-sm font-medium rounded hover:bg-gf-maroon/80"
+                            >
+                              Insert
+                            </button>
+                            <button
+                              type="button"
+                              phx-click="confirm_delete_image"
+                              phx-value-url={image.url}
+                              phx-value-path={image.path}
+                              phx-value-name={image.name}
+                              class="opacity-0 group-hover:opacity-100 transition-opacity px-3 py-1.5 bg-red-600 text-white text-sm font-medium rounded hover:bg-red-700"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                          <div class="absolute bottom-0 left-0 right-0 bg-black/60 px-2 py-1">
+                            <p class="text-white text-xs truncate">
+                              {get_article_title(@article_options, image.article_id) || image.folder}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    <% end %>
+                <% end %>
+              </div>
+            </div>
+          <% else %>
+            <%!-- Tabs --%>
+            <div class="border-b border-gray-200 mb-4">
+              <nav class="-mb-px flex space-x-8">
+                <button
+                  type="button"
+                  phx-click="switch_tab"
+                  phx-value-tab="edit"
+                  class={[
+                    "py-2 px-1 border-b-2 font-medium text-sm",
+                    if(@active_tab == :edit,
+                      do: "border-gf-maroon text-gf-maroon",
+                      else:
+                        "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                    )
+                  ]}
+                >
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  phx-click="switch_tab"
+                  phx-value-tab="preview"
+                  class={[
+                    "py-2 px-1 border-b-2 font-medium text-sm",
+                    if(@active_tab == :preview,
+                      do: "border-gf-maroon text-gf-maroon",
+                      else:
+                        "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                    )
+                  ]}
+                >
+                  Preview
+                </button>
+              </nav>
+            </div>
+
+            <div class="max-h-[600px] overflow-y-auto">
+              <%= if @active_tab == :edit do %>
+                <.form
+                  for={@form}
+                  id="article-form"
+                  phx-submit="save_article"
+                  phx-change="validate"
+                  class="space-y-4"
+                >
+                  <div>
+                    <.input field={@form[:title]} label="Title" required />
+                  </div>
+                  <div>
+                    <.input
+                      field={@form[:slug]}
+                      label="Slug"
+                      placeholder="auto-generated from title if blank"
+                    />
+                  </div>
+                  <div>
+                    <.input field={@form[:author]} label="Author" required />
+                  </div>
+                  <div>
+                    <.input
+                      type="textarea"
+                      field={@form[:description]}
+                      label="Description"
+                      placeholder="Brief summary for article previews and SEO"
+                      rows={2}
+                    />
+                    <p class="mt-1 text-xs text-gray-500">
+                      Optional. Used for article previews and search engine descriptions.
+                    </p>
+                  </div>
+                  <div>
+                    <label class="gf-label">
+                      Content (Markdown)
+                    </label>
+                    <textarea
+                      name={@form[:content].name}
+                      id={@form[:content].id}
+                      class="w-full rounded-md border border-gray-300 shadow-sm focus:border-gf-maroon focus:ring-gf-maroon font-mono text-sm resize-y min-h-[300px]"
+                      required
+                    >{Phoenix.HTML.Form.input_value(@form, :content)}</textarea>
+                    <div class="mt-2 flex items-center justify-between">
+                      <p class="text-xs text-gray-500">
+                        Supports markdown formatting. Glossary terms are auto-linked.
                       </p>
+                      <%!-- Image Upload & Browse --%>
+                      <%= if @editing_article.id do %>
+                        <div class="flex items-center gap-2">
+                          <div
+                            id="article-image-upload"
+                            phx-hook="ArticleImageUpload"
+                            phx-update="ignore"
+                            data-content-textarea={@form[:content].id}
+                            class="flex items-center gap-2"
+                          >
+                            <button
+                              type="button"
+                              data-upload-trigger
+                              class="gf-btn gf-btn-secondary text-sm"
+                            >
+                              Upload Image
+                            </button>
+                            <input
+                              data-file-input
+                              type="file"
+                              accept="image/jpeg,image/png"
+                              class="hidden"
+                            />
+                            <span data-status class="text-sm"></span>
+                          </div>
+                          <button
+                            type="button"
+                            phx-click="open_image_browser"
+                            class="gf-btn gf-btn-secondary text-sm"
+                          >
+                            Browse Images
+                          </button>
+                        </div>
+                      <% else %>
+                        <p class="text-xs text-gray-400">Save article first to add images</p>
+                      <% end %>
                     </div>
                   </div>
+                  <div>
+                    <.multi_select_dropdown
+                      id="article-tags"
+                      label="Tags"
+                      type={:tags}
+                      options={Enum.map(@all_tags, fn tag -> %{id: tag, tag: tag} end)}
+                      selected={Enum.map(@form_tags, fn tag -> %{id: tag, tag: tag} end)}
+                      search_query={@tag_search_query}
+                      dropdown_open={@tag_dropdown_open}
+                      item_id={:id}
+                      item_label={:tag}
+                      placeholder="Select or type tags..."
+                      on_search="tag_search"
+                      on_add="add_tag"
+                      on_remove="remove_tag"
+                      on_open="open_tag_dropdown"
+                      on_close="close_tag_dropdown"
+                    />
+                    <p class="mt-1 text-xs text-gray-500">
+                      Select existing tags or type a new tag and press Enter
+                    </p>
+                  </div>
+                  <.input type="checkbox" field={@form[:is_published]} label="Published" />
+                </.form>
+              <% else %>
+                <%!-- Preview Tab --%>
+                <div class="prose prose-sm max-w-none h-full overflow-auto border border-gray-200 rounded-md p-4">
+                  <%= if @preview_content do %>
+                    {Phoenix.HTML.raw(@preview_content)}
+                  <% else %>
+                    <p class="text-gray-500 italic">Enter content to see preview.</p>
+                  <% end %>
                 </div>
               <% end %>
             </div>
-            <div class="p-4 border-t border-gray-200 flex justify-end">
-              <button
-                type="button"
-                phx-click="close_image_browser"
-                class="px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
-              >
-                Close
-              </button>
-            </div>
-
-            <%!-- Image Insert Panel (overlay within image browser) --%>
-            <div
-              :if={@show_image_insert_modal && @selected_image}
-              class="absolute inset-0 bg-black/50 flex items-center justify-center z-20"
-            >
-              <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
-                <div class="flex items-center justify-between p-4 border-b border-gray-200">
-                  <h4 class="text-lg font-semibold text-gray-900">Insert Image</h4>
-                  <button
-                    type="button"
-                    phx-click="close_image_insert_modal"
-                    class="text-gray-400 hover:text-gray-600"
-                  >
-                    <.icon name="ph-x" class="h-5 w-5" />
-                  </button>
-                </div>
-                <div class="p-4 space-y-4">
-                  <div class="flex justify-center bg-gray-100 rounded-lg p-4">
-                    <img
-                      src={@selected_image.url}
-                      alt="Preview"
-                      class="max-h-48 object-contain rounded"
-                    />
-                  </div>
-                  <.form
-                    for={@image_insert_form}
-                    id="image-insert-form"
-                    phx-submit="insert_image"
-                    phx-change="validate_image_insert"
-                    class="space-y-4"
-                  >
-                    <div>
-                      <.input
-                        field={@image_insert_form[:alt_text]}
-                        label="Alt Text"
-                        placeholder="Describe the image for accessibility"
-                        required
-                      />
-                      <p class="mt-1 text-xs text-gray-500">
-                        Required. Describes the image for screen readers.
-                      </p>
-                    </div>
-                    <div>
-                      <.input
-                        field={@image_insert_form[:caption]}
-                        label="Caption (Optional)"
-                        placeholder="Optional visible caption below the image"
-                      />
-                    </div>
-                    <div>
-                      <label class="gf-label">Display Size</label>
-                      <div class="mt-2 space-y-2">
-                        <div class="flex flex-wrap gap-2">
-                          <label class="inline-flex items-center">
-                            <input
-                              type="radio"
-                              name={@image_insert_form[:size_preset].name}
-                              value="small"
-                              checked={
-                                Phoenix.HTML.Form.input_value(@image_insert_form, :size_preset) ==
-                                  "small"
-                              }
-                              class="mr-2"
-                            /> Small (200px)
-                          </label>
-                          <label class="inline-flex items-center">
-                            <input
-                              type="radio"
-                              name={@image_insert_form[:size_preset].name}
-                              value="medium"
-                              checked={
-                                Phoenix.HTML.Form.input_value(@image_insert_form, :size_preset) ==
-                                  "medium"
-                              }
-                              class="mr-2"
-                            /> Medium (400px)
-                          </label>
-                          <label class="inline-flex items-center">
-                            <input
-                              type="radio"
-                              name={@image_insert_form[:size_preset].name}
-                              value="large"
-                              checked={
-                                Phoenix.HTML.Form.input_value(@image_insert_form, :size_preset) ==
-                                  "large"
-                              }
-                              class="mr-2"
-                            /> Large (600px)
-                          </label>
-                          <label class="inline-flex items-center">
-                            <input
-                              type="radio"
-                              name={@image_insert_form[:size_preset].name}
-                              value="full"
-                              checked={
-                                Phoenix.HTML.Form.input_value(@image_insert_form, :size_preset) ==
-                                  "full"
-                              }
-                              class="mr-2"
-                            /> Full Width
-                          </label>
-                          <label class="inline-flex items-center">
-                            <input
-                              type="radio"
-                              name={@image_insert_form[:size_preset].name}
-                              value="custom"
-                              checked={
-                                Phoenix.HTML.Form.input_value(@image_insert_form, :size_preset) ==
-                                  "custom"
-                              }
-                              class="mr-2"
-                            /> Custom
-                          </label>
-                        </div>
-                        <div
-                          :if={
-                            Phoenix.HTML.Form.input_value(@image_insert_form, :size_preset) ==
-                              "custom"
-                          }
-                          class="flex items-center gap-2"
-                        >
-                          <.input
-                            field={@image_insert_form[:custom_width]}
-                            type="number"
-                            placeholder="Width in pixels"
-                            min="50"
-                            max="2000"
-                            class="w-32"
-                          />
-                          <span class="text-sm text-gray-500">pixels</span>
-                        </div>
-                      </div>
-                    </div>
-                  </.form>
-                </div>
-                <div class="p-4 border-t border-gray-200 flex justify-end gap-2">
-                  <button
-                    type="button"
-                    phx-click="close_image_insert_modal"
-                    class="px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    form="image-insert-form"
-                    class="px-4 py-2 bg-gf-maroon text-white rounded-md hover:bg-gf-maroon/90"
-                  >
-                    Insert Image
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <%!-- Image Delete Confirmation Panel (overlay within image browser) --%>
-            <div
-              :if={@image_to_delete}
-              class="absolute inset-0 bg-black/50 flex items-center justify-center z-20"
-            >
-              <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
-                <div class="flex items-center justify-between p-4 border-b border-gray-200">
-                  <h4 class="text-lg font-semibold text-gray-900">Delete Image</h4>
-                  <button
-                    type="button"
-                    phx-click="cancel_delete_image"
-                    class="text-gray-400 hover:text-gray-600"
-                  >
-                    <.icon name="ph-x" class="h-5 w-5" />
-                  </button>
-                </div>
-                <div class="p-4 space-y-4">
-                  <div class="flex justify-center bg-gray-100 rounded-lg p-4">
-                    <img
-                      src={@image_to_delete.url}
-                      alt="Image to delete"
-                      class="max-h-32 object-contain rounded"
-                    />
-                  </div>
-                  <%= if @image_references == [] do %>
-                    <p class="text-gray-600">
-                      Are you sure you want to delete this image? This action cannot be undone.
-                    </p>
-                  <% else %>
-                    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                      <div class="flex items-start gap-2">
-                        <.icon name="ph-warning" class="h-5 w-5 text-yellow-600 mt-0.5" />
-                        <div>
-                          <p class="text-yellow-800 font-medium">
-                            This image is referenced in {length(@image_references)} article{if length(
-                                                                                                 @image_references
-                                                                                               ) != 1,
-                                                                                               do:
-                                                                                                 "s",
-                                                                                               else:
-                                                                                                 ""}:
-                          </p>
-                          <ul class="mt-2 text-sm text-yellow-700 list-disc list-inside">
-                            <li :for={{_id, title} <- @image_references}>{title}</li>
-                          </ul>
-                          <p class="mt-2 text-yellow-700 text-sm">
-                            Deleting this image will break these references.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  <% end %>
-                </div>
-                <div class="p-4 border-t border-gray-200 flex justify-end gap-2">
-                  <button
-                    type="button"
-                    phx-click="cancel_delete_image"
-                    class="px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    phx-click="delete_image"
-                    class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
-                  >
-                    {if @image_references == [], do: "Delete", else: "Delete Anyway"}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
+          <% end %>
         </:body>
         <:footer>
           <button
@@ -1121,7 +1123,7 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
 
   @impl true
   def handle_event("select_image", %{"url" => url, "name" => name}, socket) do
-    # Open the image insert modal with default values
+    # Open the image insert form (inline within image browser)
     selected_image = %{url: url, name: name}
 
     form =
@@ -1137,7 +1139,6 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
       |> assign(:selected_image, selected_image)
       |> assign(:image_insert_form, form)
       |> assign(:show_image_insert_modal, true)
-      |> assign(:show_image_browser, false)
 
     {:noreply, socket}
   end
