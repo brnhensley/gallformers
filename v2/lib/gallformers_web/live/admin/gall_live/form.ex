@@ -20,6 +20,9 @@ defmodule GallformersWeb.Admin.GallLive.Form do
     {"both", 3}
   ]
 
+  # Valid filter types for String.to_existing_atom safety
+  @valid_filter_types ~w(colors shapes textures alignments walls cells locations forms seasons)a
+
   @impl true
   def mount(_params, session, socket) do
     current_user = session["current_user"]
@@ -303,7 +306,7 @@ defmodule GallformersWeb.Admin.GallLive.Form do
 
   @impl true
   def handle_event("filter_search", %{"type" => type, "value" => query}, socket) do
-    filter_type = String.to_atom(type)
+    filter_type = string_to_filter_type(type)
     filter_search = Map.put(socket.assigns.filter_search, filter_type, query)
     # Open dropdown when typing
     {:noreply,
@@ -312,7 +315,7 @@ defmodule GallformersWeb.Admin.GallLive.Form do
 
   @impl true
   def handle_event("open_filter_dropdown", %{"type" => type}, socket) do
-    filter_type = String.to_atom(type)
+    filter_type = string_to_filter_type(type)
     {:noreply, assign(socket, :filter_dropdown_open, filter_type)}
   end
 
@@ -323,7 +326,7 @@ defmodule GallformersWeb.Admin.GallLive.Form do
 
   @impl true
   def handle_event("add_filter", %{"type" => type, "id" => id}, socket) do
-    filter_type = String.to_atom(type)
+    filter_type = string_to_filter_type(type)
     filter_id = String.to_integer(id)
 
     # Find the option from filter_options
@@ -355,7 +358,7 @@ defmodule GallformersWeb.Admin.GallLive.Form do
 
   @impl true
   def handle_event("remove_filter", %{"type" => type, "id" => id}, socket) do
-    filter_type = String.to_atom(type)
+    filter_type = string_to_filter_type(type)
     filter_id = String.to_integer(id)
 
     current_values = Map.get(socket.assigns.filter_values, filter_type, [])
@@ -972,5 +975,18 @@ defmodule GallformersWeb.Admin.GallLive.Form do
       />
     </Layouts.admin>
     """
+  end
+
+  # Safely convert string filter type to atom using whitelist
+  defp string_to_filter_type(type) when is_binary(type) do
+    atom = String.to_existing_atom(type)
+
+    if atom in @valid_filter_types do
+      atom
+    else
+      raise ArgumentError, "Invalid filter type: #{type}"
+    end
+  rescue
+    ArgumentError -> raise ArgumentError, "Invalid filter type: #{type}"
   end
 end

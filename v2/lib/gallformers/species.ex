@@ -938,7 +938,7 @@ defmodule Gallformers.Species do
         get_filter_values_for_gall(
           gall_id,
           "gallcolor",
-          "color_id",
+          :color_id,
           Gallformers.FilterFields.Color,
           :color
         ),
@@ -946,7 +946,7 @@ defmodule Gallformers.Species do
         get_filter_values_for_gall(
           gall_id,
           "gallshape",
-          "shape_id",
+          :shape_id,
           Gallformers.FilterFields.Shape,
           :shape
         ),
@@ -954,7 +954,7 @@ defmodule Gallformers.Species do
         get_filter_values_for_gall(
           gall_id,
           "galltexture",
-          "texture_id",
+          :texture_id,
           Gallformers.FilterFields.Texture,
           :texture
         ),
@@ -962,7 +962,7 @@ defmodule Gallformers.Species do
         get_filter_values_for_gall(
           gall_id,
           "gallalignment",
-          "alignment_id",
+          :alignment_id,
           Gallformers.FilterFields.Alignment,
           :alignment
         ),
@@ -970,7 +970,7 @@ defmodule Gallformers.Species do
         get_filter_values_for_gall(
           gall_id,
           "gallwalls",
-          "walls_id",
+          :walls_id,
           Gallformers.FilterFields.Walls,
           :walls
         ),
@@ -978,7 +978,7 @@ defmodule Gallformers.Species do
         get_filter_values_for_gall(
           gall_id,
           "gallcells",
-          "cells_id",
+          :cells_id,
           Gallformers.FilterFields.Cells,
           :cells
         ),
@@ -986,7 +986,7 @@ defmodule Gallformers.Species do
         get_filter_values_for_gall(
           gall_id,
           "galllocation",
-          "location_id",
+          :location_id,
           Gallformers.FilterFields.Location,
           :location
         ),
@@ -994,7 +994,7 @@ defmodule Gallformers.Species do
         get_filter_values_for_gall(
           gall_id,
           "gallform",
-          "form_id",
+          :form_id,
           Gallformers.FilterFields.Form,
           :form
         ),
@@ -1002,16 +1002,14 @@ defmodule Gallformers.Species do
         get_filter_values_for_gall(
           gall_id,
           "gallseason",
-          "season_id",
+          :season_id,
           Gallformers.FilterFields.Season,
           :season
         )
     }
   end
 
-  defp get_filter_values_for_gall(gall_id, join_table, fk_column, schema, field) do
-    fk_col = String.to_atom(fk_column)
-
+  defp get_filter_values_for_gall(gall_id, join_table, fk_col, schema, field) when is_atom(fk_col) do
     from(j in join_table,
       join: s in ^schema,
       on: field(j, ^fk_col) == s.id,
@@ -1042,8 +1040,7 @@ defmodule Gallformers.Species do
   """
   @spec add_filter_field_to_gall(integer(), atom(), integer()) :: {:ok, any()} | {:error, any()}
   def add_filter_field_to_gall(gall_id, filter_type, filter_id) do
-    {join_table, fk_column} = get_join_table_info(filter_type)
-    fk_col = String.to_atom(fk_column)
+    {join_table, fk_col} = get_join_table_info(filter_type)
     row = Map.new([{:gall_id, gall_id}, {fk_col, filter_id}])
 
     try do
@@ -1060,8 +1057,7 @@ defmodule Gallformers.Species do
   """
   @spec remove_filter_field_from_gall(integer(), atom(), integer()) :: {:ok, integer()}
   def remove_filter_field_from_gall(gall_id, filter_type, filter_id) do
-    {join_table, fk_column} = get_join_table_info(filter_type)
-    fk_col = String.to_atom(fk_column)
+    {join_table, fk_col} = get_join_table_info(filter_type)
 
     {count, _} =
       from(j in join_table,
@@ -1072,15 +1068,15 @@ defmodule Gallformers.Species do
     {:ok, count}
   end
 
-  defp get_join_table_info(:colors), do: {"gallcolor", "color_id"}
-  defp get_join_table_info(:shapes), do: {"gallshape", "shape_id"}
-  defp get_join_table_info(:textures), do: {"galltexture", "texture_id"}
-  defp get_join_table_info(:alignments), do: {"gallalignment", "alignment_id"}
-  defp get_join_table_info(:walls), do: {"gallwalls", "walls_id"}
-  defp get_join_table_info(:cells), do: {"gallcells", "cells_id"}
-  defp get_join_table_info(:locations), do: {"galllocation", "location_id"}
-  defp get_join_table_info(:forms), do: {"gallform", "form_id"}
-  defp get_join_table_info(:seasons), do: {"gallseason", "season_id"}
+  defp get_join_table_info(:colors), do: {"gallcolor", :color_id}
+  defp get_join_table_info(:shapes), do: {"gallshape", :shape_id}
+  defp get_join_table_info(:textures), do: {"galltexture", :texture_id}
+  defp get_join_table_info(:alignments), do: {"gallalignment", :alignment_id}
+  defp get_join_table_info(:walls), do: {"gallwalls", :walls_id}
+  defp get_join_table_info(:cells), do: {"gallcells", :cells_id}
+  defp get_join_table_info(:locations), do: {"galllocation", :location_id}
+  defp get_join_table_info(:forms), do: {"gallform", :form_id}
+  defp get_join_table_info(:seasons), do: {"gallseason", :season_id}
 
   @doc """
   Returns all filter field options for gall admin.

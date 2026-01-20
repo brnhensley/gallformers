@@ -157,7 +157,7 @@ defmodule GallformersWeb.GallLive do
         get_filter_values(
           gall_id,
           "gallcolor",
-          "color_id",
+          :color_id,
           Gallformers.FilterFields.Color,
           :color
         ),
@@ -165,7 +165,7 @@ defmodule GallformersWeb.GallLive do
         get_filter_values(
           gall_id,
           "gallshape",
-          "shape_id",
+          :shape_id,
           Gallformers.FilterFields.Shape,
           :shape
         ),
@@ -173,7 +173,7 @@ defmodule GallformersWeb.GallLive do
         get_filter_values(
           gall_id,
           "galltexture",
-          "texture_id",
+          :texture_id,
           Gallformers.FilterFields.Texture,
           :texture
         ),
@@ -181,7 +181,7 @@ defmodule GallformersWeb.GallLive do
         get_filter_values(
           gall_id,
           "gallalignment",
-          "alignment_id",
+          :alignment_id,
           Gallformers.FilterFields.Alignment,
           :alignment
         ),
@@ -189,7 +189,7 @@ defmodule GallformersWeb.GallLive do
         get_filter_values(
           gall_id,
           "gallwalls",
-          "walls_id",
+          :walls_id,
           Gallformers.FilterFields.Walls,
           :walls
         ),
@@ -197,17 +197,17 @@ defmodule GallformersWeb.GallLive do
         get_filter_values(
           gall_id,
           "galllocation",
-          "location_id",
+          :location_id,
           Gallformers.FilterFields.Location,
           :location
         ),
       forms:
-        get_filter_values(gall_id, "gallform", "form_id", Gallformers.FilterFields.Form, :form),
+        get_filter_values(gall_id, "gallform", :form_id, Gallformers.FilterFields.Form, :form),
       cells:
         get_filter_values(
           gall_id,
           "gallcells",
-          "cells_id",
+          :cells_id,
           Gallformers.FilterFields.Cells,
           :cells
         ),
@@ -215,18 +215,16 @@ defmodule GallformersWeb.GallLive do
         get_filter_values(
           gall_id,
           "gallseason",
-          "season_id",
+          :season_id,
           Gallformers.FilterFields.Season,
           :season
         )
     }
   end
 
-  defp get_filter_values(gall_id, join_table, fk_column, schema, field) do
+  defp get_filter_values(gall_id, join_table, fk_col, schema, field) when is_atom(fk_col) do
     import Ecto.Query
     alias Gallformers.Repo
-
-    fk_col = String.to_atom(fk_column)
 
     from(j in join_table,
       join: s in ^schema,
