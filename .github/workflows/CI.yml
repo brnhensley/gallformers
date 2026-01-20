@@ -5,10 +5,13 @@ on:
         branches: [main]
         paths:
             - 'v1/**'
+            - '.github/workflows/CI.yml'
     pull_request:
         branches: [main]  # Only run CI on PRs targeting main
         paths:
             - 'v1/**'
+            - '.github/workflows/CI.yml'
+    workflow_dispatch:
 
 defaults:
     run:
