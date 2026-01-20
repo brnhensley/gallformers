@@ -99,6 +99,7 @@ defmodule Gallformers.Glossary do
   @doc """
   Returns a changeset for tracking glossary changes.
   """
+  @spec change_glossary(Glossary.t(), map()) :: Ecto.Changeset.t()
   def change_glossary(%Glossary{} = glossary, attrs \\ %{}) do
     Glossary.changeset(glossary, attrs)
   end
@@ -106,6 +107,7 @@ defmodule Gallformers.Glossary do
   @doc """
   Creates a glossary entry.
   """
+  @spec create_glossary(map()) :: {:ok, Glossary.t()} | {:error, Ecto.Changeset.t()}
   def create_glossary(attrs \\ %{}) do
     %Glossary{}
     |> Glossary.changeset(attrs)
@@ -116,6 +118,7 @@ defmodule Gallformers.Glossary do
   @doc """
   Updates a glossary entry.
   """
+  @spec update_glossary(Glossary.t(), map()) :: {:ok, Glossary.t()} | {:error, Ecto.Changeset.t()}
   def update_glossary(%Glossary{} = glossary, attrs) do
     glossary
     |> Glossary.changeset(attrs)
@@ -126,6 +129,7 @@ defmodule Gallformers.Glossary do
   @doc """
   Deletes a glossary entry.
   """
+  @spec delete_glossary(Glossary.t()) :: {:ok, Glossary.t()} | {:error, Ecto.Changeset.t()}
   def delete_glossary(%Glossary{} = glossary) do
     Repo.delete(glossary)
     |> broadcast(:glossary_deleted)
@@ -134,6 +138,7 @@ defmodule Gallformers.Glossary do
   @doc """
   Gets a glossary entry by ID, raising if not found.
   """
+  @spec get_glossary!(integer()) :: Glossary.t()
   def get_glossary!(id) do
     Repo.get!(Glossary, id)
   end
@@ -141,6 +146,7 @@ defmodule Gallformers.Glossary do
   @doc """
   Subscribes to glossary changes.
   """
+  @spec subscribe() :: :ok | {:error, term()}
   def subscribe do
     Phoenix.PubSub.subscribe(Gallformers.PubSub, "glossary")
   end

@@ -79,6 +79,7 @@ defmodule Gallformers.Places do
   @doc """
   Returns a changeset for tracking place changes.
   """
+  @spec change_place(Place.t(), map()) :: Ecto.Changeset.t()
   def change_place(%Place{} = place, attrs \\ %{}) do
     Place.changeset(place, attrs)
   end
@@ -86,6 +87,7 @@ defmodule Gallformers.Places do
   @doc """
   Creates a place.
   """
+  @spec create_place(map()) :: {:ok, Place.t()} | {:error, Ecto.Changeset.t()}
   def create_place(attrs \\ %{}) do
     %Place{}
     |> Place.changeset(attrs)
@@ -96,6 +98,7 @@ defmodule Gallformers.Places do
   @doc """
   Updates a place.
   """
+  @spec update_place(Place.t(), map()) :: {:ok, Place.t()} | {:error, Ecto.Changeset.t()}
   def update_place(%Place{} = place, attrs) do
     place
     |> Place.changeset(attrs)
@@ -106,6 +109,7 @@ defmodule Gallformers.Places do
   @doc """
   Deletes a place.
   """
+  @spec delete_place(Place.t()) :: {:ok, Place.t()} | {:error, Ecto.Changeset.t()}
   def delete_place(%Place{} = place) do
     Repo.delete(place)
     |> broadcast(:place_deleted)
@@ -114,6 +118,7 @@ defmodule Gallformers.Places do
   @doc """
   Subscribes to place changes.
   """
+  @spec subscribe() :: :ok | {:error, term()}
   def subscribe do
     Phoenix.PubSub.subscribe(Gallformers.PubSub, "places")
   end

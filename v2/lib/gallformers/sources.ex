@@ -175,6 +175,7 @@ defmodule Gallformers.Sources do
   @doc """
   Returns a changeset for tracking source changes.
   """
+  @spec change_source(Source.t(), map()) :: Ecto.Changeset.t()
   def change_source(%Source{} = source, attrs \\ %{}) do
     Source.changeset(source, attrs)
   end
@@ -182,6 +183,7 @@ defmodule Gallformers.Sources do
   @doc """
   Creates a source.
   """
+  @spec create_source(map()) :: {:ok, Source.t()} | {:error, Ecto.Changeset.t()}
   def create_source(attrs \\ %{}) do
     %Source{}
     |> Source.changeset(attrs)
@@ -192,6 +194,7 @@ defmodule Gallformers.Sources do
   @doc """
   Updates a source.
   """
+  @spec update_source(Source.t(), map()) :: {:ok, Source.t()} | {:error, Ecto.Changeset.t()}
   def update_source(%Source{} = source, attrs) do
     source
     |> Source.changeset(attrs)
@@ -202,6 +205,7 @@ defmodule Gallformers.Sources do
   @doc """
   Deletes a source.
   """
+  @spec delete_source(Source.t()) :: {:ok, Source.t()} | {:error, Ecto.Changeset.t()}
   def delete_source(%Source{} = source) do
     Repo.delete(source)
     |> broadcast(:source_deleted)
@@ -210,6 +214,7 @@ defmodule Gallformers.Sources do
   @doc """
   Subscribes to source changes.
   """
+  @spec subscribe() :: :ok | {:error, term()}
   def subscribe do
     Phoenix.PubSub.subscribe(Gallformers.PubSub, "sources")
   end
@@ -230,6 +235,7 @@ defmodule Gallformers.Sources do
   @doc """
   Returns a changeset for tracking species-source mapping changes.
   """
+  @spec change_species_source(SpeciesSource.t(), map()) :: Ecto.Changeset.t()
   def change_species_source(%SpeciesSource{} = species_source, attrs \\ %{}) do
     SpeciesSource.changeset(species_source, attrs)
   end
@@ -264,6 +270,7 @@ defmodule Gallformers.Sources do
   @doc """
   Creates a species-source mapping.
   """
+  @spec create_species_source(map()) :: {:ok, SpeciesSource.t()} | {:error, Ecto.Changeset.t()}
   def create_species_source(attrs \\ %{}) do
     %SpeciesSource{}
     |> SpeciesSource.changeset(attrs)
@@ -274,6 +281,8 @@ defmodule Gallformers.Sources do
   @doc """
   Updates a species-source mapping.
   """
+  @spec update_species_source(SpeciesSource.t(), map()) ::
+          {:ok, SpeciesSource.t()} | {:error, Ecto.Changeset.t()}
   def update_species_source(%SpeciesSource{} = species_source, attrs) do
     species_source
     |> SpeciesSource.changeset(attrs)
@@ -284,6 +293,8 @@ defmodule Gallformers.Sources do
   @doc """
   Deletes a species-source mapping.
   """
+  @spec delete_species_source(SpeciesSource.t()) ::
+          {:ok, SpeciesSource.t()} | {:error, Ecto.Changeset.t()}
   def delete_species_source(%SpeciesSource{} = species_source) do
     Repo.delete(species_source)
     |> broadcast(:species_source_deleted)

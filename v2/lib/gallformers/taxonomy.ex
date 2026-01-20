@@ -303,6 +303,7 @@ defmodule Gallformers.Taxonomy do
   @doc """
   Returns a changeset for tracking taxonomy changes.
   """
+  @spec change_taxonomy(Taxonomy.t(), map()) :: Ecto.Changeset.t()
   def change_taxonomy(%Taxonomy{} = taxonomy, attrs \\ %{}) do
     Taxonomy.changeset(taxonomy, attrs)
   end
@@ -310,6 +311,7 @@ defmodule Gallformers.Taxonomy do
   @doc """
   Creates a taxonomy entry.
   """
+  @spec create_taxonomy(map()) :: {:ok, Taxonomy.t()} | {:error, Ecto.Changeset.t()}
   def create_taxonomy(attrs \\ %{}) do
     %Taxonomy{}
     |> Taxonomy.changeset(attrs)
@@ -320,6 +322,7 @@ defmodule Gallformers.Taxonomy do
   @doc """
   Updates a taxonomy entry.
   """
+  @spec update_taxonomy(Taxonomy.t(), map()) :: {:ok, Taxonomy.t()} | {:error, Ecto.Changeset.t()}
   def update_taxonomy(%Taxonomy{} = taxonomy, attrs) do
     taxonomy
     |> Taxonomy.changeset(attrs)
@@ -330,6 +333,7 @@ defmodule Gallformers.Taxonomy do
   @doc """
   Deletes a taxonomy entry.
   """
+  @spec delete_taxonomy(Taxonomy.t()) :: {:ok, Taxonomy.t()} | {:error, Ecto.Changeset.t()}
   def delete_taxonomy(%Taxonomy{} = taxonomy) do
     Repo.delete(taxonomy)
     |> broadcast(:taxonomy_deleted)
@@ -338,6 +342,7 @@ defmodule Gallformers.Taxonomy do
   @doc """
   Searches taxonomies by name (case-insensitive).
   """
+  @spec search_taxonomies(String.t(), String.t() | nil, integer()) :: [Taxonomy.t()]
   def search_taxonomies(query, type \\ nil, limit \\ 50) do
     search_pattern = "%#{String.downcase(query)}%"
 
@@ -361,6 +366,7 @@ defmodule Gallformers.Taxonomy do
   @doc """
   Returns all taxonomies with their parent preloaded, optionally filtered by type.
   """
+  @spec list_taxonomies_with_parent(String.t() | nil) :: [map()]
   def list_taxonomies_with_parent(type \\ nil) do
     base_query =
       from(t in Taxonomy,
@@ -391,6 +397,7 @@ defmodule Gallformers.Taxonomy do
   @doc """
   Returns families for use as parent options in forms.
   """
+  @spec list_families_for_select() :: [{String.t(), integer()}]
   def list_families_for_select do
     from(t in Taxonomy,
       where: t.type == "family",
@@ -403,6 +410,7 @@ defmodule Gallformers.Taxonomy do
   @doc """
   Returns families and sections for use as parent options for genera.
   """
+  @spec list_parents_for_genus() :: [map()]
   def list_parents_for_genus do
     from(t in Taxonomy,
       where: t.type in ["family", "section"],
@@ -415,6 +423,7 @@ defmodule Gallformers.Taxonomy do
   @doc """
   Subscribes to taxonomy changes.
   """
+  @spec subscribe() :: :ok | {:error, term()}
   def subscribe do
     Phoenix.PubSub.subscribe(Gallformers.PubSub, "taxonomy")
   end

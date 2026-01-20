@@ -41,6 +41,7 @@ defmodule Gallformers.FilterFields do
   @doc """
   Returns the schema module for the given filter type.
   """
+  @spec schema_for(atom()) :: module()
   def schema_for(:alignment), do: Alignment
   def schema_for(:cells), do: Cells
   def schema_for(:color), do: Color
@@ -54,6 +55,7 @@ defmodule Gallformers.FilterFields do
   Returns the field name for the given filter type.
   Each schema uses a different field name (e.g., :color for Color, :shape for Shape).
   """
+  @spec field_name_for(atom()) :: atom()
   def field_name_for(:alignment), do: :alignment
   def field_name_for(:cells), do: :cells
   def field_name_for(:color), do: :color
@@ -66,6 +68,7 @@ defmodule Gallformers.FilterFields do
   @doc """
   Returns true if the filter type has a description field.
   """
+  @spec has_description?(atom()) :: boolean()
   def has_description?(:color), do: false
   def has_description?(_type), do: true
 
@@ -142,6 +145,7 @@ defmodule Gallformers.FilterFields do
   @doc """
   Returns the display label for a filter type.
   """
+  @spec type_label(atom()) :: String.t()
   def type_label(:alignment), do: "Alignments"
   def type_label(:cells), do: "Cells"
   def type_label(:color), do: "Colors"
@@ -154,6 +158,7 @@ defmodule Gallformers.FilterFields do
   @doc """
   Returns the singular label for a filter type.
   """
+  @spec singular_label(atom()) :: String.t()
   def singular_label(:alignment), do: "Alignment"
   def singular_label(:cells), do: "Cells"
   def singular_label(:color), do: "Color"

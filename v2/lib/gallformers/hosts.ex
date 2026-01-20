@@ -284,6 +284,7 @@ defmodule Gallformers.Hosts do
   @doc """
   Returns a host with all related data for admin editing.
   """
+  @spec get_host_for_edit(integer()) :: map() | nil
   def get_host_for_edit(id) do
     host = get_host(id)
 
@@ -304,6 +305,7 @@ defmodule Gallformers.Hosts do
   @doc """
   Subscribes to host changes.
   """
+  @spec subscribe() :: :ok | {:error, term()}
   def subscribe do
     Phoenix.PubSub.subscribe(Gallformers.PubSub, "hosts")
   end
@@ -311,6 +313,7 @@ defmodule Gallformers.Hosts do
   @doc """
   Broadcasts a host change event.
   """
+  @spec broadcast_change(map(), atom()) :: {:ok, map()}
   def broadcast_change(host, event) do
     Phoenix.PubSub.broadcast(Gallformers.PubSub, "hosts", {event, host})
     {:ok, host}
@@ -323,6 +326,7 @@ defmodule Gallformers.Hosts do
   @doc """
   Returns a changeset for tracking host changes.
   """
+  @spec change_host(Species.t(), map()) :: Ecto.Changeset.t()
   def change_host(%Species{} = host, attrs \\ %{}) do
     Species.changeset(host, Map.put(attrs, "taxoncode", "plant"))
   end
@@ -330,6 +334,7 @@ defmodule Gallformers.Hosts do
   @doc """
   Creates a new host species.
   """
+  @spec create_host(map()) :: {:ok, Species.t()} | {:error, Ecto.Changeset.t()}
   def create_host(attrs) do
     attrs = Map.put(attrs, "taxoncode", "plant")
 
@@ -342,6 +347,7 @@ defmodule Gallformers.Hosts do
   @doc """
   Updates a host species.
   """
+  @spec update_host(Species.t(), map()) :: {:ok, Species.t()} | {:error, Ecto.Changeset.t()}
   def update_host(%Species{} = host, attrs) do
     host
     |> Species.changeset(attrs)
@@ -352,6 +358,7 @@ defmodule Gallformers.Hosts do
   @doc """
   Gets a host species by ID as a Species struct (for changesets).
   """
+  @spec get_host_species(integer()) :: Species.t() | nil
   def get_host_species(id) do
     from(s in Species,
       where: s.id == ^id and s.taxoncode == "plant"
@@ -362,6 +369,7 @@ defmodule Gallformers.Hosts do
   @doc """
   Deletes a host species and all associations.
   """
+  @spec delete_host(integer()) :: {:ok, Species.t()} | {:error, :not_found | Ecto.Changeset.t()}
   def delete_host(host_id) do
     case get_host_species(host_id) do
       nil ->
@@ -392,6 +400,7 @@ defmodule Gallformers.Hosts do
   @doc """
   Adds a place to a host's range.
   """
+  @spec add_place_to_host(integer(), integer()) :: {:ok, map()}
   def add_place_to_host(host_species_id, place_id) do
     Repo.insert_all(
       "speciesplace",
@@ -405,6 +414,7 @@ defmodule Gallformers.Hosts do
   @doc """
   Removes a place from a host's range.
   """
+  @spec remove_place_from_host(integer(), integer()) :: {:ok, map()}
   def remove_place_from_host(host_species_id, place_id) do
     from(sp in "speciesplace",
       where: sp.species_id == ^host_species_id and sp.place_id == ^place_id
@@ -418,6 +428,7 @@ defmodule Gallformers.Hosts do
   Toggles a place in a host's range (add if not present, remove if present).
   Returns {:added, place_id} or {:removed, place_id}.
   """
+  @spec toggle_place_for_host(integer(), integer()) :: {:added | :removed, integer()}
   def toggle_place_for_host(host_species_id, place_id) do
     existing =
       from(sp in "speciesplace",
@@ -438,6 +449,7 @@ defmodule Gallformers.Hosts do
   @doc """
   Bulk updates all places for a host (replaces existing).
   """
+  @spec update_host_places(integer(), [integer()]) :: {:ok, map()}
   def update_host_places(host_species_id, place_ids) do
     Repo.transaction(fn ->
       # Delete existing
@@ -480,6 +492,8 @@ defmodule Gallformers.Hosts do
   Creates an alias for a host.
   Delegates to Species.create_alias_for_species/2.
   """
+  @spec create_alias_for_host(integer(), map()) ::
+          {:ok, Gallformers.Species.Alias.t()} | {:error, Ecto.Changeset.t()}
   def create_alias_for_host(host_id, alias_attrs) do
     Gallformers.Species.create_alias_for_species(host_id, alias_attrs)
   end
@@ -488,6 +502,8 @@ defmodule Gallformers.Hosts do
   Removes an alias from a host.
   Delegates to Species.remove_alias_from_species/2.
   """
+  @spec remove_alias_from_host(integer(), integer()) ::
+          {:ok, map()} | {:error, Ecto.Changeset.t()}
   def remove_alias_from_host(host_id, alias_id) do
     Gallformers.Species.remove_alias_from_species(host_id, alias_id)
   end
@@ -499,6 +515,8 @@ defmodule Gallformers.Hosts do
   @doc """
   Renames a host species, optionally adding the old name as an alias.
   """
+  @spec rename_host(integer(), String.t(), boolean()) ::
+          {:ok, Species.t()} | {:error, :not_found | :name_exists | Ecto.Changeset.t()}
   def rename_host(host_id, new_name, add_alias? \\ false) do
     with {:ok, host} <- fetch_host_species(host_id),
          :ok <- check_name_available(new_name, host_id),
