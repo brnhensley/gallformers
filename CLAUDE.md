@@ -35,8 +35,6 @@ Gallformers (gallformers.org) is a comprehensive online database and reference g
 There are two versions of the application. V1 is at the root and is a stable legacy implementation. We only fix bugs in it.
 V2 is the bulk of work, using Phoenix/LiveView with Elixir. It is in the `v2/` directory.
 
-**Note**: The previous Go/Svelte implementation has been moved to `v2_old/` for reference during migration.
-
 ## V1 Technical Stack
 
 ### Frontend
@@ -95,8 +93,7 @@ gallformers/
 ├── __tests__/          # Test files
 ├── scripts/            # Build and utility scripts
 ├── .beads/             # Beads issue tracking data
-├── v2/                  # V2 rewrite (Phoenix/LiveView) - see below
-└── v2_old/             # Previous Go/Svelte implementation (reference only)
+└── v2/                 # V2 rewrite (Phoenix/LiveView) - see below
 ```
 
 ## V2 Rewrite
@@ -113,12 +110,6 @@ Key points:
 - **Isolation**: V2 work must stay within `v2/` - do not modify v1 code when working on v2
 - **Database**: Uses the same SQLite database as v1 via ecto_sqlite3
 - **Hosting**: V2 deploys to Fly.io (v1 stays on Digital Ocean until cutover)
-
-**Reference Implementation:**
-The previous Go/Svelte implementation is preserved in `v2_old/` for reference during migration. This includes:
-- UI designs and component patterns
-- API structure and business logic
-- Tailwind custom colors and styling
 
 ## Key Domain Concepts
 
