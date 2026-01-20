@@ -10,6 +10,14 @@ daemon.lock
 daemon.log
 daemon.pid
 bd.sock
+last-touched
+sync-state.json
+.sync.lock
+
+# Local state (not shared across clones)
+.local_version
+redirect
+sync_base.jsonl
 
 # Legacy database files
 db.sqlite
