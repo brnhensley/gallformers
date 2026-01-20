@@ -101,7 +101,7 @@ defmodule Gallformers.MixProject do
         "esbuild gallformers --minify",
         "phx.digest"
       ],
-      precommit: ["compile --warnings-as-errors", "deps.unlock --unused", "format", "test"]
+      precommit: ["compile --warnings-as-errors", "deps.unlock --unused", "format_check", "test"]
     ]
   end
 
