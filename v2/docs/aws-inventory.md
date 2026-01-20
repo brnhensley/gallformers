@@ -2,7 +2,7 @@
 
 Current state of AWS resources used by Gallformers, for potential management via OpenTofu.
 
-**Last updated**: 2026-01-18
+**Last updated**: 2026-01-20
 **AWS Account ID**: `885187511538`
 
 ## Region Strategy
@@ -41,6 +41,26 @@ Current state of AWS resources used by Gallformers, for potential management via
       "Principal": {"AWS": "*"},
       "Action": "s3:GetObject",
       "Resource": "arn:aws:s3:::gallformers/*"
+    }
+  ]
+}
+```
+
+**CORS Configuration** (for browser-based presigned URL uploads):
+```json
+{
+  "CORSRules": [
+    {
+      "AllowedOrigins": [
+        "https://gallformers.org",
+        "https://gallformers.com",
+        "https://gallformers.fly.dev",
+        "http://localhost:4000"
+      ],
+      "AllowedMethods": ["PUT", "GET"],
+      "AllowedHeaders": ["*"],
+      "ExposeHeaders": ["ETag"],
+      "MaxAgeSeconds": 3600
     }
   ]
 }

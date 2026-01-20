@@ -144,12 +144,12 @@ The V2 Phoenix/LiveView implementation has a working image upload system. This s
     {
       "AllowedOrigins": [
         "https://gallformers.org",
-        "https://www.gallformers.org",
+        "https://gallformers.com",
         "https://gallformers.fly.dev",
         "http://localhost:4000"
       ],
-      "AllowedMethods": ["PUT"],
-      "AllowedHeaders": ["Content-Type", "Content-Length"],
+      "AllowedMethods": ["PUT", "GET"],
+      "AllowedHeaders": ["*"],
       "ExposeHeaders": ["ETag"],
       "MaxAgeSeconds": 3600
     }
