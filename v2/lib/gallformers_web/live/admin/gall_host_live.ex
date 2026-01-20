@@ -395,19 +395,11 @@ defmodule GallformersWeb.Admin.GallHostLive do
                     <div class="text-sm font-medium text-gray-700 mb-2">Legend:</div>
                     <div class="space-y-1 mb-4">
                       <div class="flex items-center gap-2">
-                        <div
-                          class="w-4 h-4 rounded border border-gray-400"
-                          style="background-color: ForestGreen;"
-                        >
-                        </div>
+                        <div class="w-4 h-4 rounded border border-gray-400 bg-green-700"></div>
                         <span class="text-xs text-gray-600">Gall & Host</span>
                       </div>
                       <div class="flex items-center gap-2">
-                        <div
-                          class="w-4 h-4 rounded border border-gray-400"
-                          style="background-color: LightCoral;"
-                        >
-                        </div>
+                        <div class="w-4 h-4 rounded border border-gray-400 bg-red-300"></div>
                         <span class="text-xs text-gray-600">Host Only</span>
                       </div>
                       <div class="flex items-center gap-2">

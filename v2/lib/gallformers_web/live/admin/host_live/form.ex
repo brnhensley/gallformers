@@ -522,15 +522,11 @@ defmodule GallformersWeb.Admin.HostLive.Form do
                 <div class="text-sm font-medium text-gray-700 mb-2">Legend:</div>
                 <div class="space-y-1">
                   <div class="flex items-center gap-2">
-                    <div class="w-4 h-4 rounded" style="background-color: ForestGreen;"></div>
+                    <div class="w-4 h-4 rounded bg-green-700"></div>
                     <span class="text-xs text-gray-600">In Range</span>
                   </div>
                   <div class="flex items-center gap-2">
-                    <div
-                      class="w-4 h-4 rounded border border-gray-300"
-                      style="background-color: White;"
-                    >
-                    </div>
+                    <div class="w-4 h-4 rounded border border-gray-300 bg-white"></div>
                     <span class="text-xs text-gray-600">Out of Range</span>
                   </div>
                 </div>
