@@ -211,7 +211,13 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
       </div>
 
       <%!-- Edit/Create Modal --%>
-      <.modal :if={@form} id="article-modal" show on_cancel={JS.push("request_cancel")} class="!max-w-[80vw]">
+      <.modal
+        :if={@form}
+        id="article-modal"
+        show
+        on_cancel={JS.push("request_cancel")}
+        class="!max-w-[80vw]"
+      >
         <:header>
           <span>{if @editing_article.id, do: "Edit Article", else: "New Article"}</span>
           <%= if @editing_article.id do %>
@@ -416,7 +422,9 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
                   <%= if @image_browser_filter == "" do %>
                     <p>No images found. Upload some images first.</p>
                   <% else %>
-                    <p>No images for this article. Try selecting a different article or "All Articles".</p>
+                    <p>
+                      No images for this article. Try selecting a different article or "All Articles".
+                    </p>
                   <% end %>
                 </div>
               <% else %>
@@ -488,7 +496,11 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
                 </div>
                 <div class="p-4 space-y-4">
                   <div class="flex justify-center bg-gray-100 rounded-lg p-4">
-                    <img src={@selected_image.url} alt="Preview" class="max-h-48 object-contain rounded" />
+                    <img
+                      src={@selected_image.url}
+                      alt="Preview"
+                      class="max-h-48 object-contain rounded"
+                    />
                   </div>
                   <.form
                     for={@image_insert_form}
@@ -524,7 +536,10 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
                               type="radio"
                               name={@image_insert_form[:size_preset].name}
                               value="small"
-                              checked={Phoenix.HTML.Form.input_value(@image_insert_form, :size_preset) == "small"}
+                              checked={
+                                Phoenix.HTML.Form.input_value(@image_insert_form, :size_preset) ==
+                                  "small"
+                              }
                               class="mr-2"
                             /> Small (200px)
                           </label>
@@ -533,7 +548,10 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
                               type="radio"
                               name={@image_insert_form[:size_preset].name}
                               value="medium"
-                              checked={Phoenix.HTML.Form.input_value(@image_insert_form, :size_preset) == "medium"}
+                              checked={
+                                Phoenix.HTML.Form.input_value(@image_insert_form, :size_preset) ==
+                                  "medium"
+                              }
                               class="mr-2"
                             /> Medium (400px)
                           </label>
@@ -542,7 +560,10 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
                               type="radio"
                               name={@image_insert_form[:size_preset].name}
                               value="large"
-                              checked={Phoenix.HTML.Form.input_value(@image_insert_form, :size_preset) == "large"}
+                              checked={
+                                Phoenix.HTML.Form.input_value(@image_insert_form, :size_preset) ==
+                                  "large"
+                              }
                               class="mr-2"
                             /> Large (600px)
                           </label>
@@ -551,7 +572,10 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
                               type="radio"
                               name={@image_insert_form[:size_preset].name}
                               value="full"
-                              checked={Phoenix.HTML.Form.input_value(@image_insert_form, :size_preset) == "full"}
+                              checked={
+                                Phoenix.HTML.Form.input_value(@image_insert_form, :size_preset) ==
+                                  "full"
+                              }
                               class="mr-2"
                             /> Full Width
                           </label>
@@ -560,7 +584,10 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
                               type="radio"
                               name={@image_insert_form[:size_preset].name}
                               value="custom"
-                              checked={Phoenix.HTML.Form.input_value(@image_insert_form, :size_preset) == "custom"}
+                              checked={
+                                Phoenix.HTML.Form.input_value(@image_insert_form, :size_preset) ==
+                                  "custom"
+                              }
                               class="mr-2"
                             /> Custom
                           </label>
@@ -619,7 +646,11 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
                 </div>
                 <div class="p-4 space-y-4">
                   <div class="flex justify-center bg-gray-100 rounded-lg p-4">
-                    <img src={@image_to_delete.url} alt="Image to delete" class="max-h-32 object-contain rounded" />
+                    <img
+                      src={@image_to_delete.url}
+                      alt="Image to delete"
+                      class="max-h-32 object-contain rounded"
+                    />
                   </div>
                   <%= if @image_references == [] do %>
                     <p class="text-gray-600">
@@ -631,7 +662,13 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
                         <.icon name="ph-warning" class="h-5 w-5 text-yellow-600 mt-0.5" />
                         <div>
                           <p class="text-yellow-800 font-medium">
-                            This image is referenced in {length(@image_references)} article{if length(@image_references) != 1, do: "s", else: ""}:
+                            This image is referenced in {length(@image_references)} article{if length(
+                                                                                                 @image_references
+                                                                                               ) != 1,
+                                                                                               do:
+                                                                                                 "s",
+                                                                                               else:
+                                                                                                 ""}:
                           </p>
                           <ul class="mt-2 text-sm text-yellow-700 list-disc list-inside">
                             <%= for {_id, title} <- @image_references do %>
@@ -659,7 +696,7 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
                     phx-click="delete_image"
                     class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
                   >
-                    <%= if @image_references == [], do: "Delete", else: "Delete Anyway" %>
+                    {if @image_references == [], do: "Delete", else: "Delete Anyway"}
                   </button>
                 </div>
               </div>
@@ -720,7 +757,6 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
 
       <%!-- Discard Changes Confirmation Modal --%>
       <.discard_confirm_modal show={@show_discard_confirm} />
-
     </Layouts.admin>
     """
   end
@@ -1009,7 +1045,9 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
          |> put_flash(:info, "Image deleted.")}
 
       {:error, reason} ->
-        Logger.error("Failed to delete image: path=#{inspect(image.path)}, reason=#{inspect(reason)}")
+        Logger.error(
+          "Failed to delete image: path=#{inspect(image.path)}, reason=#{inspect(reason)}"
+        )
 
         error_message = format_s3_error(reason)
 

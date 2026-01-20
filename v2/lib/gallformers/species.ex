@@ -683,6 +683,7 @@ defmodule Gallformers.Species do
   @doc """
   Returns a changeset for tracking species changes.
   """
+  @spec change_species(Species.t(), map()) :: Ecto.Changeset.t()
   def change_species(%Species{} = species, attrs \\ %{}) do
     Species.changeset(species, attrs)
   end
@@ -690,6 +691,7 @@ defmodule Gallformers.Species do
   @doc """
   Creates a species.
   """
+  @spec create_species(map()) :: {:ok, Species.t()} | {:error, Ecto.Changeset.t()}
   def create_species(attrs \\ %{}) do
     result =
       %Species{}
@@ -709,6 +711,7 @@ defmodule Gallformers.Species do
   @doc """
   Updates a species.
   """
+  @spec update_species(Species.t(), map()) :: {:ok, Species.t()} | {:error, Ecto.Changeset.t()}
   def update_species(%Species{} = species, attrs) do
     result =
       species
@@ -788,6 +791,7 @@ defmodule Gallformers.Species do
   @doc """
   Deletes a species.
   """
+  @spec delete_species(Species.t()) :: {:ok, Species.t()} | {:error, Ecto.Changeset.t()}
   def delete_species(%Species{} = species) do
     # Delete from FTS index first
     delete_species_fts(species.id)
@@ -801,6 +805,8 @@ defmodule Gallformers.Species do
   @doc """
   Creates an alias and associates it with a species.
   """
+  @spec create_alias_for_species(integer(), map()) ::
+          {:ok, Gallformers.Species.Alias.t()} | {:error, Ecto.Changeset.t()}
   def create_alias_for_species(species_id, alias_attrs) do
     alias Gallformers.Species.Alias
 
@@ -838,6 +844,8 @@ defmodule Gallformers.Species do
   @doc """
   Removes an alias from a species.
   """
+  @spec remove_alias_from_species(integer(), integer()) ::
+          {:ok, map()} | {:error, Ecto.Changeset.t()}
   def remove_alias_from_species(species_id, alias_id) do
     from(als in "aliasspecies",
       where: als.species_id == ^species_id and als.alias_id == ^alias_id
@@ -855,6 +863,8 @@ defmodule Gallformers.Species do
   @doc """
   Associates a host with a gall species.
   """
+  @spec add_host_to_species(integer(), integer()) ::
+          {:ok, Gallformers.Hosts.Host.t()} | {:error, Ecto.Changeset.t()}
   def add_host_to_species(gall_species_id, host_species_id) do
     alias Gallformers.Hosts.Host
 
@@ -873,6 +883,7 @@ defmodule Gallformers.Species do
   @doc """
   Removes a host association from a gall species.
   """
+  @spec remove_host_from_species(integer()) :: {:ok, map()} | {:error, :not_found}
   def remove_host_from_species(host_relation_id) do
     alias Gallformers.Hosts.Host
 
@@ -890,6 +901,7 @@ defmodule Gallformers.Species do
   @doc """
   Subscribes to species changes.
   """
+  @spec subscribe() :: :ok | {:error, term()}
   def subscribe do
     Phoenix.PubSub.subscribe(Gallformers.PubSub, "species")
   end
@@ -1009,7 +1021,8 @@ defmodule Gallformers.Species do
     }
   end
 
-  defp get_filter_values_for_gall(gall_id, join_table, fk_col, schema, field) when is_atom(fk_col) do
+  defp get_filter_values_for_gall(gall_id, join_table, fk_col, schema, field)
+       when is_atom(fk_col) do
     from(j in join_table,
       join: s in ^schema,
       on: field(j, ^fk_col) == s.id,
