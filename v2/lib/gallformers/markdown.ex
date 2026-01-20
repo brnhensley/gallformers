@@ -14,7 +14,7 @@ defmodule Gallformers.Markdown do
       "<p>Some <em>markdown</em> text</p>"
   """
 
-  alias Gallformers.Glossary
+  alias Gallformers.Glossaries
 
   @ets_table :glossary_terms
   @cache_ttl_ms :timer.minutes(15)
@@ -148,7 +148,7 @@ defmodule Gallformers.Markdown do
 
   defp load_glossary_to_cache do
     word_map =
-      Glossary.list_glossary()
+      Glossaries.list_glossary()
       |> Enum.reject(fn entry -> MapSet.member?(@excluded_terms, String.downcase(entry.word)) end)
       |> Enum.reduce(%{}, fn entry, acc ->
         # Store lowercase word mapping to original word for case-insensitive matching

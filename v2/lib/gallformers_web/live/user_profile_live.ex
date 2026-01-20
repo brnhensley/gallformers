@@ -30,13 +30,13 @@ defmodule GallformersWeb.UserProfileLive do
          |> assign(:page_title, display_name(user))
          |> assign(:page_description, user.about_me)
          |> assign(:user, user)
-         |> assign(:is_own_profile, is_own_profile?(current_user, user))}
+         |> assign(:own_profile, own_profile?(current_user, user))}
     end
   end
 
-  defp is_own_profile?(nil, _user), do: false
+  defp own_profile?(nil, _user), do: false
 
-  defp is_own_profile?(current_user, user) do
+  defp own_profile?(current_user, user) do
     current_user.id == user.auth0_id
   end
 
@@ -66,7 +66,7 @@ defmodule GallformersWeb.UserProfileLive do
               <h1 class="text-2xl font-bold text-gf-maroon">
                 {display_name(@user)}
               </h1>
-              <%= if @is_own_profile do %>
+              <%= if @own_profile do %>
                 <a
                   href="/admin/profile"
                   class="flex items-center gap-1 text-sm hover:underline"

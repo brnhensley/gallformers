@@ -1,4 +1,4 @@
-defmodule Gallformers.Glossary.Glossary do
+defmodule Gallformers.Glossaries.Glossary do
   @moduledoc """
   Ecto schema for the glossary table.
 

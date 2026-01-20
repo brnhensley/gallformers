@@ -1,13 +1,13 @@
-defmodule Gallformers.Glossary do
+defmodule Gallformers.Glossaries do
   @moduledoc """
-  The Glossary context.
+  The Glossaries context.
 
   Provides functions for working with glossary terms and definitions.
   """
 
   import Ecto.Query
 
-  alias Gallformers.Glossary.Glossary
+  alias Gallformers.Glossaries.Glossary
   alias Gallformers.Repo
 
   @doc """

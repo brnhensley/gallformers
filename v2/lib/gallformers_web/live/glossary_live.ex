@@ -6,11 +6,11 @@ defmodule GallformersWeb.GlossaryLive do
   """
   use GallformersWeb, :live_view
 
-  alias Gallformers.Glossary
+  alias Gallformers.Glossaries
 
   @impl true
   def mount(_params, _session, socket) do
-    entries = Glossary.list_glossary()
+    entries = Glossaries.list_glossary()
 
     {:ok,
      assign(socket,

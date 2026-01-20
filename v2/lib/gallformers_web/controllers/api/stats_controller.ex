@@ -10,7 +10,7 @@ defmodule GallformersWeb.API.StatsController do
 
   import Ecto.Query
 
-  alias Gallformers.{Glossary, Hosts, Repo, Sources, Species}
+  alias Gallformers.{Glossaries, Hosts, Repo, Sources, Species}
   alias Gallformers.Species.{Gall, GallSpecies, Image}
   alias Gallformers.Species.Species, as: SpeciesSchema
   alias GallformersWeb.Schemas
@@ -34,7 +34,7 @@ defmodule GallformersWeb.API.StatsController do
       galls: Species.count_galls(),
       hosts: Hosts.count_hosts(),
       sources: Sources.count_sources(),
-      glossary: Glossary.count_glossary(),
+      glossary: Glossaries.count_glossary(),
       undescribed_galls: count_undescribed_galls(),
       images: count_images()
     }

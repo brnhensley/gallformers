@@ -6,7 +6,7 @@ defmodule GallformersWeb.API.GlossaryController do
   use GallformersWeb, :controller
   use OpenApiSpex.ControllerSpecs
 
-  alias Gallformers.Glossary
+  alias Gallformers.Glossaries
   alias GallformersWeb.Schemas
 
   tags(["Glossary"])
@@ -46,20 +46,20 @@ defmodule GallformersWeb.API.GlossaryController do
     {entries, total} =
       case {query, limit} do
         {nil, nil} ->
-          all = Glossary.list_glossary()
+          all = Glossaries.list_glossary()
           {all, length(all)}
 
         {nil, limit} ->
-          all = Glossary.list_glossary()
+          all = Glossaries.list_glossary()
           paginated = all |> Enum.drop(offset) |> Enum.take(limit)
           {paginated, length(all)}
 
         {query, nil} ->
-          results = Glossary.search_glossary(query)
+          results = Glossaries.search_glossary(query)
           {results, length(results)}
 
         {query, limit} ->
-          all = Glossary.search_glossary(query)
+          all = Glossaries.search_glossary(query)
           paginated = all |> Enum.drop(offset) |> Enum.take(limit)
           {paginated, length(all)}
       end
@@ -96,7 +96,7 @@ defmodule GallformersWeb.API.GlossaryController do
         |> json(%{error: "Invalid glossary ID"})
 
       id ->
-        case Glossary.get_glossary(id) do
+        case Glossaries.get_glossary(id) do
           nil ->
             conn
             |> put_status(:not_found)
@@ -125,7 +125,7 @@ defmodule GallformersWeb.API.GlossaryController do
   Gets a glossary entry by word.
   """
   def by_word(conn, %{"word" => word}) do
-    case Glossary.get_glossary_by_word(word) do
+    case Glossaries.get_glossary_by_word(word) do
       nil ->
         conn
         |> put_status(:not_found)

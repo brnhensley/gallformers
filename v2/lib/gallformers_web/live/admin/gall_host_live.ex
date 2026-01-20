@@ -1,4 +1,4 @@
-defmodule GallformersWeb.Admin.GallhostLive do
+defmodule GallformersWeb.Admin.GallHostLive do
   @moduledoc """
   Admin tool for managing gall-host mappings and gall range exclusions.
 

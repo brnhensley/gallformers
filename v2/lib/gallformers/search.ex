@@ -7,7 +7,7 @@ defmodule Gallformers.Search do
 
   import Ecto.Query
 
-  alias Gallformers.Glossary.Glossary
+  alias Gallformers.Glossaries.Glossary
   alias Gallformers.Places.Place
   alias Gallformers.Repo
   alias Gallformers.Search.Ranking

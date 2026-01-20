@@ -9,7 +9,7 @@ defmodule GallformersWeb.Admin.GlossaryLive.Form do
 
   # Required callbacks for FormHelpers
   @impl GallformersWeb.Admin.FormHelpers
-  def context_module, do: Gallformers.Glossary
+  def context_module, do: Gallformers.Glossaries
   @impl GallformersWeb.Admin.FormHelpers
   def entity_key, do: :entry
   @impl GallformersWeb.Admin.FormHelpers

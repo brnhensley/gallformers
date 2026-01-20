@@ -1,4 +1,4 @@
-defmodule GallformersWeb.AdminDashboardLiveTest do
+defmodule GallformersWeb.Admin.DashboardLiveTest do
   @moduledoc """
   LiveView tests for the admin dashboard.
   """

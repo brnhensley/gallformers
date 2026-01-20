@@ -4,13 +4,13 @@ defmodule GallformersWeb.Admin.GlossaryLive.Index do
   """
   use GallformersWeb, :live_view
 
-  alias Gallformers.Glossary
+  alias Gallformers.Glossaries
 
   @impl true
   def mount(_params, session, socket) do
     current_user = session["current_user"]
 
-    if connected?(socket), do: Glossary.subscribe()
+    if connected?(socket), do: Glossaries.subscribe()
 
     socket =
       socket
@@ -44,9 +44,9 @@ defmodule GallformersWeb.Admin.GlossaryLive.Index do
 
   @impl true
   def handle_event("delete", %{"id" => id}, socket) do
-    entry = Glossary.get_glossary!(String.to_integer(id))
+    entry = Glossaries.get_glossary!(String.to_integer(id))
 
-    case Glossary.delete_glossary(entry) do
+    case Glossaries.delete_glossary(entry) do
       {:ok, _} ->
         {:noreply,
          socket
@@ -67,8 +67,8 @@ defmodule GallformersWeb.Admin.GlossaryLive.Index do
   defp load_glossary(socket) do
     entries =
       case socket.assigns.search_query do
-        "" -> Glossary.list_glossary()
-        query -> Glossary.search_glossary(query)
+        "" -> Glossaries.list_glossary()
+        query -> Glossaries.search_glossary(query)
       end
 
     assign(socket, :entries, entries)

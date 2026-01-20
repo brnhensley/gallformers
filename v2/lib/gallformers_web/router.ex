@@ -53,7 +53,7 @@ defmodule GallformersWeb.Router do
   scope "/admin", GallformersWeb do
     pipe_through [:browser, :admin]
 
-    live "/", AdminDashboardLive
+    live "/", Admin.DashboardLive
 
     # Gall admin
     live "/galls", Admin.GallLive.Index, :index
@@ -61,7 +61,7 @@ defmodule GallformersWeb.Router do
     live "/galls/:id", Admin.GallLive.Form, :edit
 
     # Gall-Host mapping admin
-    live "/gallhost", Admin.GallhostLive, :index
+    live "/gallhost", Admin.GallHostLive, :index
 
     # Host admin
     live "/hosts", Admin.HostLive.Index, :index
@@ -88,7 +88,7 @@ defmodule GallformersWeb.Router do
     live "/glossary/:id", Admin.GlossaryLive.Form, :edit
 
     # Images admin
-    live "/images", AdminImagesLive
+    live "/images", Admin.ImagesLive
 
     # Articles admin
     live "/articles", Admin.ArticleAdminLive

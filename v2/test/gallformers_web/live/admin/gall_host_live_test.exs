@@ -1,6 +1,6 @@
-defmodule GallformersWeb.Admin.GallhostLiveTest do
+defmodule GallformersWeb.Admin.GallHostLiveTest do
   @moduledoc """
-  LiveView tests for the GallhostLive admin page.
+  LiveView tests for the GallHostLive admin page.
 
   Tests the gall-host mapping admin functionality including:
   - Mount/render with and without URL params

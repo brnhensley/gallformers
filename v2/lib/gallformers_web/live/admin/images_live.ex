@@ -1,4 +1,4 @@
-defmodule GallformersWeb.AdminImagesLive do
+defmodule GallformersWeb.Admin.ImagesLive do
   @moduledoc """
   Admin LiveView for managing species images.
 

@@ -1,4 +1,4 @@
-defmodule GallformersWeb.AdminDashboardLive do
+defmodule GallformersWeb.Admin.DashboardLive do
   @moduledoc """
   Admin dashboard showing overview statistics and quick actions.
   """
