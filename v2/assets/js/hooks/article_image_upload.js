@@ -4,7 +4,7 @@
  * Handles single image upload for articles with:
  * - File type validation
  * - Direct upload to S3 using presigned URLs
- * - Inserts markdown image syntax into content textarea
+ * - Inserts HTML figure/img at cursor position in content textarea
  */
 
 const ArticleImageUpload = {
@@ -106,8 +106,12 @@ const ArticleImageUpload = {
   },
 
   insertMarkdownIntoTextarea(imageUrl) {
-    const markdown = `![Image](${imageUrl})`
-    this.insertMarkdownAtCursor(markdown)
+    // Generate HTML matching the Browse Images format with placeholders
+    const html = `<figure>
+  <img src="${imageUrl}" alt="[Describe the image]" width="400">
+  <figcaption>[Add caption]</figcaption>
+</figure>`
+    this.insertMarkdownAtCursor(html)
   },
 
   insertMarkdownAtCursor(markdown) {

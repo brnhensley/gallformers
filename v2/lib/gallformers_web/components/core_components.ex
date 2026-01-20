@@ -54,6 +54,7 @@ defmodule GallformersWeb.CoreComponents do
       id={@id}
       phx-hook={@auto_dismiss && "AutoDismiss"}
       data-dismiss-after={@auto_dismiss}
+      data-flash-kind={@kind}
       phx-click={JS.push("lv:clear-flash", value: %{key: @kind}) |> hide("##{@id}")}
       role="alert"
       class="gf-toast"

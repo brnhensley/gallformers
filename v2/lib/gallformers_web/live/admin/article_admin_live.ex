@@ -1189,13 +1189,16 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
       html = generate_image_html(selected_image.url, alt_text, caption, width)
 
       # Push event to client to insert at cursor position
+      # Close both the insert modal AND the image browser to return to edit view
       socket =
         socket
         |> push_event("insert_image_markdown", %{markdown: html})
         |> assign(:show_image_insert_modal, false)
+        |> assign(:show_image_browser, false)
         |> assign(:selected_image, nil)
         |> assign(:image_insert_form, nil)
         |> assign(:form_dirty, true)
+        |> put_flash(:info, "Image inserted at cursor!")
 
       {:noreply, socket}
     end
@@ -1281,7 +1284,7 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
   def handle_event("article_image_uploaded", %{"path" => _path}, socket) do
     socket =
       socket
-      |> put_flash(:info, "Image uploaded! Use 'Browse Images' to insert it.")
+      |> put_flash(:info, "Image uploaded and inserted at cursor!")
 
     {:noreply, socket}
   end
