@@ -638,7 +638,7 @@ defmodule GallformersWeb.UIComponents do
           @type == :host && "grid-cols-3"
         ]}>
           <a
-            href={"https://www.inaturalist.org/taxa/search?q=#{@search_name}"}
+            href={"https://www.inaturalist.org/search?q=#{@search_name}"}
             target="_blank"
             rel="noreferrer"
             aria-label="Search for this species on iNaturalist"
