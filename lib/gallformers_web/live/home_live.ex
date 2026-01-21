@@ -222,25 +222,23 @@ defmodule GallformersWeb.HomeLive do
                   href="https://www.patreon.com/gallformers"
                   target="_blank"
                   rel="noreferrer"
-                  class="inline-flex items-center px-4 py-2 bg-gray-50 rounded-lg hover:bg-gray-100"
+                  class="inline-flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-full hover:bg-gray-200"
                 >
-                  <.icon name="ph-heart" class="size-5 text-red-500 mr-2 flex-shrink-0" /> Patreon
+                  <.icon name="ph-heart" class="size-5 mr-2" /> Patreon
                 </.link>
                 <.link
                   href="/about#administrators"
-                  class="inline-flex items-center px-4 py-2 bg-gray-50 rounded-lg hover:bg-gray-100"
+                  class="inline-flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-full hover:bg-gray-200"
                 >
-                  <.icon name="ph-users" class="size-5 text-blue-500 mr-2 flex-shrink-0" />
-                  Become an Admin
+                  <.icon name="ph-users" class="size-5 mr-2" /> Become an Admin
                 </.link>
                 <.link
                   href="https://github.com/jeffdc/gallformers"
                   target="_blank"
                   rel="noreferrer"
-                  class="inline-flex items-center px-4 py-2 bg-gray-50 rounded-lg hover:bg-gray-100"
+                  class="inline-flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-full hover:bg-gray-200"
                 >
-                  <.icon name="ph-code" class="size-5 text-gray-700 mr-2 flex-shrink-0" />
-                  Contribute Code
+                  <.icon name="ph-code" class="size-5 mr-2" /> Contribute Code
                 </.link>
               </div>
             </.card>
