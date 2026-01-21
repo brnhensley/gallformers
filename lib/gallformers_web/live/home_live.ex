@@ -120,11 +120,13 @@ defmodule GallformersWeb.HomeLive do
 
   defp format_host_display(%{name: name}), do: name
 
-  defp format_number(num) when num >= 1000 do
-    "#{Float.round(num / 1000, 1)}k+"
+  defp format_number(num) do
+    num
+    |> Integer.to_string()
+    |> String.reverse()
+    |> String.replace(~r/(\d{3})(?=\d)/, "\\1,")
+    |> String.reverse()
   end
-
-  defp format_number(num), do: "#{num}"
 
   @impl true
   def render(assigns) do
