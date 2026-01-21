@@ -85,12 +85,8 @@ defmodule GallformersWeb.HomeLive do
   def handle_event("select_host", %{"id" => id_str}, socket) do
     host = Hosts.get_host(String.to_integer(id_str))
 
-    {:noreply,
-     assign(socket,
-       selected_host: host,
-       host_query: "",
-       host_results: []
-     )}
+    # On home page, selecting a host immediately navigates to ID page
+    {:noreply, push_navigate(socket, to: ~p"/id?h=#{host.name}")}
   end
 
   @impl true
@@ -115,9 +111,14 @@ defmodule GallformersWeb.HomeLive do
     {:noreply, push_navigate(socket, to: path)}
   end
 
-  defp format_host_display(host) do
-    host.name
+  defp format_host_display(%{name: name, aliases: aliases}) when is_list(aliases) do
+    case aliases do
+      [] -> name
+      alias_list -> "#{name} (#{Enum.join(alias_list, ", ")})"
+    end
   end
+
+  defp format_host_display(%{name: name}), do: name
 
   defp format_number(num) when num >= 1000 do
     "#{Float.round(num / 1000, 1)}k+"
@@ -154,58 +155,26 @@ defmodule GallformersWeb.HomeLive do
             <p class="mb-3">
               If you know the host plant that the gall is on start here.
             </p>
-            <div class="relative mb-3">
-              <%= if @selected_host do %>
-                <%!-- Selected host display --%>
-                <div class="flex items-center gap-2 p-2 bg-gray-100 rounded-lg border border-gray-300">
-                  <.icon name="ph-tree" class="size-5 text-gf-maroon flex-shrink-0" />
-                  <span class="flex-1 text-left italic text-gf-maroon font-medium">
-                    {format_host_display(@selected_host)}
+            <div class="mb-3">
+              <.typeahead
+                id="home-host-picker"
+                label="Host Plant:"
+                placeholder="Type a host plant (oak, Quercus, willow...)"
+                query={@host_query}
+                results={@host_results}
+                selected={@selected_host}
+                search_event="search_host"
+                select_event="select_host"
+                clear_event="clear_host"
+                display_fn={&format_host_display/1}
+              >
+                <:result :let={host}>
+                  <span class="italic">{format_host_display(host)}</span>
+                  <span :if={!host.datacomplete} class="ml-2 text-xs text-amber-600">
+                    (incomplete)
                   </span>
-                  <button
-                    type="button"
-                    phx-click="clear_host"
-                    class="text-gray-500 hover:text-gray-700"
-                    aria-label="Clear selection"
-                  >
-                    <.icon name="ph-x" class="size-5" />
-                  </button>
-                </div>
-              <% else %>
-                <%!-- Host search input --%>
-                <div class="relative">
-                  <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <.icon name="ph-tree" class="size-5 text-gray-400" />
-                  </div>
-                  <input
-                    type="text"
-                    value={@host_query}
-                    phx-keyup="search_host"
-                    phx-debounce="200"
-                    placeholder="Type a host plant (oak, Quercus, willow...)"
-                    class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:border-gf-maroon focus:ring-gf-maroon"
-                    autocomplete="off"
-                  />
-                </div>
-                <%!-- Results dropdown --%>
-                <div
-                  :if={length(@host_results) > 0}
-                  class="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-auto"
-                >
-                  <button
-                    :for={host <- @host_results}
-                    type="button"
-                    phx-click="select_host"
-                    phx-value-id={host.id}
-                    class="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center gap-2 border-b border-gray-100 last:border-b-0"
-                  >
-                    <span class="italic">{host.name}</span>
-                    <span :if={!host.datacomplete} class="text-xs text-amber-600">
-                      (incomplete)
-                    </span>
-                  </button>
-                </div>
-              <% end %>
+                </:result>
+              </.typeahead>
             </div>
             <button
               type="button"

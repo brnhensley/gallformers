@@ -185,6 +185,55 @@ Standard biological classification:
 
 See **[CODING_STANDARDS.md](./CODING_STANDARDS.md)** for Elixir/Phoenix conventions.
 
+## Reusable UI Components
+
+**CRITICAL**: This project has reusable UI components that MUST be used. Do NOT implement custom/inline versions of these components. Creating new UI patterns requires explicit user approval.
+
+### Component Locations
+
+| File | Components |
+|------|------------|
+| `lib/gallformers_web/components/core_components.ex` | `.button`, `.input`, `.modal`, `.table`, `.icon`, `.flash`, `.header`, `.back`, `.list`, `.simple_form`, etc. |
+| `lib/gallformers_web/components/form_components.ex` | `.typeahead`, `.multi_select_typeahead`, `.multi_select_dropdown`, `.search_input`, `.toggle`, `.radio_group`, `.file_dropzone`, `.rename_modal` |
+| `lib/gallformers_web/components/ui_components.ex` | `.card`, `.loading_spinner`, `.error_message`, `.pagination`, `.alert`, `.info_tip`, `.loading_overlay`, `.skeleton`, `.tabs`, `.see_also` |
+| `lib/gallformers_web/components/data_display_components.ex` | `.image_gallery`, `.species_card`, `.host_list`, `.source_citation`, `.taxonomy_breadcrumb`, `.data_completeness_indicator`, `.edit_button`, `.external_links`, `.source_list`, `.range_map`, etc. |
+
+### Key Components
+
+- **`.typeahead`** - Single-select search with keyboard navigation, ARIA accessibility, and the `Typeahead` JS hook. Use for host/genus pickers.
+- **`.multi_select_typeahead`** - Multi-select with chips and dropdown. Use for locations, textures, etc.
+- **`.input`** - Standard form inputs with labels and error handling.
+- **`.card`** - Consistent card styling with title and icon.
+
+### Before Adding UI Code
+
+1. **Check existing components** - Search `core_components.ex` and `form_components.ex`
+2. **Check existing pages** - See how similar UI is implemented elsewhere
+3. **If no component exists** - ASK before implementing inline. We may want to create a reusable component.
+
+### Never Do This
+
+```elixir
+# WRONG - inline typeahead implementation
+<input type="text" phx-keyup="search" ... />
+<div :if={@results != []}>
+  <button :for={item <- @results} phx-click="select" ...>
+```
+
+```elixir
+# CORRECT - use the component
+<.typeahead
+  id="host-picker"
+  query={@query}
+  results={@results}
+  selected={@selected}
+  search_event="search"
+  select_event="select"
+  clear_event="clear"
+  ...
+/>
+```
+
 ## Styling (Tailwind CSS)
 
 ### Custom Colors

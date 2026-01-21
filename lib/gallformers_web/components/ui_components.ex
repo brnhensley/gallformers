@@ -52,7 +52,10 @@ defmodule GallformersWeb.UIComponents do
       ]}
       {@rest}
     >
-      <div :if={@title} class="px-4 py-3 border-b border-gray-200 bg-gf-sky-blue flex items-center justify-between">
+      <div
+        :if={@title}
+        class="px-4 py-3 border-b border-gray-200 bg-gf-sky-blue flex items-center justify-between"
+      >
         <h3 class="text-lg font-medium text-gf-maroon flex items-center gap-2">
           <.icon :if={@icon} name={@icon} class="size-5" />
           {@title}
