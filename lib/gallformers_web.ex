@@ -17,18 +17,13 @@ defmodule GallformersWeb do
   those modules here.
   """
 
+  # NOTE: Use prefixes without extensions so that both original files
+  # and digest-hashed files (e.g., favicon-abc123.ico) are served.
+  # Plug.Static's `only:` option matches paths that START WITH these entries.
   def static_paths,
-    do:
-      ~w(assets fonts images branding data robots.txt
-         favicon.ico favicon.png favicon-16x16.png favicon-32x32.png favicon-96x96.png
-         apple-touch-icon.png apple-icon.png apple-icon-precomposed.png
-         apple-icon-57x57.png apple-icon-60x60.png apple-icon-72x72.png apple-icon-76x76.png
-         apple-icon-114x114.png apple-icon-120x120.png apple-icon-144x144.png
-         apple-icon-152x152.png apple-icon-180x180.png
-         android-icon-36x36.png android-icon-48x48.png android-icon-72x72.png
-         android-icon-96x96.png android-icon-144x144.png android-icon-192x192.png
-         ms-icon-70x70.png ms-icon-144x144.png ms-icon-150x150.png ms-icon-310x310.png
-         manifest.json browserconfig.xml)
+    do: ~w(assets fonts images branding data robots
+         favicon apple-touch-icon apple-icon
+         android-icon ms-icon manifest browserconfig)
 
   def router do
     quote do
