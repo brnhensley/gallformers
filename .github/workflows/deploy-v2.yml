@@ -4,10 +4,16 @@ on:
   push:
     branches: [main]
     paths:
-      - 'v2/**'
-      - '!v2/**/*.md'
-      - '!v2/docs/**'
-      - '!v2/runbooks/**'
+      - 'lib/**'
+      - 'config/**'
+      - 'assets/**'
+      - 'priv/**'
+      - 'mix.exs'
+      - 'mix.lock'
+      - 'Dockerfile'
+      - 'fly.toml'
+      - 'docker-entrypoint.sh'
+      - '.github/workflows/deploy-v2.yml'
 
 concurrency:
   group: deploy-v2
@@ -24,6 +30,6 @@ jobs:
         uses: superfly/flyctl-actions/setup-flyctl@master
 
       - name: Deploy to Fly.io
-        run: cd v2 && flyctl deploy --remote-only
+        run: flyctl deploy --remote-only
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}

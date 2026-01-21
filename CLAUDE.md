@@ -31,24 +31,78 @@ Gallformers (gallformers.org) is a comprehensive online database and reference g
 - **Education**: Providing guides, keys, and reference materials about galls
 - **Research**: Serving as a data repository for researchers and naturalists
 
-## V1 and V2
+## Tech Stack
 
-There are two versions of the application:
-- **V1** (`v1/`) - Legacy Next.js implementation. Bug fixes only. See [v1/CLAUDE.md](v1/CLAUDE.md) for details.
-- **V2** (`v2/`) - Active development using Phoenix/LiveView with Elixir. See [v2/CLAUDE.md](v2/CLAUDE.md) for details.
+- **Phoenix 1.8** with LiveView - Full-stack web framework
+- **Ecto** with ecto_sqlite3 - Database ORM
+- **SQLite** - Database
+- **Tailwind CSS v4** - Styling
+- **Fly.io** - Production hosting
+
+**Legacy V1**: The original Next.js implementation is archived in `v1/`. See [v1/CLAUDE.md](v1/CLAUDE.md) for all V1-specific documentation.
 
 ## Project Structure
 
 ```
 gallformers/
-├── .beads/              # Beads issue tracking data
+├── assets/              # Frontend assets (JS, CSS, Tailwind)
+├── config/              # Phoenix configuration
+├── lib/                 # Elixir application code
+│   ├── gallformers/     # Business logic (contexts)
+│   └── gallformers_web/ # Web layer (LiveViews, controllers)
+├── priv/                # Static files, database, migrations
+├── test/                # Tests
+├── docs/                # Documentation
+├── runbooks/            # Operational runbooks
+├── services/            # Auxiliary services
+│   ├── tileserver-gl/   # Map tile server
+│   └── usda_plants/     # USDA plants data (Rust)
+├── .beads/              # Beads issue tracking
 ├── .github/             # CI workflows
 ├── openspec/            # Change proposal system
-├── prompts/             # AI prompts
-├── research/            # Research docs
-├── usda_plants/         # USDA plants data app
-├── v1/                  # V1 Next.js app (see v1/CLAUDE.md)
-└── v2/                  # V2 Phoenix/LiveView app (see v2/CLAUDE.md)
+└── v1/                  # Legacy Next.js app (see v1/CLAUDE.md)
+```
+
+## Development Commands
+
+```bash
+mix setup                  # Install deps, setup DB, build assets
+mix phx.server             # Start dev server at http://localhost:4000
+mix test                   # Run all tests
+mix format                 # Format code
+mix credo --strict         # Run code quality checks
+mix precommit              # Run all checks before committing
+
+# Database
+mix ecto.migrate           # Run migrations
+mix ecto.rollback          # Rollback last migration
+mix ecto.reset             # Drop, create, migrate, seed
+
+# Assets
+mix assets.build           # Build CSS/JS
+mix assets.deploy          # Build for production
+```
+
+## Before Committing
+
+Always run before committing:
+
+```bash
+mix precommit    # Runs format, credo, and tests
+```
+
+Do not commit until precommit passes.
+
+## Database
+
+- **Local dev**: `priv/gallformers.sqlite` (not committed)
+- **Production**: Fly.io volume at `/data/gallformers.sqlite`
+
+### Getting the Database
+
+```bash
+# Download from S3 (recommended - daily snapshot from production)
+make download-db
 ```
 
 ## Key Domain Concepts
@@ -83,12 +137,120 @@ Plants that galls form on, with:
 
 ### Taxonomy
 Standard biological classification:
-- Kingdom → Phylum → Class → Order → Family → Genus → Species
+- Kingdom -> Phylum -> Class -> Order -> Family -> Genus -> Species
 - The database tracks all taxonomic levels and relationships
+
+## Coding Standards
+
+See **[CODING_STANDARDS.md](./CODING_STANDARDS.md)** for Elixir/Phoenix conventions.
+
+## Styling (Tailwind CSS)
+
+### Custom Colors
+
+Colors are defined in `assets/css/app.css` via `@theme`:
+
+| Class | Hex | Use for |
+|-------|-----|---------|
+| `text-gf-maroon` / `bg-gf-maroon` | #661419 | Headings, links, primary accent |
+| `text-gf-sky-blue` / `bg-gf-sky-blue` | #c1e0f3 | Header background |
+| `text-gf-autumn` / `bg-gf-autumn` | #bc6428 | Subtitles, secondary text |
+| `bg-cadet-blue` | #96adc8 | Table headers |
+| `bg-canary` | #f8f991 | Selected/highlighted rows |
+
+## SQLite Compatibility
+
+This project uses **SQLite** (via ecto_sqlite3), not PostgreSQL. Always ensure queries are SQLite-compatible:
+
+**Case-insensitive search (NO `ilike`):**
+```elixir
+# WRONG - PostgreSQL only
+where: ilike(s.name, ^search_term)
+
+# CORRECT - SQLite compatible
+search_term = "%#{String.downcase(query)}%"
+where: fragment("lower(?) LIKE ?", s.name, ^search_term)
+```
+
+**Distinct on column (NO `distinct: column`):**
+```elixir
+# WRONG - PostgreSQL's DISTINCT ON
+distinct: t.id
+
+# CORRECT - SQLite compatible (use group_by instead)
+group_by: [t.id, t.name]
+```
+
+## PubSub / Real-time Updates
+
+The admin interface uses Phoenix PubSub for real-time updates. Pattern:
+
+**Context module:**
+```elixir
+@topic "glossary"
+
+def subscribe do
+  Phoenix.PubSub.subscribe(Gallformers.PubSub, @topic)
+end
+
+defp broadcast({:ok, record}, event) do
+  Phoenix.PubSub.broadcast(Gallformers.PubSub, @topic, {event, record})
+  {:ok, record}
+end
+```
+
+**LiveView:**
+```elixir
+def mount(_params, _session, socket) do
+  if connected?(socket), do: Glossary.subscribe()
+  {:ok, stream(socket, :glossaries, Glossary.list_glossaries())}
+end
+
+def handle_info({:glossary_created, glossary}, socket) do
+  {:noreply, stream_insert(socket, :glossaries, glossary, at: 0)}
+end
+```
+
+## Deployment (Fly.io)
+
+### Prerequisites
+
+```bash
+brew install flyctl
+fly auth login
+```
+
+### Deploy Commands
+
+```bash
+fly deploy              # Deploy to production
+fly status              # Check deployment status
+fly logs                # View application logs
+fly ssh console         # SSH into running machine
+```
+
+### Configuration
+
+Key settings in `fly.toml`:
+
+| Setting | Value | Purpose |
+|---------|-------|---------|
+| `app` | `gallformers` | App name |
+| `primary_region` | `iad` | US East (matches S3 region) |
+| `DATABASE_PATH` | `/data/gallformers.sqlite` | SQLite on persistent volume |
+| `min_machines_running` | `1` | Always keep one machine running |
+
+### Secrets
+
+```bash
+fly secrets list
+fly secrets set SECRET_KEY_BASE=xxx
+fly secrets set AUTH0_CLIENT_ID=xxx AUTH0_CLIENT_SECRET=xxx AUTH0_DOMAIN=xxx
+```
 
 ## Beads Workflow
 
-This project uses **Beads** for issue tracking and task management. See the session startup hook for essential commands and workflow.
+This project uses **Beads** for issue tracking. See the session startup hook for commands.
 
 Key points:
 - Use `bd ready` to find available work
@@ -101,16 +263,15 @@ Key points:
 This project uses **watchmen** for time tracking. A hook automatically starts the timer when a Claude Code session begins.
 
 **Session start:**
-- When you start a new session, remind the user: "Time tracking has started for this session (watchmen project: iowa)."
+- Remind the user: "Time tracking has started for this session (watchmen project: iowa)."
 
-**Session end (when user says they're done for the day):**
-1. Check for git commits made since the session started
-2. If commits exist: Generate a concise summary of work done based on the commit messages, then run `watchmen stop -n "<summary>"` to stop the timer with the summary as a note
-3. If no commits: Ask the user what they accomplished, then use their response as the note when stopping
+**Session end (when user says done for the day):**
+1. Check for git commits since session started
+2. If commits exist: Generate summary from commit messages, run `watchmen stop -n "<summary>"`
+3. If no commits: Ask user what they accomplished, use as note
 
 **Commands:**
 - `watchmen status` - Check if timer is running
-- `watchmen stop` - Stop the current timer
 - `watchmen stop -n "note"` - Stop with a note
 
 ## Git Workflow
@@ -118,109 +279,79 @@ This project uses **watchmen** for time tracking. A hook automatically starts th
 **Push approval rules:**
 | Change Type | Approval Required | Notes |
 |-------------|-------------------|-------|
-| Beads | No | Daemon auto-syncs to `beads-sync` branch (isolated from code branches) |
-| Everything else | **Yes** | Always ask user before pushing to main |
+| Beads | No | Daemon auto-syncs to `beads-sync` branch |
+| Everything else | **Yes** | Always ask user before pushing |
 
 **Commit messages:** Present tense, imperative mood.
 
-CRITICAL: Never push to main without explicit approval from the user.
+CRITICAL: Never push to main without explicit approval.
 
 ## Multi-Agent Workflow
 
 Multiple agents can work in parallel using separate git worktrees.
 
 **Worktree locations:**
-| Worktree | Branch | Role |
-|----------|--------|------|
-| `~/dev/gallformers-code1` | [name based on work being done] | Coding Agent 1 |
-| `~/dev/gallformers-code2` | [name based on work being done] | Coding Agent 2 |
-| `~/dev/gallformers-bugfix` | [name based on work being done] | Bug Fixer |
-| `~/dev/gallformers` | main | Planner + Coordinator |
+| Worktree | Role |
+|----------|------|
+| `~/dev/gallformers-code1` | Coding Agent 1 |
+| `~/dev/gallformers-code2` | Coding Agent 2 |
+| `~/dev/gallformers-bugfix` | Bug Fixer |
+| `~/dev/gallformers` | Planner + Coordinator |
 
-**Rules for all agents:**
-- Stay in your assigned worktree - never modify files in other worktrees
-- Before starting work on a beads issue, claim it: `bd update <id> --status=in_progress`
-- If there is not already a branch, make one. Name it after the work being done.
-- Commit your work before ending the session
-- NEVER push to main unless you are explicitly told to
-- Do not run git operations that affect other branches
-
-**Beads across worktrees:**
-- Beads uses a dedicated `beads-sync` branch for all issue tracking data
-- The daemon auto-commits beads changes to `beads-sync`, not your working branch
-- All agents see the same beads state regardless of which branch they're on
-- No need to manually commit `.beads/` files - the daemon handles sync automatically
-- Run `bd sync --status` to check sync state if needed
-
-**Role-specific rules:**
-
-*Coding Agents (gallformers-code1, gallformers-code2):*
-- Full code modification access
-- Run builds, tests as needed
-
-*Bug Fixer (gallformers-bugfix):*
-- Code modification for bug fixes only
-- Keep changes focused and minimal
-
-*Planner (gallformers-planning):*
-- Modify docs: openspec/, CLAUDE.md, README.md, other *.md files
-- Do NOT modify code files
-
-*Coordinator (gallformers-planning):*
-- Modify beads issues, generate prompts for coding agents
-- Do NOT modify code files
+**Rules:**
+- Stay in your assigned worktree
+- Claim issues before working: `bd update <id> --status=in_progress`
+- NEVER push to main unless explicitly told to
+- Beads uses dedicated `beads-sync` branch (daemon handles sync)
 
 ## Project Philosophy
 
 ### Content Over Code
-The primary value is in the **data** - the gall records, images, and reference materials. Code serves to make this accessible and useful.
+The primary value is in the **data** - gall records, images, and reference materials. Code serves to make this accessible.
 
 ### Scientific Accuracy
-Information should be:
 - Backed by scientific sources when possible
 - Properly attributed
 - Conservative when uncertain (mark species as "undescribed" if needed)
 
 ### Accessibility
-The site should be:
 - Fast and responsive
-- Accessible to screen readers and assistive tech
-- Usable by both casual nature enthusiasts and professional researchers
+- Accessible to screen readers
+- Usable by casual enthusiasts and professional researchers
 - Mobile-friendly
 
 ### Community-Driven
-- Content contributions are welcomed
-- Reference articles published under Creative Commons
-- Open source codebase (on GitHub)
+- Content contributions welcomed
+- Reference articles under Creative Commons
+- Open source codebase
 
 ## External Services
 
 - **Domain**: gallformers.org, gallformers.com (Namecheap)
-- **Hosting**: Digital Ocean Droplet (v1), Fly.io (v2)
-- **Images**: AWS S3 (personal account)
+- **Hosting**: Fly.io
+- **Images**: AWS S3
 - **Auth**: Auth0
-- **Monitoring**: AWS Lambda + CloudWatch + Slack
-- **SSL**: Let's Encrypt (auto-renewal)
+- **Monitoring**: Fly.io alerts
+- **SSL**: Automatic via Fly.io
 
 ## AWS Infrastructure
 
-**Region**: `us-east-1` (N. Virginia) - All AWS resources use this region to match Fly.io's `iad` datacenter for low latency.
+**Region**: `us-east-1` (N. Virginia) - matches Fly.io's `iad` datacenter.
 
 **S3 Buckets:**
 | Bucket | Access | Purpose |
 |--------|--------|---------|
 | `gallformers` | Public | Production images |
-| `gallformers-backups` | Mixed | Litestream backups (private) + sanitized DB snapshots (public prefix) |
+| `gallformers-backups` | Mixed | Litestream backups (private) + sanitized DB snapshots (public) |
 | `gallformers-full-backups` | Private | Full unsanitized database backups (contains PII) |
 
 **IAM Users:**
 - `litestream-gallformers` - Used by Fly.io and GitHub Actions for database backups
 
-See `v2/docs/backup-setup.md` for detailed S3/IAM configuration.
+See `docs/backup-setup.md` for detailed S3/IAM configuration.
 
 ## Getting Help
 
-- Check the README.md for setup issues
+- Check README.md for setup issues
 - Use `bd doctor` to diagnose Beads issues
-- V1 deployment: see [v1/runbooks/deploy.md](v1/runbooks/deploy.md)
-- V2 deployment: see v2/CLAUDE.md
+- See [runbooks/](runbooks/) for operational procedures

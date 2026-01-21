@@ -1,115 +1,94 @@
-# gallformers
-The gallformers site
+# Gallformers
 
-[![type-coverage](https://img.shields.io/badge/dynamic/json.svg?label=type-coverage&prefix=%E2%89%A5&suffix=%&query=$.typeCoverage.atLeast&uri=https%3A%2F%2Fraw.githubusercontent.com%2Fplantain-00%2Ftype-coverage%2Fmaster%2Fpackage.json)](https://github.com/jeffdc/gallformers)
+The gallformers.org website - a comprehensive database and reference guide for galls.
+
+## Quick Start
+
+```bash
+# Install Elixir dependencies
+mix setup
+
+# Start the dev server
+mix phx.server
+```
+
+Visit [localhost:4000](http://localhost:4000) in your browser.
+
+## Prerequisites
+
+- **Elixir 1.19+** and **OTP 28+**
+- **Node.js 20+** (for asset compilation)
+- **SQLite** (bundled via ecto_sqlite3)
+
+### Installing Elixir
+
+The easiest way on macOS:
+
+```bash
+brew install elixir
+```
+
+Or use [asdf](https://asdf-vm.com/) for version management:
+
+```bash
+asdf plugin add elixir
+asdf plugin add erlang
+asdf install erlang 28.0
+asdf install elixir 1.19.0-otp-28
+```
+
+## Database Setup
+
+The database file is not committed. To get started:
+
+```bash
+# Download from S3 (recommended - daily snapshot from production)
+make download-db
+
+# Or copy from V1 if you have it locally
+cp v1/prisma/gallformers.sqlite priv/gallformers.sqlite
+```
+
+## Development
+
+```bash
+mix phx.server          # Start dev server
+mix test                # Run tests
+mix format              # Format code
+mix credo --strict      # Code quality
+mix precommit           # Run all checks (do this before committing)
+```
 
 ## Project Structure
 
-This repository contains two versions of the Gallformers application:
-- **V1** (`v1/`) - The legacy Next.js application. Bug fixes only.
-- **V2** (`v2/`) - The Phoenix/LiveView rewrite. Active development.
+```
+gallformers/
+├── lib/                 # Elixir application code
+├── assets/              # Frontend (JS, CSS, Tailwind)
+├── priv/                # Static files, migrations, database
+├── test/                # Tests
+├── config/              # Phoenix configuration
+├── services/            # Auxiliary services (tileserver, usda_plants)
+└── v1/                  # Legacy Next.js app (see v1/README.md)
+```
 
-## Getting Started (V1)
-You must have [npm](https://www.npmjs.com/get-npm) and yarn installed for any of this to work. Go do that. I highly recommend using a node version manager of some kind. Or you can download node and yarn from [here](https://nodejs.org/en/download/)
+## Legacy V1
 
-The Easy Way™:
-Assumes you are on a Mac and have [homebrew](https://brew.sh/) installed.
+The original Next.js implementation is in `v1/`. It runs on Digital Ocean and is in maintenance mode (bug fixes only). See [v1/README.md](v1/README.md) for V1-specific documentation.
+
+## Deployment
+
+Production runs on Fly.io:
 
 ```bash
-brew install nvm
-nvm install 20
-cd [wherever you cloned the repo]/gallformers/v1
-nvm use 20
-corepack enable
-yarn set version berry
-yarn install
-npx prisma generate
+fly deploy              # Deploy to production
+fly logs                # View logs
+fly status              # Check status
 ```
 
-You will need to run `generate` again if the DB [schema](v1/prisma/schema.prisma) is changed.
+See [runbooks/](runbooks/) for operational procedures.
 
-Now you can run the development server:
-```bash
-cd v1
-yarn dev
-```
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can build and run the prod version of the site:
-```bash
-cd v1
-yarn build
-yarn start
-```
-
-**Note:** For local builds to work, you need to create a `.env.production.local` file in the `v1/` directory with your local database path:
-```bash
-# v1/.env.production.local
-DATABASE_URL="file:/path/to/gallformers/v1/prisma/gallformers.sqlite"
-```
-This file is gitignored and overrides the Docker paths in `.env.production` for local development.
-To run in the docker container:
-```bash
-cd v1
-make build
-make run-local
-```
-This should now make the site accessible on your local machine at [http://localhost:3000](http://localhost:3000)
-
-You can also create a tar of the docker image by running:
-```bash
-cd v1
-make save-image
-```
-
-If you are an a newer Mac using an Apple Silicon chip (M1, M2, ...) then you will need to make sure that you can build and target `linux/amd64`. The easiest way
-is to use [Docker Desktop](https://www.docker.com/products/docker-desktop/) and then to install the emulators.
-```
-docker run --privileged --rm tonistiigi/binfmt --install all
-```
-The builds are slower this way then [some of the other options](https://docs.docker.com/build/building/multi-platform/) but it works with little ceremony.
-
-The other commands are meant to be used on the server (at least until we get some deployment automation in place).
-
-## Technical Overview
-The whole site is built using [next.js](nextjs.org/). 
-
-### Back-end and Database
-The datastore is a [sqlite](https://sqlite.org/index.html) database. The schema can be seen in the [initial migration script](v1/migrations/001-gallformers.sql). There is a copy of the DB committed to the repo for ease of testing etc. The prod database is on a volume attached to the server.
-
-The APIs for accessing the data from the front-end are implemented in [Prisma](https://www.prisma.io/) and are all called from the server (either statically rendered at build time or rendered on request if they could not be build statically, e.g., the search results).
-
-All of the images are stored on AWS S3, currently under Jeff's personal account. 
-
-The domains (gallformers.org and gallformers.com) are registered using namecheap and are currently in Jeff's personal account.
-
-The SSL certs are generated and auto-renewed via Let's Encrypt. There is a daemon process on the server that runs the auto-renewal process every 3 months.
-
-### Monitoring
-There is a very simple [down detector](v1/lambdas/gallformers_downdetector.js) implemented as an AWS Lambda. The lambda checks the site every 2 minutes to see if it responds with an HTTP 200 response. If the site responds negatively more than once in the span of 5 minutes then an alert is sent out via a message sent from the lambda to AWS SQS to AWS SNS/CloudWatch. The CloudWatch alarm triggers [another lambda](v1/lambdas/snsToSlack.js) that posts a message to the [site-monitoring](https://gallformerdat-m1g8137.slack.com/archives/C01DGA0E9EX) Slack channel and then SNS is used to send an email to Jeff.
-
-There are also several alarms configured on the DO Droplet that hosts the server. These are all resource utilization alarms and will send messages to the [site-monitoring](https://gallformerdat-m1g8137.slack.com/archives/C01DGA0E9EX) Slack channel if triggered.
-
-#### Database Schema Updates (Migrations)
-Changes to the schema must involve the following steps:
-
-1. Create a new migration script in [v1/migrations](v1/migrations). It must be named such that it is one larger than the latest.
-1. Add all schema changes to the script. There is an `Up` and `Down` sections. The `Up` section is where all of the changes go and then use the `Down` section to undo those changes. This is so that if the `Up` part fails the migration can rollback the changes.
-1. Make the schema changes in the [schema.prisma](v1/prisma/schema.prisma) file. These need to match the changes in the migration script.
-1. Test, test, test. It is recommend that that you run your `Up` script against a copy of the database to make sure it works as expected.
-1. Run `yarn migrate` (from v1/) to execute a migration.
-1. Run `yarn generate` (from v1/) to generate a new Prisma client.
-
-Because [yarn is a PITA](https://github.com/yarnpkg/yarn/issues/3630) you will have to temporarily add the following to your dev dependencies for migration to work:
-```
-    "better-sqlite3": "^7.1.1",
-    "better-sqlite3-helper": "^3.1.1",
-    "sqlite": "^4.0.15"
-```
-
-If you leave them in you will not be able to build with docker as `better-sqlite3` requires python to build and there is no python in the docker container.
-
-### Backup Strategy
+## Backup Strategy
 
 The database is backed up using two complementary approaches:
 
@@ -120,9 +99,9 @@ Daily snapshots are stored in two locations:
 - **Public** (`s3://gallformers-backups/public/`) - Sanitized, PII removed
 - **Private** (`s3://gallformers-full-backups/`) - Full backup with PII
 
-See [v1/runbooks/database-backup.md](v1/runbooks/database-backup.md) for complete backup and recovery documentation.
+See [docs/backup-setup.md](docs/backup-setup.md) for complete backup documentation.
 
-### PII Handling
+## PII Handling
 
 The `users` table contains personally identifiable information:
 
@@ -137,12 +116,19 @@ The `users` table contains personally identifiable information:
 
 **Public database downloads are sanitized** - all PII fields are set to NULL and auth0_id is replaced with a placeholder.
 
-To request access to a full (unsanitized) backup for legitimate research or administrative purposes, contact the project maintainers.
+## Authentication
 
-### Front-End
-The front-end is mostly static pages as we expect most of this data to not change frequently.  next.js is built on [React](https://reactjs.org/) so you will need some familiarity with that to work on the site. The look-and-feel is built with [react-bootstrap](https://react-bootstrap.github.io/). Custom components are placed in the [v1/components](v1/components) directory and global layout components in [v1/layouts](v1/layouts). 
+- Public site requires no authentication
+- Admin/curation features require Auth0 login
+- User management is handled via Auth0 console
 
-### Production and Staging (non-dev) Deployments
-The site is deployed on a Digital Ocean droplet with a mounted volume that contains the database. Details of how to access this etc. are not appropriate for this README.
+## External Resources
 
-Currently user management is handled via Auth0. They have a reasonable free-tier that gives us what we need for our current minimal needs. All user management happens via the Auth0 management console. The site is generally meant to be accessed without authentication. Authentication and authorization is only needed for data management/curation features.
+- **Production**: [gallformers.org](https://gallformers.org)
+- **Images**: AWS S3
+- **Auth**: Auth0
+- **Domains**: Namecheap (gallformers.org, gallformers.com)
+
+## Contributing
+
+See [CLAUDE.md](CLAUDE.md) for detailed development guidelines.
