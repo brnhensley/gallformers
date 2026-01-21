@@ -24,7 +24,8 @@ defmodule GallformersWeb.Endpoint do
     at: "/",
     from: :gallformers,
     gzip: not code_reloading?,
-    only: GallformersWeb.static_paths(),
+    only: GallformersWeb.static_dirs(),
+    only_matching: GallformersWeb.static_matching(),
     raise_on_missing_only: code_reloading?
 
   # Code reloading can be explicitly enabled under the

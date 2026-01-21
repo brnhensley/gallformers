@@ -17,13 +17,16 @@ defmodule GallformersWeb do
   those modules here.
   """
 
-  # NOTE: Use prefixes without extensions so that both original files
-  # and digest-hashed files (e.g., favicon-abc123.ico) are served.
-  # Plug.Static's `only:` option matches paths that START WITH these entries.
-  def static_paths,
-    do: ~w(assets fonts images branding data robots
-         favicon apple-touch-icon apple-icon
-         android-icon ms-icon manifest browserconfig)
+  # Directories for Plug.Static's `only:` option (exact first-segment match)
+  def static_dirs, do: ~w(assets fonts images branding data)
+
+  # File prefixes for Plug.Static's `only_matching:` option (prefix match)
+  # This allows digested files like favicon-abc123.ico to be served
+  def static_matching,
+    do: ~w(robots favicon apple-touch-icon apple-icon android-icon ms-icon manifest browserconfig)
+
+  # Combined list for Phoenix's ~p sigil validation
+  def static_paths, do: static_dirs() ++ static_matching()
 
   def router do
     quote do
