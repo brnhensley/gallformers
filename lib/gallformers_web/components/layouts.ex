@@ -126,11 +126,13 @@ defmodule GallformersWeb.Layouts do
             </form>
 
             <%!-- Resources Dropdown --%>
-            <div class="relative group">
+            <div class="relative">
               <button
                 type="button"
                 phx-click={toggle_resources_menu()}
                 class="flex items-center px-2 text-lg font-medium hover:underline"
+                aria-expanded="false"
+                aria-haspopup="true"
               >
                 Resources
                 <svg class="ml-1 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -145,8 +147,7 @@ defmodule GallformersWeb.Layouts do
               <div
                 id="resources-menu"
                 phx-click-away={hide_resources_menu()}
-                class="hidden absolute right-0 z-10 mt-1 w-48 origin-top-right rounded-md bg-white py-1 shadow-lg
-                          ring-1 ring-black ring-opacity-5 group-hover:block"
+                class="hidden absolute right-0 z-10 mt-1 w-48 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5"
               >
                 <a
                   :for={link <- @resource_links}
