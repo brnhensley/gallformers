@@ -90,65 +90,50 @@ defmodule GallformersWeb.AboutLive do
         <h1 class="text-3xl font-bold text-gf-maroon mb-8">About Us</h1>
 
         <div class="prose prose-lg max-w-none">
-          <p class="text-gray-700 mb-4">
+          <p>
             Gallformers is the product of curious amateurs becoming obsessed. If you are here then you too have at
             least been touched, if not bitten, by the gall bug. It grows in you, but it is not a
-            <.link href="/glossary#parasitism" class="hover:underline">parasite</.link>
-            nor an <.link href="/glossary#inquiline" class="hover:underline">inquiline</.link>.
+            <.link href="/glossary#parasitism">parasite</.link>
+            nor an <.link href="/glossary#inquiline">inquiline</.link>.
           </p>
-          <p class="text-gray-700 mb-4">
+          <p>
             While you are here we hope that we can help you both ID an unknown plant gall as well as to learn about
             galls. Whether your interests are very casual, you are a burgeoning scientist, or even a full-fledged
-            <.link href="/glossary#cecidiology" class="hover:underline">
-              cecidiologist
-            </.link>
+            <.link href="/glossary#cecidiology">cecidiologist</.link>
             we strive to provide useful tools.
           </p>
-          <p class="text-gray-700 mb-4">
+          <p>
             This site is open source and you can view all of the code/data and if so inclined even open a pull
             request on <.link
               href="https://github.com/jeffdc/gallformers"
               target="_blank"
               rel="noreferrer"
-              class="hover:underline"
             >
               GitHub
             </.link>.
             Any and all help is greatly appreciated!
           </p>
-          <p class="text-gray-700 mb-6">
+          <p>
             We have a
-            <.link
-              href="https://www.patreon.com/gallformers"
-              target="_blank"
-              rel="noreferrer"
-              class="hover:underline"
-            >
+            <.link href="https://www.patreon.com/gallformers" target="_blank" rel="noreferrer">
               Patreon
             </.link>
             account where you can donate to help cover the costs of building and operating the site.
           </p>
 
-          <h2 class="text-2xl font-semibold text-gray-800 mt-8 mb-4">Contacting Us</h2>
-          <p class="text-gray-700 mb-6">
+          <h2>Contacting Us</h2>
+          <p>
             You can contact us at
-            <.link href="mailto:gallformers@gmail.com" class="hover:underline">
-              gallformers@gmail.com
-            </.link>
+            <.link href="mailto:gallformers@gmail.com">gallformers@gmail.com</.link>
             or
-            <.link
-              href="https://twitter.com/gallformers"
-              target="_blank"
-              rel="noreferrer"
-              class="hover:underline"
-            >
+            <.link href="https://twitter.com/gallformers" target="_blank" rel="noreferrer">
               @gallformers
             </.link>
             on Twitter.
           </p>
 
-          <h2 class="text-2xl font-semibold text-gray-800 mt-8 mb-4">Our Co-founders</h2>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          <h2>Our Co-founders</h2>
+          <div class="not-prose grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             <div class="bg-white rounded-lg shadow-md p-6">
               <h3 class="text-lg font-semibold text-gray-800 mb-2">Adam Kranz</h3>
               <p class="text-gray-600 text-sm mb-4">
@@ -162,16 +147,10 @@ defmodule GallformersWeb.AboutLive do
                   href="https://www.inaturalist.org/people/megachile"
                   target="_blank"
                   rel="noreferrer"
-                  class="hover:underline"
                 >
                   iNaturalist
                 </.link>
-                <.link
-                  href="https://twitter.com/adam_kranz"
-                  target="_blank"
-                  rel="noreferrer"
-                  class="hover:underline"
-                >
+                <.link href="https://twitter.com/adam_kranz" target="_blank" rel="noreferrer">
                   Twitter
                 </.link>
               </div>
@@ -190,39 +169,26 @@ defmodule GallformersWeb.AboutLive do
                   href="https://www.inaturalist.org/people/jeffdc"
                   target="_blank"
                   rel="noreferrer"
-                  class="hover:underline"
                 >
                   iNaturalist
                 </.link>
-                <.link
-                  href="https://mastodon.social/@jeffdc"
-                  target="_blank"
-                  rel="noreferrer"
-                  class="hover:underline"
-                >
+                <.link href="https://mastodon.social/@jeffdc" target="_blank" rel="noreferrer">
                   Mastodon
                 </.link>
               </div>
             </div>
           </div>
 
-          <h2 id="administrators" class="text-2xl font-semibold text-gray-800 mt-8 mb-4">
-            Administrators
-          </h2>
-          <p class="text-gray-700 mb-4">
+          <h2 id="administrators">Administrators</h2>
+          <p>
             We also have an ever growing list of people that help us out as site administrators, without whom the site
-            would be far poorer. If you are interested in becoming an administrator <.link
-              href="mailto:gallformers@gmail.com"
-              class="hover:underline"
-            >reach out</.link>.
+            would be far poorer. If you are interested in becoming an administrator <.link href="mailto:gallformers@gmail.com">reach out</.link>.
           </p>
           <%= if @administrators != [] do %>
-            <ul class="list-disc list-inside text-gray-700 mb-8 columns-1 md:columns-2 gap-8">
-              <li :for={admin <- @administrators} class="break-inside-avoid mb-1">
+            <ul class="columns-1 md:columns-2 gap-8">
+              <li :for={admin <- @administrators} class="break-inside-avoid">
                 <%= if admin.nickname do %>
-                  <.link href={~p"/user/#{admin.nickname}"} class="hover:underline">
-                    {display_name(admin)}
-                  </.link>
+                  <.link href={~p"/user/#{admin.nickname}"}>{display_name(admin)}</.link>
                 <% else %>
                   {display_name(admin)}
                 <% end %>
@@ -230,9 +196,9 @@ defmodule GallformersWeb.AboutLive do
             </ul>
           <% end %>
 
-          <h2 class="text-2xl font-semibold text-gray-800 mt-8 mb-4">Current Site Stats</h2>
-          <p class="text-gray-700 mb-2">As of <em>{@gen_time}</em> there are:</p>
-          <ul class="list-disc list-inside text-gray-700 mb-6">
+          <h2>Current Site Stats</h2>
+          <p>As of <em>{@gen_time}</em> there are:</p>
+          <ul>
             <li>
               {@stats.galls} gallformers across {@stats.gall_families} families and {@stats.gall_genera} genera,
               of which {@stats.undescribed} are undescribed
@@ -243,8 +209,8 @@ defmodule GallformersWeb.AboutLive do
             <li>{@stats.sources} sources</li>
           </ul>
 
-          <h2 class="text-2xl font-semibold text-gray-800 mt-8 mb-4">Funding</h2>
-          <div class="flex items-center gap-4 mb-6">
+          <h2>Funding</h2>
+          <div class="not-prose flex items-center gap-4 mb-6">
             <.link href="https://www.nsf.gov" target="_blank" rel="noreferrer">
               <img
                 src="/images/nsf-logo.svg"
@@ -257,69 +223,56 @@ defmodule GallformersWeb.AboutLive do
                 href="https://www.nsf.gov/awardsearch/showAward?AWD_ID=2418250&HistoricalAwards=false"
                 target="_blank"
                 rel="noreferrer"
-                class="hover:underline"
+                class="text-gf-maroon hover:underline"
               >
                 Grant No. 2418250
               </.link>.
             </p>
           </div>
 
-          <h2 class="text-2xl font-semibold text-gray-800 mt-8 mb-4">Citing Gallformers</h2>
-          <p class="text-gray-700 mb-4">
+          <h2>Citing Gallformers</h2>
+          <p>
             All of our original content is released under a
             <.link
               href="https://creativecommons.org/licenses/by/4.0/"
               target="_blank"
               rel="noreferrer"
-              class="hover:underline"
             >
               CC-BY
             </.link>
             license.
           </p>
-          <p class="text-gray-700 mb-4">
+          <p>
             Gallformers would be impossible without the many contributions from the scientific literature as well as
             the many individuals that have allowed usage of their wonderful photos. We have made every effort to
             verify and document the license for all content that we use. If you find anything that you think is
-            incorrect please contact us:
-            <.link href="mailto:gallformers@gmail.com" class="hover:underline">
-              Email
-            </.link>
-            or <.link
-              href="https://twitter.com/gallformers"
-              target="_blank"
-              rel="noreferrer"
-              class="hover:underline"
-            >
-              Twitter
-            </.link>.
+            incorrect please contact us: <.link href="mailto:gallformers@gmail.com">Email</.link>
+            or <.link href="https://twitter.com/gallformers" target="_blank" rel="noreferrer">Twitter</.link>.
           </p>
-          <p class="text-gray-700 mb-4">
+          <p>
             If you are interested in using information on Gallformers in your own research please do. All we ask is
             that you cite Gallformers and that if you are using any content that is not original to Gallformers that
             you please cite the original source. When applicable, please cite the specific ID Notes containing the
             claim being cited.
           </p>
 
-          <h3 class="text-lg font-semibold text-gray-800 mt-6 mb-2">Citation</h3>
-          <div class="bg-gray-50 p-4 rounded-lg font-mono text-sm text-gray-700 mb-2">
+          <h3>Citation</h3>
+          <div class="not-prose bg-gray-50 p-4 rounded-lg font-mono text-sm text-gray-700 mb-2">
             "Gallformers Contributors." Www.gallformers.org, www.gallformers.org. Accessed [date]
           </div>
-          <div class="bg-gray-50 p-4 rounded-lg font-mono text-sm text-gray-700 mb-8">
+          <div class="not-prose bg-gray-50 p-4 rounded-lg font-mono text-sm text-gray-700 mb-8">
             "Gallformers Contributors." "[<em>Species name</em>]" Notes on ID and Taxonomy,
             Www.gallformers.org/[url to specific species], www.gallformers.org. Accessed [date]
           </div>
 
-          <h2 class="text-2xl font-semibold text-gray-800 mt-8 mb-4">Public API</h2>
-          <p class="text-gray-700 mb-4">
+          <h2>Public API</h2>
+          <p>
             Gallformers provides a public API for programmatic access to our database. You can use it to search for
             galls, hosts, and species, as well as retrieve detailed information about specific entries.
           </p>
-          <p class="text-gray-700 mb-6">
+          <p>
             View the full API documentation and try it out interactively at our
-            <.link href="/api/docs" class="hover:underline">
-              API Documentation
-            </.link>
+            <.link href="/api/docs">API Documentation</.link>
             page.
           </p>
 

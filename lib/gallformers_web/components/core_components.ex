@@ -615,15 +615,15 @@ defmodule GallformersWeb.CoreComponents do
       phx-mounted={@show && show_modal(@id)}
       phx-remove={hide_modal(@id)}
       data-cancel={JS.exec(@on_cancel, "phx-remove")}
-      class="gf-modal-backdrop hidden relative z-50"
+      class="gf-modal-backdrop hidden"
     >
       <div
         id={"#{@id}-bg"}
-        class="fixed inset-0 bg-black/50 transition-opacity"
+        class="fixed inset-0 z-[60] bg-black/50 transition-opacity"
         aria-hidden="true"
       />
       <div
-        class="fixed inset-0 overflow-y-auto"
+        class="fixed inset-0 z-[60] overflow-y-auto"
         aria-labelledby={"#{@id}-title"}
         aria-describedby={"#{@id}-description"}
         role="dialog"

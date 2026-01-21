@@ -38,6 +38,7 @@ defmodule GallformersWeb.GallLive do
            page_json_ld: nil,
            page_noindex: true,
            gall: nil,
+           selected_source: nil,
            error: "Invalid gall ID"
          )}
     end
@@ -55,6 +56,7 @@ defmodule GallformersWeb.GallLive do
            page_json_ld: nil,
            page_noindex: true,
            gall: nil,
+           selected_source: nil,
            error: "Gall not found"
          )}
 
@@ -110,6 +112,8 @@ defmodule GallformersWeb.GallLive do
            notes_alert_dismissed: false,
            aliases_page: 1,
            aliases_page_size: @aliases_page_size,
+           selected_source: nil,
+           modal_font_size: :base,
            error: nil
          )}
     end
@@ -275,6 +279,36 @@ defmodule GallformersWeb.GallLive do
     {:noreply, assign(socket, aliases_page: page)}
   end
 
+  @impl true
+  def handle_event("show_source_detail", %{"id" => id_str}, socket) do
+    source_id = String.to_integer(id_str)
+    source = Enum.find(socket.assigns.sources, fn s -> s.id == source_id end)
+    {:noreply, assign(socket, selected_source: source)}
+  end
+
+  @impl true
+  def handle_event("close_source_modal", _params, socket) do
+    {:noreply, assign(socket, selected_source: nil, modal_font_size: :base)}
+  end
+
+  @font_sizes [:sm, :base, :lg, :xl]
+
+  @impl true
+  def handle_event("increase_font_size", _params, socket) do
+    current = socket.assigns.modal_font_size
+    current_idx = Enum.find_index(@font_sizes, &(&1 == current))
+    new_size = Enum.at(@font_sizes, min(current_idx + 1, length(@font_sizes) - 1))
+    {:noreply, assign(socket, modal_font_size: new_size)}
+  end
+
+  @impl true
+  def handle_event("decrease_font_size", _params, socket) do
+    current = socket.assigns.modal_font_size
+    current_idx = Enum.find_index(@font_sizes, &(&1 == current))
+    new_size = Enum.at(@font_sizes, max(current_idx - 1, 0))
+    {:noreply, assign(socket, modal_font_size: new_size)}
+  end
+
   defp paginated_aliases(aliases, current_page, page_size) do
     aliases
     |> Enum.drop((current_page - 1) * page_size)
@@ -284,6 +318,11 @@ defmodule GallformersWeb.GallLive do
   defp aliases_total_pages(aliases, page_size) do
     max(1, ceil(length(aliases) / page_size))
   end
+
+  defp prose_size_class(:sm), do: "prose-sm"
+  defp prose_size_class(:base), do: "prose-base"
+  defp prose_size_class(:lg), do: "prose-lg"
+  defp prose_size_class(:xl), do: "prose-xl"
 
   @impl true
   def render(assigns) do
@@ -531,12 +570,18 @@ defmodule GallformersWeb.GallLive do
                     <.icon name="ph-pencil-simple" class="h-4 w-4 inline-block align-text-bottom" />
                   </.link>
                 </div>
-                <div
+                <button
                   :if={source.description}
-                  class="mt-1 text-gray-700 [&_p]:mb-2 [&_a]:text-gf-maroon [&_a]:underline"
+                  type="button"
+                  phx-click="show_source_detail"
+                  phx-value-id={source.id}
+                  class="mt-1 text-left w-full group cursor-pointer"
                 >
-                  {Phoenix.HTML.raw(Markdown.render!(source.description))}
-                </div>
+                  <div class="prose prose-sm max-w-none line-clamp-3 [&_p]:mb-0">
+                    {Phoenix.HTML.raw(Markdown.render!(source.description))}
+                  </div>
+                  <span class="text-sm text-gf-maroon group-hover:underline">Read more...</span>
+                </button>
                 <p :if={source.license} class="mt-1 text-sm text-gray-500">
                   License:
                   <%= if source.licenselink do %>
@@ -565,6 +610,89 @@ defmodule GallformersWeb.GallLive do
           </div>
         <% end %>
       <% end %>
+
+      <.modal
+        :if={@selected_source}
+        id="source-detail-modal"
+        show={true}
+        on_cancel={JS.push("close_source_modal")}
+        class="max-w-3xl"
+      >
+        <:header>
+          <div class="flex items-center justify-between w-full pr-8">
+            <span>{@selected_source.title}</span>
+            <div class="flex items-center gap-1">
+              <button
+                type="button"
+                phx-click="decrease_font_size"
+                class="px-2 py-1 text-sm border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50"
+                disabled={@modal_font_size == :sm}
+                title="Decrease font size"
+              >
+                A-
+              </button>
+              <button
+                type="button"
+                phx-click="increase_font_size"
+                class="px-2 py-1 text-sm border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50"
+                disabled={@modal_font_size == :xl}
+                title="Increase font size"
+              >
+                A+
+              </button>
+            </div>
+          </div>
+        </:header>
+        <:body>
+          <div class="space-y-4">
+            <div class="text-sm text-gray-600">
+              {if @selected_source.author, do: @selected_source.author}
+              {if @selected_source.pubyear, do: " (#{@selected_source.pubyear})"}
+            </div>
+            <div
+              :if={@selected_source.description}
+              class={"prose #{prose_size_class(@modal_font_size)} max-w-none"}
+            >
+              {Phoenix.HTML.raw(Markdown.render!(@selected_source.description))}
+            </div>
+            <div :if={@selected_source.license} class="text-sm text-gray-500 pt-2 border-t">
+              License:
+              <%= if @selected_source.licenselink do %>
+                <.link
+                  href={@selected_source.licenselink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="hover:underline"
+                >
+                  {@selected_source.license}
+                </.link>
+              <% else %>
+                {@selected_source.license}
+              <% end %>
+            </div>
+          </div>
+        </:body>
+        <:footer>
+          <div class="flex justify-between items-center w-full">
+            <.link
+              :if={@selected_source.externallink}
+              href={@selected_source.externallink}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-gf-maroon hover:underline"
+            >
+              View external link →
+            </.link>
+            <span :if={!@selected_source.externallink}></span>
+            <.link
+              href={"/source/#{@selected_source.id}"}
+              class="text-gf-maroon hover:underline"
+            >
+              View source page →
+            </.link>
+          </div>
+        </:footer>
+      </.modal>
     </Layouts.app>
     """
   end
