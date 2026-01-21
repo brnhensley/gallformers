@@ -34,6 +34,7 @@ defmodule GallformersWeb.UIComponents do
       </.card>
   """
   attr :title, :string, default: nil, doc: "optional card title"
+  attr :icon, :string, default: nil, doc: "optional icon name for the card header"
   attr :class, :any, default: nil, doc: "additional CSS classes for the card"
   attr :rest, :global
 
@@ -51,16 +52,19 @@ defmodule GallformersWeb.UIComponents do
       ]}
       {@rest}
     >
-      <div :if={@title} class="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
-        <h3 class="text-lg font-medium text-gf-maroon">{@title}</h3>
+      <div :if={@title} class="px-4 py-3 border-b border-gray-200 bg-gf-sky-blue flex items-center justify-between">
+        <h3 class="text-lg font-medium text-gf-maroon flex items-center gap-2">
+          <.icon :if={@icon} name={@icon} class="size-5" />
+          {@title}
+        </h3>
         <div :if={@actions != []} class="flex items-center gap-2">
           {render_slot(@actions)}
         </div>
       </div>
-      <div :if={@title} class="p-4">
+      <div :if={@title} class="p-4 text-gray-700">
         {render_slot(@inner_block)}
       </div>
-      <div :if={!@title}>
+      <div :if={!@title} class="text-gray-700">
         {render_slot(@inner_block)}
       </div>
     </div>
