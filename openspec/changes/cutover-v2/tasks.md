@@ -1,15 +1,20 @@
 # Tasks: V1 to V2 Cutover
 
+## Status
+
+**Repository restructure: COMPLETE** - V2 Phoenix code promoted to root, V1 archived in `v1/`.
+
+**Remaining work**: DNS cutover execution and post-cutover cleanup.
+
 ## Prerequisites Checklist
 
-Before starting cutover tasks, verify all dependencies are complete:
+Before starting cutover tasks, verify V2 is ready:
 
-- [ ] 0.1 `define-v2-foundation` - v2 infrastructure deployed and working
-- [ ] 0.2 `add-go-api` - All API endpoints implemented and tested
-- [ ] 0.3 `add-svelte-admin` - Admin UI complete, all CRUD operations working
-- [ ] 0.4 `add-svelte-public` - Public pages complete, URL parity verified
-- [ ] 0.5 `add-image-processing` - Image migration complete
-- [ ] 0.6 `add-articles-system` - Article rendering working
+- [x] 0.1 Phoenix/LiveView application deployed to Fly.io
+- [x] 0.2 V2 code promoted to repository root
+- [x] 0.3 V1 code archived in `v1/` subdirectory
+- [x] 0.4 CI workflows updated
+- [ ] 0.5 All V2 functionality verified working on Fly.io
 
 ## 1. Pre-Cutover Preparation
 
@@ -25,8 +30,7 @@ Before starting cutover tasks, verify all dependencies are complete:
   - Sample gall page (e.g., `/gall/1`)
   - Sample host page (e.g., `/host/1`)
   - Search endpoint
-  - API health
-- [ ] 1.6 Test smoke script against v2 staging environment
+- [ ] 1.6 Test smoke script against V2 on Fly.io
 - [ ] 1.7 Create database checksum comparison script
 - [ ] 1.8 Check database size on DO: `ssh user@do-ip "ls -lh /mnt/gallformers_data/prisma/gallformers.sqlite"`
 - [ ] 1.9 Perform dry run of cutover procedure (without DNS switch):
@@ -38,7 +42,7 @@ Before starting cutover tasks, verify all dependencies are complete:
 ### Auth0 Configuration
 - [ ] 1.10 Document current Auth0 callback URLs
 - [ ] 1.11 Add Fly.io callback URLs to Auth0 allowed list
-- [ ] 1.12 Test admin login against v2 staging with new callbacks
+- [ ] 1.12 Test admin login against V2 with new callbacks
 
 ### Maintenance Mode
 - [ ] 1.13 Verify DO maintenance page exists and works
@@ -53,17 +57,16 @@ Before starting cutover tasks, verify all dependencies are complete:
 - [ ] 1.20 Test alert delivery
 
 ### User Communication
-- [ ] 1.21 Add simple maintenance announcement banner to v1 site (deploy before T-7)
+- [ ] 1.21 Add simple maintenance announcement banner to V1 site (deploy before T-7)
 - [ ] 1.22 Draft maintenance window announcement text
-- [ ] 1.23 Enable T-7 day notice on v1 site
+- [ ] 1.23 Enable T-7 day notice on V1 site
 - [ ] 1.24 Update to T-1 day reminder
 - [ ] 1.25 (Optional) Post to iNaturalist gallformers project
 
 ### Repository Preparation
-- [ ] 1.26 Move V1 code into v1/ subdirectory (see `beads-qz6p`)
-  - Moves all Next.js code, configs, and Docker files into v1/
-  - Updates CI workflows, docs, and paths
-  - Cleaner separation before cutover, simplifies post-cutover cleanup
+- [x] 1.26 Move V1 code into v1/ subdirectory ✅ COMPLETE
+- [x] 1.27 Promote V2 Phoenix code to repository root ✅ COMPLETE
+- [x] 1.28 Update CI workflows ✅ COMPLETE
 
 ## 2. Cutover Execution
 
@@ -76,38 +79,36 @@ Before starting cutover tasks, verify all dependencies are complete:
 ### Phase 2: Database Sync
 - [ ] 2.5 Create final backup on DO
 - [ ] 2.6 Download database to local machine
-- [ ] 2.7 Run v2 schema migrations: `cd v2 && cp ~/downloaded.sqlite priv/gallformers.sqlite && mix ecto.migrate`
-- [ ] 2.8 Run articles data migration: `mix migrate_articles` (imports markdown from /ref into articles table)
-- [ ] 2.9 Compute local checksum
-- [ ] 2.10 Upload database to Fly.io volume
-- [ ] 2.11 Set file permissions: `fly ssh console -a gallformers -C "chmod 644 /data/gallformers.sqlite"`
-- [ ] 2.12 Verify checksum on Fly.io
-- [ ] 2.13 Restart Fly.io app
+- [ ] 2.7 Run Ecto migrations: `mix ecto.migrate`
+- [ ] 2.8 Compute local checksum
+- [ ] 2.9 Upload database to Fly.io volume
+- [ ] 2.10 Set file permissions: `fly ssh console -a gallformers -C "chmod 644 /data/gallformers.sqlite"`
+- [ ] 2.11 Verify checksum on Fly.io
+- [ ] 2.12 Restart Fly.io app
 
 ### Phase 3: Pre-DNS Verification
-- [ ] 2.14 Verify Fly.io health endpoint
-- [ ] 2.15 Run smoke tests against fly.dev URL
-- [ ] 2.16 Manual verification of admin login
-- [ ] 2.17 Manual verification of public pages
-- [ ] 2.18 Manual verification of image display
+- [ ] 2.13 Verify Fly.io health endpoint
+- [ ] 2.14 Run smoke tests against fly.dev URL
+- [ ] 2.15 Manual verification of admin login
+- [ ] 2.16 Manual verification of public pages
+- [ ] 2.17 Manual verification of image display
 
 ### Phase 4: DNS Switch
-- [ ] 2.19 Update DNS at Namecheap (preserve any existing non-A records):
+- [ ] 2.18 Update DNS at Namecheap (preserve any existing non-A records):
   - gallformers.org (ALIAS → gallformers.fly.dev)
   - gallformers.com (ALIAS → gallformers.fly.dev)
   - www.gallformers.org (CNAME → gallformers.fly.dev)
   - www.gallformers.com (CNAME → gallformers.fly.dev)
-- [ ] 2.20 Run `fly certs add` for all four domains (brief SSL errors possible until certs provision)
-- [ ] 2.21 Verify DNS propagation with `dig`
-- [ ] 2.22 Wait for propagation (monitor with multiple DNS servers)
+- [ ] 2.19 Run `fly certs add` for all four domains (brief SSL errors possible until certs provision)
+- [ ] 2.20 Verify DNS propagation with `dig`
+- [ ] 2.21 Wait for propagation (monitor with multiple DNS servers)
 
 ### Phase 5: Post-DNS Verification
-- [ ] 2.23 Run smoke tests against production URL
-- [ ] 2.24 Verify admin login via production URL
-- [ ] 2.25 Monitor Fly.io logs for errors
-- [ ] 2.26 Record cutover end timestamp
-- [ ] 2.27 Calculate total downtime
-- [ ] 2.28 Remove maintenance banner from v1 (now v2 is live)
+- [ ] 2.22 Run smoke tests against production URL
+- [ ] 2.23 Verify admin login via production URL
+- [ ] 2.24 Monitor Fly.io logs for errors
+- [ ] 2.25 Record cutover end timestamp
+- [ ] 2.26 Calculate total downtime
 
 ## 3. Post-Cutover Monitoring
 
@@ -145,19 +146,10 @@ Before starting cutover tasks, verify all dependencies are complete:
 - [ ] 4.6 Delete AWS Lambda monitoring function (replaced by Fly.io alerts)
 
 ### Repository Cleanup
-Note: Task 1.26 (`beads-qz6p`) moves V1 into v1/ before cutover, simplifying cleanup.
-
-- [ ] 4.7 Create branch for v1 code removal
-- [ ] 4.8 Remove v1/ directory entirely (all V1 code already consolidated there)
-- [ ] 4.9 Update README.md for v2
-- [ ] 4.10 Update CLAUDE.md for v2
-- [ ] 4.11 Update .github/workflows for v2 only
-- [ ] 4.12 Decide: move v2/* to root or keep structure
-- [ ] 4.13 Execute repository restructure (if moving v2 to root)
-- [ ] 4.14 Verify CI/CD still works after restructure
-- [ ] 4.15 Merge cleanup to main
-- [ ] 4.16 Remove articles seed migration (`v2/priv/repo/migrations/*_seed_articles.exs`) - no longer needed after cutover
-- [ ] 4.17 Remove articles seed generator script (`v2/scripts/generate_articles_seed_migration.exs`)
+- [ ] 4.7 Create branch for v1/ directory removal
+- [ ] 4.8 Remove v1/ directory entirely (all V1 code already archived there)
+- [ ] 4.9 Verify CI/CD still works after removal
+- [ ] 4.10 Merge cleanup to main
 
 ## 5. Rollback (if needed)
 

@@ -1,8 +1,14 @@
 # Change: Cutover from V1 to V2
 
+## Status
+
+**Repository restructure: COMPLETE** - V2 Phoenix code promoted to root, V1 archived in `v1/`.
+
+**Remaining work**: DNS cutover and DO Droplet decommissioning.
+
 ## Why
 
-After completing Phases 1-3 of the `rewrite-gallformers-v2` umbrella (Go API, Svelte Admin, Svelte Public), the new v2 stack running on Fly.io needs to replace the v1 Next.js stack running on Digital Ocean. This cutover must be executed carefully to:
+After completing the Phoenix/LiveView rewrite, the new V2 stack running on Fly.io needs to replace the V1 Next.js stack running on Digital Ocean. This cutover must be executed carefully to:
 
 - Minimize downtime (target: <10 minutes, acceptable: <30 minutes)
 - Ensure zero data loss
@@ -13,13 +19,14 @@ After completing Phases 1-3 of the `rewrite-gallformers-v2` umbrella (Go API, Sv
 
 ### Cutover Scope
 
-| Action | Description |
-|--------|-------------|
-| Database sync | Final sync of SQLite from DO volume to Fly.io volume |
-| DNS switch | Update Namecheap DNS to point gallformers.org/com to Fly.io |
-| Verification | Validate all critical paths work correctly |
-| Rollback prep | Document and test rollback procedure |
-| Deprecation | Remove v1 code, cancel DO Droplet |
+| Action | Status | Description |
+|--------|--------|-------------|
+| Code restructure | ✅ DONE | V2 promoted to root, V1 archived in `v1/` |
+| Database sync | Pending | Final sync of SQLite from DO volume to Fly.io volume |
+| DNS switch | Pending | Update Namecheap DNS to point gallformers.org/com to Fly.io |
+| Verification | Pending | Validate all critical paths work correctly |
+| Rollback prep | Pending | Document and test rollback procedure |
+| Deprecation | Pending | Delete v1/ directory, cancel DO Droplet |
 
 ### What Moves
 
@@ -35,25 +42,22 @@ After completing Phases 1-3 of the `rewrite-gallformers-v2` umbrella (Go API, Sv
 ### **BREAKING** Changes
 
 - None for end users (URLs preserved)
-- v1 codebase deleted from repository
+- v1 codebase archived then deleted from repository
 - DO infrastructure decommissioned
 
 ## Impact
 
 - **Affected specs**: `v2-infrastructure` (adds cutover requirements)
-- **Affected code**: Repository structure (v1 removal, v2 promotion)
-- **Dependencies**: Requires all Phase 1-3 proposals complete and deployed
+- **Affected code**: Repository structure (v1 removal complete, cleanup pending)
 - **Risk**: Medium - mitigated by rollback procedure and staged approach
 
 ## Dependencies
 
 **Must be complete before cutover:**
-- `define-v2-foundation` - v2 infrastructure scaffolded
-- `add-go-api` - Go API server complete
-- `add-svelte-admin` - Admin UI complete and tested
-- `add-svelte-public` - Public site complete and tested
-- `add-image-processing` - Image migration complete
-- `add-articles-system` - Article rendering working
+- ✅ Phoenix/LiveView application deployed to Fly.io
+- ✅ V2 code promoted to repository root
+- ✅ V1 code archived in `v1/` subdirectory
+- Pending: Final verification of all V2 functionality
 
 ## Success Criteria
 
@@ -62,6 +66,6 @@ After completing Phases 1-3 of the `rewrite-gallformers-v2` umbrella (Go API, Sv
 3. Admin login works with Auth0
 4. Image display works (S3 integration)
 5. Database contains all production data
-6. v1 code removed from repository
+6. v1/ directory removed from repository
 7. DO Droplet cancelled (cost savings: ~$25/month)
 8. Rollback procedure tested and documented

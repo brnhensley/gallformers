@@ -14,60 +14,58 @@ The primary value is in the **data** - the gall records, images, and reference m
 
 ## Tech Stack
 
-### Frontend
-- **Next.js 14** - React-based framework with server-side rendering and static generation
-- **React 18** with TypeScript
-- **React Bootstrap 2** - UI components and styling
-- **Sass** - Custom styling
+### Full-Stack Framework
+- **Phoenix 1.8** with LiveView - Elixir-based web framework with real-time capabilities
+- **Ecto** - Database ORM with composable queries
+- **SQLite** via ecto_sqlite3 - Lightweight, file-based database
 
-### Backend
-- **Next.js API Routes** - Server-side APIs
-- **Prisma** - Database ORM
-- **SQLite** - Database (prod DB on mounted volume, dev DB in repo)
-- **NextAuth** with Auth0 - Authentication (admin/curation features only)
+### Frontend
+- **Phoenix LiveView** - Server-rendered interactive UI without JavaScript
+- **Tailwind CSS v4** - Utility-first styling with custom Gallformers theme colors
+- **HEEx Templates** - HTML + Elixir templating
 
 ### Infrastructure
-- **Docker** - Containerized deployment
-- **Digital Ocean Droplet** - Production hosting
+- **Fly.io** - Production hosting (region: us-east-1/iad)
 - **AWS S3** - Image storage
-- **Litestream** - Database backup/replication
-- **Let's Encrypt** - SSL certificates
+- **Litestream** - Database backup/replication to S3
+- **Auth0** - Authentication (admin/curation features only)
 
 ### Development Tools
-- **TypeScript** - Type safety (99%+ coverage required)
-- **ESLint + Prettier** - Code quality and formatting
-- **Jest + Testing Library** - Testing
-- **Husky** - Git hooks
+- **Mix** - Elixir build tool and task runner
+- **Credo** - Static code analysis and style enforcement
+- **ExUnit** - Testing framework
 - **Beads** - Issue tracking and workflow management
+
+### Legacy V1
+The original Next.js implementation is archived in `v1/`. See `v1/CLAUDE.md` for V1-specific documentation.
 
 ## Project Conventions
 
 ### Code Style
-- **TypeScript everywhere**: Maintain 99%+ type coverage (enforced by CI)
-- **Strict TypeScript settings**: Use type-safe database queries via Prisma
-- **ESLint + Prettier**: Run `yarn lint` before committing
-- **Functional programming**: Uses `fp-ts` for functional utilities, `monocle-ts` for immutable data manipulation
-- **Prefer immutable patterns**: Avoid mutation where possible
-- **Functional components**: Use React hooks, avoid class components
+- **Elixir idioms**: Follow community conventions and OTP patterns
+- **mix format**: Auto-format all code before committing
+- **Credo strict**: Run `mix credo --strict` for code quality
+- **Pattern matching**: Prefer pattern matching over conditionals
+- **Pipelines**: Use pipe operator for data transformations
+- **Documentation**: Document public functions with `@doc` and `@moduledoc`
 
 ### Architecture Patterns
-- **Pages Router**: Routes defined in `pages/` directory
-- **API Routes**: Server-side APIs in `pages/api/`
-- **Static Generation**: Prefer `getStaticProps` for static pages
-- **Server-Side Rendering**: Use `getServerSideProps` only when data must be fetched per-request
-- **Data Access Layer**: All database access through Prisma in `libs/db/`
-- **Component Structure**: Shared components in `components/`, page-specific can live in page directories
-- **Images**: All images stored on AWS S3, processed with Sharp and Jimp
+- **Phoenix Contexts**: Business logic organized into bounded contexts (e.g., `Gallformers.Species`, `Gallformers.Hosts`)
+- **LiveView**: Interactive pages use LiveView for real-time updates
+- **PubSub**: Real-time updates broadcast via Phoenix PubSub
+- **Ecto Schemas**: Database schemas in context modules
+- **Changesets**: All data validation through Ecto changesets
+- **Router**: Routes defined in `lib/gallformers_web/router.ex`
+- **Images**: All images stored on AWS S3
 
 ### Testing Strategy
-- **Jest + Testing Library** for unit and integration tests
-- **Run tests**: `yarn test`
-- **Type checking**: `yarn check-types`
-- **Type coverage**: `yarn type-coverage` (must maintain 99%+)
+- **ExUnit** for unit and integration tests
+- **Run tests**: `mix test`
+- **Code quality**: `mix credo --strict`
+- **Precommit**: `mix precommit` (format + credo + tests)
 
 ### Git Workflow
 - **Beads** for issue tracking (use `bd` commands, not markdown TODOs)
-- **Husky** for pre-commit hooks
 - **Session close protocol**: Always run `bd sync` and push changes before ending sessions
 - **Main branch**: `main`
 
@@ -103,15 +101,15 @@ Standard biological classification: Kingdom → Phylum → Class → Order → F
 - **image** - Images stored on S3
 - **source** - Scientific references and citations
 
-See `prisma/schema.prisma` for complete schema.
+Database migrations are in `priv/repo/migrations/`.
 
 ## Important Constraints
 
 ### Technical Constraints
-- **99%+ type coverage** - Enforced by CI, non-negotiable
+- **SQLite compatibility** - No PostgreSQL-specific features (no `ilike`, no `DISTINCT ON`)
 - **SQLite limitations** - Single-writer, no concurrent writes
-- **Static generation preferred** - Most pages should be statically generated
-- **Docker builds** - Must build for `linux/amd64` (even on Apple Silicon)
+- **Precommit required** - Run `mix precommit` before every commit
+- **LiveView patterns** - Use streams for large lists, PubSub for real-time updates
 
 ### Content Constraints
 - **Scientific accuracy** - Information must be backed by scientific sources when possible
@@ -126,26 +124,49 @@ See `prisma/schema.prisma` for complete schema.
 
 ## External Dependencies
 
-| Service | Purpose | Account |
-|---------|---------|---------|
-| **AWS S3** | Image storage | Personal AWS account |
-| **Auth0** | Authentication (admin only) | Auth0 account |
-| **Digital Ocean** | Production hosting (Droplet) | DO account |
-| **Namecheap** | Domain (gallformers.org, .com) | Namecheap |
-| **Let's Encrypt** | SSL certificates | Auto-renewal |
-| **AWS Lambda** | Downtime monitoring | Personal AWS |
-| **CloudWatch + Slack** | Alerts | AWS + Slack |
+| Service | Purpose | Notes |
+|---------|---------|-------|
+| **Fly.io** | Production hosting | Region: iad (US East) |
+| **AWS S3** | Image storage | Buckets: gallformers, gallformers-backups |
+| **Auth0** | Authentication (admin only) | OAuth2 integration |
+| **Namecheap** | Domain (gallformers.org, .com) | DNS managed there |
+| **Litestream** | Database replication | Streams to S3 |
 
 ## Key File Locations
 
 | Purpose | Location |
 |---------|----------|
-| Species logic | `libs/db/species.ts` |
-| Gall logic | `libs/db/gall.ts` |
-| Host logic | `libs/db/host.ts` |
-| Taxonomy logic | `libs/db/taxonomy.ts` |
-| Search logic | `libs/db/search.ts` |
-| Image handling | `libs/images/images.ts` |
-| API utilities | `libs/api/` |
-| Database schema | `prisma/schema.prisma` |
-| Reference articles | `ref/` (markdown) |
+| Phoenix application | `lib/gallformers/` |
+| Web layer (LiveViews) | `lib/gallformers_web/` |
+| Router | `lib/gallformers_web/router.ex` |
+| Database schemas | `lib/gallformers/` (per context) |
+| Migrations | `priv/repo/migrations/` |
+| Static assets | `priv/static/` |
+| CSS/JS source | `assets/` |
+| Tests | `test/` |
+| Configuration | `config/` |
+| Documentation | `docs/` |
+| Runbooks | `runbooks/` |
+| Legacy V1 code | `v1/` |
+
+## Project Structure
+
+```
+gallformers/
+├── assets/              # Frontend assets (JS, CSS, Tailwind)
+├── config/              # Phoenix configuration
+├── lib/                 # Elixir application code
+│   ├── gallformers/     # Business logic (contexts)
+│   └── gallformers_web/ # Web layer (LiveViews, controllers)
+├── priv/                # Static files, database, migrations
+├── test/                # Tests
+├── docs/                # Documentation
+├── runbooks/            # Operational runbooks
+├── services/            # Auxiliary services
+│   ├── tileserver-gl/   # Map tile server
+│   └── usda_plants/     # USDA plants data (Rust)
+├── .beads/              # Beads issue tracking
+├── .github/             # CI workflows
+├── openspec/            # Change proposal system
+└── v1/                  # Legacy Next.js app
+```

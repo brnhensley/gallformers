@@ -248,7 +248,9 @@ Build one page at a time, deploy after each, verify visual parity.
 - [x] 11.6.3 Create image reordering with LiveView
 - [x] 11.6.4 Implement image deletion with confirmation
 
-## 12. Real-time Updates (PubSub)
+## 12. Real-time Updates (PubSub) - DEFERRED
+
+Deferred to post-launch. Admin PubSub already works; public page auto-refresh is nice-to-have.
 
 - [ ] 12.1 Configure PubSub in application supervision tree
 - [ ] 12.2 Create broadcast helpers in contexts
@@ -344,33 +346,33 @@ Port endpoints matching v2_old patterns (see `v2_old/api/internal/handlers/`):
 - [x] 16.4.2 Test API error responses
 - [x] 16.4.3 Test CORS headers
 
-## 17. Visual Parity Verification
+## 17. Visual Parity Verification ✅
 
-- [ ] 17.1 Compare home page side-by-side with v2_old
-- [ ] 17.2 Compare gall/species pages side-by-side
-- [ ] 17.3 Compare host pages side-by-side
-- [ ] 17.4 Compare family/genus pages side-by-side
-- [ ] 17.5 Compare search results side-by-side
-- [ ] 17.6 Compare ID tool side-by-side
-- [ ] 17.7 Compare admin pages side-by-side
-- [ ] 17.8 Test responsive layout at mobile/tablet/desktop breakpoints
-- [ ] 17.9 Sign-off: all pages achieve visual parity
+- [x] 17.1 Compare home page side-by-side with v2_old
+- [x] 17.2 Compare gall/species pages side-by-side
+- [x] 17.3 Compare host pages side-by-side
+- [x] 17.4 Compare family/genus pages side-by-side
+- [x] 17.5 Compare search results side-by-side
+- [x] 17.6 Compare ID tool side-by-side
+- [x] 17.7 Compare admin pages side-by-side
+- [x] 17.8 Test responsive layout at mobile/tablet/desktop breakpoints
+- [x] 17.9 Sign-off: all pages achieve visual parity
 
-## 18. Cleanup (only after 17.9 complete)
+## 18. Cleanup ✅
 
-- [ ] 18.1 Remove `v2_old/` directory
-- [ ] 18.2 Update `v2/CLAUDE.md` - remove references to v2_old
-- [ ] 18.3 Update root `CLAUDE.md` - remove v2_old section
-- [ ] 18.4 Archive `adopt-templ-htmx` proposal
-- [ ] 18.5 Archive `convert-v2-to-spa` proposal
+- [x] 18.1 Remove `v2_old/` directory
+- [x] 18.2 Update `v2/CLAUDE.md` - remove references to v2_old
+- [x] 18.3 Update root `CLAUDE.md` - remove v2_old section
+- [x] 18.4 Archive `adopt-templ-htmx` proposal
+- [x] 18.5 Archive `convert-v2-to-spa` proposal
 
-## 19. Documentation Updates
+## 19. Documentation Updates ✅
 
-- [ ] 19.1 Document LiveView patterns in CLAUDE.md
-- [ ] 19.2 Document component library
-- [ ] 19.3 Document PubSub patterns for real-time
-- [ ] 19.4 Document deployment process
-- [ ] 19.5 Document local development setup
+- [x] 19.1 Document LiveView patterns in CLAUDE.md
+- [x] 19.2 Document component library
+- [x] 19.3 Document PubSub patterns for real-time
+- [x] 19.4 Document deployment process
+- [x] 19.5 Document local development setup
 
 ## Dependencies
 

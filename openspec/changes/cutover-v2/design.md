@@ -1,5 +1,9 @@
 # Design: V1 to V2 Cutover
 
+## Status
+
+**Repository restructure: COMPLETE** - V2 Phoenix code promoted to root, V1 archived in `v1/`.
+
 ## Context
 
 Gallformers v1 runs on a Digital Ocean Droplet (~$25/month) with:
@@ -9,7 +13,7 @@ Gallformers v1 runs on a Digital Ocean Droplet (~$25/month) with:
 - Manual deployment via scp + ssh
 
 Gallformers v2 runs on Fly.io with:
-- Go binary serving API + embedded static Svelte files
+- Phoenix 1.8 application with LiveView
 - SQLite database on Fly.io persistent volume (`/data/gallformers.sqlite`)
 - Automatic SSL via Fly.io
 - Automatic deployment via `fly deploy`
@@ -212,59 +216,38 @@ DNS is managed through Namecheap for both gallformers.org and gallformers.com.
 
 ## V1 Code Removal
 
-After 7-day verification period, remove v1 code from repository:
+### Current Status: RESTRUCTURE COMPLETE
 
-### Files/Directories to Remove
+The repository has already been restructured:
+- ✅ V2 Phoenix code promoted from `v2/` to repository root
+- ✅ V1 Next.js code archived in `v1/` subdirectory
+- ✅ CI workflows renamed (CI-V1, Sec-V1)
+- ✅ Auxiliary services moved to `services/` directory
 
-```
-pages/                    # Next.js pages
-components/               # React components
-layouts/                  # Layout components
-hooks/                    # React hooks
-libs/                     # TypeScript libraries
-styles/                   # SCSS styles
-__tests__/                # Jest tests
-public/                   # Static assets (review - some may be shared)
-Dockerfile                # v1 Docker config
-Makefile                  # v1 build commands (replace with v2)
-package.json              # v1 Node dependencies
-tsconfig.json             # TypeScript config
-next.config.js            # Next.js config
-jest.config.js            # Jest config
-.eslintrc.json            # ESLint config
-.prettierrc               # Prettier config
-runbooks/                 # v1 runbooks (replace with v2)
-```
+### Remaining Cleanup (after 7-day verification period)
 
-### Files to Keep
+After successful cutover and 7-day verification:
 
 ```
-v2/                       # All v2 code (becomes root)
-prisma/                   # Database schema (reference)
-migrations/               # SQL migrations (history)
-ref/                      # Reference articles (shared)
-openspec/                 # Specifications
-.beads/                   # Issue tracking
-.github/                  # GitHub config (update workflows)
-README.md                 # Update for v2
-CLAUDE.md                 # Update for v2
+v1/                       # DELETE - entire V1 archive
 ```
 
-### Repository Restructure
+### Current Repository Structure
 
-**Option A**: Move v2/* to root
-```bash
-# After v1 removal
-mv v2/* .
-rmdir v2
-# Update paths in Makefile, fly.toml, etc.
 ```
-
-**Option B**: Keep v2/ directory structure
-- Simpler (no path updates needed)
-- Slightly unusual but functional
-
-**Decision**: Defer to owner preference at cutover time.
+gallformers/
+├── assets/              # V2 frontend assets
+├── config/              # Phoenix configuration
+├── lib/                 # V2 Elixir application code
+│   ├── gallformers/     # Business logic (contexts)
+│   └── gallformers_web/ # Web layer (LiveViews)
+├── priv/                # Static files, database, migrations
+├── test/                # V2 tests
+├── services/            # Auxiliary services
+├── v1/                  # ARCHIVED - V1 Next.js code (delete after cutover)
+├── openspec/            # Specifications
+└── .beads/              # Issue tracking
+```
 
 ---
 

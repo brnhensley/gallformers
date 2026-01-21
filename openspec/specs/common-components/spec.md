@@ -1,7 +1,8 @@
 # common-components Specification
 
 ## Purpose
-TBD - created by archiving change add-svelte-common. Update Purpose after archive.
+We want to use standard Phoenix components where we can, but we also know that we want consistent and more complex 
+behaviors so we will need to create our own components.
 ## Requirements
 ### Requirement: Form Input Component
 
@@ -330,4 +331,3 @@ The system SHALL ensure all components meet basic accessibility requirements.
 - **WHEN** Button component is rendered
 - **THEN** it uses semantic `<button>` element
 - **AND** has appropriate type attribute
-
