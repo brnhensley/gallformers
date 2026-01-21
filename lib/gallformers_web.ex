@@ -101,6 +101,8 @@ defmodule GallformersWeb do
       import GallformersWeb.FormComponents
       # Data display components (species cards, taxonomy, etc.)
       import GallformersWeb.DataDisplayComponents
+      # View helpers (formatting, etc.)
+      import GallformersWeb.Helpers
 
       # Common modules used in templates
       alias GallformersWeb.Layouts

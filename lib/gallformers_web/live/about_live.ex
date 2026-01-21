@@ -200,13 +200,17 @@ defmodule GallformersWeb.AboutLive do
           <p>As of <em>{@gen_time}</em> there are:</p>
           <ul>
             <li>
-              {@stats.galls} gallformers across {@stats.gall_families} families and {@stats.gall_genera} genera,
-              of which {@stats.undescribed} are undescribed
+              {format_number(@stats.galls)} gallformers across {format_number(@stats.gall_families)} families and {format_number(
+                @stats.gall_genera
+              )} genera,
+              of which {format_number(@stats.undescribed)} are undescribed
             </li>
             <li>
-              {@stats.hosts} hosts across {@stats.host_families} families and {@stats.host_genera} genera
+              {format_number(@stats.hosts)} hosts across {format_number(@stats.host_families)} families and {format_number(
+                @stats.host_genera
+              )} genera
             </li>
-            <li>{@stats.sources} sources</li>
+            <li>{format_number(@stats.sources)} sources</li>
           </ul>
 
           <h2>Funding</h2>

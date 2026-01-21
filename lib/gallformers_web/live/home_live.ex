@@ -120,14 +120,6 @@ defmodule GallformersWeb.HomeLive do
 
   defp format_host_display(%{name: name}), do: name
 
-  defp format_number(num) do
-    num
-    |> Integer.to_string()
-    |> String.reverse()
-    |> String.replace(~r/(\d{3})(?=\d)/, "\\1,")
-    |> String.reverse()
-  end
-
   @impl true
   def render(assigns) do
     ~H"""

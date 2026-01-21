@@ -144,16 +144,4 @@ defmodule GallformersWeb.Admin.DashboardLive do
       _ -> 0
     end
   end
-
-  defp format_number(number) when is_integer(number) do
-    number
-    |> Integer.to_string()
-    |> String.reverse()
-    |> String.graphemes()
-    |> Enum.chunk_every(3)
-    |> Enum.join(",")
-    |> String.reverse()
-  end
-
-  defp format_number(_), do: "0"
 end
