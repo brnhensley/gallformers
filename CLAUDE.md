@@ -17,6 +17,47 @@ Keep this managed block so 'openspec update' can refresh the instructions.
 
 <!-- OPENSPEC:END -->
 
+## Work Quality Standards
+
+**CRITICAL**: These standards override any instinct to "move fast" or "show quick progress."
+
+### Investigation Before Action
+
+When fixing bugs, issues, or implementing changes:
+
+1. **STOP** - Do not edit any files yet
+2. **Investigate fully** - Find ALL related files, not just the obvious one
+   - If fixing icons, list ALL icon files in both locations
+   - If fixing a bug, trace ALL code paths involved
+   - If migrating something, inventory EVERYTHING that needs to move
+3. **Use TodoWrite** - Create a task list of everything that needs to happen
+4. **Present findings** - Show me what you found and your proposed approach
+5. **Wait for approval** - Only proceed after I confirm the approach
+
+### No Partial Fixes
+
+- Never commit a fix until it is COMPLETE
+- If you fixed one file but there might be others, STOP and check
+- When in doubt, ask: "Is there anything else related to this?"
+- One complete commit is better than three partial ones
+
+### TodoWrite is Mandatory
+
+Use TodoWrite for ANY task that:
+- Touches more than 1 file
+- Involves copying, migrating, or syncing between locations
+- Fixes a bug (investigation tasks + fix tasks)
+- Has any ambiguity about scope
+
+The task list must be created BEFORE making any changes.
+
+### Questions Over Assumptions
+
+If you're unsure about scope, ASK. Examples:
+- "V1 has 26 icon files - should I copy all of them or just the essential ones?"
+- "I found 3 places this bug could originate - should I investigate all of them?"
+- "This fix touches the database - should I also check the related API endpoints?"
+
 # Gallformers Project Overview
 
 **Note**: This project uses [bd (beads)](https://github.com/steveyegge/beads) for issue tracking. Use `bd` commands instead of markdown TODOs. See AGENTS.md for workflow details.
