@@ -9,89 +9,89 @@ const SortableImages = {
   mounted() {
     this.container = this.el
     this.draggingEl = null
-    this.placeholder = null
+    this.dropTarget = null
 
-    this.setupDragListeners()
+    this.setupListeners()
   },
 
-  updated() {
-    // Re-setup listeners when the DOM updates
-    this.setupDragListeners()
-  },
+  setupListeners() {
+    // Use event delegation on the container
+    this.container.addEventListener("dragstart", (e) => this.handleDragStart(e))
+    this.container.addEventListener("dragover", (e) => this.handleDragOver(e))
+    this.container.addEventListener("dragend", (e) => this.handleDragEnd(e))
 
-  setupDragListeners() {
-    const items = this.container.querySelectorAll("[data-image-id]")
-
-    items.forEach(item => {
-      // Make items draggable
+    // Make all image items draggable
+    this.container.querySelectorAll("[data-image-id]").forEach(item => {
       item.setAttribute("draggable", "true")
-
-      item.addEventListener("dragstart", (e) => this.handleDragStart(e, item))
-      item.addEventListener("dragend", (e) => this.handleDragEnd(e))
-      item.addEventListener("dragover", (e) => this.handleDragOver(e, item))
-      item.addEventListener("drop", (e) => this.handleDrop(e, item))
     })
   },
 
-  handleDragStart(e, item) {
-    this.draggingEl = item
-    item.classList.add("opacity-50", "ring-2", "ring-gf-maroon")
+  getImageItem(el) {
+    // Find the closest image item from an event target
+    return el.closest("[data-image-id]")
+  },
 
-    // Set drag data
+  handleDragStart(e) {
+    const item = this.getImageItem(e.target)
+    if (!item) return
+
+    this.draggingEl = item
+    this.originalIndex = this.getItemIndex(item)
+
+    // Visual feedback
+    setTimeout(() => {
+      item.classList.add("opacity-50")
+    }, 0)
+
     e.dataTransfer.effectAllowed = "move"
     e.dataTransfer.setData("text/plain", item.dataset.imageId)
-
-    // Create placeholder
-    this.placeholder = document.createElement("div")
-    this.placeholder.className = "w-24 h-24 border-2 border-dashed border-gf-maroon rounded bg-gf-sky-blue/20"
   },
 
-  handleDragEnd(e) {
-    if (this.draggingEl) {
-      this.draggingEl.classList.remove("opacity-50", "ring-2", "ring-gf-maroon")
-      this.draggingEl = null
-    }
-
-    if (this.placeholder && this.placeholder.parentNode) {
-      this.placeholder.remove()
-    }
-    this.placeholder = null
-  },
-
-  handleDragOver(e, item) {
+  handleDragOver(e) {
     e.preventDefault()
     e.dataTransfer.dropEffect = "move"
 
-    if (item === this.draggingEl) return
+    if (!this.draggingEl) return
 
-    // Get bounding rect to determine drop position
-    const rect = item.getBoundingClientRect()
+    const targetItem = this.getImageItem(e.target)
+    if (!targetItem || targetItem === this.draggingEl) return
+
+    // Determine if we should insert before or after the target
+    const rect = targetItem.getBoundingClientRect()
     const midpoint = rect.left + rect.width / 2
+    const insertBefore = e.clientX < midpoint
 
-    // Insert placeholder before or after based on mouse position
-    if (e.clientX < midpoint) {
-      item.parentNode.insertBefore(this.placeholder, item)
+    // Move the dragging element in the DOM
+    if (insertBefore) {
+      this.container.insertBefore(this.draggingEl, targetItem)
     } else {
-      item.parentNode.insertBefore(this.placeholder, item.nextSibling)
+      this.container.insertBefore(this.draggingEl, targetItem.nextSibling)
     }
   },
 
-  handleDrop(e, item) {
-    e.preventDefault()
+  handleDragEnd(e) {
+    if (!this.draggingEl) return
 
-    if (!this.draggingEl || this.draggingEl === item) return
+    // Remove visual feedback
+    this.draggingEl.classList.remove("opacity-50")
 
-    // Move the dragged element to the placeholder position
-    if (this.placeholder && this.placeholder.parentNode) {
-      this.placeholder.parentNode.insertBefore(this.draggingEl, this.placeholder)
-      this.placeholder.remove()
+    // Check if position changed
+    const newIndex = this.getItemIndex(this.draggingEl)
+    if (newIndex !== this.originalIndex) {
+      // Get new order and send to server
+      const newOrder = Array.from(this.container.querySelectorAll("[data-image-id]"))
+        .map(el => parseInt(el.dataset.imageId, 10))
+
+      this.pushEvent("reorder_images", { order: newOrder })
     }
 
-    // Get new order and send to server
-    const newOrder = Array.from(this.container.querySelectorAll("[data-image-id]"))
-      .map(el => parseInt(el.dataset.imageId, 10))
+    this.draggingEl = null
+    this.originalIndex = null
+  },
 
-    this.pushEvent("reorder_images", { order: newOrder })
+  getItemIndex(item) {
+    const items = Array.from(this.container.querySelectorAll("[data-image-id]"))
+    return items.indexOf(item)
   }
 }
 

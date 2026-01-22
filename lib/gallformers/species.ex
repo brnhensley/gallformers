@@ -34,7 +34,7 @@ defmodule Gallformers.Species do
         on: gs.species_id == s.id,
         join: i in Image,
         on: i.species_id == s.id,
-        where: i.default == true,
+        where: i.sort_order == 0,
         order_by: fragment("RANDOM()"),
         limit: 1,
         select: %{
@@ -210,18 +210,19 @@ defmodule Gallformers.Species do
   end
 
   @doc """
-  Gets all images for a species, with default image first.
+  Gets all images for a species, ordered by sort_order.
   """
   @spec get_images_for_species(integer()) :: [map()]
   def get_images_for_species(species_id) do
     from(i in Image,
       left_join: src in assoc(i, :source),
       where: i.species_id == ^species_id,
-      order_by: [desc: i.default, asc: src.title, asc: i.id],
+      order_by: [asc: i.sort_order, asc: i.id],
       select: %{
         id: i.id,
         path: i.path,
         default: i.default,
+        sort_order: i.sort_order,
         creator: i.creator,
         attribution: i.attribution,
         sourcelink: i.sourcelink,
@@ -239,59 +240,37 @@ defmodule Gallformers.Species do
   @doc """
   Gets default images for all gall species (used by ID tool).
 
-  Returns the default image for each species if one is set,
-  otherwise returns the first image for that species.
+  Returns the first image (by sort_order) for each gall species.
   """
   @spec get_default_gall_images() :: [map()]
   def get_default_gall_images do
-    # First, get all default images
-    default_images =
+    # Get the first image (lowest sort_order) for each gall species
+    # Use a subquery to get the minimum sort_order per species
+    first_image_ids =
       from(i in Image,
         join: s in Species,
         on: i.species_id == s.id,
-        where: s.taxoncode == "gall" and i.default == true,
-        select: %{
-          species_id: i.species_id,
-          path: i.path
-        }
-      )
-      |> Repo.all()
-
-    default_species_ids = Enum.map(default_images, & &1.species_id) |> MapSet.new()
-
-    # Then get first image for species without a default
-    # Use a subquery to get the minimum image id per species
-    fallback_images =
-      from(i in Image,
-        join: s in Species,
-        on: i.species_id == s.id,
-        where: s.taxoncode == "gall" and i.species_id not in ^MapSet.to_list(default_species_ids),
+        where: s.taxoncode == "gall",
         group_by: i.species_id,
         select: %{
           species_id: i.species_id,
-          id: min(i.id)
+          min_sort_order: min(i.sort_order)
         }
       )
       |> Repo.all()
 
-    # Get the actual paths for fallback images
-    fallback_image_ids = Enum.map(fallback_images, & &1.id)
-
-    fallback_with_paths =
-      if fallback_image_ids != [] do
-        from(i in Image,
-          where: i.id in ^fallback_image_ids,
-          select: %{
-            species_id: i.species_id,
-            path: i.path
-          }
-        )
-        |> Repo.all()
-      else
-        []
-      end
-
-    default_images ++ fallback_with_paths
+    # Get the actual image records for those sort_orders
+    Enum.flat_map(first_image_ids, fn %{species_id: species_id, min_sort_order: min_order} ->
+      from(i in Image,
+        where: i.species_id == ^species_id and i.sort_order == ^min_order,
+        select: %{
+          species_id: i.species_id,
+          path: i.path
+        },
+        limit: 1
+      )
+      |> Repo.all()
+    end)
   end
 
   @doc """

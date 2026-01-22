@@ -15,6 +15,7 @@ defmodule Gallformers.Species.Image do
           source_id: integer() | nil,
           path: String.t() | nil,
           default: boolean(),
+          sort_order: integer(),
           creator: String.t() | nil,
           attribution: String.t() | nil,
           license: String.t() | nil,
@@ -28,6 +29,7 @@ defmodule Gallformers.Species.Image do
   schema "image" do
     field :path, :string
     field :default, :boolean, default: false
+    field :sort_order, :integer, default: 0
     field :creator, :string
     field :attribution, :string
     field :license, :string

@@ -82,14 +82,14 @@ defmodule Gallformers.Images do
   end
 
   @doc """
-  Gets all images for a species, ordered with default first.
+  Gets all images for a species, ordered by sort_order.
   """
   @spec list_images_for_species(integer()) :: [ImageSchema.t()]
   def list_images_for_species(species_id) do
     from(i in ImageSchema,
       left_join: src in assoc(i, :source),
       where: i.species_id == ^species_id,
-      order_by: [desc: i.default, asc: i.id],
+      order_by: [asc: i.sort_order, asc: i.id],
       preload: [source: src]
     )
     |> Repo.all()
@@ -113,12 +113,33 @@ defmodule Gallformers.Images do
 
   @doc """
   Creates a new image record.
+
+  Automatically assigns the next sort_order for the species (appends to end).
   """
   @spec create_image(map()) :: {:ok, ImageSchema.t()} | {:error, Ecto.Changeset.t()}
   def create_image(attrs) do
+    attrs = assign_next_sort_order(attrs)
+
     %ImageSchema{}
     |> image_changeset(attrs)
     |> Repo.insert()
+  end
+
+  defp assign_next_sort_order(attrs) do
+    species_id = attrs[:species_id] || attrs["species_id"]
+
+    if species_id do
+      max_order =
+        from(i in ImageSchema,
+          where: i.species_id == ^species_id,
+          select: max(i.sort_order)
+        )
+        |> Repo.one() || -1
+
+      Map.put(attrs, :sort_order, max_order + 1)
+    else
+      attrs
+    end
   end
 
   @doc """
@@ -220,25 +241,19 @@ defmodule Gallformers.Images do
   @doc """
   Reorders images for a species.
 
-  Takes a list of image IDs in the desired order. The first image
-  in the list becomes the default.
+  Takes a list of image IDs in the desired order. Persists the sort_order
+  for each image based on its position in the list.
   """
   @spec reorder_images(integer(), [integer()]) :: :ok | {:error, term()}
-  def reorder_images(species_id, ordered_ids) when is_list(ordered_ids) do
+  def reorder_images(_species_id, ordered_ids) when is_list(ordered_ids) do
     Repo.transaction(fn ->
-      # Clear all defaults first
-      from(i in ImageSchema, where: i.species_id == ^species_id)
-      |> Repo.update_all(set: [default: false])
-
-      # Set the first image as default
-      case List.first(ordered_ids) do
-        nil ->
-          :ok
-
-        first_id ->
-          from(i in ImageSchema, where: i.id == ^first_id)
-          |> Repo.update_all(set: [default: true])
-      end
+      # Update sort_order for each image based on position in list
+      ordered_ids
+      |> Enum.with_index()
+      |> Enum.each(fn {image_id, index} ->
+        from(i in ImageSchema, where: i.id == ^image_id)
+        |> Repo.update_all(set: [sort_order: index])
+      end)
     end)
     |> case do
       {:ok, _} -> :ok
@@ -292,6 +307,7 @@ defmodule Gallformers.Images do
       :source_id,
       :path,
       :default,
+      :sort_order,
       :creator,
       :attribution,
       :license,

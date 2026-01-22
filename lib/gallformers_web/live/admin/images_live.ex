@@ -97,9 +97,17 @@ defmodule GallformersWeb.Admin.ImagesLive do
           <%!-- Image Grid --%>
           <div class="bg-white rounded-lg border border-gray-200 p-6">
             <div class="flex items-center justify-between mb-4">
-              <h2 class="text-lg font-medium text-gray-900">
-                Images ({length(@images)})
-              </h2>
+              <div class="flex items-center gap-4">
+                <h2 class="text-lg font-medium text-gray-900">
+                  Images ({length(@images)})
+                </h2>
+                <.link
+                  navigate={~p"/gall/#{@selected_species.id}"}
+                  class="text-sm text-gf-maroon hover:underline"
+                >
+                  View public page
+                </.link>
+              </div>
               <p :if={@images != []} class="text-sm text-gray-500">
                 Drag to reorder. First image is the default.
               </p>
@@ -124,7 +132,7 @@ defmodule GallformersWeb.Admin.ImagesLive do
                 data-image-id={image.id}
                 class={[
                   "relative group cursor-move",
-                  image.default && "ring-2 ring-gf-maroon ring-offset-2"
+                  image.sort_order == 0 && "ring-2 ring-gf-maroon ring-offset-2"
                 ]}
               >
                 <img
@@ -133,7 +141,7 @@ defmodule GallformersWeb.Admin.ImagesLive do
                   class="w-48 h-48 object-cover rounded"
                 />
                 <div
-                  :if={image.default}
+                  :if={image.sort_order == 0}
                   class="absolute top-2 left-2 bg-gf-maroon text-white text-sm px-2 py-1 rounded"
                 >
                   Default
@@ -297,13 +305,6 @@ defmodule GallformersWeb.Admin.ImagesLive do
                 label="Caption"
                 rows="3"
                 value={@editing_image.caption || ""}
-              />
-              <.input
-                type="checkbox"
-                name="default"
-                checked={@editing_image.default}
-                id="default-checkbox"
-                label="Set as default image"
               />
             </form>
           </:body>
@@ -494,12 +495,17 @@ defmodule GallformersWeb.Admin.ImagesLive do
   @impl true
   def handle_event("reorder_images", %{"order" => order}, socket) do
     species_id = socket.assigns.selected_species.id
-    Images.reorder_images(species_id, order)
 
-    # Reload to get updated default status
-    images = Images.list_images_for_species(species_id)
+    case Images.reorder_images(species_id, order) do
+      :ok ->
+        # Don't reload images - the DOM already shows the correct order
+        # (via JS manipulation) and the database has been updated.
+        # Reloading would trigger a re-render that fights with phx-update="ignore".
+        {:noreply, put_flash(socket, :info, "Image order saved")}
 
-    {:noreply, assign(socket, :images, images)}
+      {:error, _reason} ->
+        {:noreply, put_flash(socket, :error, "Failed to save image order")}
+    end
   end
 
   @impl true
@@ -554,7 +560,6 @@ defmodule GallformersWeb.Admin.ImagesLive do
     attrs =
       params
       |> Map.put("lastchangedby", lastchangedby)
-      |> Map.put("default", params["default"] == "true")
       |> Map.put("licenselink", licenselink)
 
     case Images.update_image(image, attrs) do
