@@ -291,14 +291,14 @@ defmodule GallformersWeb.HomeLive do
             <div class="text-base opacity-90">Host Plants</div>
           </div>
           <div>
-            <.icon name="ph-image" class="size-8 mx-auto mb-1" />
-            <div class="text-3xl font-bold">{format_number(@stats.images)}</div>
-            <div class="text-base opacity-90">Images</div>
-          </div>
-          <div>
             <.icon name="gf-source" class="size-8 mx-auto mb-1" />
             <div class="text-3xl font-bold">{format_number(@stats.sources)}</div>
             <div class="text-base opacity-90">Sources</div>
+          </div>
+          <div>
+            <.icon name="ph-image" class="size-8 mx-auto mb-1" />
+            <div class="text-3xl font-bold">{format_number(@stats.images)}</div>
+            <div class="text-base opacity-90">Images</div>
           </div>
         </div>
       </div>

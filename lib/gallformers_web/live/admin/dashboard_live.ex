@@ -5,7 +5,7 @@ defmodule GallformersWeb.Admin.DashboardLive do
 
   use GallformersWeb, :live_view
 
-  alias Gallformers.Repo
+  alias Gallformers.{Hosts, Images, Sources, Species}
 
   @impl true
   def mount(_params, session, socket) do
@@ -129,19 +129,12 @@ defmodule GallformersWeb.Admin.DashboardLive do
 
   defp assign_stats(socket) do
     stats = %{
-      gall_count: count_query("SELECT COUNT(*) FROM species WHERE taxoncode = 'gall'"),
-      host_count: count_query("SELECT COUNT(*) FROM host"),
-      source_count: count_query("SELECT COUNT(*) FROM source"),
-      image_count: count_query("SELECT COUNT(*) FROM image")
+      gall_count: Species.count_galls(),
+      host_count: Hosts.count_hosts(),
+      source_count: Sources.count_sources(),
+      image_count: Images.count_images()
     }
 
     assign(socket, :stats, stats)
-  end
-
-  defp count_query(sql) do
-    case Repo.query(sql) do
-      {:ok, %{rows: [[count]]}} -> count
-      _ -> 0
-    end
   end
 end
