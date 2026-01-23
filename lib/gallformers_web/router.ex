@@ -91,7 +91,9 @@ defmodule GallformersWeb.Router do
     live "/images", Admin.ImagesLive
 
     # Articles admin
-    live "/articles", Admin.ArticleAdminLive
+    live "/articles", Admin.ArticleLive.Index, :index
+    live "/articles/new", Admin.ArticleLive.Form, :new
+    live "/articles/:id", Admin.ArticleLive.Form, :edit
 
     # User profile
     live "/profile", Admin.ProfileLive

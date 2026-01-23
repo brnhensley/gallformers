@@ -12,11 +12,19 @@ defmodule GallformersWeb.Admin.SourceLive.Form do
 
   # Required callbacks for FormHelpers
   @impl GallformersWeb.Admin.FormHelpers
-  def context_module, do: Gallformers.Sources
-  @impl GallformersWeb.Admin.FormHelpers
   def entity_key, do: :source
   @impl GallformersWeb.Admin.FormHelpers
+  def entity_struct, do: Source
+  @impl GallformersWeb.Admin.FormHelpers
   def list_path, do: ~p"/admin/sources"
+  @impl GallformersWeb.Admin.FormHelpers
+  def load_entity(id), do: Gallformers.Sources.get_source!(id)
+  @impl GallformersWeb.Admin.FormHelpers
+  def change_entity(entity, params \\ %{}), do: Gallformers.Sources.change_source(entity, params)
+  @impl GallformersWeb.Admin.FormHelpers
+  def create_entity(params), do: Gallformers.Sources.create_source(params)
+  @impl GallformersWeb.Admin.FormHelpers
+  def update_entity(entity, params), do: Gallformers.Sources.update_source(entity, params)
 
   # Override to apply canonical license URL for read-only licenses
   @impl GallformersWeb.Admin.FormHelpers

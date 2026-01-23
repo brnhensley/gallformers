@@ -13,11 +13,19 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
 
   # Required callbacks for FormHelpers
   @impl GallformersWeb.Admin.FormHelpers
-  def context_module, do: Gallformers.Taxonomy
-  @impl GallformersWeb.Admin.FormHelpers
   def entity_key, do: :taxonomy
   @impl GallformersWeb.Admin.FormHelpers
+  def entity_struct, do: Taxonomy.Taxonomy
+  @impl GallformersWeb.Admin.FormHelpers
   def list_path, do: ~p"/admin/taxonomy"
+  @impl GallformersWeb.Admin.FormHelpers
+  def load_entity(id), do: Taxonomy.get_taxonomy!(id)
+  @impl GallformersWeb.Admin.FormHelpers
+  def change_entity(entity, params \\ %{}), do: Taxonomy.change_taxonomy(entity, params)
+  @impl GallformersWeb.Admin.FormHelpers
+  def create_entity(params), do: Taxonomy.create_taxonomy(params)
+  @impl GallformersWeb.Admin.FormHelpers
+  def update_entity(entity, params), do: Taxonomy.update_taxonomy(entity, params)
 
   @impl true
   def mount(_params, session, socket) do

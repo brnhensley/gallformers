@@ -11,11 +11,19 @@ defmodule GallformersWeb.Admin.PlaceLive.Form do
 
   # Required callbacks for FormHelpers
   @impl GallformersWeb.Admin.FormHelpers
-  def context_module, do: Gallformers.Places
-  @impl GallformersWeb.Admin.FormHelpers
   def entity_key, do: :place
   @impl GallformersWeb.Admin.FormHelpers
+  def entity_struct, do: Place
+  @impl GallformersWeb.Admin.FormHelpers
   def list_path, do: ~p"/admin/places"
+  @impl GallformersWeb.Admin.FormHelpers
+  def load_entity(id), do: Gallformers.Places.get_place!(id)
+  @impl GallformersWeb.Admin.FormHelpers
+  def change_entity(entity, params \\ %{}), do: Gallformers.Places.change_place(entity, params)
+  @impl GallformersWeb.Admin.FormHelpers
+  def create_entity(params), do: Gallformers.Places.create_place(params)
+  @impl GallformersWeb.Admin.FormHelpers
+  def update_entity(entity, params), do: Gallformers.Places.update_place(entity, params)
 
   @impl true
   def mount(_params, session, socket) do

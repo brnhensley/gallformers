@@ -9,15 +9,23 @@ defmodule GallformersWeb.Admin.GlossaryLive.Form do
 
   # Required callbacks for FormHelpers
   @impl GallformersWeb.Admin.FormHelpers
-  def context_module, do: Gallformers.Glossaries
-  @impl GallformersWeb.Admin.FormHelpers
   def entity_key, do: :entry
   @impl GallformersWeb.Admin.FormHelpers
+  def entity_struct, do: Gallformers.Glossaries.Glossary
+  @impl GallformersWeb.Admin.FormHelpers
   def list_path, do: ~p"/admin/glossary"
-
-  # Override because the assign is :entry but params key is "glossary"
   @impl GallformersWeb.Admin.FormHelpers
   def form_key, do: "glossary"
+  @impl GallformersWeb.Admin.FormHelpers
+  def load_entity(id), do: Gallformers.Glossaries.get_glossary!(id)
+  @impl GallformersWeb.Admin.FormHelpers
+  def change_entity(entity, params \\ %{}),
+    do: Gallformers.Glossaries.change_glossary(entity, params)
+
+  @impl GallformersWeb.Admin.FormHelpers
+  def create_entity(params), do: Gallformers.Glossaries.create_glossary(params)
+  @impl GallformersWeb.Admin.FormHelpers
+  def update_entity(entity, params), do: Gallformers.Glossaries.update_glossary(entity, params)
 
   @impl true
   def mount(_params, session, socket) do
