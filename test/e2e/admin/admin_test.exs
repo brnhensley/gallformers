@@ -16,11 +16,12 @@ defmodule GallformersWeb.E2E.AdminTest do
 
   describe "admin access control" do
     test "redirects unauthenticated users", %{session: session} do
-      # Visiting admin without auth should redirect
+      # Visiting admin without auth should redirect to Auth0
+      # Since we can't follow external OAuth redirect, just verify we don't see admin content
       session
       |> visit("/admin")
-      # Should be redirected to home or login (not admin dashboard)
-      |> assert_has(css("body.phx-connected"))
+      # Should NOT show admin dashboard (would require auth)
+      |> refute_has(css("h1", text: "Dashboard"))
     end
   end
 
@@ -32,7 +33,7 @@ defmodule GallformersWeb.E2E.AdminTest do
   #     session
   #     |> visit("/auth/test/admin")  # Test auth route
   #     |> visit("/admin")
-  #     |> assert_has(css("body.phx-connected"))
+  #     |> assert_has(css(".phx-connected"))
   #     |> assert_has(css("h1", text: "Dashboard"))
   #   end
   # end
@@ -42,7 +43,7 @@ defmodule GallformersWeb.E2E.AdminTest do
   #     session
   #     |> visit("/auth/test/admin")
   #     |> visit("/admin/galls")
-  #     |> assert_has(css("body.phx-connected"))
+  #     |> assert_has(css(".phx-connected"))
   #     |> assert_has(css("h1", text: "Galls"))
   #   end
   # end
@@ -52,7 +53,7 @@ defmodule GallformersWeb.E2E.AdminTest do
   #     session
   #     |> visit("/auth/test/admin")
   #     |> visit("/admin/hosts")
-  #     |> assert_has(css("body.phx-connected"))
+  #     |> assert_has(css(".phx-connected"))
   #     |> assert_has(css("h1", text: "Hosts"))
   #   end
   # end

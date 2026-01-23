@@ -14,15 +14,15 @@ config :gallformers, Gallformers.Repo,
   busy_timeout: 5000
 
 # Server is disabled by default for fast unit tests.
-# E2E tests enable the server via GALLFORMERS_E2E=1 environment variable.
+# E2E tests enable the server via GALLFORMERS_E2E=1 environment variable (in runtime.exs).
 config :gallformers, GallformersWeb.Endpoint,
   http: [ip: {127, 0, 0, 1}, port: 4002],
-  secret_key_base: "QXMJq8FP0hqnpEVCf4NmW0l3LLZMBoncyOmBqm2OrxKFnFuPBa7iIlHN6+5sD8dE",
-  server: System.get_env("GALLFORMERS_E2E") == "1"
+  secret_key_base: "QXMJq8FP0hqnpEVCf4NmW0l3LLZMBoncyOmBqm2OrxKFnFuPBa7iIlHN6+5sD8dE"
 
 # Wallaby E2E test configuration (only used when GALLFORMERS_E2E=1)
 config :wallaby,
   otp_app: :gallformers,
+  base_url: "http://localhost:4002",
   driver: Wallaby.Chrome,
   screenshot_dir: "test/screenshots",
   screenshot_on_failure: true,

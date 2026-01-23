@@ -18,15 +18,16 @@ defmodule GallformersWeb.E2E.BrowseTest do
 
         session
         |> visit("/gall/#{gall.id}")
-        |> assert_has(css("body.phx-connected"))
-        |> assert_has(css("h1", text: gall.name))
+        |> assert_has(css(".phx-connected"))
+        # Page uses h2 for the species name, wrapped in em tags
+        |> assert_has(css("h2 em", text: gall.name))
       end
     end
 
     test "shows 404 for invalid gall ID", %{session: session} do
       session
       |> visit("/gall/999999999")
-      |> assert_has(css("body.phx-connected"))
+      |> assert_has(css(".phx-connected"))
       # Should show not found message
       |> assert_has(Query.text("not found"))
     end
@@ -42,15 +43,16 @@ defmodule GallformersWeb.E2E.BrowseTest do
 
         session
         |> visit("/host/#{host.id}")
-        |> assert_has(css("body.phx-connected"))
-        |> assert_has(css("h1", text: host.name))
+        |> assert_has(css(".phx-connected"))
+        # Page uses h2 for the species name, wrapped in em tags
+        |> assert_has(css("h2 em", text: host.name))
       end
     end
 
     test "shows 404 for invalid host ID", %{session: session} do
       session
       |> visit("/host/999999999")
-      |> assert_has(css("body.phx-connected"))
+      |> assert_has(css(".phx-connected"))
       # Should show not found message
       |> assert_has(Query.text("not found"))
     end
@@ -69,14 +71,16 @@ defmodule GallformersWeb.E2E.BrowseTest do
       if gall_with_host do
         hosts = Gallformers.Hosts.get_hosts_for_gall(gall_with_host.id)
         host = hd(hosts)
+        # Note: get_hosts_for_gall returns maps with :host_name key, not :name
+        host_name = host.host_name
 
         session
         |> visit("/gall/#{gall_with_host.id}")
-        |> assert_has(css("body.phx-connected"))
+        |> assert_has(css(".phx-connected"))
         # Find and click link to host
-        |> click(link(host.name))
-        |> assert_has(css("body.phx-connected"))
-        |> assert_has(css("h1", text: host.name))
+        |> click(link(host_name))
+        |> assert_has(css(".phx-connected"))
+        |> assert_has(css("h2 em", text: host_name))
       end
     end
   end

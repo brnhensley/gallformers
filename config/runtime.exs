@@ -20,8 +20,15 @@ if System.get_env("PHX_SERVER") do
   config :gallformers, GallformersWeb.Endpoint, server: true
 end
 
-config :gallformers, GallformersWeb.Endpoint,
-  http: [port: String.to_integer(System.get_env("PORT", "4000"))]
+# Enable server for E2E tests (evaluated at runtime, not compile-time)
+if System.get_env("GALLFORMERS_E2E") == "1" do
+  config :gallformers, GallformersWeb.Endpoint, server: true
+end
+
+# Only override port if PORT env var is explicitly set (don't interfere with test config)
+if port = System.get_env("PORT") do
+  config :gallformers, GallformersWeb.Endpoint, http: [port: String.to_integer(port)]
+end
 
 # Auth0 configuration
 # In development, these can be set in .env or config/dev.secret.exs
