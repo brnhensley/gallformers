@@ -551,6 +551,17 @@ defmodule GallformersWeb.FormComponents do
   - `search_event` - when user types (params: %{"value" => query})
   - `select_event` - when user selects an option (params: %{"id" => id})
   - `clear_event` - when user clears the selection
+  - `create_event` - when user selects "create new" (params: %{"name" => query})
+    (only fires if `allow_new` is true)
+
+  ## Create-or-select mode
+
+  When `allow_new` is true, a "Create '{query}'" option appears when:
+  - The query has at least 2 characters
+  - There are no matching results
+
+  This is useful for admin forms where users need to either select existing
+  items or create new ones with the same input.
 
   ## Examples
 
@@ -566,6 +577,22 @@ defmodule GallformersWeb.FormComponents do
         selected={@selected_host}
         display_fn={fn host -> host.name end}
       />
+
+      <%!-- Create-or-select mode --%>
+      <.typeahead
+        id="gall-picker"
+        label="Gall:"
+        placeholder="Search or create gall..."
+        search_event="search_gall"
+        select_event="select_gall"
+        clear_event="clear_gall"
+        create_event="create_gall"
+        allow_new={true}
+        query={@gall_query}
+        results={@gall_results}
+        selected={@selected_gall}
+        display_fn={fn gall -> gall.name end}
+      />
   """
   attr :id, :string, required: true, doc: "unique identifier for the component"
   attr :label, :string, required: true, doc: "label text"
@@ -573,6 +600,12 @@ defmodule GallformersWeb.FormComponents do
   attr :search_event, :string, required: true, doc: "event name for search"
   attr :select_event, :string, required: true, doc: "event name for selection"
   attr :clear_event, :string, required: true, doc: "event name for clearing"
+
+  attr :create_event, :string,
+    default: nil,
+    doc: "event name for creating new (requires allow_new)"
+
+  attr :allow_new, :boolean, default: false, doc: "allow creating new items when no results"
   attr :query, :string, required: true, doc: "current search query"
   attr :results, :list, required: true, doc: "list of search results"
   attr :selected, :any, default: nil, doc: "currently selected item"
@@ -585,6 +618,15 @@ defmodule GallformersWeb.FormComponents do
   end
 
   def typeahead(assigns) do
+    # Determine if we should show the "create new" option
+    show_create_option =
+      assigns.allow_new &&
+        assigns.create_event &&
+        String.length(assigns.query) >= 2 &&
+        assigns.results == []
+
+    assigns = assign(assigns, :show_create_option, show_create_option)
+
     ~H"""
     <div
       id={@id}
@@ -626,17 +668,18 @@ defmodule GallformersWeb.FormComponents do
             placeholder={@placeholder}
             class="gf-input"
             role="combobox"
-            aria-expanded={length(@results) > 0}
+            aria-expanded={length(@results) > 0 || @show_create_option}
             aria-controls={"#{@id}-results"}
             aria-autocomplete="list"
           />
           <div
-            :if={length(@results) > 0}
+            :if={length(@results) > 0 || @show_create_option}
             id={"#{@id}-results"}
             data-typeahead-results
             class="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto"
             role="listbox"
           >
+            <%!-- Existing results --%>
             <button
               :for={item <- @results}
               type="button"
@@ -651,6 +694,19 @@ defmodule GallformersWeb.FormComponents do
               <% else %>
                 <span class="italic">{@display_fn.(item)}</span>
               <% end %>
+            </button>
+            <%!-- Create new option (shown when no results and allow_new is true) --%>
+            <button
+              :if={@show_create_option}
+              type="button"
+              data-typeahead-option
+              phx-click={@create_event}
+              phx-value-name={@query}
+              class="w-full text-left px-3 py-2 text-base hover:bg-green-50 border-b border-gray-100 last:border-b-0 text-green-700 font-medium"
+              role="option"
+            >
+              <.icon name="ph-plus" class="size-4 inline-block mr-1" />
+              Create "<span class="italic">{@query}</span>"
             </button>
           </div>
         </div>

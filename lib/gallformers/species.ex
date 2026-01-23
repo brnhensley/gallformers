@@ -1095,4 +1095,31 @@ defmodule Gallformers.Species do
     )
     |> Repo.all()
   end
+
+  @doc """
+  Creates a gall record for a species.
+
+  This creates both the gall record and the gallspecies join record.
+  Should be called after creating a species with taxoncode "gall".
+
+  Returns {:ok, gall} on success, {:error, changeset} on failure.
+  """
+  @spec create_gall_for_species(integer()) :: {:ok, Gall.t()} | {:error, Ecto.Changeset.t()}
+  def create_gall_for_species(species_id) do
+    # Create the gall record
+    gall_result =
+      %Gall{}
+      |> Ecto.Changeset.change(%{taxoncode: "gall", detachable: 0, undescribed: false})
+      |> Repo.insert()
+
+    case gall_result do
+      {:ok, gall} ->
+        # Create the gallspecies join record
+        Repo.insert_all("gallspecies", [%{species_id: species_id, gall_id: gall.id}])
+        {:ok, gall}
+
+      {:error, changeset} ->
+        {:error, changeset}
+    end
+  end
 end

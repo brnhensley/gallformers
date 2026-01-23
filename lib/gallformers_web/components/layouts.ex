@@ -738,8 +738,8 @@ defmodule GallformersWeb.Layouts do
         </.form>
       </Layouts.admin_edit_layout>
   """
-  attr :back_path, :string, required: true, doc: "path for the back link"
-  attr :back_label, :string, required: true, doc: "text for the back link (without arrow)"
+  attr :back_path, :any, default: nil, doc: "path for the back link (nil to hide)"
+  attr :back_label, :any, default: nil, doc: "text for the back link (without arrow)"
   attr :title, :string, required: true, doc: "card header title"
 
   slot :intro, doc: "intro text paragraph"
@@ -749,7 +749,7 @@ defmodule GallformersWeb.Layouts do
   def admin_edit_layout(assigns) do
     ~H"""
     <div class="max-w-7xl mx-auto">
-      <div class="mb-4">
+      <div :if={@back_path} class="mb-4">
         <.link navigate={@back_path} class="hover:underline text-sm">
           &larr; {@back_label}
         </.link>

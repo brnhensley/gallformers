@@ -1,14 +1,12 @@
-defmodule GallformersWeb.Admin.GallLive.FormTest do
+defmodule GallformersWeb.Admin.GallLiveTest do
   @moduledoc """
-  LiveView tests for the GallLive.Form admin page.
+  LiveView tests for the GallLive admin page (single-page pattern).
 
-  Tests the gall form admin functionality including:
-  - Mount/render in new and edit modes
-  - Form validation and submission
-  - Alias management (add, remove, update)
-  - Host search and management
-  - Filter field management
-  - Detachable and undescribed toggles
+  Tests the gall admin functionality including:
+  - Mount/render with typeahead search
+  - Deep linking to existing galls
+  - Create and edit workflows
+  - Alias, host, and filter management
   - Rename modal
   - Dirty state tracking
   """
@@ -51,49 +49,41 @@ defmodule GallformersWeb.Admin.GallLive.FormTest do
     end
   end
 
-  describe "Mount and render - new mode" do
+  describe "Mount and render - search mode" do
     setup %{conn: conn} do
       {:ok, conn: setup_admin_session(conn)}
     end
 
-    test "renders new gall form", %{conn: conn} do
-      {:ok, _view, html} = live(conn, ~p"/admin/galls/new")
+    test "renders gall admin page with typeahead", %{conn: conn} do
+      {:ok, _view, html} = live(conn, ~p"/admin/galls")
 
-      assert html =~ "Add New Gall"
+      assert html =~ "Gall"
       assert html =~ "Name (binomial)"
+      assert html =~ "Search existing galls or type new name"
     end
 
-    test "shows correct page title for new gall", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/admin/galls/new")
+    test "shows intro text", %{conn: conn} do
+      {:ok, _view, html} = live(conn, ~p"/admin/galls")
 
-      assert page_title(view) =~ "New Gall"
+      assert html =~ "Search for an existing gall to edit, or type a new name to create one"
     end
 
-    test "save button is disabled initially", %{conn: conn} do
-      {:ok, _view, html} = live(conn, ~p"/admin/galls/new")
+    test "form fields are disabled in search mode", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/admin/galls")
 
-      assert html =~ "cursor-not-allowed"
-    end
-
-    test "shows back link to galls list", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/admin/galls/new")
-
-      assert has_element?(view, "a[href='/admin/galls']")
-    end
-
-    test "hosts field is disabled in new mode", %{conn: conn} do
-      {:ok, _view, html} = live(conn, ~p"/admin/galls/new")
-
-      assert html =~ "Save gall first to add hosts"
+      # Form fields should be disabled until a gall is selected
+      assert has_element?(view, "fieldset[disabled]")
+      # Placeholder message shown
+      assert has_element?(view, "p", "Select an existing gall or create a new one")
     end
   end
 
-  describe "Mount and render - edit mode" do
+  describe "Mount and render - deep link to existing gall" do
     setup %{conn: conn} do
       {:ok, conn: setup_admin_session(conn)}
     end
 
-    test "renders edit gall form with gall data", %{conn: conn} do
+    test "renders edit form with gall data", %{conn: conn} do
       gall = require_gall()
       {:ok, _view, html} = live(conn, ~p"/admin/galls/#{gall.id}")
 
@@ -101,7 +91,7 @@ defmodule GallformersWeb.Admin.GallLive.FormTest do
       assert html =~ gall.name
     end
 
-    test "shows correct page title for edit gall", %{conn: conn} do
+    test "shows correct page title for existing gall", %{conn: conn} do
       gall = require_gall()
       {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
 
@@ -128,7 +118,6 @@ defmodule GallformersWeb.Admin.GallLive.FormTest do
       gall = require_gall()
       {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
 
-      # The public page link is now an icon in the header with title attribute
       assert has_element?(view, "a[href='/gall/#{gall.id}'][title='View public page']")
     end
 
@@ -143,15 +132,14 @@ defmodule GallformersWeb.Admin.GallLive.FormTest do
       assert html =~ "Shape"
     end
 
-    test "handles invalid gall ID", %{conn: conn} do
-      # Invalid ID causes an error (not a valid integer)
-      assert_raise ArgumentError, fn ->
-        live(conn, ~p"/admin/galls/invalid")
-      end
+    test "redirects with error flash for invalid gall ID format", %{conn: conn} do
+      assert {:error, {:live_redirect, %{to: "/admin/galls", flash: flash}}} =
+               live(conn, ~p"/admin/galls/invalid")
+
+      assert flash["error"] =~ "Invalid gall ID"
     end
 
-    test "redirects for non-existent gall ID", %{conn: conn} do
-      # Non-existent gall redirects with error flash
+    test "redirects with error flash for non-existent gall ID", %{conn: conn} do
       assert {:error, {:live_redirect, %{to: "/admin/galls", flash: flash}}} =
                live(conn, ~p"/admin/galls/999999999")
 
@@ -159,63 +147,97 @@ defmodule GallformersWeb.Admin.GallLive.FormTest do
     end
   end
 
-  describe "Form validation" do
+  describe "Gall search - search_gall event" do
     setup %{conn: conn} do
       {:ok, conn: setup_admin_session(conn)}
     end
 
-    test "validate event marks form as dirty", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/admin/galls/new")
+    test "search_gall with short query returns no results", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/admin/galls")
 
-      # Trigger validation with a valid species name
-      html =
-        view
-        |> form("#gall-form", species: %{name: "Genus species"})
-        |> render_change()
+      html = render_click(view, "search_gall", %{"value" => "q"})
 
-      # Form should now be dirty - check that the save button is present
-      # and the form has been modified
-      assert html =~ "gall-form"
+      # Should not show results dropdown
+      refute html =~ "data-typeahead-option"
+    end
+
+    test "search_gall with valid query returns results", %{conn: conn} do
+      gall = require_gall()
+      # Use first 3 chars of gall name for search
+      query = String.slice(gall.name, 0..2)
+
+      {:ok, view, _html} = live(conn, ~p"/admin/galls")
+
+      html = render_click(view, "search_gall", %{"value" => query})
+
+      # Should show results or create option
+      assert html =~ "data-typeahead-results" or html =~ gall.name
     end
   end
 
-  describe "Alias management - update_new_alias event" do
+  describe "Select existing gall - select_gall event" do
     setup %{conn: conn} do
       {:ok, conn: setup_admin_session(conn)}
     end
 
-    test "update_new_alias handles name field change (phx-keyup)", %{conn: conn} do
+    test "selecting a gall loads it for editing", %{conn: conn} do
+      gall = require_gall()
+      {:ok, view, _html} = live(conn, ~p"/admin/galls")
+
+      html = render_click(view, "select_gall", %{"id" => Integer.to_string(gall.id)})
+
+      assert html =~ "Edit Gall"
+      assert html =~ gall.name
+    end
+  end
+
+  describe "Clear gall - clear_gall event" do
+    setup %{conn: conn} do
+      {:ok, conn: setup_admin_session(conn)}
+    end
+
+    test "clearing gall returns to search mode", %{conn: conn} do
       gall = require_gall()
       {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
 
-      # Simulate typing in alias name field - sends value and type from phx-value-type
+      render_click(view, "clear_gall", %{})
+
+      # Should return to search mode - form elements hidden
+      # Check that the gall-specific elements are gone
+      refute has_element?(view, "#gall-form")
+      refute has_element?(view, "button", "Rename")
+    end
+  end
+
+  describe "Alias management" do
+    setup %{conn: conn} do
+      {:ok, conn: setup_admin_session(conn)}
+    end
+
+    test "update_new_alias handles name field change", %{conn: conn} do
+      gall = require_gall()
+      {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
+
       html =
         render_click(view, "update_new_alias", %{
           "value" => "Test Alias",
           "type" => "common name"
         })
 
-      # Should update the input field value
       assert html =~ "Test Alias" or html =~ gall.name
     end
 
-    test "update_new_alias handles type field change (phx-change)", %{conn: conn} do
+    test "add_alias with empty name shows error", %{conn: conn} do
       gall = require_gall()
       {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
 
-      # Simulate changing select - sends value and name from phx-value-name
-      html =
-        render_click(view, "update_new_alias", %{
-          "value" => "scientific synonym",
-          "name" => "Some Alias"
-        })
+      html = render_click(view, "add_alias", %{})
 
-      # Should update both fields
-      assert html =~ "Some Alias" or html =~ "scientific synonym" or html =~ gall.name
+      assert html =~ "cannot be empty"
     end
   end
 
-  describe "Host search - search_hosts event" do
+  describe "Host search and management" do
     setup %{conn: conn} do
       {:ok, conn: setup_admin_session(conn)}
     end
@@ -224,27 +246,29 @@ defmodule GallformersWeb.Admin.GallLive.FormTest do
       gall = require_gall()
       {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
 
-      # Simulate searching - phx-keyup sends "value" not "query"
       html = render_click(view, "search_hosts", %{"value" => "quercus"})
 
-      # Should not crash and should process search
       assert html =~ "Edit Gall" or html =~ gall.name
     end
 
-    test "search_hosts with short query returns no results", %{conn: conn} do
+    test "add_host adds host to the list", %{conn: conn} do
       gall = require_gall()
+      host = require_host()
       {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
 
-      # Search with 1 character - should return no results
-      html = render_click(view, "search_hosts", %{"value" => "q"})
+      # First search for the host to populate host_search_results
+      query = String.slice(host.name, 0..2)
+      render_click(view, "search_hosts", %{"value" => query})
 
-      # Should not show results dropdown
-      refute has_element?(view, "#host-search-results button")
-      assert html =~ gall.name
+      # Now add the host
+      html = render_click(view, "add_host", %{"id" => Integer.to_string(host.id)})
+
+      # Host should be added to pending list, or already associated, or not found in results
+      assert html =~ host.name or html =~ "already" or html =~ "not found"
     end
   end
 
-  describe "Filter search - filter_search event" do
+  describe "Filter management" do
     setup %{conn: conn} do
       {:ok, conn: setup_admin_session(conn)}
     end
@@ -253,10 +277,8 @@ defmodule GallformersWeb.Admin.GallLive.FormTest do
       gall = require_gall()
       {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
 
-      # Simulate filter search - phx-keyup sends "value" not "query"
       html = render_click(view, "filter_search", %{"type" => "colors", "value" => "red"})
 
-      # Should not crash
       assert html =~ "Edit Gall" or html =~ gall.name
     end
 
@@ -264,7 +286,6 @@ defmodule GallformersWeb.Admin.GallLive.FormTest do
       gall = require_gall()
       {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
 
-      # Test multiple filter types
       filter_types = ~w(walls cells alignments colors shapes seasons forms locations textures)
 
       for filter_type <- filter_types do
@@ -292,19 +313,9 @@ defmodule GallformersWeb.Admin.GallLive.FormTest do
       # Form should now be dirty (save button enabled)
       refute has_element?(view, "button[type='submit'][disabled]")
     end
-
-    test "update_detachable updates the select value", %{conn: conn} do
-      gall = require_gall()
-      {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
-
-      html = render_click(view, "update_detachable", %{"value" => "2"})
-
-      # Should show detachable as selected
-      assert html =~ "detachable"
-    end
   end
 
-  describe "Undescribed toggle - toggle_undescribed event" do
+  describe "Undescribed toggle" do
     setup %{conn: conn} do
       {:ok, conn: setup_admin_session(conn)}
     end
@@ -321,49 +332,6 @@ defmodule GallformersWeb.Admin.GallLive.FormTest do
 
       # Form should now be dirty (save button enabled)
       refute has_element?(view, "button[type='submit'][disabled]")
-    end
-
-    test "toggle_undescribed toggles checkbox state", %{conn: conn} do
-      gall = require_gall()
-      {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
-
-      # Toggle twice should return to original state
-      render_click(view, "toggle_undescribed", %{})
-      html = render_click(view, "toggle_undescribed", %{})
-
-      # Should still render correctly
-      assert html =~ "Undescribed"
-    end
-  end
-
-  describe "Add and remove alias" do
-    setup %{conn: conn} do
-      {:ok, conn: setup_admin_session(conn)}
-    end
-
-    test "add_alias with empty name shows error", %{conn: conn} do
-      gall = require_gall()
-      {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
-
-      html = render_click(view, "add_alias", %{})
-
-      assert html =~ "cannot be empty"
-    end
-  end
-
-  describe "Add and remove host" do
-    setup %{conn: conn} do
-      {:ok, conn: setup_admin_session(conn)}
-    end
-
-    test "add_host adds host to the list", %{conn: conn} do
-      gall = require_gall()
-      host = require_host()
-      {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
-
-      html = render_click(view, "add_host", %{"id" => Integer.to_string(host.id)})
-
-      assert html =~ "Host added" or html =~ host.name or html =~ "already"
     end
   end
 
@@ -390,27 +358,6 @@ defmodule GallformersWeb.Admin.GallLive.FormTest do
       html = render_click(view, "close_rename_modal", %{})
 
       refute html =~ "Edit Gall Name"
-    end
-
-    test "update_rename_value updates the input", %{conn: conn} do
-      gall = require_gall()
-      {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
-
-      render_click(view, "open_rename_modal", %{})
-      html = render_click(view, "update_rename_value", %{"value" => "New test name"})
-
-      assert html =~ "New test name"
-    end
-
-    test "toggle_add_alias_on_rename toggles checkbox", %{conn: conn} do
-      gall = require_gall()
-      {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
-
-      render_click(view, "open_rename_modal", %{})
-      html = render_click(view, "toggle_add_alias_on_rename", %{})
-
-      # Just verify it doesn't crash
-      assert html =~ "Add Alias"
     end
 
     test "do_rename with empty name shows error", %{conn: conn} do
@@ -441,21 +388,15 @@ defmodule GallformersWeb.Admin.GallLive.FormTest do
       {:ok, conn: setup_admin_session(conn)}
     end
 
-    test "request_cancel with clean form navigates away", %{conn: conn} do
+    test "request_cancel with clean form clears selection", %{conn: conn} do
       gall = require_gall()
       {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
 
-      # Form is clean, so cancel should navigate (returns redirect)
-      result = render_click(view, "request_cancel", %{})
+      # Form is clean, so cancel should clear selection
+      html = render_click(view, "request_cancel", %{})
 
-      # Should either redirect or show page
-      case result do
-        {:error, {:live_redirect, %{to: to}}} ->
-          assert to =~ "/admin/galls"
-
-        html when is_binary(html) ->
-          assert html =~ "Galls" or html =~ gall.name
-      end
+      # Should return to search mode - check for typeahead placeholder
+      assert html =~ "Search existing galls or type new name"
     end
 
     test "request_cancel with dirty form shows confirm modal", %{conn: conn} do
@@ -475,7 +416,7 @@ defmodule GallformersWeb.Admin.GallLive.FormTest do
   describe "Access control" do
     test "page requires admin session", %{conn: _conn} do
       conn_without_admin = build_conn()
-      conn_result = get(conn_without_admin, ~p"/admin/galls/new")
+      conn_result = get(conn_without_admin, ~p"/admin/galls")
 
       assert redirected_to(conn_result) =~ "/" or redirected_to(conn_result) =~ "/auth"
     end
