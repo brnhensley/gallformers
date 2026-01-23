@@ -116,6 +116,12 @@ defmodule GallformersWeb.Admin.HostLive.Form do
     {:noreply, socket |> assign(:form, to_form(changeset)) |> mark_dirty()}
   end
 
+  # Catch-all for validate events that don't match the expected form structure
+  @impl true
+  def handle_event("validate", _params, socket) do
+    {:noreply, socket}
+  end
+
   @impl true
   def handle_event("save", %{"species" => params}, socket) do
     params = Map.put(params, "taxoncode", "plant")

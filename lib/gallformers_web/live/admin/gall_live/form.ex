@@ -182,6 +182,13 @@ defmodule GallformersWeb.Admin.GallLive.Form do
     {:noreply, socket |> assign(:form, to_form(changeset)) |> mark_dirty()}
   end
 
+  # Catch-all for validate events from standalone inputs (e.g., detachable select)
+  # that bubble up but don't have the "species" key
+  @impl true
+  def handle_event("validate", _params, socket) do
+    {:noreply, socket}
+  end
+
   @impl true
   def handle_event("save", %{"species" => params}, socket) do
     params = Map.put(params, "taxoncode", "gall")
@@ -761,15 +768,16 @@ defmodule GallformersWeb.Admin.GallLive.Form do
           <%= if @mode == :edit do %>
             <%!-- Row: Detachable | Walls | Cells | Alignment --%>
             <div class="grid grid-cols-4 gap-3 mb-3">
-              <form phx-change="update_detachable">
+              <div>
                 <.input
                   type="select"
                   name="value"
                   label="Detachable:"
                   options={@detachable_options}
                   value={@detachable}
+                  phx-change="update_detachable"
                 />
-              </form>
+              </div>
               <.multi_select_dropdown
                 id="walls"
                 label="Walls:"

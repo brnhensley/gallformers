@@ -218,6 +218,12 @@ defmodule GallformersWeb.Admin.SpeciesSourceLive.AddFromSource do
     {:noreply, assign(socket, :form, to_form(changeset))}
   end
 
+  # Catch-all for validate events that don't match the expected form structure
+  @impl true
+  def handle_event("validate", _params, socket) do
+    {:noreply, socket}
+  end
+
   @impl true
   def handle_event("save", params, socket) do
     species_source_params = params["species_source"] || %{}

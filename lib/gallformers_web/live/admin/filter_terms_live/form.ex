@@ -85,6 +85,12 @@ defmodule GallformersWeb.Admin.FilterTermsLive.Form do
     {:noreply, socket |> assign(:form, to_form(changeset, as: :filter_field)) |> mark_dirty()}
   end
 
+  # Catch-all for validate events that don't match the expected form structure
+  @impl true
+  def handle_event("validate", _params, socket) do
+    {:noreply, socket}
+  end
+
   @impl true
   def handle_event("save", %{"filter_field" => params}, socket) do
     save_item(socket, socket.assigns.mode, params)

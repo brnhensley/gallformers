@@ -374,12 +374,17 @@ defmodule GallformersWeb.GallLive do
                   </button>
                 </p>
                 <p class="text-sm text-gray-600">
-                  Observations are tagged with this code on iNaturalist. You can view these observations with this <a
+                  <a
                     href={"https://www.inaturalist.org/observations?verifiable=any&place_id=any&field:Gallformers%20Code=#{URI.encode(get_gallformers_code(@gall.name, @taxonomy && @taxonomy.genus))}"}
                     target="_blank"
                     rel="noreferrer"
-                    class="hover:underline"
-                  >link</a>.
+                    class="text-gf-maroon hover:underline"
+                  >
+                    View observations collected with this code on iNaturalist.
+                  </a>
+                  <.link href="/ref/link-undescribed-inat" class="text-gf-maroon hover:underline">
+                    Learn more about how it works and how you can help.
+                  </.link>
                 </p>
               </div>
 
@@ -509,11 +514,14 @@ defmodule GallformersWeb.GallLive do
           <hr class="border-gray-200 my-4" />
 
           <div
-            :if={@has_gallformers_notes && !@notes_alert_dismissed}
-            class="flex items-center gap-3 p-3 mb-4 bg-white border border-blue-200 border-l-4 border-l-blue-400 rounded text-sm text-gray-700"
+            :if={
+              @has_gallformers_notes && !@notes_alert_dismissed &&
+                !(@selected_source && @selected_source.id == 58)
+            }
+            class="flex items-center gap-3 p-3 mb-4 bg-gf-sky-blue border border-blue-300 rounded text-sm text-gray-700"
             role="alert"
           >
-            <.icon name="ph-info" class="h-5 w-5 text-blue-500 shrink-0" />
+            <.icon name="ph-info" class="h-5 w-5 text-blue-600 shrink-0" />
             <p class="flex-1">
               Our ID Notes may contain important tips necessary for distinguishing this gall
               from similar galls and/or important information about the taxonomic status of
@@ -521,7 +529,15 @@ defmodule GallformersWeb.GallLive do
             </p>
             <button
               type="button"
-              class="text-gray-400 hover:text-gray-600"
+              phx-click="show_source_detail"
+              phx-value-id="58"
+              class="px-3 py-1 text-sm bg-white border border-blue-400 text-blue-700 hover:bg-blue-50 rounded whitespace-nowrap"
+            >
+              Show notes
+            </button>
+            <button
+              type="button"
+              class="text-gray-500 hover:text-gray-700"
               phx-click="dismiss_notes_alert"
               aria-label="Dismiss"
             >

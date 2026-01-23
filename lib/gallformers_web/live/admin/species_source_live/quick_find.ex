@@ -151,6 +151,12 @@ defmodule GallformersWeb.Admin.SpeciesSourceLive.QuickFind do
     {:noreply, assign(socket, :form, to_form(changeset))}
   end
 
+  # Catch-all for validate events that don't match the expected form structure
+  @impl true
+  def handle_event("validate", _params, socket) do
+    {:noreply, socket}
+  end
+
   @impl true
   def handle_event("save", %{"species_source" => params}, socket) do
     existing = Sources.get_species_source!(socket.assigns.editing_id)

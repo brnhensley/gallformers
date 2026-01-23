@@ -84,6 +84,12 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
      |> mark_dirty()}
   end
 
+  # Catch-all for validate events that don't match the expected form structure
+  @impl true
+  def handle_event("validate", _params, socket) do
+    {:noreply, socket}
+  end
+
   @impl true
   def handle_event("save", params, socket), do: handle_save(params, socket)
 

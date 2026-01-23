@@ -75,6 +75,12 @@ defmodule GallformersWeb.Admin.ProfileLive do
     {:noreply, socket}
   end
 
+  # Catch-all for validate events that don't match the expected form structure
+  @impl true
+  def handle_event("validate", _params, socket) do
+    {:noreply, socket}
+  end
+
   @impl true
   def handle_event("save", %{"user" => user_params}, socket) do
     case Accounts.update_user(socket.assigns.user, user_params) do

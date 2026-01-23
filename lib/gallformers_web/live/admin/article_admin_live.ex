@@ -841,6 +841,12 @@ defmodule GallformersWeb.Admin.ArticleAdminLive do
     {:noreply, socket}
   end
 
+  # Catch-all for validate events that don't match the expected form structure
+  @impl true
+  def handle_event("validate", _params, socket) do
+    {:noreply, socket}
+  end
+
   @impl true
   def handle_event("save_article", %{"article" => params}, socket) do
     article = socket.assigns.editing_article
