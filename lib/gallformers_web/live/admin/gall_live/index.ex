@@ -1,23 +1,23 @@
-defmodule GallformersWeb.Admin.HostLive.Index do
+defmodule GallformersWeb.Admin.GallLive.Index do
   @moduledoc """
-  Admin page for listing and searching host species.
+  Admin page for listing and searching galls.
   """
   use GallformersWeb, :live_view
 
-  alias Gallformers.Hosts
+  alias Gallformers.Species
 
   @impl true
   def mount(_params, session, socket) do
     current_user = session["current_user"]
 
-    if connected?(socket), do: Hosts.subscribe()
+    if connected?(socket), do: Species.subscribe()
 
     socket =
       socket
       |> assign(:current_user, current_user)
-      |> assign(:page_title, "Hosts")
+      |> assign(:page_title, "Galls")
       |> assign(:search_query, "")
-      |> assign(:hosts, list_hosts(""))
+      |> assign(:gall_list, list_galls(""))
 
     {:ok, socket}
   end
@@ -29,84 +29,93 @@ defmodule GallformersWeb.Admin.HostLive.Index do
 
   defp apply_action(socket, :index, _params) do
     socket
-    |> assign(:page_title, "Hosts")
+    |> assign(:page_title, "Galls")
   end
 
   @impl true
   def handle_event("search", %{"query" => query}, socket) do
-    hosts = list_hosts(query)
-    {:noreply, assign(socket, hosts: hosts, search_query: query)}
+    gall_list = list_galls(query)
+    {:noreply, assign(socket, gall_list: gall_list, search_query: query)}
   end
 
   @impl true
   def handle_event("delete", %{"id" => id}, socket) do
-    case Hosts.delete_host(String.to_integer(id)) do
+    species = Species.get_species!(String.to_integer(id))
+
+    case Species.delete_species(species) do
       {:ok, _} ->
         {:noreply,
          socket
-         |> put_flash(:info, "Host deleted successfully")
-         |> assign(:hosts, list_hosts(socket.assigns.search_query))}
+         |> put_flash(:info, "Gall deleted successfully")
+         |> assign(:gall_list, list_galls(socket.assigns.search_query))}
 
-      {:error, _} ->
-        {:noreply, put_flash(socket, :error, "Failed to delete host")}
+      {:error, _changeset} ->
+        {:noreply, put_flash(socket, :error, "Failed to delete gall")}
     end
   end
 
   @impl true
-  def handle_info({event, _host}, socket)
-      when event in [:host_created, :host_updated, :host_deleted] do
-    hosts = list_hosts(socket.assigns.search_query)
-    {:noreply, assign(socket, hosts: hosts)}
+  def handle_info({event, _species}, socket)
+      when event in [:species_created, :species_updated, :species_deleted] do
+    gall_list = list_galls(socket.assigns.search_query)
+    {:noreply, assign(socket, gall_list: gall_list)}
   end
 
-  defp list_hosts(""), do: Hosts.list_hosts_paginated(100, 0)
-  defp list_hosts(query), do: Hosts.search_hosts(query, 100)
+  defp list_galls("") do
+    Species.list_species_admin(100, 0)
+    |> Enum.filter(&(&1.taxoncode == "gall"))
+  end
+
+  defp list_galls(query) do
+    Species.search_species(query, 100)
+    |> Enum.filter(&(&1.taxoncode == "gall"))
+  end
 
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.admin flash={@flash} current_user={@current_user} page_title="Hosts">
+    <Layouts.admin flash={@flash} current_user={@current_user} page_title="Galls">
       <div class="space-y-6">
         <%!-- Header with search and new button --%>
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div class="flex-1 max-w-xl">
-            <form phx-change="search" phx-submit="search" id="host-search-form">
+            <form phx-change="search" phx-submit="search" id="gall-search-form">
               <.search_input
-                id="host-search"
+                id="gall-search"
                 name="query"
                 value={@search_query}
-                placeholder="Search hosts by name..."
+                placeholder="Filter galls by name or alias..."
                 phx-debounce="300"
               />
             </form>
           </div>
-          <.link navigate={~p"/admin/hosts/new"} class="gf-btn gf-btn-primary">
-            New Host
+          <.link navigate={~p"/admin/galls/new"} class="gf-btn gf-btn-primary">
+            New Gall
           </.link>
         </div>
 
-        <%!-- Host list table --%>
+        <%!-- Gall list table --%>
         <div class="bg-white shadow rounded-lg overflow-hidden">
           <table class="gf-table gf-table-dark gf-table-compact">
             <thead>
               <tr>
                 <th>Name</th>
                 <th class="text-center w-32">Data Complete</th>
-                <th class="text-right">Actions</th>
+                <th class="text-center">Actions</th>
               </tr>
             </thead>
             <tbody>
-              <tr :for={host <- @hosts}>
+              <tr :for={gall <- @gall_list}>
                 <td>
                   <.link
-                    navigate={~p"/admin/hosts/#{host.id}"}
+                    navigate={~p"/admin/galls/#{gall.id}"}
                     class="hover:underline font-medium italic"
                   >
-                    {host.name}
+                    {gall.name}
                   </.link>
                 </td>
                 <td class="text-center">
-                  <%= if host.datacomplete in [true, 1] do %>
+                  <%= if gall.datacomplete in [true, 1] do %>
                     <span class="text-green-600">
                       <.icon name="ph-check" class="size-5 inline-block" />
                     </span>
@@ -116,43 +125,48 @@ defmodule GallformersWeb.Admin.HostLive.Index do
                     </span>
                   <% end %>
                 </td>
-                <td class="text-right">
+                <td class="text-center">
                   <.table_actions>
                     <.action_button
                       icon="ph-pencil-simple"
                       label="Edit"
-                      navigate={~p"/admin/hosts/#{host.id}"}
+                      navigate={~p"/admin/galls/#{gall.id}"}
                       variant="primary"
                     />
                     <.action_button
                       icon="ph-image"
                       label="Edit Images"
-                      navigate={~p"/admin/images?species_id=#{host.id}"}
+                      navigate={~p"/admin/images?species_id=#{gall.id}"}
+                    />
+                    <.action_button
+                      icon="gf-host"
+                      label="Map Hosts"
+                      navigate={~p"/admin/gallhost?id=#{gall.id}"}
                     />
                     <.action_button
                       icon="gf-source"
                       label="Map Sources"
-                      navigate={~p"/admin/species-sources/find?species_id=#{host.id}"}
+                      navigate={~p"/admin/species-sources/find?species_id=#{gall.id}"}
                     />
                     <.action_button
                       icon="ph-arrow-square-out"
                       label="View"
-                      navigate={~p"/host/#{host.id}"}
+                      navigate={~p"/gall/#{gall.id}"}
                     />
                     <.action_button
                       icon="ph-trash"
                       label="Delete"
                       variant="danger"
                       phx-click="delete"
-                      phx-value-id={host.id}
-                      confirm="Are you sure? This will delete the host and all its gall associations."
+                      phx-value-id={gall.id}
+                      confirm="Are you sure? This will delete the gall and all its associations."
                     />
                   </.table_actions>
                 </td>
               </tr>
-              <tr :if={@hosts == []}>
+              <tr :if={@gall_list == []}>
                 <td colspan="3" class="px-6 py-8 text-center text-gray-500">
-                  No hosts found. Try a different search term.
+                  No galls found. Try a different search term.
                 </td>
               </tr>
             </tbody>
@@ -160,7 +174,7 @@ defmodule GallformersWeb.Admin.HostLive.Index do
         </div>
 
         <p class="text-sm text-gray-500">
-          Showing {@hosts |> length()} hosts
+          Showing {@gall_list |> length()} galls
         </p>
       </div>
     </Layouts.admin>

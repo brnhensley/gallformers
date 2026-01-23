@@ -105,10 +105,14 @@ defmodule GallformersWeb.Admin.FormHelpers do
   @callback create_entity(params :: map()) :: {:ok, struct()} | {:error, Ecto.Changeset.t()}
   @callback update_entity(entity :: struct(), params :: map()) ::
               {:ok, struct()} | {:error, Ecto.Changeset.t()}
+  @callback delete_entity(entity :: struct()) ::
+              {:ok, struct()} | {:error, Ecto.Changeset.t()}
   @callback prepare_params(params :: map()) :: map()
   @callback after_create(socket :: Phoenix.LiveView.Socket.t(), entity :: struct()) ::
               Phoenix.LiveView.Socket.t()
   @callback after_update(socket :: Phoenix.LiveView.Socket.t(), entity :: struct()) ::
+              Phoenix.LiveView.Socket.t()
+  @callback after_delete(socket :: Phoenix.LiveView.Socket.t(), entity :: struct()) ::
               Phoenix.LiveView.Socket.t()
 
   @optional_callbacks entity_key: 0,
@@ -121,9 +125,11 @@ defmodule GallformersWeb.Admin.FormHelpers do
                       change_entity: 2,
                       create_entity: 1,
                       update_entity: 2,
+                      delete_entity: 1,
                       prepare_params: 1,
                       after_create: 2,
-                      after_update: 2
+                      after_update: 2,
+                      after_delete: 2
 
   defmacro __using__(opts) do
     crud_helpers = Keyword.get(opts, :crud_helpers, false)
@@ -275,12 +281,22 @@ defmodule GallformersWeb.Admin.FormHelpers do
           |> Phoenix.LiveView.push_navigate(to: list_path())
         end
 
+        @doc """
+        Default after-delete behavior. Override to customize.
+        """
+        def after_delete(socket, _entity) do
+          socket
+          |> Phoenix.LiveView.put_flash(:info, "#{entity_label()} deleted successfully")
+          |> Phoenix.LiveView.push_navigate(to: list_path())
+        end
+
         defoverridable form_key: 0,
                        entity_label: 0,
                        new_entity: 0,
                        prepare_params: 1,
                        after_create: 2,
-                       after_update: 2
+                       after_update: 2,
+                       after_delete: 2
 
         # =================================================================
         # Consolidated helper functions
@@ -310,7 +326,7 @@ defmodule GallformersWeb.Admin.FormHelpers do
           socket
           |> Phoenix.Component.assign(:page_title, "New #{entity_label()}")
           |> Phoenix.Component.assign(entity_key(), entity)
-          |> Phoenix.Component.assign(:form, Phoenix.Component.to_form(changeset))
+          |> Phoenix.Component.assign(:form, Phoenix.Component.to_form(changeset, as: form_key()))
           |> Phoenix.Component.assign(:mode, :new)
           |> Phoenix.Component.assign(extra_assigns)
         end
@@ -333,7 +349,10 @@ defmodule GallformersWeb.Admin.FormHelpers do
               socket
               |> Phoenix.Component.assign(:page_title, "Edit #{entity_label()}")
               |> Phoenix.Component.assign(entity_key(), entity)
-              |> Phoenix.Component.assign(:form, Phoenix.Component.to_form(changeset))
+              |> Phoenix.Component.assign(
+                :form,
+                Phoenix.Component.to_form(changeset, as: form_key())
+              )
               |> Phoenix.Component.assign(:mode, :edit)
               |> Phoenix.Component.assign(extra_assigns)
           end
@@ -354,7 +373,10 @@ defmodule GallformersWeb.Admin.FormHelpers do
 
           socket =
             socket
-            |> Phoenix.Component.assign(:form, Phoenix.Component.to_form(changeset))
+            |> Phoenix.Component.assign(
+              :form,
+              Phoenix.Component.to_form(changeset, as: form_key())
+            )
             |> mark_dirty()
 
           {:noreply, socket}
@@ -371,6 +393,23 @@ defmodule GallformersWeb.Admin.FormHelpers do
           case socket.assigns.mode do
             :new -> do_create(socket, prepared_params)
             :edit -> do_update(socket, prepared_params)
+          end
+        end
+
+        @doc """
+        Standard delete handler.
+        Requires delete_entity/1 callback to be implemented.
+        """
+        def handle_delete(_params, socket) do
+          entity = Map.get(socket.assigns, entity_key())
+
+          case delete_entity(entity) do
+            {:ok, entity} ->
+              {:noreply, after_delete(socket, entity)}
+
+            {:error, _changeset} ->
+              {:noreply,
+               Phoenix.LiveView.put_flash(socket, :error, "Failed to delete #{entity_label()}")}
           end
         end
 

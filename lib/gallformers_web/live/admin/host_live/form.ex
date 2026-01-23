@@ -238,6 +238,20 @@ defmodule GallformersWeb.Admin.HostLive.Form do
   end
 
   @impl true
+  def handle_event("delete", _params, socket) do
+    case Hosts.delete_host(socket.assigns.host.id) do
+      {:ok, _} ->
+        {:noreply,
+         socket
+         |> put_flash(:info, "Host deleted successfully")
+         |> push_navigate(to: ~p"/admin/hosts")}
+
+      {:error, _} ->
+        {:noreply, put_flash(socket, :error, "Failed to delete host")}
+    end
+  end
+
+  @impl true
   def handle_event("do_rename", _params, socket) do
     new_name = String.trim(socket.assigns.rename_value)
     old_name = socket.assigns.host.name
@@ -601,7 +615,18 @@ defmodule GallformersWeb.Admin.HostLive.Form do
           </div>
 
           <%!-- Action buttons --%>
-          <div class="flex justify-end pt-3 border-t border-gray-200">
+          <div class="flex justify-between pt-3 border-t border-gray-200">
+            <div>
+              <button
+                :if={@mode == :edit}
+                type="button"
+                phx-click="delete"
+                data-confirm="Are you sure you want to delete this host? This will remove all associated gall mappings and range data."
+                class="gf-btn gf-btn-danger"
+              >
+                Delete
+              </button>
+            </div>
             <.form_actions form_dirty={@form_dirty} mode={@mode} />
           </div>
         </.form>

@@ -1,8 +1,8 @@
-defmodule GallformersWeb.Admin.GallLive do
+defmodule GallformersWeb.Admin.GallLive.Form do
   @moduledoc """
-  Single-page admin for gall management.
+  Admin form for creating and editing galls.
 
-  Combines search, create, and edit functionality in one place:
+  Features:
   - Typeahead at top to search existing galls or create new ones
   - Form below that enables when a gall is selected/created
   - All changes stored in socket state until save
@@ -51,11 +51,7 @@ defmodule GallformersWeb.Admin.GallLive do
   end
 
   def close_form(socket) do
-    # Clear selection and return to search mode
-    socket
-    |> init_empty_gall_state()
-    |> assign(:gall_search_query, "")
-    |> assign(:gall_search_results, [])
+    push_navigate(socket, to: ~p"/admin/galls")
   end
 
   @impl true
@@ -63,23 +59,21 @@ defmodule GallformersWeb.Admin.GallLive do
     {:noreply, apply_action(socket, socket.assigns.live_action, params)}
   end
 
-  defp apply_action(socket, :index, %{"id" => id}) do
-    # Deep link to specific gall - validate that id is a number
+  defp apply_action(socket, :edit, %{"id" => id}) do
+    # Edit existing gall
     case Integer.parse(id) do
       {species_id, ""} ->
-        # URL navigation - redirect on error to clean up URL
         load_gall_for_edit(socket, species_id, redirect_on_error: true)
 
       _ ->
-        # Invalid id format (e.g., "new") - redirect to clean URL
         socket
         |> put_flash(:error, "Invalid gall ID: #{id}")
         |> push_navigate(to: ~p"/admin/galls")
     end
   end
 
-  defp apply_action(socket, :index, _params) do
-    # Default state - no gall selected
+  defp apply_action(socket, :new, _params) do
+    # New gall - start in search mode so user can enter a name
     socket
   end
 
@@ -127,6 +121,8 @@ defmodule GallformersWeb.Admin.GallLive do
   defp init_new_gall_state(socket, name) do
     gall = %SpeciesSchema{taxoncode: "gall", name: name}
     changeset = Species.change_species(gall)
+    # Look up taxonomy from the genus name
+    taxonomy = Gallformers.Taxonomy.get_taxonomy_from_species_name(name)
 
     socket
     |> assign(:mode, :new)
@@ -142,7 +138,7 @@ defmodule GallformersWeb.Admin.GallLive do
     |> assign(:original_detachable, 0)
     |> assign(:original_undescribed, false)
     # Pending state
-    |> assign(:taxonomy, nil)
+    |> assign(:taxonomy, taxonomy)
     |> assign(:filter_values, empty_filter_values())
     |> assign(:detachable, 0)
     |> assign(:undescribed, false)
@@ -159,7 +155,9 @@ defmodule GallformersWeb.Admin.GallLive do
     # Clear search
     |> assign(:gall_search_query, "")
     |> assign(:gall_search_results, [])
+    # Mark form dirty since user entered a name (enables save button)
     |> reset_dirty()
+    |> mark_dirty()
   end
 
   # Load an existing gall for editing
@@ -858,15 +856,7 @@ defmodule GallformersWeb.Admin.GallLive do
 
   @impl true
   def render(assigns) do
-    # Determine title based on mode
-    title =
-      case assigns.mode do
-        :search -> "Gall"
-        :new -> "Add New Gall"
-        :edit -> "Edit Gall"
-      end
-
-    assigns = assign(assigns, :title, title)
+    assigns = assign(assigns, :title, "Add/Edit Galls")
 
     ~H"""
     <Layouts.admin

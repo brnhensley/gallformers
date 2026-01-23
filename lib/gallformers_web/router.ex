@@ -55,9 +55,10 @@ defmodule GallformersWeb.Router do
 
     live "/", Admin.DashboardLive
 
-    # Gall admin (single-page with typeahead search/create)
-    live "/galls", Admin.GallLive, :index
-    live "/galls/:id", Admin.GallLive, :index
+    # Gall admin
+    live "/galls", Admin.GallLive.Index, :index
+    live "/galls/new", Admin.GallLive.Form, :new
+    live "/galls/:id", Admin.GallLive.Form, :edit
 
     # Gall-Host mapping admin
     live "/gallhost", Admin.GallHostLive, :index

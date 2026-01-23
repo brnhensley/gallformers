@@ -95,16 +95,6 @@ defmodule GallformersWeb.Admin.FilterTermsLive.Index do
     ~H"""
     <Layouts.admin flash={@flash} current_user={@current_user} page_title="Filter Terms">
       <div class="space-y-6">
-        <%!-- Info banner --%>
-        <div class="gf-admin-info">
-          <.icon name="ph-info" class="h-5 w-5 text-blue-400 mr-2 flex-shrink-0" />
-          <p>
-            Filter terms are used in the ID tool to help users narrow down gall matches.
-            Each type represents a different characteristic (shape, color, texture, etc.).
-            Changes here affect all galls that use these terms.
-          </p>
-        </div>
-
         <%!-- Type selector and New button --%>
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <form phx-change="change_type" class="flex items-center gap-4">

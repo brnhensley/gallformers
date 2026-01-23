@@ -27,6 +27,10 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
   @impl GallformersWeb.Admin.FormHelpers
   def update_entity(entity, params), do: Taxonomy.update_taxonomy(entity, params)
 
+  # Delete not yet implemented for taxonomy - requires special handling
+  @impl GallformersWeb.Admin.FormHelpers
+  def delete_entity(_entity), do: {:error, :not_implemented}
+
   @impl true
   def mount(_params, session, socket) do
     {:ok, init_admin_form(socket, session)}
@@ -100,6 +104,19 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
 
   @impl true
   def handle_event("save", params, socket), do: handle_save(params, socket)
+
+  @impl true
+  def handle_event("delete", _params, socket) do
+    # Taxonomy deletion is disabled until soft delete is implemented
+    # Deleting taxonomy entries can cascade to hundreds of downstream records
+    {:noreply,
+     put_flash(
+       socket,
+       :error,
+       "Taxonomy deletion is temporarily disabled. Deleting a family or genus can cascade to " <>
+         "hundreds of species records. This will be re-enabled once soft delete is implemented."
+     )}
+  end
 
   @impl true
   def handle_event(event, params, socket)
@@ -188,7 +205,17 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
             <% end %>
           </div>
 
-          <div class="flex justify-end pt-4 border-t border-gray-200">
+          <div class="flex justify-between pt-4 border-t border-gray-200">
+            <div>
+              <button
+                :if={@mode == :edit}
+                type="button"
+                phx-click="delete"
+                class="gf-btn gf-btn-danger"
+              >
+                Delete
+              </button>
+            </div>
             <.form_actions form_dirty={@form_dirty} mode={@mode} />
           </div>
         </.form>

@@ -25,6 +25,8 @@ defmodule GallformersWeb.Admin.SourceLive.Form do
   def create_entity(params), do: Gallformers.Sources.create_source(params)
   @impl GallformersWeb.Admin.FormHelpers
   def update_entity(entity, params), do: Gallformers.Sources.update_source(entity, params)
+  @impl GallformersWeb.Admin.FormHelpers
+  def delete_entity(entity), do: Gallformers.Sources.delete_source(entity)
 
   # Override to apply canonical license URL for read-only licenses
   @impl GallformersWeb.Admin.FormHelpers
@@ -60,6 +62,9 @@ defmodule GallformersWeb.Admin.SourceLive.Form do
 
   @impl true
   def handle_event("save", params, socket), do: handle_save(params, socket)
+
+  @impl true
+  def handle_event("delete", params, socket), do: handle_delete(params, socket)
 
   @impl true
   def handle_event(event, params, socket)
@@ -231,7 +236,18 @@ defmodule GallformersWeb.Admin.SourceLive.Form do
           </div>
 
           <%!-- Buttons --%>
-          <div class="flex justify-end pt-4 border-t border-gray-200">
+          <div class="flex justify-between pt-4 border-t border-gray-200">
+            <div>
+              <button
+                :if={@mode == :edit}
+                type="button"
+                phx-click="delete"
+                data-confirm="Are you sure you want to delete this source? This will also remove all species-source mappings."
+                class="gf-btn gf-btn-danger"
+              >
+                Delete
+              </button>
+            </div>
             <.form_actions form_dirty={@form_dirty} mode={@mode} create_label="Create Source" />
           </div>
         </.form>

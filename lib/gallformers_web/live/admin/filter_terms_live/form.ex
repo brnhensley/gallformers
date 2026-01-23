@@ -57,7 +57,7 @@ defmodule GallformersWeb.Admin.FilterTermsLive.Form do
     |> assign(:page_title, "New #{FilterFields.singular_label(filter_type)}")
     |> assign(:filter_type, filter_type)
     |> assign(:item, item)
-    |> assign(:form, to_form(changeset))
+    |> assign(:form, to_form(changeset, as: :filter_field))
     |> assign(:mode, :new)
   end
 
@@ -71,15 +71,15 @@ defmodule GallformersWeb.Admin.FilterTermsLive.Form do
     |> assign(:page_title, "Edit #{field_value}")
     |> assign(:filter_type, filter_type)
     |> assign(:item, item)
-    |> assign(:form, to_form(changeset))
+    |> assign(:form, to_form(changeset, as: :filter_field))
     |> assign(:mode, :edit)
   end
 
   @impl true
   def handle_event("validate", %{"filter_field" => params}, socket) do
     changeset =
-      socket.assigns.item
-      |> FilterFields.change(socket.assigns.filter_type, params)
+      socket.assigns.filter_type
+      |> FilterFields.change(socket.assigns.item, params)
       |> Map.put(:action, :validate)
 
     {:noreply, socket |> assign(:form, to_form(changeset, as: :filter_field)) |> mark_dirty()}
@@ -94,6 +94,23 @@ defmodule GallformersWeb.Admin.FilterTermsLive.Form do
   @impl true
   def handle_event("save", %{"filter_field" => params}, socket) do
     save_item(socket, socket.assigns.mode, params)
+  end
+
+  @impl true
+  def handle_event("delete", _params, socket) do
+    filter_type = socket.assigns.filter_type
+
+    case FilterFields.delete(filter_type, socket.assigns.item) do
+      {:ok, _} ->
+        {:noreply,
+         socket
+         |> put_flash(:info, "#{FilterFields.singular_label(filter_type)} deleted successfully")
+         |> push_navigate(to: ~p"/admin/filter-terms?type=#{filter_type}")}
+
+      {:error, _} ->
+        {:noreply,
+         put_flash(socket, :error, "Failed to delete. It may be in use by existing galls.")}
+    end
   end
 
   @impl true
@@ -180,7 +197,18 @@ defmodule GallformersWeb.Admin.FilterTermsLive.Form do
             </div>
           <% end %>
 
-          <div class="flex justify-end pt-4 border-t border-gray-200">
+          <div class="flex justify-between pt-4 border-t border-gray-200">
+            <div>
+              <button
+                :if={@mode == :edit}
+                type="button"
+                phx-click="delete"
+                data-confirm={"Are you sure you want to delete this #{FilterFields.singular_label(@filter_type) |> String.downcase()}? This may affect existing galls that use it."}
+                class="gf-btn gf-btn-danger"
+              >
+                Delete
+              </button>
+            </div>
             <.form_actions
               form_dirty={@form_dirty}
               mode={@mode}

@@ -65,9 +65,6 @@ defmodule GallformersWeb.Admin.DashboardLive do
           icon="ph-plus-circle"
         />
         <.action_card label="Create a New Article" href="/admin/articles/new" icon="ph-plus-circle" />
-        <%= if Gallformers.Accounts.superadmin?(@current_user) do %>
-          <.action_card label="Create a New Place" href="/admin/places/new" icon="ph-plus-circle" />
-        <% end %>
         <.action_card
           label="Manage Gall-Host Associations"
           href="/admin/gallhost"
@@ -83,11 +80,18 @@ defmodule GallformersWeb.Admin.DashboardLive do
           href="/admin/species-sources/find"
           icon="ph-magnifying-glass"
         />
-        <.action_card label="Edit My Profile" href="/admin/profile" icon="ph-user-circle" />
-        <%= if Gallformers.Accounts.superadmin?(@current_user) do %>
-          <.action_card label="Manage Users" href="/admin/users" icon="ph-users-three" />
-        <% end %>
       </div>
+
+      <%!-- Super Admin Section --%>
+      <%= if Gallformers.Accounts.superadmin?(@current_user) do %>
+        <div class="mt-6">
+          <h2 class="text-lg font-semibold text-gray-700 mb-3">Super Admin</h2>
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <.action_card label="Manage Users" href="/admin/users" icon="ph-users-three" />
+            <.action_card label="Create a New Place" href="/admin/places/new" icon="ph-plus-circle" />
+          </div>
+        </div>
+      <% end %>
     </Layouts.admin>
     """
   end

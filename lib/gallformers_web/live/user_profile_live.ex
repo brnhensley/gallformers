@@ -54,6 +54,30 @@ defmodule GallformersWeb.UserProfileLive do
       (user.personal_url && user.personal_url != "")
   end
 
+  # Social platform patterns: {match_strings, icon, label}
+  @social_platforms [
+    {["twitter.com", "x.com"], "ph-x-logo", "X"},
+    {["facebook.com"], "ph-facebook-logo", "Facebook"},
+    {["instagram.com"], "ph-instagram-logo", "Instagram"},
+    {["linkedin.com"], "ph-linkedin-logo", "LinkedIn"},
+    {["youtube.com", "youtu.be"], "ph-youtube-logo", "YouTube"},
+    {["bsky.app", "bluesky"], "ph-butterfly", "Bluesky"},
+    {["mastodon", "fosstodon", "mstdn"], "ph-mastodon-logo", "Mastodon"}
+  ]
+
+  @default_social {"ph-chat-circle", "Social"}
+
+  # Detect social media platform from URL and return {icon, label}
+  defp social_platform(url) when is_binary(url) do
+    url_lower = String.downcase(url)
+
+    Enum.find_value(@social_platforms, @default_social, fn {patterns, icon, label} ->
+      if Enum.any?(patterns, &String.contains?(url_lower, &1)), do: {icon, label}
+    end)
+  end
+
+  defp social_platform(_), do: @default_social
+
   @impl true
   def render(assigns) do
     ~H"""
@@ -80,31 +104,37 @@ defmodule GallformersWeb.UserProfileLive do
             <%!-- About Me --%>
             <%= if @user.about_me && @user.about_me != "" do %>
               <div class="mb-6">
-                <p class="text-gray-700 whitespace-pre-wrap">{@user.about_me}</p>
+                <p class="text-gray-600 whitespace-pre-wrap">{@user.about_me}</p>
               </div>
             <% end %>
 
             <%!-- Profile Links --%>
             <%= if has_links?(@user) do %>
-              <div class="flex flex-wrap gap-4 text-sm">
+              <div class="flex flex-wrap items-center gap-4">
                 <%= if @user.inaturalist_url && @user.inaturalist_url != "" do %>
                   <a
                     href={@user.inaturalist_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    class="hover:underline"
+                    title="iNaturalist profile"
+                    class="hover:opacity-80 transition-opacity"
                   >
-                    iNaturalist
+                    <img
+                      src="/images/inatlogo-small.png"
+                      alt="iNaturalist"
+                      class="h-6"
+                    />
                   </a>
                 <% end %>
+                <% {social_icon, social_label} = social_platform(@user.social_url) %>
                 <%= if @user.social_url && @user.social_url != "" do %>
                   <a
                     href={@user.social_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    class="hover:underline"
+                    class="inline-flex items-center gap-1 text-gf-maroon hover:underline"
                   >
-                    Social
+                    <.icon name={social_icon} class="h-5 w-5" /> {social_label}
                   </a>
                 <% end %>
                 <%= if @user.personal_url && @user.personal_url != "" do %>
@@ -112,9 +142,9 @@ defmodule GallformersWeb.UserProfileLive do
                     href={@user.personal_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    class="hover:underline"
+                    class="inline-flex items-center gap-1 text-gf-maroon hover:underline"
                   >
-                    Website
+                    <.icon name="ph-globe" class="h-5 w-5" /> Website
                   </a>
                 <% end %>
               </div>

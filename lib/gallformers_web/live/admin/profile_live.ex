@@ -53,8 +53,25 @@ defmodule GallformersWeb.Admin.ProfileLive do
         socket
         |> assign(:user, user)
         |> assign(:form, to_form(changeset))
+        |> assign(:inat_username, extract_inat_username(user.inaturalist_url))
     end
   end
+
+  @inat_url_pattern ~r{^https?://(?:www\.)?inaturalist\.org/people/([^/\s?]+)}
+
+  defp extract_inat_username(nil), do: ""
+  defp extract_inat_username(""), do: ""
+
+  defp extract_inat_username(url) do
+    case Regex.run(@inat_url_pattern, url) do
+      [_, username] -> username
+      _ -> ""
+    end
+  end
+
+  defp build_inat_url(""), do: nil
+  defp build_inat_url(nil), do: nil
+  defp build_inat_url(username), do: "https://www.inaturalist.org/people/#{username}"
 
   def close_form(socket) do
     push_navigate(socket, to: ~p"/admin")
@@ -62,6 +79,12 @@ defmodule GallformersWeb.Admin.ProfileLive do
 
   @impl true
   def handle_event("validate", %{"user" => user_params}, socket) do
+    # Handle inat_username separately - it's not a real form field
+    inat_username = Map.get(user_params, "inat_username", socket.assigns.inat_username)
+
+    # Convert username to URL for the changeset
+    user_params = Map.put(user_params, "inaturalist_url", build_inat_url(inat_username))
+
     changeset =
       socket.assigns.user
       |> User.update_changeset(user_params)
@@ -70,6 +93,7 @@ defmodule GallformersWeb.Admin.ProfileLive do
     socket =
       socket
       |> assign(:form, to_form(changeset))
+      |> assign(:inat_username, inat_username)
       |> mark_dirty()
 
     {:noreply, socket}
@@ -83,6 +107,10 @@ defmodule GallformersWeb.Admin.ProfileLive do
 
   @impl true
   def handle_event("save", %{"user" => user_params}, socket) do
+    # Convert inat_username to URL
+    inat_username = Map.get(user_params, "inat_username", "")
+    user_params = Map.put(user_params, "inaturalist_url", build_inat_url(inat_username))
+
     case Accounts.update_user(socket.assigns.user, user_params) do
       {:ok, user} ->
         changeset = User.update_changeset(user, %{})
@@ -91,6 +119,7 @@ defmodule GallformersWeb.Admin.ProfileLive do
           socket
           |> assign(:user, user)
           |> assign(:form, to_form(changeset))
+          |> assign(:inat_username, extract_inat_username(user.inaturalist_url))
           |> assign(:form_dirty, false)
           |> put_flash(:info, "Profile updated successfully")
 
@@ -165,18 +194,24 @@ defmodule GallformersWeb.Admin.ProfileLive do
               />
             </div>
 
-            <%!-- iNaturalist URL --%>
+            <%!-- iNaturalist Username --%>
             <div class="mb-3">
-              <label class="gf-label">
-                iNaturalist Profile URL:
-              </label>
-              <input
-                type="url"
-                name={@form[:inaturalist_url].name}
-                value={Phoenix.HTML.Form.input_value(@form, :inaturalist_url)}
-                placeholder="https://www.inaturalist.org/people/yourusername"
-                class="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gf-maroon focus:border-gf-maroon"
-              />
+              <label class="gf-label">iNaturalist Username:</label>
+              <div class="flex items-center">
+                <span class="px-3 py-2 bg-gray-100 border border-r-0 border-gray-300 rounded-l text-sm text-gray-500">
+                  inaturalist.org/people/
+                </span>
+                <input
+                  type="text"
+                  name="user[inat_username]"
+                  value={@inat_username}
+                  placeholder="yourusername"
+                  class="flex-1 px-3 py-2 border border-gray-300 rounded-r text-sm focus:outline-none focus:ring-1 focus:ring-gf-maroon focus:border-gf-maroon"
+                />
+              </div>
+              <p class="mt-1 text-xs text-gray-500">
+                Just enter your username, not the full URL
+              </p>
             </div>
 
             <%!-- Social Media URL --%>

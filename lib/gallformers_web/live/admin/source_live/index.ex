@@ -79,15 +79,6 @@ defmodule GallformersWeb.Admin.SourceLive.Index do
     ~H"""
     <Layouts.admin flash={@flash} current_user={@current_user} page_title="Sources">
       <div class="space-y-6">
-        <%!-- Info banner --%>
-        <div class="gf-admin-info">
-          <.icon name="ph-info" class="h-5 w-5 text-blue-400 mr-2 flex-shrink-0" />
-          <p>
-            Sources are scientific references and citations linked to species.
-            Each source can be associated with multiple species to provide attribution.
-          </p>
-        </div>
-
         <%!-- Header with search and new button --%>
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div class="flex-1 max-w-xl">
@@ -152,6 +143,17 @@ defmodule GallformersWeb.Admin.SourceLive.Index do
                       label="Edit"
                       navigate={~p"/admin/sources/#{source.id}"}
                       variant="primary"
+                    />
+                    <.action_button
+                      icon="ph-dna"
+                      label="Map Species"
+                      navigate={~p"/admin/species-sources/add?source_id=#{source.id}"}
+                      variant="primary"
+                    />
+                    <.action_button
+                      icon="ph-arrow-square-out"
+                      label="View"
+                      navigate={~p"/source/#{source.id}"}
                     />
                     <.action_button
                       icon="ph-trash"

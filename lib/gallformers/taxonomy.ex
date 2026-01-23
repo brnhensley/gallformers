@@ -106,6 +106,77 @@ defmodule Gallformers.Taxonomy do
   end
 
   @doc """
+  Looks up taxonomy info (genus, section, family) from a species name.
+
+  Extracts the genus from the first word of the species name,
+  looks it up in the taxonomy table, and returns the full taxonomy path.
+
+  Returns a map with the same structure as `get_taxonomy_for_species/1`,
+  or nil if the genus is not found.
+
+  ## Examples
+
+      iex> get_taxonomy_from_species_name("Andricus quercuslanigera")
+      %{genus: "Andricus", genus_id: 123, section: nil, section_id: nil, family: "Cynipidae", family_id: 456}
+
+      iex> get_taxonomy_from_species_name("Unknown species")
+      nil
+  """
+  @spec get_taxonomy_from_species_name(String.t()) :: map() | nil
+  def get_taxonomy_from_species_name(name) when is_binary(name) do
+    case String.split(name, " ", parts: 2) do
+      [genus_name | _] when byte_size(genus_name) > 0 ->
+        case get_taxonomy_by_name(genus_name, "genus") do
+          nil ->
+            nil
+
+          genus ->
+            # Get the parent (could be a section or family)
+            case get_parent(genus.id) do
+              nil ->
+                %{
+                  genus: genus.name,
+                  genus_id: genus.id,
+                  section: nil,
+                  section_id: nil,
+                  family: nil,
+                  family_id: nil
+                }
+
+              parent when parent.type == "section" ->
+                # Section's parent is the family
+                family = get_parent(parent.id)
+
+                %{
+                  genus: genus.name,
+                  genus_id: genus.id,
+                  section: parent.name,
+                  section_id: parent.id,
+                  family: family && family.name,
+                  family_id: family && family.id
+                }
+
+              parent ->
+                # Parent is the family directly
+                %{
+                  genus: genus.name,
+                  genus_id: genus.id,
+                  section: nil,
+                  section_id: nil,
+                  family: parent.name,
+                  family_id: parent.id
+                }
+            end
+        end
+
+      _ ->
+        nil
+    end
+  end
+
+  def get_taxonomy_from_species_name(_), do: nil
+
+  @doc """
   Gets the genus, section, and family for a species.
 
   Returns a map with taxonomy names and IDs (or nil if not found).

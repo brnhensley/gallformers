@@ -91,15 +91,6 @@ defmodule GallformersWeb.Admin.ArticleLive.Index do
     ~H"""
     <Layouts.admin flash={@flash} current_user={@current_user} page_title="Articles">
       <div class="space-y-6">
-        <%!-- Info banner --%>
-        <div class="gf-admin-info">
-          <.icon name="ph-info" class="h-5 w-5 text-blue-400 mr-2 flex-shrink-0" />
-          <p>
-            Reference articles provide educational content about galls, identification guides, and research resources.
-            Articles support markdown formatting and glossary term auto-linking.
-          </p>
-        </div>
-
         <%!-- Header with filters and new button --%>
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div class="flex flex-1 gap-3 max-w-2xl">

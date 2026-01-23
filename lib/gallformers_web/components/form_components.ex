@@ -421,6 +421,7 @@ defmodule GallformersWeb.FormComponents do
         id={@id}
         phx-hook="Typeahead"
         data-input-id={"#{@id}-input"}
+        data-close-event={@on_close}
         class="relative"
       >
         <div
@@ -438,6 +439,7 @@ defmodule GallformersWeb.FormComponents do
               phx-click={@on_remove}
               phx-value-type={@type}
               phx-value-id={get_item_id(item, @item_id)}
+              onmousedown="event.preventDefault()"
               class="gf-chip-remove"
             >
               <.icon name="ph-x" class="h-3 w-3" />
@@ -451,6 +453,7 @@ defmodule GallformersWeb.FormComponents do
             placeholder={if @selected == [], do: @placeholder, else: ""}
             phx-keyup={@on_search}
             phx-focus={@on_open}
+            phx-blur={@on_close}
             phx-value-type={@type}
             class={["gf-multi-select-input", @is_md && "gf-multi-select-input-md"]}
           />
@@ -460,6 +463,7 @@ defmodule GallformersWeb.FormComponents do
             id={"#{@id}-results"}
             data-typeahead-results
             phx-click-away={@on_close}
+            onmousedown="event.preventDefault()"
             class={["gf-multi-select-dropdown", @is_md && "gf-multi-select-dropdown-md"]}
           >
             <button

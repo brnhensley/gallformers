@@ -1,8 +1,8 @@
-defmodule GallformersWeb.Admin.GallLiveTest do
+defmodule GallformersWeb.Admin.GallLive.FormTest do
   @moduledoc """
-  LiveView tests for the GallLive admin page (single-page pattern).
+  LiveView tests for the GallLive.Form admin page.
 
-  Tests the gall admin functionality including:
+  Tests the gall admin form functionality including:
   - Mount/render with typeahead search
   - Deep linking to existing galls
   - Create and edit workflows
@@ -55,7 +55,7 @@ defmodule GallformersWeb.Admin.GallLiveTest do
     end
 
     test "renders gall admin page with typeahead", %{conn: conn} do
-      {:ok, _view, html} = live(conn, ~p"/admin/galls")
+      {:ok, _view, html} = live(conn, ~p"/admin/galls/new")
 
       assert html =~ "Gall"
       assert html =~ "Name (binomial)"
@@ -63,13 +63,13 @@ defmodule GallformersWeb.Admin.GallLiveTest do
     end
 
     test "shows intro text", %{conn: conn} do
-      {:ok, _view, html} = live(conn, ~p"/admin/galls")
+      {:ok, _view, html} = live(conn, ~p"/admin/galls/new")
 
       assert html =~ "Search for an existing gall to edit, or type a new name to create one"
     end
 
     test "form fields are disabled in search mode", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/admin/galls")
+      {:ok, view, _html} = live(conn, ~p"/admin/galls/new")
 
       # Form fields should be disabled until a gall is selected
       assert has_element?(view, "fieldset[disabled]")
@@ -153,7 +153,7 @@ defmodule GallformersWeb.Admin.GallLiveTest do
     end
 
     test "search_gall with short query returns no results", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/admin/galls")
+      {:ok, view, _html} = live(conn, ~p"/admin/galls/new")
 
       html = render_click(view, "search_gall", %{"value" => "q"})
 
@@ -166,7 +166,7 @@ defmodule GallformersWeb.Admin.GallLiveTest do
       # Use first 3 chars of gall name for search
       query = String.slice(gall.name, 0..2)
 
-      {:ok, view, _html} = live(conn, ~p"/admin/galls")
+      {:ok, view, _html} = live(conn, ~p"/admin/galls/new")
 
       html = render_click(view, "search_gall", %{"value" => query})
 
@@ -182,7 +182,7 @@ defmodule GallformersWeb.Admin.GallLiveTest do
 
     test "selecting a gall loads it for editing", %{conn: conn} do
       gall = require_gall()
-      {:ok, view, _html} = live(conn, ~p"/admin/galls")
+      {:ok, view, _html} = live(conn, ~p"/admin/galls/new")
 
       html = render_click(view, "select_gall", %{"id" => Integer.to_string(gall.id)})
 
@@ -196,16 +196,13 @@ defmodule GallformersWeb.Admin.GallLiveTest do
       {:ok, conn: setup_admin_session(conn)}
     end
 
-    test "clearing gall returns to search mode", %{conn: conn} do
+    test "clearing gall redirects to list", %{conn: conn} do
       gall = require_gall()
       {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
 
-      render_click(view, "clear_gall", %{})
-
-      # Should return to search mode - form elements hidden
-      # Check that the gall-specific elements are gone
-      refute has_element?(view, "#gall-form")
-      refute has_element?(view, "button", "Rename")
+      # Should redirect to gall list
+      assert {:error, {:live_redirect, %{to: "/admin/galls"}}} =
+               render_click(view, "clear_gall", %{})
     end
   end
 
@@ -388,15 +385,13 @@ defmodule GallformersWeb.Admin.GallLiveTest do
       {:ok, conn: setup_admin_session(conn)}
     end
 
-    test "request_cancel with clean form clears selection", %{conn: conn} do
+    test "request_cancel with clean form redirects to list", %{conn: conn} do
       gall = require_gall()
       {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
 
-      # Form is clean, so cancel should clear selection
-      html = render_click(view, "request_cancel", %{})
-
-      # Should return to search mode - check for typeahead placeholder
-      assert html =~ "Search existing galls or type new name"
+      # Form is clean, so cancel should redirect to list
+      assert {:error, {:live_redirect, %{to: "/admin/galls"}}} =
+               render_click(view, "request_cancel", %{})
     end
 
     test "request_cancel with dirty form shows confirm modal", %{conn: conn} do
@@ -416,7 +411,7 @@ defmodule GallformersWeb.Admin.GallLiveTest do
   describe "Access control" do
     test "page requires admin session", %{conn: _conn} do
       conn_without_admin = build_conn()
-      conn_result = get(conn_without_admin, ~p"/admin/galls")
+      conn_result = get(conn_without_admin, ~p"/admin/galls/new")
 
       assert redirected_to(conn_result) =~ "/" or redirected_to(conn_result) =~ "/auth"
     end

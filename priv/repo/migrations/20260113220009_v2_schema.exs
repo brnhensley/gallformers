@@ -65,34 +65,40 @@ defmodule Gallformers.Repo.Migrations.V2Schema do
     create unique_index(:users, [:auth0_id])
 
     # --- Image sort_order ---
-    alter table(:image) do
-      add :sort_order, :integer, default: 0, null: false
+    # Only alter if image table exists (won't exist in fresh test DB)
+    if image_table_exists?() do
+      alter table(:image) do
+        add :sort_order, :integer, default: 0, null: false
+      end
+
+      create index(:image, [:species_id, :sort_order])
+
+      execute("""
+      UPDATE image
+      SET sort_order = (
+        SELECT row_num FROM (
+          SELECT
+            i.id,
+            ROW_NUMBER() OVER (
+              PARTITION BY i.species_id
+              ORDER BY i."default" DESC, COALESCE(s.title, ''), i.id ASC
+            ) - 1 as row_num
+          FROM image i
+          LEFT JOIN source s ON i.source_id = s.id
+        ) ranked
+        WHERE ranked.id = image.id
+      )
+      """)
     end
-
-    create index(:image, [:species_id, :sort_order])
-
-    execute("""
-    UPDATE image
-    SET sort_order = (
-      SELECT row_num FROM (
-        SELECT
-          i.id,
-          ROW_NUMBER() OVER (
-            PARTITION BY i.species_id
-            ORDER BY i."default" DESC, COALESCE(s.title, ''), i.id ASC
-          ) - 1 as row_num
-        FROM image i
-        LEFT JOIN source s ON i.source_id = s.id
-      ) ranked
-      WHERE ranked.id = image.id
-    )
-    """)
   end
 
   def down do
-    drop index(:image, [:species_id, :sort_order])
-    alter table(:image) do
-      remove :sort_order
+    if image_table_exists?() do
+      drop index(:image, [:species_id, :sort_order])
+
+      alter table(:image) do
+        remove :sort_order
+      end
     end
 
     drop table(:users)
@@ -103,6 +109,13 @@ defmodule Gallformers.Repo.Migrations.V2Schema do
   defp species_table_exists? do
     result =
       repo().query!("SELECT name FROM sqlite_master WHERE type='table' AND name='species'")
+
+    length(result.rows) > 0
+  end
+
+  defp image_table_exists? do
+    result =
+      repo().query!("SELECT name FROM sqlite_master WHERE type='table' AND name='image'")
 
     length(result.rows) > 0
   end

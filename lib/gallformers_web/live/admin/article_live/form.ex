@@ -169,6 +169,20 @@ defmodule GallformersWeb.Admin.ArticleLive.Form do
   end
 
   @impl true
+  def handle_event("delete", _params, socket) do
+    case Articles.delete_article(socket.assigns.article) do
+      {:ok, _} ->
+        {:noreply,
+         socket
+         |> put_flash(:info, "Article deleted successfully")
+         |> push_navigate(to: ~p"/admin/articles")}
+
+      {:error, _} ->
+        {:noreply, put_flash(socket, :error, "Failed to delete article")}
+    end
+  end
+
+  @impl true
   def handle_event(event, params, socket)
       when event in ~w(request_cancel cancel_discard confirm_discard) do
     # Handle image browser panels first
@@ -700,27 +714,40 @@ defmodule GallformersWeb.Admin.ArticleLive.Form do
               </div>
               <.input type="checkbox" field={@form[:is_published]} label="Published" />
 
-              <div class="flex justify-end pt-4 border-t border-gray-200 gap-3">
-                <button
-                  type="button"
-                  phx-click="request_cancel"
-                  class="px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={not @form_dirty}
-                  class={[
-                    "px-4 py-2 rounded-md",
-                    if(@form_dirty,
-                      do: "bg-gf-maroon text-white hover:bg-gf-maroon/90",
-                      else: "bg-gray-300 text-gray-500 cursor-not-allowed"
-                    )
-                  ]}
-                >
-                  {if @mode == :edit, do: "Save Changes", else: "Create Article"}
-                </button>
+              <div class="flex justify-between pt-4 border-t border-gray-200">
+                <div>
+                  <button
+                    :if={@mode == :edit}
+                    type="button"
+                    phx-click="delete"
+                    data-confirm="Are you sure you want to delete this article?"
+                    class="gf-btn gf-btn-danger"
+                  >
+                    Delete
+                  </button>
+                </div>
+                <div class="flex gap-3">
+                  <button
+                    type="button"
+                    phx-click="request_cancel"
+                    class="px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={not @form_dirty}
+                    class={[
+                      "px-4 py-2 rounded-md",
+                      if(@form_dirty,
+                        do: "bg-gf-maroon text-white hover:bg-gf-maroon/90",
+                        else: "bg-gray-300 text-gray-500 cursor-not-allowed"
+                      )
+                    ]}
+                  >
+                    {if @mode == :edit, do: "Save Changes", else: "Create Article"}
+                  </button>
+                </div>
               </div>
             </.form>
           <% else %>

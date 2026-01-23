@@ -70,19 +70,16 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Index do
   end
 
   @impl true
-  def handle_event("delete", %{"id" => id}, socket) do
-    taxonomy = Taxonomy.get_taxonomy!(String.to_integer(id))
-
-    case Taxonomy.delete_taxonomy(taxonomy) do
-      {:ok, _} ->
-        {:noreply,
-         socket
-         |> put_flash(:info, "Taxonomy deleted successfully")
-         |> load_taxonomies()}
-
-      {:error, _changeset} ->
-        {:noreply, put_flash(socket, :error, "Failed to delete taxonomy")}
-    end
+  def handle_event("delete", %{"id" => _id}, socket) do
+    # Taxonomy deletion is disabled until soft delete is implemented
+    # Deleting taxonomy entries can cascade to hundreds of downstream records
+    {:noreply,
+     put_flash(
+       socket,
+       :error,
+       "Taxonomy deletion is temporarily disabled. Deleting a family or genus can cascade to " <>
+         "hundreds of species records. This will be re-enabled once soft delete is implemented."
+     )}
   end
 
   @impl true
@@ -134,15 +131,6 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Index do
     ~H"""
     <Layouts.admin flash={@flash} current_user={@current_user} page_title="Taxonomy">
       <div class="space-y-6">
-        <%!-- Info banner --%>
-        <div class="gf-admin-info">
-          <.icon name="ph-info" class="h-5 w-5 text-blue-400 mr-2 flex-shrink-0" />
-          <p>
-            Taxonomy entries organize species into families, genera, and sections.
-            Each entry can have a parent to form the taxonomic hierarchy.
-          </p>
-        </div>
-
         <%!-- Header with search, filter, and new button --%>
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div class="flex items-center gap-4 flex-1 max-w-2xl">
@@ -215,12 +203,16 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Index do
                       variant="primary"
                     />
                     <.action_button
+                      icon="ph-arrow-square-out"
+                      label="View"
+                      navigate={~p"/#{taxonomy.type}/#{taxonomy.id}"}
+                    />
+                    <.action_button
                       icon="ph-trash"
                       label="Delete"
                       variant="danger"
                       phx-click="delete"
                       phx-value-id={taxonomy.id}
-                      confirm="Are you sure? This will also affect species in this taxonomy."
                     />
                   </.table_actions>
                 </td>

@@ -800,7 +800,7 @@ defmodule GallformersWeb.DataDisplayComponents do
 
   def table_actions(assigns) do
     ~H"""
-    <div class={["flex items-center justify-end gap-1", @class]}>
+    <div class={["flex items-center justify-center gap-1", @class]}>
       {render_slot(@inner_block)}
     </div>
     """

@@ -60,7 +60,8 @@ defmodule GallformersWeb.Admin.ProfileLiveTest do
 
       assert has_element?(view, "#profile-form")
       assert has_element?(view, "input[name='user[display_name]']")
-      assert has_element?(view, "input[name='user[inaturalist_url]']")
+      # iNaturalist is now a username field that gets converted to URL on save
+      assert has_element?(view, "input[name='user[inat_username]']")
       assert has_element?(view, "input[name='user[social_url]']")
       assert has_element?(view, "input[name='user[personal_url]']")
       assert has_element?(view, "input[name='user[show_on_about]']")
@@ -83,10 +84,11 @@ defmodule GallformersWeb.Admin.ProfileLiveTest do
       {:ok, view, _html} = live(conn, ~p"/admin/profile")
 
       # Submit form with URLs
+      # iNaturalist uses username-only field that converts to full URL on save
       view
       |> form("#profile-form",
         user: %{
-          inaturalist_url: "https://www.inaturalist.org/people/testuser",
+          inat_username: "testuser",
           social_url: "https://twitter.com/testuser",
           personal_url: "https://example.com"
         }
@@ -95,6 +97,7 @@ defmodule GallformersWeb.Admin.ProfileLiveTest do
 
       # Verify the update persisted
       updated_user = Accounts.get_user(user.id)
+      # Username is converted to full URL when saved
       assert updated_user.inaturalist_url == "https://www.inaturalist.org/people/testuser"
       assert updated_user.social_url == "https://twitter.com/testuser"
       assert updated_user.personal_url == "https://example.com"
@@ -118,8 +121,9 @@ defmodule GallformersWeb.Admin.ProfileLiveTest do
     test "URL fields use browser validation", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/admin/profile")
 
-      # URL inputs have type="url" for browser validation
-      assert has_element?(view, "input[type='url'][name='user[inaturalist_url]']")
+      # iNaturalist is now a text field for username (not a URL)
+      assert has_element?(view, "input[type='text'][name='user[inat_username]']")
+      # These URL inputs have type="url" for browser validation
       assert has_element?(view, "input[type='url'][name='user[social_url]']")
       assert has_element?(view, "input[type='url'][name='user[personal_url]']")
     end

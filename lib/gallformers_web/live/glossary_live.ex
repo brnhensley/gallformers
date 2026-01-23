@@ -124,7 +124,7 @@ defmodule GallformersWeb.GlossaryLive do
                   <td class="font-bold">
                     {entry.word}
                   </td>
-                  <td>
+                  <td class="text-gray-600">
                     {entry.definition}
                   </td>
                   <td class="text-gray-500">

@@ -24,6 +24,8 @@ defmodule GallformersWeb.Admin.PlaceLive.Form do
   def create_entity(params), do: Gallformers.Places.create_place(params)
   @impl GallformersWeb.Admin.FormHelpers
   def update_entity(entity, params), do: Gallformers.Places.update_place(entity, params)
+  @impl GallformersWeb.Admin.FormHelpers
+  def delete_entity(entity), do: Gallformers.Places.delete_place(entity)
 
   @impl true
   def mount(_params, session, socket) do
@@ -47,6 +49,9 @@ defmodule GallformersWeb.Admin.PlaceLive.Form do
 
   @impl true
   def handle_event("save", params, socket), do: handle_save(params, socket)
+
+  @impl true
+  def handle_event("delete", params, socket), do: handle_delete(params, socket)
 
   @impl true
   def handle_event(event, params, socket)
@@ -107,7 +112,18 @@ defmodule GallformersWeb.Admin.PlaceLive.Form do
             </div>
           </div>
 
-          <div class="flex justify-end pt-4 border-t border-gray-200">
+          <div class="flex justify-between pt-4 border-t border-gray-200">
+            <div>
+              <button
+                :if={@mode == :edit}
+                type="button"
+                phx-click="delete"
+                data-confirm="Are you sure you want to delete this place? This may affect host range data."
+                class="gf-btn gf-btn-danger"
+              >
+                Delete
+              </button>
+            </div>
             <.form_actions form_dirty={@form_dirty} mode={@mode} create_label="Create Place" />
           </div>
         </.form>

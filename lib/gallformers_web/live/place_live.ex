@@ -10,6 +10,9 @@ defmodule GallformersWeb.PlaceLive do
 
   alias Gallformers.Repo
   alias Gallformers.Species.Species
+  alias Phoenix.LiveView.JS
+
+  @page_size 25
 
   @impl true
   def mount(%{"id" => id}, _session, socket) do
@@ -48,8 +51,8 @@ defmodule GallformersWeb.PlaceLive do
          )}
 
       place ->
-        # Get parent place
-        parent = if place.parent_id, do: get_place(place.parent_id), else: nil
+        # Get parent place via placeplace join table
+        parent = get_parent_place(place_id)
 
         # Get hosts for this place
         hosts = get_hosts_for_place(place_id)
@@ -66,6 +69,9 @@ defmodule GallformersWeb.PlaceLive do
            place: place,
            parent: parent,
            hosts: hosts,
+           search_query: "",
+           current_page: 1,
+           page_size: @page_size,
            error: nil
          )}
     end
@@ -78,9 +84,24 @@ defmodule GallformersWeb.PlaceLive do
         id: p.id,
         name: p.name,
         code: p.code,
-        type: p.type,
-        parent_id: p.parent_id
+        type: p.type
       }
+    )
+    |> Repo.one()
+  end
+
+  defp get_parent_place(place_id) do
+    from(p in "place",
+      join: pp in "placeplace",
+      on: pp.parent_id == p.id,
+      where: pp.place_id == ^place_id,
+      select: %{
+        id: p.id,
+        name: p.name,
+        code: p.code,
+        type: p.type
+      },
+      limit: 1
     )
     |> Repo.one()
   end
@@ -106,6 +127,38 @@ defmodule GallformersWeb.PlaceLive do
     else
       ""
     end
+  end
+
+  @impl true
+  def handle_event("search", %{"query" => query}, socket) do
+    {:noreply, assign(socket, search_query: query, current_page: 1)}
+  end
+
+  @impl true
+  def handle_event("page", %{"page" => page}, socket) do
+    filtered = filtered_hosts(socket.assigns.hosts, socket.assigns.search_query)
+    page = max(1, min(page, total_pages(filtered, socket.assigns.page_size)))
+    {:noreply, assign(socket, current_page: page)}
+  end
+
+  defp filtered_hosts(hosts, ""), do: hosts
+
+  defp filtered_hosts(hosts, query) do
+    query_down = String.downcase(query)
+
+    Enum.filter(hosts, fn host ->
+      String.contains?(String.downcase(host.name), query_down)
+    end)
+  end
+
+  defp paginated_hosts(hosts, current_page, page_size) do
+    hosts
+    |> Enum.drop((current_page - 1) * page_size)
+    |> Enum.take(page_size)
+  end
+
+  defp total_pages(hosts, page_size) do
+    max(1, ceil(length(hosts) / page_size))
   end
 
   @impl true
@@ -142,11 +195,23 @@ defmodule GallformersWeb.PlaceLive do
             </div>
 
             <%!-- Hosts list --%>
+            <% filtered = filtered_hosts(@hosts, @search_query) %>
             <div class="mt-6">
-              <h2 class="text-lg font-semibold text-gray-800 mb-3">
-                Host Plants ({length(@hosts)})
-              </h2>
-              <%= if length(@hosts) > 0 do %>
+              <div class="flex items-center justify-between mb-3">
+                <h2 class="text-lg font-semibold text-gray-800">
+                  Host Plants ({length(filtered)}{if @search_query != "", do: " of #{length(@hosts)}"})
+                </h2>
+                <form phx-change="search" class="w-64">
+                  <.search_input
+                    id="host-search"
+                    name="query"
+                    value={@search_query}
+                    placeholder="Filter hosts..."
+                    phx-debounce="200"
+                  />
+                </form>
+              </div>
+              <%= if length(filtered) > 0 do %>
                 <div class="bg-white rounded border border-gray-200 overflow-hidden">
                   <table class="gf-table">
                     <thead>
@@ -155,7 +220,7 @@ defmodule GallformersWeb.PlaceLive do
                       </tr>
                     </thead>
                     <tbody>
-                      <tr :for={host <- @hosts}>
+                      <tr :for={host <- paginated_hosts(filtered, @current_page, @page_size)}>
                         <td>
                           <.link
                             href={"/host/#{host.id}"}
@@ -168,8 +233,21 @@ defmodule GallformersWeb.PlaceLive do
                     </tbody>
                   </table>
                 </div>
+                <.pagination
+                  :if={total_pages(filtered, @page_size) > 1}
+                  page={@current_page}
+                  total_pages={total_pages(filtered, @page_size)}
+                  total_items={length(filtered)}
+                  page_size={@page_size}
+                  on_page_change={fn page -> JS.push("page", value: %{page: page}) end}
+                  class="mt-4"
+                />
               <% else %>
-                <p class="text-gray-500 italic">No host plants found for this location.</p>
+                <%= if @search_query != "" do %>
+                  <p class="text-gray-500 italic">No hosts match "{@search_query}".</p>
+                <% else %>
+                  <p class="text-gray-500 italic">No host plants found for this location.</p>
+                <% end %>
               <% end %>
             </div>
           <% else %>

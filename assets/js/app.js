@@ -390,6 +390,13 @@ const Typeahead = {
         if (this.highlightedIndex >= 0 && results[this.highlightedIndex]) {
           results[this.highlightedIndex].click()
           this.highlightedIndex = -1
+        } else if (this.input && this.input.value.trim() !== "") {
+          // No result highlighted but there's text - trigger close to add as new item
+          const closeEvent = this.el.dataset.closeEvent
+          if (closeEvent) {
+            this.pushEvent(closeEvent, {})
+            this.input.value = "" // Clear input immediately (LiveView won't update focused inputs)
+          }
         }
         break
 
