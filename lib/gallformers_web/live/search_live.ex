@@ -323,7 +323,7 @@ defmodule GallformersWeb.SearchLive do
                           :if={Map.get(result, :aliases, []) != []}
                           class="text-sm text-gray-500 ml-2"
                         >
-                          (also: {Enum.join(result.aliases, ", ")})
+                          ({Enum.join(result.aliases, ", ")})
                         </span>
                       </td>
                     </tr>

@@ -269,7 +269,7 @@ defmodule Gallformers.Search do
         |> Enum.map_join(" ", &"#{&1}*")
 
       sql = """
-      SELECT f.species_id, s.name, g.undescribed, f.aliases
+      SELECT f.species_id, s.name, g.undescribed
       FROM species_fts f
       JOIN species s ON s.id = f.species_id
       JOIN gallspecies gs ON gs.species_id = s.id
@@ -284,7 +284,8 @@ defmodule Gallformers.Search do
           search_terms = Ranking.parse_query(query)
 
           rows
-          |> Enum.map(&transform_gall_row(&1, query))
+          |> Enum.map(&transform_gall_fts_row/1)
+          |> load_all_aliases_for_species()
           |> Ranking.add_scores_and_sort(search_terms)
 
         {:error, _} ->
@@ -311,8 +312,7 @@ defmodule Gallformers.Search do
           id: s.id,
           name: s.name,
           type: "gall",
-          undescribed: g.undescribed,
-          aliases: []
+          undescribed: g.undescribed
         }
       )
       |> Repo.all()
@@ -331,15 +331,15 @@ defmodule Gallformers.Search do
           id: s.id,
           name: s.name,
           type: "gall",
-          undescribed: g.undescribed,
-          alias_match: a.name
+          undescribed: g.undescribed
         }
       )
       |> Repo.all()
 
-    # Merge results, adding aliases to species that were found via alias
-    name_results
-    |> merge_species_with_aliases(alias_results)
+    # Merge and deduplicate, then load all aliases for each species
+    (name_results ++ alias_results)
+    |> Enum.uniq_by(& &1.id)
+    |> load_all_aliases_for_species()
     |> Ranking.add_scores_and_sort(search_terms)
   end
 
@@ -373,7 +373,7 @@ defmodule Gallformers.Search do
         |> Enum.map_join(" ", &"#{&1}*")
 
       sql = """
-      SELECT f.species_id, s.name, f.aliases
+      SELECT f.species_id, s.name
       FROM species_fts f
       JOIN species s ON s.id = f.species_id
       WHERE s.taxoncode = 'plant' AND species_fts MATCH ?
@@ -386,7 +386,8 @@ defmodule Gallformers.Search do
           search_terms = Ranking.parse_query(query)
 
           rows
-          |> Enum.map(&transform_host_row(&1, query))
+          |> Enum.map(&transform_host_fts_row/1)
+          |> load_all_aliases_for_species()
           |> Ranking.add_scores_and_sort(search_terms)
 
         {:error, _} ->
@@ -408,8 +409,7 @@ defmodule Gallformers.Search do
         select: %{
           id: s.id,
           name: s.name,
-          type: "host",
-          aliases: []
+          type: "host"
         }
       )
       |> Repo.all()
@@ -423,49 +423,24 @@ defmodule Gallformers.Search do
         select: %{
           id: s.id,
           name: s.name,
-          type: "host",
-          alias_match: a.name
+          type: "host"
         }
       )
       |> Repo.all()
 
-    name_results
-    |> merge_species_with_aliases(alias_results)
+    # Merge and deduplicate, then load all aliases for each species
+    (name_results ++ alias_results)
+    |> Enum.uniq_by(& &1.id)
+    |> load_all_aliases_for_species()
     |> Ranking.add_scores_and_sort(search_terms)
   end
 
-  defp transform_gall_row([id, name, undescribed, aliases], query) do
-    search_lower = String.downcase(query)
-    matching_aliases = find_matching_aliases(aliases, search_lower, name)
-
-    %{id: id, name: name, type: "gall", undescribed: undescribed == 1, aliases: matching_aliases}
+  defp transform_gall_fts_row([id, name, undescribed]) do
+    %{id: id, name: name, type: "gall", undescribed: undescribed == 1}
   end
 
-  defp transform_host_row([id, name, aliases], query) do
-    search_lower = String.downcase(query)
-    matching_aliases = find_matching_aliases(aliases, search_lower, name)
-
-    %{id: id, name: name, type: "host", aliases: matching_aliases}
-  end
-
-  # Finds aliases that match the search query from a space-separated alias string
-  # Only returns matching aliases if name doesn't match (to show why result appeared)
-  defp find_matching_aliases(nil, _search, _name), do: []
-  defp find_matching_aliases("", _search, _name), do: []
-
-  defp find_matching_aliases(aliases_str, search, name) do
-    # If the name itself matches, don't show aliases
-    if String.contains?(String.downcase(name), search) do
-      []
-    else
-      # Find and deduplicate matching aliases
-      aliases_str
-      |> String.split(" ")
-      |> Enum.filter(fn alias_name ->
-        alias_name != "" and String.contains?(String.downcase(alias_name), search)
-      end)
-      |> Enum.uniq()
-    end
+  defp transform_host_fts_row([id, name]) do
+    %{id: id, name: name, type: "host"}
   end
 
   @doc """
@@ -557,42 +532,27 @@ defmodule Gallformers.Search do
     |> Repo.all()
   end
 
-  # Merges species results with alias matches, deduplicating by ID
-  defp merge_species_with_aliases(name_results, alias_results) do
-    alias_map = build_alias_map(alias_results)
-    name_ids = MapSet.new(name_results, & &1.id)
+  # Loads all aliases for each species in the results list
+  defp load_all_aliases_for_species(results) when results == [], do: []
 
-    alias_only_species =
-      alias_results
-      |> Enum.reject(fn r -> MapSet.member?(name_ids, r.id) end)
-      |> Enum.uniq_by(& &1.id)
-      |> Enum.map(&add_aliases_to_result(&1, alias_map))
+  defp load_all_aliases_for_species(results) do
+    species_ids = Enum.map(results, & &1.id)
 
-    name_results_with_aliases = Enum.map(name_results, &add_aliases_to_result(&1, alias_map))
+    # Fetch all aliases for these species via the aliasspecies join table
+    alias_map =
+      from(a in Alias,
+        join: as in "aliasspecies",
+        on: as.alias_id == a.id,
+        where: as.species_id in ^species_ids,
+        select: {as.species_id, a.name}
+      )
+      |> Repo.all()
+      |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
 
-    name_results_with_aliases ++ alias_only_species
-  end
-
-  # Builds a map of species ID -> list of matching alias names
-  defp build_alias_map(alias_results) do
-    Enum.reduce(alias_results, %{}, fn result, acc ->
-      add_alias_to_map(acc, result.id, result.alias_match)
+    # Add aliases to each result
+    Enum.map(results, fn result ->
+      aliases = Map.get(alias_map, result.id, [])
+      Map.put(result, :aliases, aliases)
     end)
-  end
-
-  defp add_alias_to_map(acc, id, alias_name) do
-    Map.update(acc, id, [alias_name], &maybe_add_alias(&1, alias_name))
-  end
-
-  defp maybe_add_alias(aliases, alias_name) do
-    if alias_name in aliases, do: aliases, else: [alias_name | aliases]
-  end
-
-  defp add_aliases_to_result(result, alias_map) do
-    aliases = Map.get(alias_map, result.id, [])
-
-    result
-    |> Map.put(:aliases, aliases)
-    |> Map.delete(:alias_match)
   end
 end
