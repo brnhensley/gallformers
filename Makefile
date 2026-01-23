@@ -2,7 +2,7 @@
 #
 # Phoenix/LiveView development commands
 
-.PHONY: dev test download-db ci help deps assets setup clean check-db build run-local-release
+.PHONY: dev test test-db download-db ci help deps assets setup clean check-db build run-local-release
 
 # Download production database for local dev
 # Uses public S3 snapshot (updated daily by GitHub Actions)
@@ -82,8 +82,21 @@ run-local-release:
 	PORT=4000 \
 	_build/prod/rel/gallformers/bin/gallformers start
 
-# Run tests (excludes E2E tests)
-test:
+# =============================================================================
+# Testing
+# =============================================================================
+
+# Set up fresh test database from structure.sql + test_seeds.sql
+test-db:
+	@echo "Setting up test database..."
+	@rm -f priv/gallformers_test.sqlite*
+	@MIX_ENV=test mix ecto.create --quiet
+	@MIX_ENV=test mix ecto.load --quiet
+	@sqlite3 priv/gallformers_test.sqlite < priv/repo/test_seeds.sql
+	@echo "Test database ready"
+
+# Run tests (rebuilds test DB first, excludes E2E tests)
+test: test-db
 	mix test
 
 # =============================================================================

@@ -63,8 +63,9 @@ npm-debug.log
 # Database files
 *.db
 *.db-*
-# Ignore dev database but keep gallformers_test.sqlite (tracked for tests)
+# Ignore all database files (dev and test)
 /priv/gallformers.sqlite
+/priv/gallformers_test.sqlite
 *.sqlite-shm
 *.sqlite-wal
 

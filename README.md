@@ -67,11 +67,21 @@ cp v1/prisma/gallformers.sqlite priv/gallformers.sqlite
 
 ```bash
 mix phx.server          # Start dev server
-mix test                # Run tests (fast, excludes E2E)
+make test               # Rebuild test DB + run tests (excludes E2E)
+mix test                # Run tests without rebuilding DB
 mix format              # Format code
 mix credo --strict      # Code quality
 mix precommit           # Run all checks (do this before committing)
+make ci                 # Full CI check (same as GitHub Actions)
 ```
+
+### Test Database
+
+Tests use a separate database (`priv/gallformers_test.sqlite`) built from:
+- `priv/repo/structure.sql` - Schema only (no production data)
+- `priv/repo/test_seeds.sql` - Minimal seed data for tests
+
+`make test` rebuilds this automatically. Use `make test-db` to rebuild manually.
 
 ## E2E Testing
 

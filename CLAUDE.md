@@ -109,7 +109,6 @@ gallformers/
 ```bash
 mix setup                  # Install deps, setup DB, build assets
 mix phx.server             # Start dev server at http://localhost:4000
-mix test                   # Run all tests
 mix format                 # Format code
 mix credo --strict         # Run code quality checks
 mix precommit              # Run all checks before committing
@@ -130,9 +129,103 @@ Always run before committing:
 
 ```bash
 mix precommit    # Runs format, credo, and tests
+make ci          # Full CI check (format, compile, credo, test, assets, dialyzer)
 ```
 
 Do not commit until precommit passes.
+
+## Testing
+
+### Test Database
+
+Tests use a **separate test database** (`priv/gallformers_test.sqlite`) that is:
+- **Schema-only**: Created from `priv/repo/structure.sql` (no production data)
+- **Minimal seed data**: Loaded from `priv/repo/test_seeds.sql` with just enough data for tests
+- **Rebuilt fresh**: `make test` rebuilds the test DB before each run
+
+```bash
+make test-db               # Rebuild test database manually (rarely needed)
+```
+
+**Important**: The test database uses `journal_mode: :delete` (not WAL) to prevent sandbox
+rollbacks from affecting the main database file.
+
+### Unit & Integration Tests
+
+```bash
+make test                  # Rebuild test DB + run tests (excludes E2E)
+mix test                   # Run tests without rebuilding DB
+mix test test/gallformers  # Run only context tests
+mix test path/to/test.exs  # Run specific test file
+mix test path/to/test.exs:42  # Run specific test at line 42
+```
+
+Tests use Ecto's SQL Sandbox for isolation - each test runs in a transaction that's rolled back.
+
+### E2E Tests (Browser-based)
+
+E2E tests use [Wallaby](https://github.com/elixir-wallaby/wallaby) with Chrome. They're **excluded
+from regular test runs** to keep the dev loop fast.
+
+**Prerequisites**: ChromeDriver is required.
+```bash
+# macOS
+brew install chromedriver
+xattr -d com.apple.quarantine $(which chromedriver)  # Allow through Gatekeeper
+
+# Verify installation
+make e2e-setup
+```
+
+**Running E2E tests**:
+```bash
+make e2e                   # Run all E2E tests
+make e2e-changed           # Run only tests affected by changed files (smart)
+make e2e-public            # Public pages only
+make e2e-search            # Search functionality only
+make e2e-browse            # Species/hosts/galls browsing only
+make e2e-admin             # Admin pages only
+make e2e-auth              # Authentication flows only
+```
+
+**Debugging**:
+```bash
+make e2e-headed            # Run with visible browser
+E2E_HEADED=1 make e2e-admin  # Specific area with visible browser
+```
+
+### Test Organization
+
+| Directory | Type | Coverage |
+|-----------|------|----------|
+| `test/gallformers/` | Unit | Context modules (business logic) |
+| `test/gallformers_web/live/` | Integration | LiveView tests (no browser) |
+| `test/gallformers_web/controllers/` | Integration | Controller/API tests |
+| `test/e2e/public/` | E2E | Home, about, glossary, resources |
+| `test/e2e/search/` | E2E | Global search, ID tool |
+| `test/e2e/browse/` | E2E | Species, hosts, galls detail pages |
+| `test/e2e/admin/` | E2E | Admin dashboard, CRUD operations |
+| `test/e2e/auth/` | E2E | Login, logout, protected routes |
+
+### Writing E2E Tests
+
+All E2E tests must be tagged with `@moduletag :e2e` plus an area tag. See
+`test/support/e2e_case.ex` for full documentation.
+
+```elixir
+defmodule GallformersWeb.E2E.MyTest do
+  use GallformersWeb.E2ECase
+
+  @moduletag :e2e
+  @moduletag :e2e_public  # Area tag
+
+  test "page loads", %{session: session} do
+    session
+    |> visit("/")
+    |> assert_has(Query.css("body.phx-connected"))
+  end
+end
+```
 
 ## Database
 
