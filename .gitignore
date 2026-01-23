@@ -78,3 +78,7 @@ api/bin/
 .env
 .env.local
 .env*.local
+
+# E2E test artifacts (Wallaby)
+/test/screenshots/*.png
+!/test/screenshots/.gitkeep

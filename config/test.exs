@@ -13,12 +13,22 @@ config :gallformers, Gallformers.Repo,
   journal_mode: :delete,
   busy_timeout: 5000
 
-# We don't run a server during test. If one is required,
-# you can enable the server option below.
+# Server is disabled by default for fast unit tests.
+# E2E tests enable the server via GALLFORMERS_E2E=1 environment variable.
 config :gallformers, GallformersWeb.Endpoint,
   http: [ip: {127, 0, 0, 1}, port: 4002],
   secret_key_base: "QXMJq8FP0hqnpEVCf4NmW0l3LLZMBoncyOmBqm2OrxKFnFuPBa7iIlHN6+5sD8dE",
-  server: false
+  server: System.get_env("GALLFORMERS_E2E") == "1"
+
+# Wallaby E2E test configuration (only used when GALLFORMERS_E2E=1)
+config :wallaby,
+  otp_app: :gallformers,
+  driver: Wallaby.Chrome,
+  screenshot_dir: "test/screenshots",
+  screenshot_on_failure: true,
+  chromedriver: [
+    headless: System.get_env("E2E_HEADED") != "1"
+  ]
 
 # In test we don't send emails
 config :gallformers, Gallformers.Mailer, adapter: Swoosh.Adapters.Test

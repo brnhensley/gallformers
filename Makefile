@@ -82,9 +82,112 @@ run-local-release:
 	PORT=4000 \
 	_build/prod/rel/gallformers/bin/gallformers start
 
-# Run tests
+# Run tests (excludes E2E tests)
 test:
 	mix test
+
+# =============================================================================
+# E2E Testing (Wallaby/Chrome)
+# =============================================================================
+# E2E tests are excluded from regular test runs. Use these targets to run them.
+# Requires chromedriver: brew install chromedriver (macOS)
+# See test/support/e2e_case.ex for documentation on writing E2E tests.
+
+.PHONY: e2e e2e-public e2e-search e2e-browse e2e-admin e2e-auth e2e-setup e2e-headed e2e-slow e2e-changed
+
+# Helper function to check chromedriver (called by all E2E targets)
+define check_chromedriver
+	@if ! command -v chromedriver >/dev/null 2>&1; then \
+		echo ""; \
+		echo "ERROR: chromedriver not found"; \
+		echo ""; \
+		echo "E2E tests require chromedriver. Install it:"; \
+		echo "  macOS:   brew install chromedriver"; \
+		echo "           xattr -d com.apple.quarantine \$$(which chromedriver)"; \
+		echo "  Ubuntu:  sudo apt-get install chromium-chromedriver"; \
+		echo ""; \
+		echo "Then run: make e2e-setup"; \
+		echo ""; \
+		exit 1; \
+	fi
+endef
+
+# Check chromedriver installation (required for Wallaby E2E tests)
+e2e-setup:
+	@echo "Checking chromedriver installation..."
+	@if command -v chromedriver >/dev/null 2>&1; then \
+		echo "✓ chromedriver found: $$(chromedriver --version)"; \
+	else \
+		echo "✗ chromedriver not found"; \
+		echo ""; \
+		echo "Install chromedriver:"; \
+		echo "  macOS:   brew install chromedriver"; \
+		echo "           xattr -d com.apple.quarantine \$$(which chromedriver)"; \
+		echo "  Ubuntu:  sudo apt-get install chromium-chromedriver"; \
+		echo "  Or download from: https://chromedriver.chromium.org/downloads"; \
+		exit 1; \
+	fi
+	@echo ""
+	@echo "Done. Run 'make e2e' to run E2E tests."
+
+# Run all E2E tests
+e2e:
+	$(call check_chromedriver)
+	@echo "Running all E2E tests..."
+	GALLFORMERS_E2E=1 mix test test/e2e --include e2e
+
+# Run E2E tests for public pages only
+e2e-public:
+	$(call check_chromedriver)
+	@echo "Running public pages E2E tests..."
+	GALLFORMERS_E2E=1 mix test test/e2e/public --include e2e
+
+# Run E2E tests for search functionality only
+e2e-search:
+	$(call check_chromedriver)
+	@echo "Running search E2E tests..."
+	GALLFORMERS_E2E=1 mix test test/e2e/search --include e2e
+
+# Run E2E tests for browse functionality only
+e2e-browse:
+	$(call check_chromedriver)
+	@echo "Running browse E2E tests..."
+	GALLFORMERS_E2E=1 mix test test/e2e/browse --include e2e
+
+# Run E2E tests for admin functionality only
+e2e-admin:
+	$(call check_chromedriver)
+	@echo "Running admin E2E tests..."
+	GALLFORMERS_E2E=1 mix test test/e2e/admin --include e2e
+
+# Run E2E tests for auth functionality only
+e2e-auth:
+	$(call check_chromedriver)
+	@echo "Running auth E2E tests..."
+	GALLFORMERS_E2E=1 mix test test/e2e/auth --include e2e
+
+# Run E2E tests with visible browser (for debugging)
+e2e-headed:
+	$(call check_chromedriver)
+	@echo "Running E2E tests with visible browser..."
+	GALLFORMERS_E2E=1 E2E_HEADED=1 mix test test/e2e --include e2e
+
+# Run E2E tests in slow motion (for debugging)
+# Note: Wallaby doesn't have a built-in slow mode like Playwright,
+# but headed mode helps with visual debugging
+e2e-slow:
+	$(call check_chromedriver)
+	@echo "Running E2E tests with visible browser (slow mode)..."
+	GALLFORMERS_E2E=1 E2E_HEADED=1 mix test test/e2e --include e2e --trace
+
+# Run only E2E tests affected by changed files (smart mode)
+# Usage: make e2e-changed              # Compare against main
+#        make e2e-changed REF=HEAD~3   # Compare against specific ref
+e2e-changed:
+	$(call check_chromedriver)
+	@./scripts/e2e-changed $(REF)
+
+# =============================================================================
 
 # Run CI checks (same as GitHub Actions)
 ci: assets/node_modules
@@ -171,8 +274,20 @@ help:
 	@echo ""
 	@echo "Development:"
 	@echo "  make dev               Start Phoenix dev server (:4000) - auto-installs deps"
-	@echo "  make test              Run tests"
+	@echo "  make test              Run tests (fast, excludes E2E)"
 	@echo "  make ci                Run all CI checks (format, compile, credo, test, dialyzer)"
+	@echo ""
+	@echo "E2E Testing (Wallaby/Chrome):"
+	@echo "  make e2e-setup         Check chromedriver installation"
+	@echo "  make e2e               Run all E2E tests"
+	@echo "  make e2e-changed       Run E2E tests for changed files only (smart)"
+	@echo "  make e2e-public        Run E2E tests for public pages only"
+	@echo "  make e2e-search        Run E2E tests for search only"
+	@echo "  make e2e-browse        Run E2E tests for browse only"
+	@echo "  make e2e-admin         Run E2E tests for admin only"
+	@echo "  make e2e-auth          Run E2E tests for auth only"
+	@echo "  make e2e-headed        Run E2E tests with visible browser"
+	@echo "  make e2e-slow          Run E2E tests in slow motion (debugging)"
 	@echo ""
 	@echo "Build:"
 	@echo "  make setup             Full setup (deps + assets + db check)"

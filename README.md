@@ -19,6 +19,7 @@ Visit [localhost:4000](http://localhost:4000) in your browser.
 - **Elixir 1.19+** and **OTP 28+**
 - **Node.js 20+** (for asset compilation)
 - **SQLite** (bundled via ecto_sqlite3)
+- **ChromeDriver** (for E2E tests only)
 
 ### Installing Elixir
 
@@ -37,6 +38,19 @@ asdf install erlang 28.0
 asdf install elixir 1.19.0-otp-28
 ```
 
+### Installing ChromeDriver (for E2E tests)
+
+```bash
+# macOS
+brew install chromedriver
+xattr -d com.apple.quarantine $(which chromedriver)  # Allow through Gatekeeper
+
+# Ubuntu/Debian
+sudo apt-get install chromium-chromedriver
+```
+
+Verify with `make e2e-setup`.
+
 ## Database Setup
 
 The database file is not committed. To get started:
@@ -53,10 +67,66 @@ cp v1/prisma/gallformers.sqlite priv/gallformers.sqlite
 
 ```bash
 mix phx.server          # Start dev server
-mix test                # Run tests
+mix test                # Run tests (fast, excludes E2E)
 mix format              # Format code
 mix credo --strict      # Code quality
 mix precommit           # Run all checks (do this before committing)
+```
+
+## E2E Testing
+
+Browser-based E2E tests use [Wallaby](https://github.com/elixir-wallaby/wallaby) with Chrome. These tests are **excluded from regular test runs** to keep the dev loop fast.
+
+Requires ChromeDriver - see [Prerequisites](#installing-chromedriver-for-e2e-tests).
+
+### Running E2E Tests
+
+```bash
+make e2e                # Run all E2E tests
+make e2e-changed        # Run only tests affected by changed files (smart)
+make e2e-public         # Public pages only
+make e2e-search         # Search functionality only
+make e2e-browse         # Species/hosts/galls browsing only
+make e2e-admin          # Admin pages only
+make e2e-auth           # Authentication flows only
+```
+
+### Debugging
+
+```bash
+make e2e-headed         # Run with visible browser
+E2E_HEADED=1 make e2e-public   # Specific area with visible browser
+```
+
+### Test Organization
+
+E2E tests are organized by functional area in `test/e2e/`:
+
+| Directory | Coverage |
+|-----------|----------|
+| `public/` | Home, about, glossary, resources, explore |
+| `search/` | Global search, ID tool |
+| `browse/` | Species, hosts, galls detail pages |
+| `admin/`  | Admin dashboard, CRUD operations |
+| `auth/`   | Login, logout, protected routes |
+
+### Writing E2E Tests
+
+See `test/support/e2e_case.ex` for documentation. All E2E tests must be tagged:
+
+```elixir
+defmodule GallformersWeb.E2E.MyTest do
+  use GallformersWeb.E2ECase
+
+  @moduletag :e2e
+  @moduletag :e2e_public  # Area tag
+
+  test "page loads", %{session: session} do
+    session
+    |> visit("/")
+    |> assert_has(css("body.phx-connected"))
+  end
+end
 ```
 
 ## Project Structure

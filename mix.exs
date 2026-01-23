@@ -78,7 +78,9 @@ defmodule Gallformers.MixProject do
       {:image, "~> 0.54"},
       # Dev/Test tools
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
-      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false}
+      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
+      # E2E browser testing (separate from regular test suite)
+      {:wallaby, "~> 0.30", only: :test, runtime: false}
     ]
   end
 

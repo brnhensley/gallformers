@@ -1,0 +1,145 @@
+#!/bin/bash
+#
+# Run E2E tests based on changed files.
+# Analyzes git diff to determine which E2E test areas are affected.
+#
+# Usage:
+#   scripts/e2e-changed           # Compare against main branch
+#   scripts/e2e-changed HEAD~3    # Compare against specific ref
+#   scripts/e2e-changed --all     # Run all E2E tests (bypass analysis)
+#
+
+set -e
+
+BASE_REF="${1:-main}"
+
+# Check for chromedriver (Makefile also checks, but catch it early here)
+if ! command -v chromedriver >/dev/null 2>&1; then
+    echo ""
+    echo "ERROR: chromedriver not found"
+    echo ""
+    echo "E2E tests require chromedriver. Install it:"
+    echo "  macOS:   brew install chromedriver"
+    echo "           xattr -d com.apple.quarantine \$(which chromedriver)"
+    echo "  Ubuntu:  sudo apt-get install chromium-chromedriver"
+    echo ""
+    echo "Then run: make e2e-setup"
+    echo ""
+    exit 1
+fi
+
+if [ "$BASE_REF" = "--all" ]; then
+    echo "Running all E2E tests..."
+    GALLFORMERS_E2E=1 mix test test/e2e --include e2e
+    exit 0
+fi
+
+echo "Analyzing changes against $BASE_REF..."
+
+# Get list of changed files
+CHANGED_FILES=$(git diff --name-only "$BASE_REF" 2>/dev/null || git diff --name-only HEAD~1)
+
+if [ -z "$CHANGED_FILES" ]; then
+    echo "No changes detected. Skipping E2E tests."
+    exit 0
+fi
+
+echo "Changed files:"
+echo "$CHANGED_FILES" | head -20
+echo ""
+
+# Determine which E2E test areas to run
+RUN_PUBLIC=false
+RUN_SEARCH=false
+RUN_BROWSE=false
+RUN_ADMIN=false
+RUN_AUTH=false
+
+for file in $CHANGED_FILES; do
+    case "$file" in
+        # Public pages
+        lib/gallformers_web/live/home_live* | \
+        lib/gallformers_web/live/about_live* | \
+        lib/gallformers_web/live/glossary_live* | \
+        lib/gallformers_web/live/resources_live* | \
+        lib/gallformers_web/live/filter_guide_live* | \
+        lib/gallformers_web/live/explore_live* | \
+        lib/gallformers_web/live/ref_index_live*)
+            RUN_PUBLIC=true
+            ;;
+
+        # Search functionality
+        lib/gallformers_web/live/search_live* | \
+        lib/gallformers_web/live/id_live* | \
+        lib/gallformers/search*)
+            RUN_SEARCH=true
+            ;;
+
+        # Browse (species, hosts, galls)
+        lib/gallformers_web/live/gall_live* | \
+        lib/gallformers_web/live/host_live* | \
+        lib/gallformers_web/live/species_live* | \
+        lib/gallformers/species* | \
+        lib/gallformers/hosts*)
+            RUN_BROWSE=true
+            ;;
+
+        # Admin
+        lib/gallformers_web/live/admin/*)
+            RUN_ADMIN=true
+            ;;
+
+        # Auth
+        lib/gallformers_web/controllers/auth* | \
+        lib/gallformers/accounts* | \
+        lib/gallformers_web/plugs/auth*)
+            RUN_AUTH=true
+            ;;
+
+        # Core components affect everything
+        lib/gallformers_web/components/core_components.ex | \
+        lib/gallformers_web/components/layouts* | \
+        lib/gallformers_web/router.ex | \
+        lib/gallformers_web/endpoint.ex | \
+        assets/css/app.css | \
+        assets/js/app.js)
+            RUN_PUBLIC=true
+            RUN_SEARCH=true
+            RUN_BROWSE=true
+            RUN_ADMIN=true
+            RUN_AUTH=true
+            ;;
+    esac
+done
+
+# Build list of test directories to run
+TEST_DIRS=""
+if [ "$RUN_PUBLIC" = true ]; then
+    TEST_DIRS="$TEST_DIRS test/e2e/public"
+    echo "  → Will run: public pages tests"
+fi
+if [ "$RUN_SEARCH" = true ]; then
+    TEST_DIRS="$TEST_DIRS test/e2e/search"
+    echo "  → Will run: search tests"
+fi
+if [ "$RUN_BROWSE" = true ]; then
+    TEST_DIRS="$TEST_DIRS test/e2e/browse"
+    echo "  → Will run: browse tests"
+fi
+if [ "$RUN_ADMIN" = true ]; then
+    TEST_DIRS="$TEST_DIRS test/e2e/admin"
+    echo "  → Will run: admin tests"
+fi
+if [ "$RUN_AUTH" = true ]; then
+    TEST_DIRS="$TEST_DIRS test/e2e/auth"
+    echo "  → Will run: auth tests"
+fi
+
+if [ -z "$TEST_DIRS" ]; then
+    echo "No E2E-relevant changes detected. Skipping E2E tests."
+    exit 0
+fi
+
+echo ""
+echo "Running targeted E2E tests..."
+GALLFORMERS_E2E=1 mix test $TEST_DIRS --include e2e
