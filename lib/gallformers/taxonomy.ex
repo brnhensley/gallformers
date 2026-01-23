@@ -106,6 +106,154 @@ defmodule Gallformers.Taxonomy do
   end
 
   @doc """
+  Extracts the genus name from a species name (first word before space).
+
+  ## Examples
+
+      iex> extract_genus_from_name("Andricus quercuslanigera")
+      "Andricus"
+
+      iex> extract_genus_from_name("Test")
+      "Test"
+  """
+  @spec extract_genus_from_name(String.t()) :: String.t() | nil
+  def extract_genus_from_name(name) when is_binary(name) do
+    case String.split(name, " ", parts: 2) do
+      [genus_name | _] when byte_size(genus_name) > 0 -> genus_name
+      _ -> nil
+    end
+  end
+
+  def extract_genus_from_name(_), do: nil
+
+  @doc """
+  Looks up or prepares taxonomy info for a species name.
+
+  Unlike `get_taxonomy_from_species_name/1`, this function always returns
+  a result (never nil) to support species creation workflows:
+
+  - If genus exists: returns full taxonomy with `genus_is_new: false`
+  - If genus is NEW: returns extracted genus name with `genus_is_new: true`
+    and empty family fields (user must select a family)
+
+  ## Examples
+
+      iex> lookup_taxonomy_for_new_species("Andricus quercuslanigera")
+      %{genus: "Andricus", genus_id: 123, genus_is_new: false,
+        section: nil, section_id: nil, family: "Cynipidae", family_id: 456}
+
+      iex> lookup_taxonomy_for_new_species("Newgenus species")
+      %{genus: "Newgenus", genus_id: nil, genus_is_new: true,
+        section: nil, section_id: nil, family: nil, family_id: nil}
+  """
+  @spec lookup_taxonomy_for_new_species(String.t()) :: map() | nil
+  def lookup_taxonomy_for_new_species(name) when is_binary(name) do
+    case extract_genus_from_name(name) do
+      nil ->
+        nil
+
+      genus_name ->
+        case get_taxonomy_by_name(genus_name, "genus") do
+          nil ->
+            # Genus doesn't exist - this is a new genus
+            %{
+              genus: genus_name,
+              genus_id: nil,
+              genus_is_new: true,
+              section: nil,
+              section_id: nil,
+              family: nil,
+              family_id: nil
+            }
+
+          genus ->
+            # Genus exists - get its family
+            result = build_taxonomy_from_genus(genus)
+            Map.put(result, :genus_is_new, false)
+        end
+    end
+  end
+
+  def lookup_taxonomy_for_new_species(_), do: nil
+
+  # Helper to build taxonomy map from an existing genus
+  defp build_taxonomy_from_genus(genus) do
+    case get_parent(genus.id) do
+      nil ->
+        %{
+          genus: genus.name,
+          genus_id: genus.id,
+          section: nil,
+          section_id: nil,
+          family: nil,
+          family_id: nil
+        }
+
+      parent when parent.type == "section" ->
+        family = get_parent(parent.id)
+
+        %{
+          genus: genus.name,
+          genus_id: genus.id,
+          section: parent.name,
+          section_id: parent.id,
+          family: family && family.name,
+          family_id: family && family.id
+        }
+
+      parent ->
+        %{
+          genus: genus.name,
+          genus_id: genus.id,
+          section: nil,
+          section_id: nil,
+          family: parent.name,
+          family_id: parent.id
+        }
+    end
+  end
+
+  @doc """
+  Creates a new genus under a family and links a species to it.
+
+  Used when creating a new species with a genus that doesn't exist yet.
+  Creates the genus taxonomy entry and the species-taxonomy relationship.
+
+  Returns `{:ok, genus}` on success or `{:error, reason}` on failure.
+  """
+  @spec create_genus_for_species(String.t(), integer(), integer()) ::
+          {:ok, Taxonomy.t()} | {:error, term()}
+  def create_genus_for_species(genus_name, family_id, species_id) do
+    # Create the genus under the family
+    case create_taxonomy(%{name: genus_name, type: "genus", parent_id: family_id}) do
+      {:ok, genus} ->
+        # Link the species to the genus
+        link_species_to_taxonomy(species_id, genus.id)
+        {:ok, genus}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  @doc """
+  Links a species to a taxonomy entry (genus).
+  """
+  @spec link_species_to_taxonomy(integer(), integer()) :: {:ok, any()} | {:error, term()}
+  def link_species_to_taxonomy(species_id, taxonomy_id) do
+    Repo.insert_all(
+      "speciestaxonomy",
+      [%{species_id: species_id, taxonomy_id: taxonomy_id}],
+      on_conflict: :nothing
+    )
+    |> case do
+      {1, _} -> {:ok, nil}
+      {0, _} -> {:ok, nil}
+      error -> {:error, error}
+    end
+  end
+
+  @doc """
   Looks up taxonomy info (genus, section, family) from a species name.
 
   Extracts the genus from the first word of the species name,
@@ -411,6 +559,35 @@ defmodule Gallformers.Taxonomy do
   end
 
   @doc """
+  Finds or creates an "Unknown" genus under the given family.
+
+  Used for undescribed galls where the genus is not known.
+  Returns {:ok, genus} or {:error, changeset}.
+  """
+  @spec find_or_create_unknown_genus(integer()) ::
+          {:ok, Taxonomy.t()} | {:error, Ecto.Changeset.t()}
+  def find_or_create_unknown_genus(family_id) do
+    # Check if an Unknown genus already exists under this family
+    case Repo.one(
+           from(t in Taxonomy,
+             where: t.name == "Unknown" and t.type == "genus" and t.parent_id == ^family_id
+           )
+         ) do
+      nil ->
+        # Create a new Unknown genus under the family
+        create_taxonomy(%{
+          name: "Unknown",
+          type: "genus",
+          parent_id: family_id,
+          description: "Placeholder genus for undescribed species"
+        })
+
+      existing ->
+        {:ok, existing}
+    end
+  end
+
+  @doc """
   Searches taxonomies by name (case-insensitive).
   """
   @spec search_taxonomies(String.t(), String.t() | nil, integer()) :: [Taxonomy.t()]
@@ -474,6 +651,37 @@ defmodule Gallformers.Taxonomy do
       where: t.type == "family",
       order_by: t.name,
       select: {t.name, t.id}
+    )
+    |> Repo.all()
+  end
+
+  @doc """
+  Returns genera for use in typeahead/select components.
+  Each result includes the parent family ID for auto-population.
+  Excludes genera named "Unknown" as those are created automatically.
+  """
+  @spec list_genera_for_select() :: [map()]
+  def list_genera_for_select do
+    from(g in Taxonomy,
+      left_join: p in Taxonomy,
+      on: g.parent_id == p.id,
+      left_join: gp in Taxonomy,
+      on: p.parent_id == gp.id,
+      where: g.type == "genus" and g.name != "Unknown",
+      order_by: g.name,
+      select: %{
+        id: g.id,
+        name: g.name,
+        # If parent is a section, grandparent is the family
+        # If parent is a family, that's the family
+        family_id:
+          fragment(
+            "CASE WHEN ? = 'section' THEN ? ELSE ? END",
+            p.type,
+            gp.id,
+            p.id
+          )
+      }
     )
     |> Repo.all()
   end

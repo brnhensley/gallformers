@@ -56,6 +56,11 @@ defmodule GallformersWeb.Admin.DashboardLive do
       <%!-- Quick Actions --%>
       <div class="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <.action_card label="Create a New Gall" href="/admin/galls/new" icon="ph-plus-circle" />
+        <.action_card
+          label="Add an Undescribed Gall"
+          href="/admin/galls/undescribed"
+          icon="ph-question"
+        />
         <.action_card label="Create a New Host" href="/admin/hosts/new" icon="ph-plus-circle" />
         <.action_card label="Create a New Source" href="/admin/sources/new" icon="ph-plus-circle" />
         <.action_card label="Create a New Taxon" href="/admin/taxonomy/new" icon="ph-plus-circle" />
@@ -95,6 +100,10 @@ defmodule GallformersWeb.Admin.DashboardLive do
     </Layouts.admin>
     """
   end
+
+  # =================================================================
+  # Private Components
+  # =================================================================
 
   defp stat_card(assigns) do
     ~H"""

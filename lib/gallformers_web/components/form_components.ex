@@ -616,6 +616,7 @@ defmodule GallformersWeb.FormComponents do
   attr :display_fn, :any, required: true, doc: "function to display an item (fn item -> string)"
   attr :result_slot, :any, default: nil, doc: "optional slot for custom result rendering"
   attr :class, :string, default: "", doc: "additional CSS classes for the wrapper"
+  attr :target, :any, default: nil, doc: "phx-target for events (use @myself for LiveComponents)"
 
   slot :result, doc: "optional slot for custom result item rendering" do
     attr :item, :any
@@ -653,6 +654,7 @@ defmodule GallformersWeb.FormComponents do
           <button
             type="button"
             phx-click={@clear_event}
+            phx-target={@target}
             class="text-gray-400 hover:text-gray-600"
             aria-label="Clear selection"
             tabindex="-1"
@@ -668,6 +670,7 @@ defmodule GallformersWeb.FormComponents do
             type="text"
             value={@query}
             phx-keyup={@search_event}
+            phx-target={@target}
             phx-debounce="200"
             placeholder={@placeholder}
             class="gf-input"
@@ -689,6 +692,7 @@ defmodule GallformersWeb.FormComponents do
               type="button"
               data-typeahead-option
               phx-click={@select_event}
+              phx-target={@target}
               phx-value-id={item.id}
               class="w-full text-left px-3 py-2 text-base hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
               role="option"
@@ -705,6 +709,7 @@ defmodule GallformersWeb.FormComponents do
               type="button"
               data-typeahead-option
               phx-click={@create_event}
+              phx-target={@target}
               phx-value-name={@query}
               class="w-full text-left px-3 py-2 text-base hover:bg-green-50 border-b border-gray-100 last:border-b-0 text-green-700 font-medium"
               role="option"
