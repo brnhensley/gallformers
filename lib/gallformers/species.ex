@@ -6,9 +6,9 @@ defmodule Gallformers.Species do
   """
 
   import Ecto.Query
+  alias Gallformers.Hosts.Host
   alias Gallformers.Repo
   alias Gallformers.Search.Ranking
-  alias Gallformers.Hosts.Host
   alias Gallformers.Species.{Abundance, Alias, Gall, GallSpecies, Image, Species}
 
   @doc """

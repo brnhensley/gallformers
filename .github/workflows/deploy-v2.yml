@@ -1,19 +1,12 @@
 name: Deploy V2
 
 on:
-  push:
+  workflow_run:
+    workflows: ["CI V2"]
+    types:
+      - completed
     branches: [main]
-    paths:
-      - 'lib/**'
-      - 'config/**'
-      - 'assets/**'
-      - 'priv/**'
-      - 'mix.exs'
-      - 'mix.lock'
-      - 'Dockerfile'
-      - 'fly.toml'
-      - 'docker-entrypoint.sh'
-      - '.github/workflows/deploy-v2.yml'
+  workflow_dispatch:
 
 concurrency:
   group: deploy-v2
@@ -23,6 +16,8 @@ jobs:
   deploy:
     name: Deploy to Fly.io
     runs-on: ubuntu-latest
+    # Only deploy if CI succeeded
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     steps:
       - uses: actions/checkout@v4
 

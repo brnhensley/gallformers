@@ -59,32 +59,30 @@ defmodule Mix.Tasks.Audit.SchemaFields do
   defp parse_schema_args([]), do: @schemas
 
   defp parse_schema_args(args) do
-    Enum.map(args, fn arg ->
-      # Try with and without Gallformers prefix
-      candidates = [
-        arg,
-        "Gallformers.#{arg}",
-        "Gallformers.Sources.#{arg}",
-        "Gallformers.Species.#{arg}",
-        "Gallformers.Taxonomy.#{arg}"
-      ]
+    Enum.map(args, &find_schema_module/1)
+  end
 
-      module =
-        Enum.find_value(candidates, fn candidate ->
-          module = Module.concat([candidate])
+  defp find_schema_module(arg) do
+    candidates = [
+      arg,
+      "Gallformers.#{arg}",
+      "Gallformers.Sources.#{arg}",
+      "Gallformers.Species.#{arg}",
+      "Gallformers.Taxonomy.#{arg}"
+    ]
 
-          if Code.ensure_loaded?(module) &&
-               function_exported?(module, :required_fields, 0) do
-            module
-          end
-        end)
+    case Enum.find_value(candidates, &valid_schema_module/1) do
+      nil -> Mix.raise("Schema not found or doesn't implement SchemaFields: #{arg}")
+      module -> module
+    end
+  end
 
-      if module do
-        module
-      else
-        Mix.raise("Schema not found or doesn't implement SchemaFields: #{arg}")
-      end
-    end)
+  defp valid_schema_module(candidate) do
+    module = Module.concat([candidate])
+
+    if Code.ensure_loaded?(module) && function_exported?(module, :required_fields, 0) do
+      module
+    end
   end
 
   defp audit_text(schemas, summary_only) do
@@ -114,34 +112,34 @@ defmodule Mix.Tasks.Audit.SchemaFields do
     end
   end
 
-  defp audit_csv(schemas, summary_only) do
-    if summary_only do
-      IO.puts("schema,total_records,violations,compliant_pct")
+  defp audit_csv(schemas, true = _summary_only) do
+    IO.puts("schema,total_records,violations,compliant_pct")
+    Enum.each(schemas, &print_csv_summary/1)
+  end
 
-      Enum.each(schemas, fn schema ->
-        violations = audit_schema(schema)
-        total = count_records(schema)
+  defp audit_csv(schemas, false = _summary_only) do
+    IO.puts("schema,id,identifier,field,value")
+    Enum.each(schemas, &print_csv_details/1)
+  end
 
-        compliant_pct =
-          if total > 0, do: Float.round((total - length(violations)) / total * 100, 1)
+  defp print_csv_summary(schema) do
+    violations = audit_schema(schema)
+    total = count_records(schema)
+    compliant_pct = if total > 0, do: Float.round((total - length(violations)) / total * 100, 1)
+    schema_name = schema |> Module.split() |> List.last()
+    IO.puts("#{schema_name},#{total},#{length(violations)},#{compliant_pct}")
+  end
 
-        schema_name = schema |> Module.split() |> List.last()
-        IO.puts("#{schema_name},#{total},#{length(violations)},#{compliant_pct}")
-      end)
-    else
-      IO.puts("schema,id,identifier,field,value")
+  defp print_csv_details(schema) do
+    violations = audit_schema(schema)
+    schema_name = schema |> Module.split() |> List.last()
+    Enum.each(violations, &print_csv_violation(&1, schema_name))
+  end
 
-      Enum.each(schemas, fn schema ->
-        violations = audit_schema(schema)
-        schema_name = schema |> Module.split() |> List.last()
-
-        Enum.each(violations, fn v ->
-          identifier = escape_csv(v.identifier || "")
-          value = escape_csv(inspect(v.value))
-          IO.puts("#{schema_name},#{v.id},#{identifier},#{v.field},#{value}")
-        end)
-      end)
-    end
+  defp print_csv_violation(v, schema_name) do
+    identifier = escape_csv(v.identifier || "")
+    value = escape_csv(inspect(v.value))
+    IO.puts("#{schema_name},#{v.id},#{identifier},#{v.field},#{value}")
   end
 
   defp print_schema_results_text(schema, violations, summary_only) do
@@ -154,33 +152,37 @@ defmodule Mix.Tasks.Audit.SchemaFields do
     IO.puts("  Required fields: #{Enum.join(required, ", ")}")
     IO.puts("  Total records: #{total}")
 
-    if violations == [] do
-      IO.puts(IO.ANSI.green() <> "  Status: All records compliant" <> IO.ANSI.reset())
-    else
-      # Group by field
-      by_field =
-        violations
-        |> Enum.group_by(& &1.field)
-        |> Enum.sort_by(fn {_field, vs} -> -length(vs) end)
+    print_violations_text(violations, summary_only)
+  end
 
-      IO.puts(IO.ANSI.yellow() <> "  Violations: #{length(violations)}" <> IO.ANSI.reset())
+  defp print_violations_text([], _summary_only) do
+    IO.puts(IO.ANSI.green() <> "  Status: All records compliant" <> IO.ANSI.reset())
+  end
 
-      Enum.each(by_field, fn {field, field_violations} ->
-        IO.puts("    #{field}: #{length(field_violations)} record(s)")
-      end)
+  defp print_violations_text(violations, summary_only) do
+    by_field =
+      violations
+      |> Enum.group_by(& &1.field)
+      |> Enum.sort_by(fn {_field, vs} -> -length(vs) end)
 
-      unless summary_only do
-        IO.puts("")
-        IO.puts("  Details:")
+    IO.puts(IO.ANSI.yellow() <> "  Violations: #{length(violations)}" <> IO.ANSI.reset())
 
-        violations
-        |> Enum.sort_by(& &1.id)
-        |> Enum.each(fn v ->
-          identifier = if v.identifier, do: " (#{truncate(v.identifier, 50)})", else: ""
-          IO.puts("    ##{v.id}#{identifier} - missing: #{v.field}")
-        end)
-      end
-    end
+    Enum.each(by_field, fn {field, field_violations} ->
+      IO.puts("    #{field}: #{length(field_violations)} record(s)")
+    end)
+
+    unless summary_only, do: print_violation_details(violations)
+  end
+
+  defp print_violation_details(violations) do
+    IO.puts("")
+    IO.puts("  Details:")
+    Enum.each(Enum.sort_by(violations, & &1.id), &print_violation_line/1)
+  end
+
+  defp print_violation_line(v) do
+    identifier = if v.identifier, do: " (#{truncate(v.identifier, 50)})", else: ""
+    IO.puts("    ##{v.id}#{identifier} - missing: #{v.field}")
   end
 
   defp audit_schema(schema) do

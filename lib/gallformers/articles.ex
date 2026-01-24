@@ -180,9 +180,11 @@ defmodule Gallformers.Articles do
   # Ensures the slug is unique by appending a number if necessary
   defp ensure_unique_slug(changeset) do
     slug = Ecto.Changeset.get_field(changeset, :slug)
+    # Exclude current article id when updating (nil for new articles)
+    exclude_id = changeset.data.id
 
-    if slug && slug_exists?(slug, nil) do
-      unique_slug = find_unique_slug(slug, nil, 2)
+    if slug && slug_exists?(slug, exclude_id) do
+      unique_slug = find_unique_slug(slug, exclude_id, 2)
       Ecto.Changeset.put_change(changeset, :slug, unique_slug)
     else
       changeset

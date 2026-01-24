@@ -10,7 +10,7 @@ defmodule GallformersWeb.HomeLive do
   """
   use GallformersWeb, :live_view
 
-  alias Gallformers.{Species, Hosts, Sources, Images}
+  alias Gallformers.{Hosts, Images, Sources, Species}
 
   @impl true
   def mount(_params, _session, socket) do

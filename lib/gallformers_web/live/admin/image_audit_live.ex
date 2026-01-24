@@ -723,15 +723,13 @@ defmodule GallformersWeb.Admin.ImageAuditLive do
 
   @impl true
   def handle_event("refresh_cache", _params, socket) do
-    try do
-      AuditCache.refresh()
-      # Reload after a brief delay to show scanning state
-      Process.send_after(self(), :reload_orphans, 500)
-      {:noreply, put_flash(socket, :info, "Refreshing cache...")}
-    catch
-      :exit, _ ->
-        {:noreply, put_flash(socket, :error, "Cache not available. Please restart the server.")}
-    end
+    AuditCache.refresh()
+    # Reload after a brief delay to show scanning state
+    Process.send_after(self(), :reload_orphans, 500)
+    {:noreply, put_flash(socket, :info, "Refreshing cache...")}
+  catch
+    :exit, _ ->
+      {:noreply, put_flash(socket, :error, "Cache not available. Please restart the server.")}
   end
 
   @impl true
@@ -1091,8 +1089,8 @@ defmodule GallformersWeb.Admin.ImageAuditLive do
     cond do
       diff_seconds < 60 -> "just now"
       diff_seconds < 3600 -> "#{div(diff_seconds, 60)} min ago"
-      diff_seconds < 86400 -> "#{div(diff_seconds, 3600)} hours ago"
-      true -> "#{div(diff_seconds, 86400)} days ago"
+      diff_seconds < 86_400 -> "#{div(diff_seconds, 3600)} hours ago"
+      true -> "#{div(diff_seconds, 86_400)} days ago"
     end
   end
 

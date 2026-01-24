@@ -413,7 +413,11 @@ defmodule GallformersWeb.Admin.FormHelpers do
           """
           def handle_delete(_params, socket) do
             entity = Map.get(socket.assigns, entity_key())
+            do_handle_delete(entity, socket)
+          end
 
+          # credo:disable-for-lines:10 Credo.Check.Refactor.Nesting
+          defp do_handle_delete(entity, socket) do
             case delete_entity(entity) do
               {:ok, entity} ->
                 {:noreply, after_delete(socket, entity)}

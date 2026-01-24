@@ -272,57 +272,50 @@ defmodule Gallformers.Taxonomy do
   """
   @spec get_taxonomy_from_species_name(String.t()) :: map() | nil
   def get_taxonomy_from_species_name(name) when is_binary(name) do
-    case String.split(name, " ", parts: 2) do
-      [genus_name | _] when byte_size(genus_name) > 0 ->
-        case get_taxonomy_by_name(genus_name, "genus") do
-          nil ->
-            nil
-
-          genus ->
-            # Get the parent (could be a section or family)
-            case get_parent(genus.id) do
-              nil ->
-                %{
-                  genus: genus.name,
-                  genus_id: genus.id,
-                  section: nil,
-                  section_id: nil,
-                  family: nil,
-                  family_id: nil
-                }
-
-              parent when parent.type == "section" ->
-                # Section's parent is the family
-                family = get_parent(parent.id)
-
-                %{
-                  genus: genus.name,
-                  genus_id: genus.id,
-                  section: parent.name,
-                  section_id: parent.id,
-                  family: family && family.name,
-                  family_id: family && family.id
-                }
-
-              parent ->
-                # Parent is the family directly
-                %{
-                  genus: genus.name,
-                  genus_id: genus.id,
-                  section: nil,
-                  section_id: nil,
-                  family: parent.name,
-                  family_id: parent.id
-                }
-            end
-        end
-
-      _ ->
-        nil
+    with [genus_name | _] when byte_size(genus_name) > 0 <- String.split(name, " ", parts: 2),
+         %{} = genus <- get_taxonomy_by_name(genus_name, "genus") do
+      build_taxonomy_map(genus, get_parent(genus.id))
+    else
+      _ -> nil
     end
   end
 
   def get_taxonomy_from_species_name(_), do: nil
+
+  defp build_taxonomy_map(genus, nil) do
+    %{
+      genus: genus.name,
+      genus_id: genus.id,
+      section: nil,
+      section_id: nil,
+      family: nil,
+      family_id: nil
+    }
+  end
+
+  defp build_taxonomy_map(genus, %{type: "section"} = section) do
+    family = get_parent(section.id)
+
+    %{
+      genus: genus.name,
+      genus_id: genus.id,
+      section: section.name,
+      section_id: section.id,
+      family: family && family.name,
+      family_id: family && family.id
+    }
+  end
+
+  defp build_taxonomy_map(genus, family) do
+    %{
+      genus: genus.name,
+      genus_id: genus.id,
+      section: nil,
+      section_id: nil,
+      family: family.name,
+      family_id: family.id
+    }
+  end
 
   @doc """
   Gets the genus, section, and family for a species.

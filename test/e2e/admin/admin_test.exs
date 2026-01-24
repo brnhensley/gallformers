@@ -11,8 +11,8 @@ defmodule GallformersWeb.E2E.AdminTest do
   @moduletag :e2e
   @moduletag :e2e_admin
 
-  # TODO: Implement test auth route for E2E tests
-  # For now, these tests verify that unauthenticated access is properly handled
+  # Test auth route for E2E tests not yet implemented.
+  # For now, these tests verify that unauthenticated access is properly handled.
 
   describe "admin access control" do
     test "redirects unauthenticated users", %{session: session} do

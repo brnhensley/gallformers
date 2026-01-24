@@ -384,20 +384,22 @@ defmodule Gallformers.Hosts do
         {:error, :not_found}
 
       host ->
-        Repo.transaction(fn ->
-          # 1. Delete S3 images first (before DB records are cascade deleted)
-          Gallformers.Images.delete_images_from_s3_for_species(host.id)
-
-          # 2. Delete from FTS index
-          Gallformers.Species.delete_species_fts(host.id)
-
-          # 3. Delete the species record (cascades to image rows, host relations, etc.)
-          case Repo.delete(host) do
-            {:ok, deleted} -> deleted
-            {:error, changeset} -> Repo.rollback(changeset)
-          end
-        end)
+        Repo.transaction(fn -> do_delete_host(host) end)
         |> broadcast(:host_deleted)
+    end
+  end
+
+  defp do_delete_host(host) do
+    # 1. Delete S3 images first (before DB records are cascade deleted)
+    Gallformers.Images.delete_images_from_s3_for_species(host.id)
+
+    # 2. Delete from FTS index
+    Gallformers.Species.delete_species_fts(host.id)
+
+    # 3. Delete the species record (cascades to image rows, host relations, etc.)
+    case Repo.delete(host) do
+      {:ok, deleted} -> deleted
+      {:error, changeset} -> Repo.rollback(changeset)
     end
   end
 

@@ -165,11 +165,11 @@ defmodule Gallformers.Images.AuditCache do
 
   @impl true
   def handle_cast(:refresh, state) do
-    if not state.scanning? do
+    if state.scanning? do
+      {:noreply, state}
+    else
       trigger_async_scan(self())
       {:noreply, %{state | scanning?: true, scan_error: nil}}
-    else
-      {:noreply, state}
     end
   end
 

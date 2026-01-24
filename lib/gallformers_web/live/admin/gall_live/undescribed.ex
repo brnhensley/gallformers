@@ -247,13 +247,7 @@ defmodule GallformersWeb.Admin.GallLive.Undescribed do
     genus = Enum.find(socket.assigns.genera, &(&1.id == genus_id))
 
     if genus do
-      family =
-        if genus.family_id do
-          case Enum.find(socket.assigns.families, fn {_name, fid} -> fid == genus.family_id end) do
-            {name, id} -> %{id: id, name: name}
-            nil -> nil
-          end
-        end
+      family = find_family_for_genus(genus, socket.assigns.families)
 
       {:noreply,
        socket
@@ -443,39 +437,44 @@ defmodule GallformersWeb.Admin.GallLive.Undescribed do
   end
 
   defp generate_name(assigns) do
-    genus_name =
-      cond do
-        assigns.genus_known && assigns.selected_genus ->
-          assigns.selected_genus.name
-
-        !assigns.genus_known && assigns.selected_family ->
-          "Unknown"
-
-        true ->
-          nil
-      end
-
-    host_part =
-      if assigns.selected_host do
-        name = assigns.selected_host.name
-
-        case String.split(name) do
-          [genus_part, species_part | _] ->
-            first_letter = String.downcase(String.first(genus_part))
-            "#{first_letter}-#{species_part}"
-
-          _ ->
-            String.downcase(name)
-        end
-      end
-
+    genus_name = extract_genus_name(assigns)
+    host_part = extract_host_part(assigns.selected_host)
     description = String.trim(assigns.description)
 
-    cond do
-      is_nil(genus_name) -> ""
-      is_nil(host_part) -> genus_name
-      description == "" -> "#{genus_name} #{host_part}"
-      true -> "#{genus_name} #{host_part}-#{description}"
+    combine_name_parts(genus_name, host_part, description)
+  end
+
+  defp extract_genus_name(%{genus_known: true, selected_genus: %{name: name}}), do: name
+
+  defp extract_genus_name(%{genus_known: false, selected_family: family}) when family != nil,
+    do: "Unknown"
+
+  defp extract_genus_name(_), do: nil
+
+  defp extract_host_part(nil), do: nil
+
+  defp extract_host_part(%{name: name}) do
+    case String.split(name) do
+      [genus_part, species_part | _] ->
+        first_letter = String.downcase(String.first(genus_part))
+        "#{first_letter}-#{species_part}"
+
+      _ ->
+        String.downcase(name)
+    end
+  end
+
+  defp combine_name_parts(nil, _, _), do: ""
+  defp combine_name_parts(genus_name, nil, _), do: genus_name
+  defp combine_name_parts(genus_name, host_part, ""), do: "#{genus_name} #{host_part}"
+  defp combine_name_parts(genus_name, host_part, desc), do: "#{genus_name} #{host_part}-#{desc}"
+
+  defp find_family_for_genus(%{family_id: nil}, _families), do: nil
+
+  defp find_family_for_genus(%{family_id: family_id}, families) do
+    case Enum.find(families, fn {_name, fid} -> fid == family_id end) do
+      {name, id} -> %{id: id, name: name}
+      nil -> nil
     end
   end
 

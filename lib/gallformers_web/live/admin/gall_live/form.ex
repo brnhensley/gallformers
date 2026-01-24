@@ -285,29 +285,17 @@ defmodule GallformersWeb.Admin.GallLive.Form do
 
     case Species.get_gall_for_admin_edit(species_id) do
       nil ->
-        if redirect_on_error do
-          socket
-          |> put_flash(:error, "Gall not found")
-          |> push_navigate(to: ~p"/admin/galls")
-        else
-          socket
-          |> put_flash(:error, "Gall not found")
-          |> init_empty_gall_state()
-        end
+        handle_load_error(socket, "Gall not found", redirect_on_error)
 
       gall_data ->
         species = Species.get_species!(species_id)
 
         if species.taxoncode != "gall" do
-          if redirect_on_error do
-            socket
-            |> put_flash(:error, "This is not a gall. Use the Host admin for host species.")
-            |> push_navigate(to: ~p"/admin/galls")
-          else
-            socket
-            |> put_flash(:error, "This is not a gall. Use the Host admin for host species.")
-            |> init_empty_gall_state()
-          end
+          handle_load_error(
+            socket,
+            "This is not a gall. Use the Host admin for host species.",
+            redirect_on_error
+          )
         else
           changeset = Species.change_species(species)
           aliases = Species.get_aliases_for_species(species_id)
@@ -381,6 +369,18 @@ defmodule GallformersWeb.Admin.GallLive.Form do
       forms: "",
       seasons: ""
     }
+  end
+
+  defp handle_load_error(socket, message, true = _redirect) do
+    socket
+    |> put_flash(:error, message)
+    |> push_navigate(to: ~p"/admin/galls")
+  end
+
+  defp handle_load_error(socket, message, false = _redirect) do
+    socket
+    |> put_flash(:error, message)
+    |> init_empty_gall_state()
   end
 
   # =================================================================
@@ -818,20 +818,7 @@ defmodule GallformersWeb.Admin.GallLive.Form do
             {:ok, gall} = Species.create_gall_for_species(species.id)
 
             # Handle taxonomy: create genus if new, or link to existing
-            if genus_is_new do
-              # Create new genus under selected family and link species
-              {:ok, _genus} =
-                Gallformers.Taxonomy.create_genus_for_species(
-                  taxonomy.genus,
-                  selected_family_id,
-                  species.id
-                )
-            else
-              # Link species to existing genus
-              if taxonomy && taxonomy.genus_id do
-                Gallformers.Taxonomy.link_species_to_taxonomy(species.id, taxonomy.genus_id)
-              end
-            end
+            link_taxonomy(species.id, taxonomy, genus_is_new, selected_family_id)
 
             # Add hosts
             for host <- hosts_to_add do
@@ -959,6 +946,22 @@ defmodule GallformersWeb.Admin.GallLive.Form do
       Species.add_host_to_species(species_id, host.host_species_id)
     end
   end
+
+  defp link_taxonomy(species_id, taxonomy, true = _genus_is_new, family_id) do
+    {:ok, _genus} =
+      Gallformers.Taxonomy.create_genus_for_species(
+        taxonomy.genus,
+        family_id,
+        species_id
+      )
+  end
+
+  defp link_taxonomy(species_id, %{genus_id: genus_id}, false = _genus_is_new, _family_id)
+       when not is_nil(genus_id) do
+    Gallformers.Taxonomy.link_species_to_taxonomy(species_id, genus_id)
+  end
+
+  defp link_taxonomy(_species_id, _taxonomy, false = _genus_is_new, _family_id), do: :ok
 
   defp save_filter_changes(gall_id, original_values, current_values) do
     filter_types = [

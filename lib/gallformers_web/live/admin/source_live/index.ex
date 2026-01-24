@@ -223,27 +223,21 @@ defmodule GallformersWeb.Admin.SourceLive.Index do
   end
 
   defp sorted_sources(sources, sort_by, sort_dir) do
-    sorted =
-      Enum.sort_by(sources, fn s ->
-        value =
-          case sort_by do
-            :title -> strip_leading_quotes(s.title)
-            :author -> s.author
-            :pubyear -> s.pubyear
-            :datacomplete -> s.datacomplete
-            _ -> strip_leading_quotes(s.title)
-          end
-
-        cond do
-          is_binary(value) -> String.downcase(value)
-          is_boolean(value) -> if value, do: 1, else: 0
-          is_nil(value) -> ""
-          true -> value
-        end
-      end)
-
+    sorted = Enum.sort_by(sources, &sort_key(&1, sort_by))
     if sort_dir == :desc, do: Enum.reverse(sorted), else: sorted
   end
+
+  defp sort_key(source, :title), do: normalize_for_sort(strip_leading_quotes(source.title))
+  defp sort_key(source, :author), do: normalize_for_sort(source.author)
+  defp sort_key(source, :pubyear), do: normalize_for_sort(source.pubyear)
+  defp sort_key(source, :datacomplete), do: normalize_for_sort(source.datacomplete)
+  defp sort_key(source, _), do: normalize_for_sort(strip_leading_quotes(source.title))
+
+  defp normalize_for_sort(value) when is_binary(value), do: String.downcase(value)
+  defp normalize_for_sort(true), do: 1
+  defp normalize_for_sort(false), do: 0
+  defp normalize_for_sort(nil), do: ""
+  defp normalize_for_sort(value), do: value
 
   # Strip leading quotes and apostrophes for sorting purposes
   defp strip_leading_quotes(nil), do: ""

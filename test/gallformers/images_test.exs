@@ -13,7 +13,7 @@ defmodule Gallformers.ImagesTest do
                Images.parse_species_id_from_path("gall/123/123_1234567890_original.jpg")
 
       assert {:ok, 1} = Images.parse_species_id_from_path("gall/1/1_1234567890_original.png")
-      assert {:ok, 99999} = Images.parse_species_id_from_path("gall/99999/some_file.jpg")
+      assert {:ok, 99_999} = Images.parse_species_id_from_path("gall/99999/some_file.jpg")
     end
 
     test "returns error for non-gall paths" do

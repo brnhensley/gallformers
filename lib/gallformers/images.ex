@@ -9,10 +9,10 @@ defmodule Gallformers.Images do
   require Logger
 
   import Ecto.Query
+  alias Gallformers.Licenses
   alias Gallformers.Repo
   alias Gallformers.Species.Image, as: ImageSchema
   alias Gallformers.Species.Species
-  alias Gallformers.Licenses
 
   # Image processing library (vix-based)
   alias Image, as: ImageLib
@@ -699,44 +699,35 @@ defmodule Gallformers.Images do
 
     # Filter to orphans
     s3_objects
-    |> Enum.filter(fn obj ->
-      path = obj.key
-      # Check if path exists in DB
-      in_db = MapSet.member?(existing_paths, path)
-
-      if in_db do
-        false
-      else
-        # Check if species ID is valid
-        case parse_species_id_from_path(path) do
-          {:ok, species_id} ->
-            # Orphan if species doesn't exist OR path not in DB
-            !MapSet.member?(valid_species_ids, species_id) || !in_db
-
-          {:error, _} ->
-            # Invalid path format = orphan
-            true
-        end
-      end
-    end)
+    |> Enum.filter(&orphan?(&1.key, existing_paths, valid_species_ids))
     |> Enum.map(fn obj ->
-      species_id_result = parse_species_id_from_path(obj.key)
-
-      species_info =
-        case species_id_result do
-          {:ok, id} ->
-            if MapSet.member?(valid_species_ids, id) do
-              %{species_id: id, species_exists: true}
-            else
-              %{species_id: id, species_exists: false}
-            end
-
-          {:error, _} ->
-            %{species_id: nil, species_exists: false}
-        end
-
+      species_info = get_species_info(obj.key, valid_species_ids)
       Map.merge(obj, species_info)
     end)
+  end
+
+  defp get_species_info(path, valid_species_ids) do
+    case parse_species_id_from_path(path) do
+      {:ok, id} ->
+        %{species_id: id, species_exists: MapSet.member?(valid_species_ids, id)}
+
+      {:error, _} ->
+        %{species_id: nil, species_exists: false}
+    end
+  end
+
+  defp orphan?(path, existing_paths, valid_species_ids) do
+    # If path exists in DB, it's not an orphan
+    if MapSet.member?(existing_paths, path),
+      do: false,
+      else: check_species_orphan(path, valid_species_ids)
+  end
+
+  defp check_species_orphan(path, valid_species_ids) do
+    case parse_species_id_from_path(path) do
+      {:ok, species_id} -> !MapSet.member?(valid_species_ids, species_id)
+      {:error, _} -> true
+    end
   end
 
   @doc """

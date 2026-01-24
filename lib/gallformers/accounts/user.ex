@@ -60,7 +60,7 @@ defmodule Gallformers.Accounts.User do
 
   Requires `auth0_id` to be present.
   """
-  @spec create_changeset(t(), map()) :: Ecto.Changeset.t()
+  @spec create_changeset(%__MODULE__{}, map()) :: Ecto.Changeset.t()
   def create_changeset(user, attrs) do
     user
     |> cast(attrs, [

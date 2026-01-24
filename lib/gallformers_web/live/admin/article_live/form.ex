@@ -93,7 +93,7 @@ defmodule GallformersWeb.Admin.ArticleLive.Form do
         |> assign(:form, to_form(changeset))
         |> assign(:mode, :edit)
         |> assign(:preview_content, render_preview(article.content))
-        |> assign(:form_tags, article.tags || [])
+        |> assign(:form_tags, article.tags)
         |> reset_dirty()
     end
   end
@@ -254,12 +254,12 @@ defmodule GallformersWeb.Admin.ArticleLive.Form do
     form_tags = socket.assigns.form_tags
 
     socket =
-      if tag not in form_tags do
+      if tag in form_tags do
+        socket
+      else
         socket
         |> assign(:form_tags, form_tags ++ [tag])
         |> mark_dirty()
-      else
-        socket
       end
 
     {:noreply, assign(socket, :tag_search_query, "")}
@@ -359,42 +359,12 @@ defmodule GallformersWeb.Admin.ArticleLive.Form do
 
   @impl true
   def handle_event("insert_image", params, socket) do
-    selected_image = socket.assigns.selected_image
     alt_text = String.trim(params["alt_text"] || "")
-    caption = String.trim(params["caption"] || "")
-    size_preset = params["size_preset"] || "medium"
-    custom_width = params["custom_width"]
 
-    # Validate alt text is provided
     if alt_text == "" do
-      socket = put_flash(socket, :error, "Alt text is required for accessibility")
-      {:noreply, socket}
+      {:noreply, put_flash(socket, :error, "Alt text is required for accessibility")}
     else
-      # Calculate width
-      width =
-        case size_preset do
-          "small" -> 200
-          "medium" -> 400
-          "large" -> 600
-          "full" -> nil
-          "custom" -> parse_custom_width(custom_width)
-        end
-
-      # Generate HTML
-      html = generate_image_html(selected_image.url, alt_text, caption, width)
-
-      # Push event to client to insert at cursor position
-      socket =
-        socket
-        |> push_event("insert_image_markdown", %{markdown: html})
-        |> assign(:show_image_insert_modal, false)
-        |> assign(:show_image_browser, false)
-        |> assign(:selected_image, nil)
-        |> assign(:image_insert_form, nil)
-        |> mark_dirty()
-        |> put_flash(:info, "Image inserted at cursor!")
-
-      {:noreply, socket}
+      {:noreply, do_insert_image(socket, params, alt_text)}
     end
   end
 
@@ -1018,6 +988,27 @@ defmodule GallformersWeb.Admin.ArticleLive.Form do
     {:ok, html} = Markdown.render(content)
     html
   end
+
+  defp do_insert_image(socket, params, alt_text) do
+    caption = String.trim(params["caption"] || "")
+    width = parse_image_width(params["size_preset"] || "medium", params["custom_width"])
+    html = generate_image_html(socket.assigns.selected_image.url, alt_text, caption, width)
+
+    socket
+    |> push_event("insert_image_markdown", %{markdown: html})
+    |> assign(:show_image_insert_modal, false)
+    |> assign(:show_image_browser, false)
+    |> assign(:selected_image, nil)
+    |> assign(:image_insert_form, nil)
+    |> mark_dirty()
+    |> put_flash(:info, "Image inserted at cursor!")
+  end
+
+  defp parse_image_width("small", _), do: 200
+  defp parse_image_width("medium", _), do: 400
+  defp parse_image_width("large", _), do: 600
+  defp parse_image_width("full", _), do: nil
+  defp parse_image_width("custom", custom_width), do: parse_custom_width(custom_width)
 
   defp parse_custom_width(nil), do: 400
   defp parse_custom_width(""), do: 400
