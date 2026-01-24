@@ -85,6 +85,11 @@ defmodule GallformersWeb.Admin.DashboardLive do
           href="/admin/species-sources/find"
           icon="ph-magnifying-glass"
         />
+        <.action_card
+          label="Audit Images (Orphans & Attribution)"
+          href="/admin/image-audit"
+          icon="ph-detective"
+        />
       </div>
 
       <%!-- Super Admin Section --%>

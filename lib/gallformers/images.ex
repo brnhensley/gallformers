@@ -12,6 +12,7 @@ defmodule Gallformers.Images do
   alias Gallformers.Repo
   alias Gallformers.Species.Image, as: ImageSchema
   alias Gallformers.Species.Species
+  alias Gallformers.Licenses
 
   # Image processing library (vix-based)
   alias Image, as: ImageLib
@@ -574,5 +575,320 @@ defmodule Gallformers.Images do
         Logger.error("Failed to delete article image: #{path}, reason: #{inspect(reason)}")
         {:error, reason}
     end
+  end
+
+  # =============================================================================
+  # Image Audit Functions
+  # =============================================================================
+
+  @doc """
+  Lists all image paths from S3 under the gall/ prefix.
+
+  Returns a list of S3 object maps with :key, :last_modified, and :size.
+  This can be slow for large buckets - consider using the AuditCache for cached results.
+  """
+  @spec list_all_s3_gall_paths() :: {:ok, [map()]} | {:error, term()}
+  def list_all_s3_gall_paths do
+    list_s3_gall_paths_recursive("gall/", nil, [])
+  end
+
+  defp list_s3_gall_paths_recursive(prefix, continuation_token, acc) do
+    opts =
+      [prefix: prefix]
+      |> maybe_add_continuation_token(continuation_token)
+
+    case ExAws.S3.list_objects_v2(bucket(), opts) |> ExAws.request() do
+      {:ok, %{body: body}} ->
+        contents = body[:contents] || []
+        # Filter to only original images (not size variants)
+        new_paths =
+          contents
+          |> Enum.filter(&original_gall_image?/1)
+          |> Enum.map(&extract_s3_object_info/1)
+
+        all_paths = acc ++ new_paths
+
+        # Check for more pages
+        if body[:is_truncated] == "true" && body[:next_continuation_token] do
+          list_s3_gall_paths_recursive(prefix, body[:next_continuation_token], all_paths)
+        else
+          {:ok, all_paths}
+        end
+
+      {:error, reason} ->
+        Logger.error("Failed to list S3 gall paths: #{inspect(reason)}")
+        {:error, reason}
+    end
+  end
+
+  defp maybe_add_continuation_token(opts, nil), do: opts
+
+  defp maybe_add_continuation_token(opts, token),
+    do: Keyword.put(opts, :continuation_token, token)
+
+  defp original_gall_image?(obj) do
+    key = obj[:key] || obj.key
+    String.contains?(key, "_original.") && image_extension?(key)
+  end
+
+  defp image_extension?(path) do
+    String.ends_with?(path, [".jpg", ".jpeg", ".png", ".gif", ".webp"])
+  end
+
+  defp extract_s3_object_info(obj) do
+    %{
+      key: obj[:key] || obj.key,
+      last_modified: obj[:last_modified] || obj.last_modified,
+      size: obj[:size] || obj.size
+    }
+  end
+
+  @doc """
+  Parses the species ID from an S3 gall image path.
+
+  ## Examples
+
+      iex> parse_species_id_from_path("gall/123/123_1234567890_original.jpg")
+      {:ok, 123}
+
+      iex> parse_species_id_from_path("gall/abc/image.jpg")
+      {:error, :invalid_path}
+
+      iex> parse_species_id_from_path("articles/1/image.jpg")
+      {:error, :invalid_path}
+  """
+  @spec parse_species_id_from_path(String.t()) :: {:ok, integer()} | {:error, :invalid_path}
+  def parse_species_id_from_path(path) when is_binary(path) do
+    case String.split(path, "/") do
+      ["gall", species_id_str | _rest] ->
+        case Integer.parse(species_id_str) do
+          {id, ""} -> {:ok, id}
+          _ -> {:error, :invalid_path}
+        end
+
+      _ ->
+        {:error, :invalid_path}
+    end
+  end
+
+  @doc """
+  Finds orphan paths from a list of S3 paths.
+
+  An orphan is a path where either:
+  1. The species_id parsed from the path doesn't exist in the database
+  2. No image record exists with that exact path
+
+  Returns a list of orphan paths with metadata.
+  """
+  @spec find_orphan_paths([map()]) :: [map()]
+  def find_orphan_paths(s3_objects) when is_list(s3_objects) do
+    # Get all paths for batch DB query
+    paths = Enum.map(s3_objects, & &1.key)
+
+    # Query DB for existing image paths
+    existing_paths =
+      from(i in ImageSchema, where: i.path in ^paths, select: i.path)
+      |> Repo.all()
+      |> MapSet.new()
+
+    # Get all valid species IDs
+    valid_species_ids =
+      from(s in Species, select: s.id)
+      |> Repo.all()
+      |> MapSet.new()
+
+    # Filter to orphans
+    s3_objects
+    |> Enum.filter(fn obj ->
+      path = obj.key
+      # Check if path exists in DB
+      in_db = MapSet.member?(existing_paths, path)
+
+      if in_db do
+        false
+      else
+        # Check if species ID is valid
+        case parse_species_id_from_path(path) do
+          {:ok, species_id} ->
+            # Orphan if species doesn't exist OR path not in DB
+            !MapSet.member?(valid_species_ids, species_id) || !in_db
+
+          {:error, _} ->
+            # Invalid path format = orphan
+            true
+        end
+      end
+    end)
+    |> Enum.map(fn obj ->
+      species_id_result = parse_species_id_from_path(obj.key)
+
+      species_info =
+        case species_id_result do
+          {:ok, id} ->
+            if MapSet.member?(valid_species_ids, id) do
+              %{species_id: id, species_exists: true}
+            else
+              %{species_id: id, species_exists: false}
+            end
+
+          {:error, _} ->
+            %{species_id: nil, species_exists: false}
+        end
+
+      Map.merge(obj, species_info)
+    end)
+  end
+
+  @doc """
+  Deletes an orphan image from S3 (not in database).
+
+  Deletes all size variants (original, small, medium, large, xlarge).
+  This is for images that exist on S3 but have no database record.
+  """
+  @spec delete_s3_orphan(String.t()) :: :ok | {:error, term()}
+  def delete_s3_orphan(path) when is_binary(path) do
+    Logger.info("Deleting S3 orphan image: #{path}")
+    delete_image_from_s3(path)
+  end
+
+  @doc """
+  Creates a database record for an orphan S3 image, assigning it to a species.
+
+  The path must already exist on S3. This creates the database record
+  to "adopt" the orphan image.
+  """
+  @spec create_image_from_orphan(String.t(), integer(), map()) ::
+          {:ok, ImageSchema.t()} | {:error, Ecto.Changeset.t()}
+  def create_image_from_orphan(path, species_id, attrs \\ %{}) do
+    attrs =
+      attrs
+      |> Map.put(:path, path)
+      |> Map.put(:species_id, species_id)
+
+    create_image(attrs)
+  end
+
+  @doc """
+  Checks if a license requires attribution (creator must be specified).
+
+  Public Domain / CC0 does not require attribution.
+  All other licenses (CC-BY variants, All Rights Reserved) require attribution.
+  """
+  @spec requires_attribution?(String.t() | nil) :: boolean()
+  def requires_attribution?(nil), do: false
+  def requires_attribution?("Public Domain / CC0"), do: false
+  def requires_attribution?(license), do: Licenses.valid?(license)
+
+  @doc """
+  Checks if an image is properly attributed.
+
+  An image is attributed if:
+  1. It has a source with a license, OR
+  2. It has sourcelink + license + creator, OR
+  3. Its license is Public Domain / CC0 (no attribution required)
+
+  An image is NOT attributed if:
+  - License requires attribution but creator is missing
+  - No license and no source
+  """
+  @spec image_attributed?(ImageSchema.t()) :: boolean()
+  def image_attributed?(%ImageSchema{} = image) do
+    cond do
+      # Has source with license - attributed via source
+      image.source_id != nil && image.source != nil && image.source.license != nil ->
+        true
+
+      # Public domain - no attribution needed
+      image.license == "Public Domain / CC0" ->
+        true
+
+      # Has license that requires attribution - need creator
+      requires_attribution?(image.license) ->
+        has_value?(image.creator)
+
+      # No license at all - not attributed
+      !has_value?(image.license) ->
+        false
+
+      # Fallback - has license, doesn't require attribution
+      true ->
+        true
+    end
+  end
+
+  defp has_value?(nil), do: false
+  defp has_value?(""), do: false
+  defp has_value?(val) when is_binary(val), do: String.trim(val) != ""
+  defp has_value?(_), do: false
+
+  @doc """
+  Lists images that are not properly attributed.
+
+  Options:
+  - :page - page number (default 1)
+  - :per_page - items per page (default 50)
+
+  Returns {images, total_count}.
+  """
+  @spec list_unattributed_images(keyword()) :: {[ImageSchema.t()], integer()}
+  def list_unattributed_images(opts \\ []) do
+    page = Keyword.get(opts, :page, 1)
+    per_page = Keyword.get(opts, :per_page, 50)
+    offset = (page - 1) * per_page
+
+    base_query = unattributed_images_query()
+
+    images =
+      base_query
+      |> order_by([i, _src, s], asc: s.name, asc: i.id)
+      |> limit(^per_page)
+      |> offset(^offset)
+      |> preload([:source, :species])
+      |> Repo.all()
+
+    total = Repo.aggregate(base_query, :count)
+
+    {images, total}
+  end
+
+  @doc """
+  Returns the count of unattributed images.
+  """
+  @spec count_unattributed_images() :: integer()
+  def count_unattributed_images do
+    unattributed_images_query()
+    |> Repo.aggregate(:count)
+  end
+
+  # Query for images that are not properly attributed.
+  # An image is unattributed if:
+  # - No source_id AND (no license OR (license requires attribution AND no creator))
+  defp unattributed_images_query do
+    # Licenses that require attribution (all except CC0)
+    attribution_licenses = Licenses.all() -- ["Public Domain / CC0"]
+
+    from(i in ImageSchema,
+      left_join: src in assoc(i, :source),
+      left_join: s in Species,
+      on: i.species_id == s.id,
+      # No source with license
+      # AND either no license, or license requires attribution but no creator
+      where:
+        (is_nil(i.source_id) or is_nil(src.license)) and
+          (is_nil(i.license) or i.license == "" or
+             (i.license in ^attribution_licenses and (is_nil(i.creator) or i.creator == "")))
+    )
+  end
+
+  @doc """
+  Gets an image by ID with species preloaded (for audit display).
+  """
+  @spec get_image_with_species(integer()) :: ImageSchema.t() | nil
+  def get_image_with_species(id) do
+    from(i in ImageSchema,
+      where: i.id == ^id,
+      preload: [:source, :species]
+    )
+    |> Repo.one()
   end
 end

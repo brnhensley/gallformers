@@ -343,6 +343,28 @@ Colors are defined in `assets/css/app.css` via `@theme`:
 | `bg-cadet-blue` | #96adc8 | Table headers |
 | `bg-canary` | #f8f991 | Selected/highlighted rows |
 
+### Icons (Phosphor)
+
+This project uses [Phosphor Icons](https://phosphoricons.com/) with the `ph-` prefix (e.g., `ph-detective`, `ph-trash`).
+
+**IMPORTANT: When using a new icon that hasn't been used before:**
+
+1. Download the SVG from Phosphor's GitHub:
+   ```bash
+   # Example for "detective" icon:
+   curl -o assets/vendor/phosphor/detective.svg \
+     https://raw.githubusercontent.com/phosphor-icons/core/main/assets/regular/detective.svg
+   ```
+
+2. Rebuild assets:
+   ```bash
+   mix assets.build
+   ```
+
+3. Restart the Phoenix server (hot reload doesn't pick up new icons)
+
+**Existing icons** are in `assets/vendor/phosphor/`. Check there before downloading.
+
 ## SQLite Compatibility
 
 This project uses **SQLite** (via ecto_sqlite3), not PostgreSQL. Always ensure queries are SQLite-compatible:

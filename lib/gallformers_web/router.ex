@@ -90,6 +90,7 @@ defmodule GallformersWeb.Router do
 
     # Images admin
     live "/images", Admin.ImagesLive
+    live "/image-audit", Admin.ImageAuditLive
 
     # Articles admin
     live "/articles", Admin.ArticleLive.Index, :index

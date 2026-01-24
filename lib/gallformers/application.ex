@@ -14,8 +14,8 @@ defmodule Gallformers.Application do
        repos: Application.fetch_env!(:gallformers, :ecto_repos), skip: skip_migrations?()},
       {DNSCluster, query: Application.get_env(:gallformers, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Gallformers.PubSub},
-      # Start a worker by calling: Gallformers.Worker.start_link(arg)
-      # {Gallformers.Worker, arg},
+      # Image audit cache for orphan detection
+      Gallformers.Images.AuditCache,
       # Start to serve requests, typically the last entry
       GallformersWeb.Endpoint
     ]
