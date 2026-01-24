@@ -244,7 +244,7 @@ CREATE TABLE place (
     id INTEGER PRIMARY KEY NOT NULL,
     name TEXT UNIQUE NOT NULL,
     code TEXT NOT NULL,
-    type TEXT NOT NULL CHECK (type IN ("continent", "country", "region", "state", "province", "county", "city") )
+    type TEXT NOT NULL CHECK (type IN ('continent', 'country', 'region', 'state', 'province', 'county', 'city') )
 );
 CREATE TABLE placeplace (
     place_id INTEGER,
