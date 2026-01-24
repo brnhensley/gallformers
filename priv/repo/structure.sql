@@ -78,30 +78,6 @@ CREATE TABLE host (
     )
     REFERENCES species (id) ON DELETE CASCADE
 );
-CREATE TABLE IF NOT EXISTS "image" (
-    id          INTEGER PRIMARY KEY
-                        NOT NULL,
-    species_id  INTEGER NOT NULL,
-    source_id   INTEGER,
-    path        TEXT    UNIQUE
-                        NOT NULL,
-    [default]   BOOLEAN DEFAULT FALSE,
-    creator     TEXT,
-    attribution TEXT,
-    sourcelink  TEXT,
-    license     TEXT,
-    licenselink TEXT,
-    uploader    TEXT,
-    lastchangedby TEXT, caption TEXT DEFAULT '', "sort_order" INTEGER DEFAULT 0 NOT NULL,
-    FOREIGN KEY (
-        species_id
-    )
-    REFERENCES species (id) ON DELETE CASCADE,
-    FOREIGN KEY (
-        source_id
-    )
-    REFERENCES source (id) ON DELETE CASCADE
-);
 CREATE TABLE alias (
     id       INTEGER PRIMARY KEY NOT NULL,
     name     TEXT NOT NULL,
@@ -304,6 +280,25 @@ CREATE UNIQUE INDEX "articles_slug_index" ON "articles" ("slug");
 CREATE INDEX "articles_is_published_index" ON "articles" ("is_published");
 CREATE TABLE IF NOT EXISTS "users" ("id" INTEGER PRIMARY KEY AUTOINCREMENT, "auth0_id" TEXT NOT NULL, "display_name" TEXT, "nickname" TEXT, "inaturalist_url" TEXT, "social_url" TEXT, "personal_url" TEXT, "show_on_about" INTEGER DEFAULT false NOT NULL, "about_me" TEXT, "inserted_at" TEXT NOT NULL, "updated_at" TEXT NOT NULL);
 CREATE UNIQUE INDEX "users_auth0_id_index" ON "users" ("auth0_id");
+CREATE TABLE IF NOT EXISTS "image" (
+  id          INTEGER PRIMARY KEY NOT NULL,
+  species_id  INTEGER NOT NULL,
+  source_id   INTEGER,
+  path        TEXT    UNIQUE NOT NULL,
+  "default"   BOOLEAN DEFAULT FALSE,
+  creator     TEXT,
+  attribution TEXT,
+  sourcelink  TEXT,
+  license     TEXT,
+  licenselink TEXT,
+  uploader    TEXT,
+  lastchangedby TEXT,
+  caption     TEXT DEFAULT '',
+  sort_order  INTEGER DEFAULT 0 NOT NULL,
+  FOREIGN KEY (species_id) REFERENCES species (id) ON DELETE CASCADE,
+  FOREIGN KEY (source_id) REFERENCES source (id) ON DELETE SET NULL
+);
 CREATE INDEX "image_species_id_sort_order_index" ON "image" ("species_id", "sort_order");
 INSERT INTO schema_migrations VALUES(20260113220009,'2026-01-23T01:02:10');
-INSERT INTO schema_migrations VALUES(20260115203624,'2026-01-23T01:02:10');
+INSERT INTO schema_migrations VALUES(20260115203624,'2026-01-24T18:08:08');
+INSERT INTO schema_migrations VALUES(20260124180615,'2026-01-24 18:08:04');

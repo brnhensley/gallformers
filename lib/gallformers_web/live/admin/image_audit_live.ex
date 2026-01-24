@@ -299,7 +299,11 @@ defmodule GallformersWeb.Admin.ImageAuditLive do
       <p class="text-sm">All S3 images have corresponding database records.</p>
     </div>
 
-    <div :if={@orphans != []} id="orphan-grid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+    <div
+      :if={@orphans != []}
+      id="orphan-grid"
+      class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4"
+    >
       <div
         :for={orphan <- @orphans}
         id={"orphan-#{Base.encode16(:crypto.hash(:md5, orphan.key), case: :lower) |> binary_part(0, 8)}"}
@@ -385,7 +389,11 @@ defmodule GallformersWeb.Admin.ImageAuditLive do
       <p class="text-sm">No images are missing required licensing information.</p>
     </div>
 
-    <div :if={@images != []} id="unattributed-grid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+    <div
+      :if={@images != []}
+      id="unattributed-grid"
+      class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4"
+    >
       <div
         :for={image <- @images}
         id={"unattributed-#{image.id}"}
