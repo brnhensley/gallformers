@@ -336,7 +336,7 @@ defmodule GallformersWeb.HostLive do
                       <thead>
                         <tr>
                           <th
-                            class="cursor-pointer hover:bg-gray-100 select-none"
+                            class="sortable"
                             phx-click="sort"
                             phx-value-field="name"
                           >
@@ -346,7 +346,7 @@ defmodule GallformersWeb.HostLive do
                             </div>
                           </th>
                           <th
-                            class="cursor-pointer hover:bg-gray-100 select-none w-24 text-center"
+                            class="sortable w-24 text-center"
                             phx-click="sort"
                             phx-value-field="datacomplete"
                           >

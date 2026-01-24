@@ -539,6 +539,7 @@ defmodule GallformersWeb.Admin.ImagesLive do
           on_cancel={JS.push("cancel_view")}
           style="max-width: 80rem;"
         >
+          <:header>{@selected_species.name}</:header>
           <:body>
             <div class="flex justify-center">
               <img

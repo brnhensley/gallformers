@@ -50,11 +50,22 @@ defmodule Gallformers.Sources.Source do
       :license,
       :licenselink
     ])
+    |> normalize_empty_strings([:licenselink])
     |> validate_required([:title, :author, :pubyear, :link, :citation, :license])
     |> validate_length(:title, min: 1, max: 500)
     |> validate_format(:pubyear, ~r/^[12][0-9]{3}$/, message: "must be a valid 4-digit year")
     |> validate_license_link()
     |> unique_constraint(:title)
+  end
+
+  # Convert nil values to empty strings for NOT NULL columns with DEFAULT ''
+  defp normalize_empty_strings(changeset, fields) do
+    Enum.reduce(fields, changeset, fn field, cs ->
+      case get_field(cs, field) do
+        nil -> put_change(cs, field, "")
+        _ -> cs
+      end
+    end)
   end
 
   defp validate_license_link(changeset) do

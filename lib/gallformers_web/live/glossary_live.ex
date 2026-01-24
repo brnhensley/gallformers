@@ -95,7 +95,7 @@ defmodule GallformersWeb.GlossaryLive do
               <thead>
                 <tr>
                   <th
-                    class="cursor-pointer hover:bg-gray-100 w-1/4"
+                    class="sortable w-1/4"
                     phx-click="sort"
                     phx-value-column="word"
                   >
@@ -105,7 +105,7 @@ defmodule GallformersWeb.GlossaryLive do
                     </span>
                   </th>
                   <th
-                    class="cursor-pointer hover:bg-gray-100"
+                    class="sortable"
                     phx-click="sort"
                     phx-value-column="definition"
                   >

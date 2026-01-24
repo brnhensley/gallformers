@@ -382,6 +382,21 @@ figcaption {
   background-color: #f3f4f6; /* gray-100 */
 }
 
+/* Sortable table headers */
+.gf-table th.sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.15s;
+}
+
+.gf-table th.sortable:hover {
+  background-color: #d1d5db; /* gray-300 - works with dark text */
+}
+
+.gf-table-dark th.sortable:hover {
+  background-color: #7a95b3; /* darker cadet-blue - works with white text */
+}
+
 /* ============================================
    Form Input Styles (replacing DaisyUI)
    ============================================ */

@@ -134,53 +134,8 @@ defmodule GallformersWeb.Admin.GlossaryLive.Form do
         </.form>
 
         <.discard_confirm_modal show={@show_discard_confirm} />
-
-        <%!-- Live Preview Card --%>
-        <% preview_word = get_form_value(@form, :word) %>
-        <% preview_definition = get_form_value(@form, :definition) %>
-        <% preview_urls = get_form_value(@form, :urls) %>
-        <%= if preview_word != "" || preview_definition != "" do %>
-          <div class="mt-6 bg-white border border-gray-200 rounded shadow-sm">
-            <div class="px-4 py-3 border-b border-gray-200 bg-gray-50">
-              <h4 class="text-lg font-semibold text-gf-maroon">Preview</h4>
-            </div>
-            <div class="p-4">
-              <h4 class="font-semibold text-gf-maroon">{preview_word}</h4>
-              <p class="mt-2 text-gray-700">{preview_definition}</p>
-              <%= if preview_urls && preview_urls != "" do %>
-                <div class="mt-4">
-                  <h5 class="text-sm font-medium text-gray-500">Sources:</h5>
-                  <ul class="mt-1 space-y-1">
-                    <li :for={url <- String.split(preview_urls, "\n", trim: true)}>
-                      <a
-                        href={url}
-                        target="_blank"
-                        rel="noopener"
-                        class="text-sm hover:underline"
-                      >
-                        {truncate_url(url)}
-                      </a>
-                    </li>
-                  </ul>
-                </div>
-              <% end %>
-            </div>
-          </div>
-        <% end %>
       </Layouts.admin_edit_layout>
     </Layouts.admin>
     """
-  end
-
-  defp truncate_url(url) do
-    if String.length(url) > 60 do
-      String.slice(url, 0, 60) <> "..."
-    else
-      url
-    end
-  end
-
-  defp get_form_value(form, field) do
-    Ecto.Changeset.get_field(form.source, field) || ""
   end
 end

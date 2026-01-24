@@ -6,6 +6,8 @@ defmodule GallformersWeb.Admin.SourceLive.Index do
 
   alias Gallformers.Sources
 
+  @valid_sort_columns ~w(title author pubyear datacomplete)
+
   @impl true
   def mount(_params, session, socket) do
     current_user = session["current_user"]
@@ -17,6 +19,8 @@ defmodule GallformersWeb.Admin.SourceLive.Index do
       |> assign(:current_user, current_user)
       |> assign(:page_title, "Sources")
       |> assign(:search_query, "")
+      |> assign(:sort_by, :title)
+      |> assign(:sort_dir, :asc)
       |> load_sources()
 
     {:ok, socket}
@@ -40,6 +44,21 @@ defmodule GallformersWeb.Admin.SourceLive.Index do
       |> load_sources()
 
     {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("sort", %{"column" => column}, socket) when column in @valid_sort_columns do
+    column_atom = String.to_atom(column)
+
+    {new_sort_by, new_sort_dir} =
+      if socket.assigns.sort_by == column_atom do
+        new_dir = if socket.assigns.sort_dir == :asc, do: :desc, else: :asc
+        {column_atom, new_dir}
+      else
+        {column_atom, :asc}
+      end
+
+    {:noreply, assign(socket, sort_by: new_sort_by, sort_dir: new_sort_dir)}
   end
 
   @impl true
@@ -102,15 +121,35 @@ defmodule GallformersWeb.Admin.SourceLive.Index do
           <table class="gf-table gf-table-dark">
             <thead>
               <tr>
-                <th>Title</th>
-                <th>Author</th>
-                <th>Year</th>
-                <th>Complete</th>
+                <th class="sortable" phx-click="sort" phx-value-column="title">
+                  Title
+                  <span :if={@sort_by == :title} class="ml-1">
+                    {if @sort_dir == :asc, do: "↑", else: "↓"}
+                  </span>
+                </th>
+                <th class="sortable" phx-click="sort" phx-value-column="author">
+                  Author
+                  <span :if={@sort_by == :author} class="ml-1">
+                    {if @sort_dir == :asc, do: "↑", else: "↓"}
+                  </span>
+                </th>
+                <th class="sortable" phx-click="sort" phx-value-column="pubyear">
+                  Year
+                  <span :if={@sort_by == :pubyear} class="ml-1">
+                    {if @sort_dir == :asc, do: "↑", else: "↓"}
+                  </span>
+                </th>
+                <th class="sortable" phx-click="sort" phx-value-column="datacomplete">
+                  Complete
+                  <span :if={@sort_by == :datacomplete} class="ml-1">
+                    {if @sort_dir == :asc, do: "↑", else: "↓"}
+                  </span>
+                </th>
                 <th class="text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
-              <tr :for={source <- @sources}>
+              <tr :for={source <- sorted_sources(@sources, @sort_by, @sort_dir)}>
                 <td>
                   <.link
                     navigate={~p"/admin/sources/#{source.id}"}
@@ -182,6 +221,33 @@ defmodule GallformersWeb.Admin.SourceLive.Index do
     </Layouts.admin>
     """
   end
+
+  defp sorted_sources(sources, sort_by, sort_dir) do
+    sorted =
+      Enum.sort_by(sources, fn s ->
+        value =
+          case sort_by do
+            :title -> strip_leading_quotes(s.title)
+            :author -> s.author
+            :pubyear -> s.pubyear
+            :datacomplete -> s.datacomplete
+            _ -> strip_leading_quotes(s.title)
+          end
+
+        cond do
+          is_binary(value) -> String.downcase(value)
+          is_boolean(value) -> if value, do: 1, else: 0
+          is_nil(value) -> ""
+          true -> value
+        end
+      end)
+
+    if sort_dir == :desc, do: Enum.reverse(sorted), else: sorted
+  end
+
+  # Strip leading quotes and apostrophes for sorting purposes
+  defp strip_leading_quotes(nil), do: ""
+  defp strip_leading_quotes(str), do: String.replace(str, ~r/^["']+/, "")
 
   defp truncate(nil, _), do: ""
 

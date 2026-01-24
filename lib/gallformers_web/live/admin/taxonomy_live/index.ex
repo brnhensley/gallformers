@@ -9,6 +9,7 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Index do
   alias Gallformers.Taxonomy
 
   @page_size 50
+  @valid_sort_columns ~w(name type description parent_name)
 
   @impl true
   def mount(_params, session, socket) do
@@ -24,6 +25,8 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Index do
       |> assign(:filter_type, nil)
       |> assign(:current_page, 1)
       |> assign(:page_size, @page_size)
+      |> assign(:sort_by, :name)
+      |> assign(:sort_dir, :asc)
       |> load_taxonomies()
 
     {:ok, socket}
@@ -67,6 +70,25 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Index do
   def handle_event("page", %{"page" => page}, socket) do
     page = max(1, min(page, total_pages(socket.assigns.taxonomies, socket.assigns.page_size)))
     {:noreply, assign(socket, current_page: page)}
+  end
+
+  @impl true
+  def handle_event("sort", %{"column" => column}, socket) when column in @valid_sort_columns do
+    column_atom = String.to_atom(column)
+
+    {new_sort_by, new_sort_dir} =
+      if socket.assigns.sort_by == column_atom do
+        new_dir = if socket.assigns.sort_dir == :asc, do: :desc, else: :asc
+        {column_atom, new_dir}
+      else
+        {column_atom, :asc}
+      end
+
+    {:noreply,
+     socket
+     |> assign(:sort_by, new_sort_by)
+     |> assign(:sort_dir, new_sort_dir)
+     |> assign(:current_page, 1)}
   end
 
   @impl true
@@ -116,8 +138,27 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Index do
     end)
   end
 
-  defp paginated_taxonomies(taxonomies, current_page, page_size) do
+  defp sorted_taxonomies(taxonomies, sort_by, sort_dir) do
+    sorted =
+      Enum.sort_by(taxonomies, fn t ->
+        value =
+          case sort_by do
+            :name -> t.name
+            :type -> t.type
+            :description -> t.description
+            :parent_name -> t.parent_name
+            _ -> t.name
+          end
+
+        if is_binary(value), do: String.downcase(value), else: value || ""
+      end)
+
+    if sort_dir == :desc, do: Enum.reverse(sorted), else: sorted
+  end
+
+  defp paginated_taxonomies(taxonomies, current_page, page_size, sort_by, sort_dir) do
     taxonomies
+    |> sorted_taxonomies(sort_by, sort_dir)
     |> Enum.drop((current_page - 1) * page_size)
     |> Enum.take(page_size)
   end
@@ -168,15 +209,35 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Index do
           <table class="gf-table gf-table-dark">
             <thead>
               <tr>
-                <th>Name</th>
-                <th>Type</th>
-                <th>Description</th>
-                <th>Parent</th>
+                <th class="sortable" phx-click="sort" phx-value-column="name">
+                  Name
+                  <span :if={@sort_by == :name} class="ml-1">
+                    {if @sort_dir == :asc, do: "↑", else: "↓"}
+                  </span>
+                </th>
+                <th class="sortable" phx-click="sort" phx-value-column="type">
+                  Type
+                  <span :if={@sort_by == :type} class="ml-1">
+                    {if @sort_dir == :asc, do: "↑", else: "↓"}
+                  </span>
+                </th>
+                <th class="sortable" phx-click="sort" phx-value-column="description">
+                  Description
+                  <span :if={@sort_by == :description} class="ml-1">
+                    {if @sort_dir == :asc, do: "↑", else: "↓"}
+                  </span>
+                </th>
+                <th class="sortable" phx-click="sort" phx-value-column="parent_name">
+                  Parent
+                  <span :if={@sort_by == :parent_name} class="ml-1">
+                    {if @sort_dir == :asc, do: "↑", else: "↓"}
+                  </span>
+                </th>
                 <th class="text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
-              <tr :for={taxonomy <- paginated_taxonomies(@taxonomies, @current_page, @page_size)}>
+              <tr :for={taxonomy <- paginated_taxonomies(@taxonomies, @current_page, @page_size, @sort_by, @sort_dir)}>
                 <td>
                   <.link
                     navigate={~p"/admin/taxonomy/#{taxonomy.id}"}

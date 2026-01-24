@@ -268,7 +268,7 @@ defmodule GallformersWeb.SearchLive do
                   <thead>
                     <tr>
                       <th
-                        class="cursor-pointer hover:bg-gray-100 w-16"
+                        class="sortable w-16"
                         phx-click="sort"
                         phx-value-column="type"
                       >
@@ -278,7 +278,7 @@ defmodule GallformersWeb.SearchLive do
                         </span>
                       </th>
                       <th
-                        class="cursor-pointer hover:bg-gray-100"
+                        class="sortable"
                         phx-click="sort"
                         phx-value-column="name"
                       >

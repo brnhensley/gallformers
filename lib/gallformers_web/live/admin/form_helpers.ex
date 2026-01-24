@@ -274,12 +274,18 @@ defmodule GallformersWeb.Admin.FormHelpers do
         end
 
         @doc """
-        Default after-update behavior. Override to customize.
+        Default after-update behavior. Stays on page with fresh data.
+        Override to customize.
         """
-        def after_update(socket, _entity) do
+        def after_update(socket, entity) do
+          # Reload the entity to get fresh data and reset the form
+          changeset = change_entity(entity)
+
           socket
           |> Phoenix.LiveView.put_flash(:info, "#{entity_label()} updated successfully")
-          |> Phoenix.LiveView.push_navigate(to: list_path())
+          |> Phoenix.Component.assign(entity_key(), entity)
+          |> Phoenix.Component.assign(:form, Phoenix.Component.to_form(changeset, as: form_key()))
+          |> Phoenix.Component.assign(:form_dirty, false)
         end
 
         if unquote(include_delete) do
