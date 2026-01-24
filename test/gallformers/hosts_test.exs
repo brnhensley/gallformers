@@ -2,7 +2,7 @@ defmodule Gallformers.HostsTest do
   @moduledoc """
   Unit tests for the Hosts context.
   """
-  use Gallformers.DataCase
+  use Gallformers.DataCase, async: false
 
   alias Gallformers.{Hosts, Species}
 
@@ -292,6 +292,28 @@ defmodule Gallformers.HostsTest do
         aliases = Hosts.get_aliases_for_host(hd(hosts).id)
         assert is_list(aliases)
       end
+    end
+  end
+
+  describe "delete_host/1" do
+    test "deletes the host species" do
+      # Species 1 is "Quercus alba" - a host plant
+      host = Hosts.get_host(1)
+      assert host != nil
+
+      # Delete the host
+      assert {:ok, deleted} = Hosts.delete_host(1)
+      assert deleted.id == 1
+
+      # Verify host is gone
+      assert nil == Hosts.get_host(1)
+
+      # Verify species is gone
+      assert nil == Species.get_species(1)
+    end
+
+    test "returns error for non-existent host" do
+      assert {:error, :not_found} = Hosts.delete_host(999_999_999)
     end
   end
 end

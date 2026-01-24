@@ -368,15 +368,35 @@ defmodule Gallformers.Hosts do
 
   @doc """
   Deletes a host species and all associations.
+
+  Performs a complete cleanup in the correct order:
+  1. Deletes S3 images (before DB cascade removes image paths)
+  2. Deletes FTS index entry
+  3. Deletes the species (cascades to image rows, host relations, etc.)
+
+  Returns {:ok, species} on success or {:error, reason} on failure.
   """
-  @spec delete_host(integer()) :: {:ok, Species.t()} | {:error, :not_found | Ecto.Changeset.t()}
+  @spec delete_host(integer()) ::
+          {:ok, Species.t()} | {:error, :not_found | Ecto.Changeset.t() | term()}
   def delete_host(host_id) do
     case get_host_species(host_id) do
       nil ->
         {:error, :not_found}
 
       host ->
-        Repo.delete(host)
+        Repo.transaction(fn ->
+          # 1. Delete S3 images first (before DB records are cascade deleted)
+          Gallformers.Images.delete_images_from_s3_for_species(host.id)
+
+          # 2. Delete from FTS index
+          Gallformers.Species.delete_species_fts(host.id)
+
+          # 3. Delete the species record (cascades to image rows, host relations, etc.)
+          case Repo.delete(host) do
+            {:ok, deleted} -> deleted
+            {:error, changeset} -> Repo.rollback(changeset)
+          end
+        end)
         |> broadcast(:host_deleted)
     end
   end
