@@ -133,6 +133,7 @@ defmodule GallformersWeb.Admin.FormHelpers do
 
   defmacro __using__(opts) do
     crud_helpers = Keyword.get(opts, :crud_helpers, false)
+    include_delete = Keyword.get(opts, :include_delete, true)
 
     # credo:disable-for-next-line Credo.Check.Refactor.LongQuoteBlocks
     quote location: :keep do
@@ -281,13 +282,17 @@ defmodule GallformersWeb.Admin.FormHelpers do
           |> Phoenix.LiveView.push_navigate(to: list_path())
         end
 
-        @doc """
-        Default after-delete behavior. Override to customize.
-        """
-        def after_delete(socket, _entity) do
-          socket
-          |> Phoenix.LiveView.put_flash(:info, "#{entity_label()} deleted successfully")
-          |> Phoenix.LiveView.push_navigate(to: list_path())
+        if unquote(include_delete) do
+          @doc """
+          Default after-delete behavior. Override to customize.
+          """
+          def after_delete(socket, _entity) do
+            socket
+            |> Phoenix.LiveView.put_flash(:info, "#{entity_label()} deleted successfully")
+            |> Phoenix.LiveView.push_navigate(to: list_path())
+          end
+
+          defoverridable after_delete: 2
         end
 
         defoverridable form_key: 0,
@@ -295,8 +300,7 @@ defmodule GallformersWeb.Admin.FormHelpers do
                        new_entity: 0,
                        prepare_params: 1,
                        after_create: 2,
-                       after_update: 2,
-                       after_delete: 2
+                       after_update: 2
 
         # =================================================================
         # Consolidated helper functions
@@ -396,20 +400,22 @@ defmodule GallformersWeb.Admin.FormHelpers do
           end
         end
 
-        @doc """
-        Standard delete handler.
-        Requires delete_entity/1 callback to be implemented.
-        """
-        def handle_delete(_params, socket) do
-          entity = Map.get(socket.assigns, entity_key())
+        if unquote(include_delete) do
+          @doc """
+          Standard delete handler.
+          Requires delete_entity/1 callback to be implemented.
+          """
+          def handle_delete(_params, socket) do
+            entity = Map.get(socket.assigns, entity_key())
 
-          case delete_entity(entity) do
-            {:ok, entity} ->
-              {:noreply, after_delete(socket, entity)}
+            case delete_entity(entity) do
+              {:ok, entity} ->
+                {:noreply, after_delete(socket, entity)}
 
-            {:error, _changeset} ->
-              {:noreply,
-               Phoenix.LiveView.put_flash(socket, :error, "Failed to delete #{entity_label()}")}
+              {:error, _changeset} ->
+                {:noreply,
+                 Phoenix.LiveView.put_flash(socket, :error, "Failed to delete #{entity_label()}")}
+            end
           end
         end
 
@@ -468,6 +474,7 @@ defmodule GallformersWeb.Admin.FormHelpers do
       id="discard-confirm-modal"
       show
       on_cancel={Phoenix.LiveView.JS.push("cancel_discard")}
+      class="gf-modal-md"
     >
       <:header>Discard Changes?</:header>
       <:body>

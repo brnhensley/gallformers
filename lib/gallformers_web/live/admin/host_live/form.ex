@@ -57,7 +57,7 @@ defmodule GallformersWeb.Admin.HostLive.Form do
     |> assign(:places, [])
     |> assign(:taxonomy, nil)
     |> assign(:new_alias_name, "")
-    |> assign(:new_alias_type, "common name")
+    |> assign(:new_alias_type, "common")
     # Rename modal state
     |> assign(:show_rename_modal, false)
     |> assign(:rename_value, "")
@@ -95,7 +95,7 @@ defmodule GallformersWeb.Admin.HostLive.Form do
           |> assign(:places, places)
           |> assign(:taxonomy, taxonomy)
           |> assign(:new_alias_name, "")
-          |> assign(:new_alias_type, "common name")
+          |> assign(:new_alias_type, "common")
           # Rename modal state
           |> assign(:show_rename_modal, false)
           |> assign(:rename_value, host.name)
@@ -529,7 +529,7 @@ defmodule GallformersWeb.Admin.HostLive.Form do
                 type="select"
                 options={Enum.map(@abundances, &{&1.abundance, &1.id})}
                 prompt=""
-                class="w-full text-sm"
+                class="gf-select w-full text-sm"
               />
             </div>
           </div>

@@ -632,7 +632,7 @@ defmodule GallformersWeb.GallLive do
         id="source-detail-modal"
         show={true}
         on_cancel={JS.push("close_source_modal")}
-        class="max-w-3xl"
+        style="max-width: 48rem;"
       >
         <:header>
           <div class="flex items-center justify-between w-full pr-8">

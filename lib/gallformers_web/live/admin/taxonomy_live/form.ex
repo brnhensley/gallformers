@@ -5,7 +5,7 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
   Includes a hierarchical parent selector for setting up the taxonomy tree.
   """
   use GallformersWeb, :live_view
-  use GallformersWeb.Admin.FormHelpers, crud_helpers: true
+  use GallformersWeb.Admin.FormHelpers, crud_helpers: true, include_delete: false
 
   import GallformersWeb.Admin.FormComponents, only: [form_actions: 1]
 
@@ -27,9 +27,8 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
   @impl GallformersWeb.Admin.FormHelpers
   def update_entity(entity, params), do: Taxonomy.update_taxonomy(entity, params)
 
-  # Delete not yet implemented for taxonomy - requires special handling
-  @impl GallformersWeb.Admin.FormHelpers
-  def delete_entity(_entity), do: {:error, :not_implemented}
+  # Note: delete_entity/1 callback not needed - we use include_delete: false
+  # and handle delete in handle_event("delete", ...) below
 
   @impl true
   def mount(_params, session, socket) do
@@ -62,8 +61,8 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
     end
   end
 
-  defp load_parent_options(nil) do
-    # For new entries, load all families and sections
+  defp load_parent_options(type) when type in [nil, ""] do
+    # For new entries or when no type selected yet, load all families and sections
     Taxonomy.list_parents_for_genus()
     |> Enum.map(fn p -> {"#{p.name} (#{p.type})", p.id} end)
   end

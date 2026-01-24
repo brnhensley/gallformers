@@ -148,10 +148,10 @@ defmodule GallformersWeb.Admin.FormComponents do
   end
 
   defp alias_type_options do
+    # Database constraint: type = 'common' OR type = 'scientific'
     [
-      {"Common Name", "common name"},
-      {"Scientific Synonym", "scientific synonym"},
-      {"Other", "other"}
+      {"Common Name", "common"},
+      {"Scientific Synonym", "scientific"}
     ]
   end
 end

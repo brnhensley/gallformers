@@ -83,3 +83,7 @@ api/bin/
 # E2E test artifacts (Wallaby)
 /test/screenshots/*.png
 !/test/screenshots/.gitkeep
+
+# bv (beads viewer) local config and caches
+.bv/
+.beads/.bv.lock

@@ -218,7 +218,13 @@ defmodule GallformersWeb.Admin.ArticleLive.Index do
       </div>
 
       <%!-- Delete Confirmation Modal --%>
-      <.modal :if={@delete_article} id="delete-modal" show on_cancel={JS.push("cancel_delete")}>
+      <.modal
+        :if={@delete_article}
+        id="delete-modal"
+        show
+        on_cancel={JS.push("cancel_delete")}
+        class="gf-modal-md"
+      >
         <:header>Delete Article</:header>
         <:body>
           <p class="text-gray-600 mb-4">

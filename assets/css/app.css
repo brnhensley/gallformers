@@ -752,7 +752,24 @@ a.gf-btn-primary:hover {
   border-radius: 0.5rem;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
   width: 100%;
-  max-width: 42rem;
+  max-width: 56rem; /* 4xl - good default for forms with side-by-side content */
+}
+
+/* Modal size variants - use with class on .modal component */
+.gf-modal-sm {
+  max-width: 28rem; /* sm */
+}
+
+.gf-modal-md {
+  max-width: 42rem; /* md - original default */
+}
+
+.gf-modal-lg {
+  max-width: 56rem; /* lg/4xl */
+}
+
+.gf-modal-xl {
+  max-width: 72rem; /* xl/6xl */
 }
 
 .gf-modal-header {

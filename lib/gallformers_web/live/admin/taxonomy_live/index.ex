@@ -126,6 +126,11 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Index do
     max(1, ceil(length(taxonomies) / page_size))
   end
 
+  defp taxonomy_public_url(%{type: "family", id: id}), do: ~p"/family/#{id}"
+  defp taxonomy_public_url(%{type: "genus", id: id}), do: ~p"/genus/#{id}"
+  defp taxonomy_public_url(%{type: "section", id: id}), do: ~p"/section/#{id}"
+  defp taxonomy_public_url(_), do: nil
+
   @impl true
   def render(assigns) do
     ~H"""
@@ -205,7 +210,7 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Index do
                     <.action_button
                       icon="ph-arrow-square-out"
                       label="View"
-                      navigate={~p"/#{taxonomy.type}/#{taxonomy.id}"}
+                      navigate={taxonomy_public_url(taxonomy)}
                     />
                     <.action_button
                       icon="ph-trash"

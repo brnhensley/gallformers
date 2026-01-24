@@ -18,6 +18,7 @@ import { useConfirmation } from './useConfirmation';
 
 export type AdminFormFields<T> = {
     mainField: T[];
+
     del: boolean;
 };
 

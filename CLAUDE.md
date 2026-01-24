@@ -134,6 +134,8 @@ make ci          # Full CI check (format, compile, credo, test, assets, dialyzer
 
 Do not commit until precommit passes.
 
+**CRITICAL: Always compile with `--warnings-as-errors`**. When verifying code changes, NEVER use plain `mix compile` - always use `mix compile --warnings-as-errors` or run `mix precommit`. CI enforces warnings-as-errors, so skipping this locally will cause CI failures.
+
 ## Testing
 
 ### Test Database

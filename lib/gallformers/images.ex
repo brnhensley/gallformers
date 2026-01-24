@@ -329,10 +329,8 @@ defmodule Gallformers.Images do
         String.replace(path, "original", size_str)
       end)
 
-    # Delete all variants
-    objects = Enum.map(keys, fn key -> %{key: key} end)
-
-    case ExAws.S3.delete_multiple_objects(bucket(), objects) |> ExAws.request() do
+    # Delete all variants - pass keys directly as strings
+    case ExAws.S3.delete_multiple_objects(bucket(), keys) |> ExAws.request() do
       {:ok, _} -> :ok
       {:error, reason} -> {:error, reason}
     end
