@@ -1,5 +1,5 @@
 defmodule GallformersWeb.HomeLiveTest do
-  use GallformersWeb.ConnCase, async: true
+  use GallformersWeb.ConnCase
   import Phoenix.LiveViewTest
 
   describe "Home page" do

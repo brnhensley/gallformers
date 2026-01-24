@@ -2,7 +2,7 @@ defmodule GallformersWeb.API.HostControllerTest do
   @moduledoc """
   API tests for host endpoints.
   """
-  use GallformersWeb.ConnCase, async: true
+  use GallformersWeb.ConnCase
 
   alias Gallformers.Hosts
 

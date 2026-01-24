@@ -1,5 +1,5 @@
 defmodule GallformersWeb.ErrorJSONTest do
-  use GallformersWeb.ConnCase, async: true
+  use GallformersWeb.ConnCase
 
   test "renders 404" do
     assert GallformersWeb.ErrorJSON.render("404.json", %{}) == %{errors: %{detail: "Not Found"}}

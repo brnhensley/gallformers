@@ -2,7 +2,7 @@ defmodule GallformersWeb.IntegrationTest do
   @moduledoc """
   Integration tests for full page load flows, authentication, and PubSub.
   """
-  use GallformersWeb.ConnCase, async: true
+  use GallformersWeb.ConnCase
   import Phoenix.LiveViewTest
 
   alias Gallformers.Accounts.Auth0User

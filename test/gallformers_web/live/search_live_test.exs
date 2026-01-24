@@ -2,7 +2,7 @@ defmodule GallformersWeb.SearchLiveTest do
   @moduledoc """
   LiveView tests for the global search page.
   """
-  use GallformersWeb.ConnCase, async: true
+  use GallformersWeb.ConnCase
   import Phoenix.LiveViewTest
 
   describe "Search page" do

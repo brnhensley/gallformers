@@ -2,7 +2,7 @@ defmodule GallformersWeb.Plugs.CORSTest do
   @moduledoc """
   Tests for CORS plug.
   """
-  use GallformersWeb.ConnCase, async: true
+  use GallformersWeb.ConnCase
 
   describe "CORS headers on API routes" do
     test "sets Access-Control-Allow-Origin header", %{conn: conn} do

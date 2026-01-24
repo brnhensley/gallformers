@@ -2,7 +2,7 @@ defmodule GallformersWeb.GallLiveTest do
   @moduledoc """
   LiveView tests for the gall detail page.
   """
-  use GallformersWeb.ConnCase, async: true
+  use GallformersWeb.ConnCase
   import Phoenix.LiveViewTest
 
   alias Gallformers.Species

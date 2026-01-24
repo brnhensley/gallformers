@@ -2,7 +2,7 @@ defmodule GallformersWeb.API.GallControllerTest do
   @moduledoc """
   API tests for gall endpoints.
   """
-  use GallformersWeb.ConnCase, async: true
+  use GallformersWeb.ConnCase
 
   alias Gallformers.Species
 

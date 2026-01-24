@@ -2,7 +2,7 @@ defmodule GallformersWeb.API.SearchControllerTest do
   @moduledoc """
   API tests for search endpoint.
   """
-  use GallformersWeb.ConnCase, async: true
+  use GallformersWeb.ConnCase
 
   describe "GET /api/v2/search" do
     test "returns search results with all categories", %{conn: conn} do

@@ -2,7 +2,7 @@ defmodule GallformersWeb.Admin.DashboardLiveTest do
   @moduledoc """
   LiveView tests for the admin dashboard.
   """
-  use GallformersWeb.ConnCase, async: true
+  use GallformersWeb.ConnCase
   import Phoenix.LiveViewTest
 
   alias Gallformers.Accounts.Auth0User

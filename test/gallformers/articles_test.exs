@@ -2,7 +2,7 @@ defmodule Gallformers.ArticlesTest do
   @moduledoc """
   Unit tests for the Articles context.
   """
-  use Gallformers.DataCase, async: true
+  use Gallformers.DataCase
 
   alias Gallformers.Articles
   alias Gallformers.Articles.Article

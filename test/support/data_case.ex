@@ -8,10 +8,11 @@ defmodule Gallformers.DataCase do
 
   Finally, if the test case interacts with the database,
   we enable the SQL sandbox, so changes done to the database
-  are reverted at the end of every test. If you are using
-  PostgreSQL, you can even run database tests asynchronously
-  by setting `use Gallformers.DataCase, async: true`, although
-  this option is not recommended for other databases.
+  are reverted at the end of every test.
+
+  NOTE: This project uses SQLite which does NOT support `async: true`.
+  SQLite is single-writer, so concurrent tests holding write transactions
+  will cause "Database busy" errors. Always use `async: false` (the default).
   """
 
   use ExUnit.CaseTemplate

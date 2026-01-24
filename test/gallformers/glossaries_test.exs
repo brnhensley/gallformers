@@ -2,7 +2,7 @@ defmodule Gallformers.GlossariesTest do
   @moduledoc """
   Unit tests for the Glossaries context.
   """
-  use Gallformers.DataCase, async: true
+  use Gallformers.DataCase
 
   alias Gallformers.Glossaries
 
