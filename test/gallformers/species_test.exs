@@ -4,7 +4,9 @@ defmodule Gallformers.SpeciesTest do
   """
   use Gallformers.DataCase, async: false
 
+  alias Gallformers.Repo
   alias Gallformers.Species
+  alias Gallformers.Species.{Gall, GallSpecies}
 
   describe "list_species/0" do
     test "returns a list of species" do
@@ -369,6 +371,46 @@ defmodule Gallformers.SpeciesTest do
       # "ercus" won't match via FTS5, should fall back to LIKE
       results = Species.search_species_by_name("ercus", nil, 10)
       assert is_list(results)
+    end
+  end
+
+  describe "delete_species/1" do
+    test "deletes the species and associated gall record" do
+      # Species 100 is "Andricus quercuscalifornicus" linked to gall 1
+      species = Species.get_species!(100)
+      assert species != nil
+
+      # Verify gall record exists
+      import Ecto.Query
+      gall_link = Repo.one(from gs in GallSpecies, where: gs.species_id == 100)
+      assert gall_link != nil
+      gall_id = gall_link.gall_id
+
+      gall = Repo.get(Gall, gall_id)
+      assert gall != nil
+
+      # Delete the species
+      assert {:ok, deleted} = Species.delete_species(species)
+      assert deleted.id == 100
+
+      # Verify species is gone
+      assert nil == Species.get_species(100)
+
+      # Verify gall record is gone (the fix!)
+      assert nil == Repo.get(Gall, gall_id)
+
+      # Verify gallspecies join record is gone
+      assert nil == Repo.one(from gs in GallSpecies, where: gs.species_id == 100)
+    end
+
+    test "raises for non-existent species" do
+      # Create a struct with a non-existent ID
+      species = %Gallformers.Species.Species{id: 999_999_999, name: "Nonexistent"}
+
+      # Ecto raises StaleEntryError when trying to delete a non-existent record
+      assert_raise Ecto.StaleEntryError, fn ->
+        Species.delete_species(species)
+      end
     end
   end
 end

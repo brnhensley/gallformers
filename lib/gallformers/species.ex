@@ -765,15 +765,49 @@ defmodule Gallformers.Species do
   end
 
   @doc """
-  Deletes a species.
-  """
-  @spec delete_species(Species.t()) :: {:ok, Species.t()} | {:error, Ecto.Changeset.t()}
-  def delete_species(%Species{} = species) do
-    # Delete from FTS index first
-    delete_species_fts(species.id)
+  Deletes a species and all associated data.
 
-    Repo.delete(species)
+  Performs a complete cleanup in the correct order:
+  1. Deletes S3 images (before DB cascade removes image paths)
+  2. Deletes gall record(s) (cascades to filter associations)
+  3. Deletes FTS index entry
+  4. Deletes the species (cascades to image rows, hosts, aliases, etc.)
+
+  Returns {:ok, species} on success or {:error, reason} on failure.
+  """
+  @spec delete_species(Species.t()) :: {:ok, Species.t()} | {:error, Ecto.Changeset.t() | term()}
+  def delete_species(%Species{} = species) do
+    Repo.transaction(fn ->
+      # 1. Delete S3 images first (before DB records are cascade deleted)
+      Gallformers.Images.delete_images_from_s3_for_species(species.id)
+
+      # 2. Delete the gall record(s) for this species
+      # This cascades to all filter associations (gallcolor, gallshape, etc.)
+      delete_galls_for_species(species.id)
+
+      # 3. Delete from FTS index
+      delete_species_fts(species.id)
+
+      # 4. Delete the species record (cascades to image rows, hosts, etc.)
+      case Repo.delete(species) do
+        {:ok, deleted} -> deleted
+        {:error, changeset} -> Repo.rollback(changeset)
+      end
+    end)
     |> broadcast(:species_deleted)
+  end
+
+  defp delete_galls_for_species(species_id) do
+    # Get gall IDs linked to this species via the join table
+    gall_ids =
+      from(gs in GallSpecies, where: gs.species_id == ^species_id, select: gs.gall_id)
+      |> Repo.all()
+
+    # Delete each gall (cascades to filter associations)
+    if gall_ids != [] do
+      from(g in Gall, where: g.id in ^gall_ids)
+      |> Repo.delete_all()
+    end
   end
 
   # Alias management

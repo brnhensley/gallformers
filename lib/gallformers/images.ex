@@ -199,6 +199,34 @@ defmodule Gallformers.Images do
   end
 
   @doc """
+  Deletes all images from S3 for a species without touching the database.
+
+  Used when cascade deleting a species where the image DB rows will be
+  automatically removed by the foreign key constraint. Logs warnings for
+  any S3 deletion failures but continues processing all images.
+
+  Returns :ok regardless of individual S3 errors to allow the delete to proceed.
+  """
+  @spec delete_images_from_s3_for_species(integer()) :: :ok
+  def delete_images_from_s3_for_species(species_id) do
+    images =
+      from(i in ImageSchema, where: i.species_id == ^species_id, select: i.path)
+      |> Repo.all()
+
+    Enum.each(images, fn path ->
+      case delete_image_from_s3(path) do
+        :ok ->
+          :ok
+
+        {:error, reason} ->
+          Logger.warning("Failed to delete S3 image #{path}: #{inspect(reason)}")
+      end
+    end)
+
+    :ok
+  end
+
+  @doc """
   Deletes multiple images by IDs for a species.
   """
   @spec delete_images(integer(), [integer()]) :: {:ok, integer()} | {:error, term()}
