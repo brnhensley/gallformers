@@ -8,6 +8,10 @@ defmodule Gallformers.Hosts.Host do
   use Ecto.Schema
   import Ecto.Changeset
 
+  @behaviour Gallformers.SchemaFields
+
+  @required_fields [:host_species_id, :gall_species_id]
+
   @type t :: %__MODULE__{
           id: integer() | nil,
           host_species_id: integer() | nil,
@@ -19,13 +23,16 @@ defmodule Gallformers.Hosts.Host do
     belongs_to :gall_species, Gallformers.Species.Species, foreign_key: :gall_species_id
   end
 
+  @impl Gallformers.SchemaFields
+  def required_fields, do: @required_fields
+
   @doc """
   Creates a changeset for a host relationship.
   """
   def changeset(host, attrs) do
     host
     |> cast(attrs, [:host_species_id, :gall_species_id])
-    |> validate_required([:host_species_id, :gall_species_id])
+    |> validate_required(@required_fields)
     |> unique_constraint([:host_species_id, :gall_species_id])
   end
 end

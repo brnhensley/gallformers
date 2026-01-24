@@ -1121,7 +1121,7 @@ defmodule GallformersWeb.Admin.GallLive.Form do
                 </div>
                 <div>
                   <label class="gf-label">
-                    Family (required):
+                    Family:<span class="text-red-600 ml-0.5">*</span>
                   </label>
                   <%= if @genus_is_new do %>
                     <%!-- Genus is new - user must select a family --%>
@@ -1154,7 +1154,7 @@ defmodule GallformersWeb.Admin.GallLive.Form do
               <div class="mb-3">
                 <.multi_select_dropdown
                   id="host-picker"
-                  label="Hosts (required):"
+                  label="Hosts:"
                   type={:hosts}
                   search_results={@host_search_results}
                   selected={@hosts}
@@ -1171,6 +1171,7 @@ defmodule GallformersWeb.Admin.GallLive.Form do
                   on_remove="remove_host"
                   on_open="open_host_dropdown"
                   on_close="close_host_dropdown"
+                  required={true}
                 />
                 <p :if={@hosts == []} class="text-red-600 text-xs mt-1">
                   You must map this gall to at least one host.

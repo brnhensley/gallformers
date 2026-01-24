@@ -7,6 +7,8 @@ defmodule GallformersWeb.Admin.GlossaryLive.Form do
 
   import GallformersWeb.Admin.FormComponents, only: [form_actions: 1]
 
+  alias Gallformers.Glossaries.Glossary
+
   # Required callbacks for FormHelpers
   @impl GallformersWeb.Admin.FormHelpers
   def entity_key, do: :entry
@@ -84,10 +86,10 @@ defmodule GallformersWeb.Admin.GlossaryLive.Form do
           <div class="mb-3">
             <.input
               field={@form[:word]}
+              schema={Glossary}
               type="text"
-              label="Word:"
+              label="Word"
               placeholder="Enter term (lowercase unless proper noun)"
-              required
             />
             <p class="mt-1 text-xs text-gray-500">Use lowercase unless it's a proper name</p>
           </div>
@@ -95,22 +97,22 @@ defmodule GallformersWeb.Admin.GlossaryLive.Form do
           <div class="mb-3">
             <.input
               field={@form[:definition]}
+              schema={Glossary}
               type="textarea"
-              label="Definition:"
+              label="Definition"
               rows="4"
               placeholder="Enter the definition"
-              required
             />
           </div>
 
           <div class="mb-3">
             <.input
               field={@form[:urls]}
+              schema={Glossary}
               type="textarea"
-              label="Source URLs:"
+              label="Source URLs"
               rows="2"
               placeholder="Enter URLs (one per line)"
-              required
             />
             <p class="mt-1 text-xs text-gray-500">
               Enter one URL per line. These are the sources for the definition.

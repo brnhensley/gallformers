@@ -7,6 +7,10 @@ defmodule Gallformers.Species.SpeciesSource do
   use Ecto.Schema
   import Ecto.Changeset
 
+  @behaviour Gallformers.SchemaFields
+
+  @required_fields [:species_id, :source_id]
+
   @type t :: %__MODULE__{
           id: integer() | nil,
           species_id: integer() | nil,
@@ -27,6 +31,9 @@ defmodule Gallformers.Species.SpeciesSource do
     belongs_to :alias, Gallformers.Species.Alias
   end
 
+  @impl Gallformers.SchemaFields
+  def required_fields, do: @required_fields
+
   @doc """
   Creates a changeset for a species-source mapping.
   """
@@ -40,7 +47,7 @@ defmodule Gallformers.Species.SpeciesSource do
       :externallink,
       :alias_id
     ])
-    |> validate_required([:species_id, :source_id])
+    |> validate_required(@required_fields)
     |> unique_constraint([:species_id, :source_id],
       name: :speciessource_species_id_source_id,
       message: "this species is already linked to this source"

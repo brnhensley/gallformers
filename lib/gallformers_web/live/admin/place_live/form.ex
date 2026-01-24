@@ -82,10 +82,10 @@ defmodule GallformersWeb.Admin.PlaceLive.Form do
           <div class="mb-3">
             <.input
               field={@form[:name]}
+              schema={Place}
               type="text"
-              label="Name:"
+              label="Name"
               placeholder="e.g., California, Ontario"
-              required
             />
           </div>
 
@@ -93,21 +93,21 @@ defmodule GallformersWeb.Admin.PlaceLive.Form do
             <div>
               <.input
                 field={@form[:code]}
+                schema={Place}
                 type="text"
-                label="Code:"
+                label="Code"
                 placeholder="e.g., CA, ON"
-                required
               />
               <p class="mt-1 text-xs text-gray-500">Standard 2-letter postal code</p>
             </div>
             <div>
               <.input
                 field={@form[:type]}
+                schema={Place}
                 type="select"
-                label="Type:"
+                label="Type"
                 prompt="Select type"
                 options={Enum.map(Place.place_types(), &{&1, &1})}
-                required
               />
             </div>
           </div>

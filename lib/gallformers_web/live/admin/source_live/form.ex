@@ -106,94 +106,73 @@ defmodule GallformersWeb.Admin.SourceLive.Form do
         <.form for={@form} id="source-form" phx-change="validate" phx-submit="save">
           <%!-- Row: Title --%>
           <div class="mb-3">
-            <label class="gf-label">Title:</label>
-            <input
-              type="text"
-              name={@form[:title].name}
-              value={Phoenix.HTML.Form.input_value(@form, :title)}
+            <.input
+              field={@form[:title]}
+              schema={Source}
+              label="Title"
               placeholder="Enter source title"
-              required
-              class="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gf-maroon focus:border-gf-maroon"
             />
           </div>
 
           <%!-- Row: Author | Year --%>
           <div class="grid grid-cols-2 gap-4 mb-3">
-            <div>
-              <label class="gf-label">Author(s):</label>
-              <input
-                type="text"
-                name={@form[:author].name}
-                value={Phoenix.HTML.Form.input_value(@form, :author)}
-                placeholder="e.g., Smith, J. and Jones, M."
-                required
-                class="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gf-maroon focus:border-gf-maroon"
-              />
-            </div>
-            <div>
-              <label class="gf-label">Publication Year:</label>
-              <input
-                type="text"
-                name={@form[:pubyear].name}
-                value={Phoenix.HTML.Form.input_value(@form, :pubyear)}
-                placeholder="e.g., 2023"
-                required
-                class="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gf-maroon focus:border-gf-maroon"
-              />
-            </div>
+            <.input
+              field={@form[:author]}
+              schema={Source}
+              label="Author(s)"
+              placeholder="e.g., Smith, J. and Jones, M."
+            />
+            <.input
+              field={@form[:pubyear]}
+              schema={Source}
+              label="Publication Year"
+              placeholder="e.g., 2023"
+            />
           </div>
 
           <%!-- Row: Reference Link --%>
           <div class="mb-3">
-            <label class="gf-label">Reference Link:</label>
-            <input
+            <.input
+              field={@form[:link]}
+              schema={Source}
               type="url"
-              name={@form[:link].name}
-              value={Phoenix.HTML.Form.input_value(@form, :link)}
+              label="Reference Link"
               placeholder="https://..."
-              required
-              class="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gf-maroon focus:border-gf-maroon"
             />
           </div>
 
           <%!-- Row: License | License Link --%>
           <% current_license = Phoenix.HTML.Form.input_value(@form, :license) %>
           <div class="grid grid-cols-2 gap-4 mb-3">
+            <.input
+              field={@form[:license]}
+              schema={Source}
+              type="select"
+              label="License"
+              prompt="Select license"
+              options={Enum.map(Source.license_types(), &{&1, &1})}
+            />
             <div>
-              <.input
-                field={@form[:license]}
-                type="select"
-                label="License:"
-                prompt="Select license"
-                options={Enum.map(Source.license_types(), &{&1, &1})}
-                required
-              />
-            </div>
-            <div>
-              <label class="gf-label">License Link:</label>
               <%= if Licenses.url_readonly?(current_license) do %>
-                <input
+                <.input
+                  field={@form[:licenselink]}
                   type="url"
-                  name={@form[:licenselink].name}
+                  label="License Link"
                   value={Licenses.url(current_license)}
                   readonly
-                  class="w-full px-3 py-2 border border-gray-300 rounded text-sm bg-gray-100 text-gray-500 cursor-not-allowed"
+                  class="bg-gray-100 text-gray-500 cursor-not-allowed"
                 />
                 <p class="mt-1 text-xs text-gray-500">Auto-filled from license selection</p>
               <% else %>
-                <input
+                <.input
+                  field={@form[:licenselink]}
                   type="url"
-                  name={@form[:licenselink].name}
-                  value={
-                    Phoenix.HTML.Form.input_value(@form, :licenselink) ||
-                      Licenses.url(current_license) || ""
-                  }
+                  label="License Link"
                   placeholder={
                     if current_license == "All Rights Reserved",
                       do: "Optional - link to usage terms",
                       else: ""
                   }
-                  class="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-gf-maroon focus:border-gf-maroon"
                 />
                 <p :if={current_license == "Public Domain / CC0"} class="mt-1 text-xs text-gray-500">
                   Defaults to CC0, but can be changed for other public domain references
@@ -206,11 +185,11 @@ defmodule GallformersWeb.Admin.SourceLive.Form do
           <div class="mb-3">
             <.input
               field={@form[:citation]}
+              schema={Source}
               type="textarea"
-              label="Citation (MLA format):"
+              label="Citation (MLA format)"
               rows="4"
               placeholder="Enter full citation in MLA format"
-              required
             />
             <p class="mt-1 text-xs text-gray-500">
               Use

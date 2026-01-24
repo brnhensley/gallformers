@@ -7,7 +7,11 @@ defmodule Gallformers.Sources.Source do
   use Ecto.Schema
   import Ecto.Changeset
 
+  @behaviour Gallformers.SchemaFields
+
   alias Gallformers.Licenses
+
+  @required_fields [:title, :author, :pubyear, :link, :citation, :license]
 
   @type t :: %__MODULE__{
           id: integer() | nil,
@@ -35,6 +39,9 @@ defmodule Gallformers.Sources.Source do
     has_many :species_sources, Gallformers.Species.SpeciesSource
   end
 
+  @impl Gallformers.SchemaFields
+  def required_fields, do: @required_fields
+
   @doc """
   Creates a changeset for a source.
   """
@@ -51,7 +58,7 @@ defmodule Gallformers.Sources.Source do
       :licenselink
     ])
     |> normalize_empty_strings([:licenselink])
-    |> validate_required([:title, :author, :pubyear, :link, :citation, :license])
+    |> validate_required(@required_fields)
     |> validate_length(:title, min: 1, max: 500)
     |> validate_format(:pubyear, ~r/^[12][0-9]{3}$/, message: "must be a valid 4-digit year")
     |> validate_license_link()

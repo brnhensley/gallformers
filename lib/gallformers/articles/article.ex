@@ -8,6 +8,10 @@ defmodule Gallformers.Articles.Article do
   use Ecto.Schema
   import Ecto.Changeset
 
+  @behaviour Gallformers.SchemaFields
+
+  @required_fields [:title, :author, :content]
+
   @type t :: %__MODULE__{
           id: integer() | nil,
           slug: String.t() | nil,
@@ -38,6 +42,9 @@ defmodule Gallformers.Articles.Article do
     timestamps()
   end
 
+  @impl Gallformers.SchemaFields
+  def required_fields, do: @required_fields
+
   @doc """
   Creates a changeset for an article.
 
@@ -46,7 +53,7 @@ defmodule Gallformers.Articles.Article do
   def changeset(article, attrs) do
     article
     |> cast(attrs, [:slug, :title, :author, :description, :content, :tags, :is_published])
-    |> validate_required([:title, :author, :content])
+    |> validate_required(@required_fields)
     |> maybe_generate_slug()
     |> validate_required([:slug])
     |> validate_length(:title, min: 1, max: 200)

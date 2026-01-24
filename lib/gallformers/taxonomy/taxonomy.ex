@@ -8,6 +8,10 @@ defmodule Gallformers.Taxonomy.Taxonomy do
   use Ecto.Schema
   import Ecto.Changeset
 
+  @behaviour Gallformers.SchemaFields
+
+  @required_fields [:name, :type]
+
   @type t :: %__MODULE__{
           id: integer() | nil,
           name: String.t() | nil,
@@ -35,13 +39,16 @@ defmodule Gallformers.Taxonomy.Taxonomy do
       join_keys: [taxonomy_id: :id, alias_id: :id]
   end
 
+  @impl Gallformers.SchemaFields
+  def required_fields, do: @required_fields
+
   @doc """
   Creates a changeset for a taxonomy.
   """
   def changeset(taxonomy, attrs) do
     taxonomy
     |> cast(attrs, [:name, :description, :type, :parent_id])
-    |> validate_required([:name, :type])
+    |> validate_required(@required_fields)
     |> validate_inclusion(:type, @taxonomy_types)
     |> validate_length(:name, min: 1, max: 255)
     |> unique_constraint(:name, name: :taxonomy_name_type_unique)

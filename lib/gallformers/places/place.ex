@@ -8,6 +8,10 @@ defmodule Gallformers.Places.Place do
   use Ecto.Schema
   import Ecto.Changeset
 
+  @behaviour Gallformers.SchemaFields
+
+  @required_fields [:name, :code, :type]
+
   @type t :: %__MODULE__{
           id: integer() | nil,
           name: String.t() | nil,
@@ -35,13 +39,16 @@ defmodule Gallformers.Places.Place do
       join_keys: [place_id: :id, species_id: :id]
   end
 
+  @impl Gallformers.SchemaFields
+  def required_fields, do: @required_fields
+
   @doc """
   Creates a changeset for a place.
   """
   def changeset(place, attrs) do
     place
     |> cast(attrs, [:name, :code, :type])
-    |> validate_required([:name, :code, :type])
+    |> validate_required(@required_fields)
     |> validate_inclusion(:type, @place_types)
     |> validate_length(:name, min: 1, max: 100)
     |> validate_length(:code, min: 1, max: 10)

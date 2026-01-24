@@ -377,7 +377,9 @@ defmodule GallformersWeb.Admin.ImagesLive do
                   <%!-- License --%>
                   <div class="space-y-1">
                     <div class="flex items-center gap-2">
-                      <span class="text-sm font-medium text-gray-700">License</span>
+                      <span class="text-sm font-medium text-gray-700">
+                        License<span class="text-red-600 ml-0.5">*</span>
+                      </span>
                       <.info_tip content="The license for the image. Currently we can only accept images with one of the 3 licenses that are listed as options." />
                     </div>
                     <select name="license" class="gf-select" phx-change="update_license">
@@ -433,7 +435,9 @@ defmodule GallformersWeb.Admin.ImagesLive do
                   <%!-- Creator --%>
                   <div class="space-y-1">
                     <div class="flex items-center gap-2">
-                      <span class="text-sm font-medium text-gray-700">Creator / Photographer</span>
+                      <span class="text-sm font-medium text-gray-700">
+                        Creator / Photographer<span class="text-red-600 ml-0.5">*</span>
+                      </span>
                       <.info_tip content="Who created the image. Usually a link to the individual or their name. Please no emails!" />
                     </div>
                     <.input

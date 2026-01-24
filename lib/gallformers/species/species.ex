@@ -8,6 +8,10 @@ defmodule Gallformers.Species.Species do
   use Ecto.Schema
   import Ecto.Changeset
 
+  @behaviour Gallformers.SchemaFields
+
+  @required_fields [:name, :taxoncode]
+
   @type t :: %__MODULE__{
           id: integer() | nil,
           name: String.t() | nil,
@@ -51,13 +55,16 @@ defmodule Gallformers.Species.Species do
       join_keys: [species_id: :id, place_id: :id]
   end
 
+  @impl Gallformers.SchemaFields
+  def required_fields, do: @required_fields
+
   @doc """
   Creates a changeset for a species.
   """
   def changeset(species, attrs) do
     species
     |> cast(attrs, [:name, :taxoncode, :datacomplete, :abundance_id])
-    |> validate_required([:name, :taxoncode])
+    |> validate_required(@required_fields)
     |> validate_length(:name, min: 1, max: 500)
     |> validate_inclusion(:taxoncode, taxoncodes())
     |> unique_constraint(:name)

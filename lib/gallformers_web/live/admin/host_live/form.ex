@@ -477,10 +477,11 @@ defmodule GallformersWeb.Admin.HostLive.Form do
             <% else %>
               <.input
                 field={@form[:name]}
+                schema={SpeciesSchema}
                 type="text"
+                label="Name"
                 placeholder="Enter host name (e.g., Quercus alba)..."
                 class="w-full"
-                required
               />
             <% end %>
           </div>

@@ -6,6 +6,12 @@ defmodule Gallformers.Species.Gall do
   This schema captures the gall-specific attributes separate from the species data.
   """
   use Ecto.Schema
+  import Ecto.Changeset
+
+  @behaviour Gallformers.SchemaFields
+
+  # No user-facing required fields - taxoncode is hardcoded internally
+  @required_fields []
 
   @type t :: %__MODULE__{
           id: integer() | nil,
@@ -62,5 +68,22 @@ defmodule Gallformers.Species.Gall do
     many_to_many :seasons, Gallformers.FilterFields.Season,
       join_through: "gallseason",
       join_keys: [gall_id: :id, season_id: :id]
+  end
+
+  @impl Gallformers.SchemaFields
+  def required_fields, do: @required_fields
+
+  @impl Gallformers.SchemaFields
+  def required_associations, do: [:hosts]
+
+  @doc """
+  Creates a changeset for a gall.
+
+  The `taxoncode` is always set to "gall" internally.
+  """
+  def changeset(gall, attrs) do
+    gall
+    |> cast(attrs, [:detachable, :undescribed])
+    |> put_change(:taxoncode, "gall")
   end
 end

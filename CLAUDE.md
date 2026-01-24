@@ -329,6 +329,47 @@ See **[CODING_STANDARDS.md](./CODING_STANDARDS.md)** for Elixir/Phoenix conventi
 />
 ```
 
+## Schema Field Definitions (In Progress)
+
+Schemas should be the single source of truth for required/optional fields. This ensures:
+- Changeset validations and UI `required` attributes stay in sync
+- No drift between what the form requires and what the database validates
+- Data audit tools can use the same definitions
+
+**Target Pattern (being implemented):**
+
+```elixir
+# In schema module
+defmodule Gallformers.Sources.Source do
+  use Ecto.Schema
+  use Gallformers.SchemaFields  # Behavior for field metadata
+
+  @required_fields [:title, :author, :pubyear, :link, :citation, :license]
+  @optional_fields [:datacomplete, :licenselink]
+
+  @impl Gallformers.SchemaFields
+  def required_fields, do: @required_fields
+
+  def changeset(source, attrs) do
+    source
+    |> cast(attrs, @required_fields ++ @optional_fields)
+    |> validate_required(@required_fields)  # Uses the attribute
+  end
+end
+```
+
+```elixir
+# In form template - auto-derives required from schema
+<.input field={@form[:title]} schema={Source} label="Title:" />
+```
+
+**Tracking:**
+- `gallformers-1j8o` - Field audit (define what's required for each schema)
+- `gallformers-uvz3` - Tracer bullet (Source form migration)
+- `gallformers-kntb` - Full implementation
+
+**Current State:** Most forms hardcode `required` attributes separately from schema validations. This will be unified once the pattern is proven.
+
 ## Styling (Tailwind CSS)
 
 ### Custom Colors

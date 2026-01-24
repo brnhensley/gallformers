@@ -21,6 +21,10 @@ defmodule Gallformers.Accounts.User do
   use Ecto.Schema
   import Ecto.Changeset
 
+  @behaviour Gallformers.SchemaFields
+
+  @required_fields [:auth0_id]
+
   @type t :: %__MODULE__{
           id: integer() | nil,
           auth0_id: String.t(),
@@ -48,6 +52,9 @@ defmodule Gallformers.Accounts.User do
     timestamps(type: :utc_datetime_usec)
   end
 
+  @impl Gallformers.SchemaFields
+  def required_fields, do: @required_fields
+
   @doc """
   Changeset for creating a new user profile.
 
@@ -66,7 +73,7 @@ defmodule Gallformers.Accounts.User do
       :personal_url,
       :show_on_about
     ])
-    |> validate_required([:auth0_id])
+    |> validate_required(@required_fields)
     |> unique_constraint(:auth0_id)
     |> validate_url(:inaturalist_url)
     |> validate_url(:social_url)

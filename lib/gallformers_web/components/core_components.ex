@@ -197,6 +197,10 @@ defmodule GallformersWeb.CoreComponents do
   attr :field, Phoenix.HTML.FormField,
     doc: "a form field struct retrieved from the form, for example: @form[:email]"
 
+  attr :schema, :atom,
+    default: nil,
+    doc: "optional schema module implementing SchemaFields behavior for auto-required detection"
+
   attr :errors, :list, default: []
   attr :checked, :boolean, doc: "the checked flag for checkbox inputs"
   attr :prompt, :string, default: nil, doc: "the prompt for select inputs"
@@ -205,16 +209,35 @@ defmodule GallformersWeb.CoreComponents do
   attr :class, :any, default: nil, doc: "the input class to use over defaults"
   attr :error_class, :any, default: nil, doc: "the input error class to use over defaults"
 
+  attr :required, :boolean,
+    default: nil,
+    doc: "explicitly set required (overrides schema detection)"
+
   attr :rest, :global,
     include: ~w(accept autocomplete capture cols disabled form list max maxlength min minlength
-                multiple pattern placeholder readonly required rows size step)
+                multiple pattern placeholder readonly rows size step)
 
   def input(%{field: %Phoenix.HTML.FormField{} = field} = assigns) do
     errors = if Phoenix.Component.used_input?(field), do: field.errors, else: []
 
+    # Determine if field is required: explicit > schema detection > false
+    is_required =
+      case assigns[:required] do
+        nil ->
+          if assigns[:schema] do
+            Gallformers.SchemaFields.required?(assigns.schema, field.field)
+          else
+            false
+          end
+
+        explicit ->
+          explicit
+      end
+
     assigns
     |> assign(field: nil, id: assigns.id || field.id)
     |> assign(:errors, Enum.map(errors, &translate_error(&1)))
+    |> assign(:required, is_required)
     |> assign_new(:name, fn -> if assigns.multiple, do: field.name <> "[]", else: field.name end)
     |> assign_new(:value, fn -> field.value end)
     |> input()
@@ -263,12 +286,16 @@ defmodule GallformersWeb.CoreComponents do
     ~H"""
     <div class="fieldset">
       <label>
-        <span :if={@label} class="label mb-2 text-base font-medium text-gray-700">{@label}</span>
+        <span :if={@label} class="label mb-2 text-base font-medium text-gray-700">
+          {@label}<span :if={@required} class="text-red-600 ml-0.5">*</span>
+        </span>
         <select
           id={@id}
           name={@name}
           class={[@class || "gf-select", @errors != [] && (@error_class || "gf-select-error")]}
           multiple={@multiple}
+          required={@required}
+          aria-required={@required && "true"}
           {@rest}
         >
           <option :if={@prompt} value="">{@prompt}</option>
@@ -284,7 +311,9 @@ defmodule GallformersWeb.CoreComponents do
     ~H"""
     <div class="fieldset">
       <label>
-        <span :if={@label} class="label mb-2 text-base font-medium text-gray-700">{@label}</span>
+        <span :if={@label} class="label mb-2 text-base font-medium text-gray-700">
+          {@label}<span :if={@required} class="text-red-600 ml-0.5">*</span>
+        </span>
         <textarea
           id={@id}
           name={@name}
@@ -292,6 +321,8 @@ defmodule GallformersWeb.CoreComponents do
             @class || "gf-textarea",
             @errors != [] && (@error_class || "gf-textarea-error")
           ]}
+          required={@required}
+          aria-required={@required && "true"}
           {@rest}
         >{Phoenix.HTML.Form.normalize_value("textarea", @value)}</textarea>
       </label>
@@ -305,7 +336,9 @@ defmodule GallformersWeb.CoreComponents do
     ~H"""
     <div class="fieldset">
       <label>
-        <span :if={@label} class="label mb-2 text-base font-medium text-gray-700">{@label}</span>
+        <span :if={@label} class="label mb-2 text-base font-medium text-gray-700">
+          {@label}<span :if={@required} class="text-red-600 ml-0.5">*</span>
+        </span>
         <input
           type={@type}
           name={@name}
@@ -315,6 +348,8 @@ defmodule GallformersWeb.CoreComponents do
             @class || "gf-input",
             @errors != [] && (@error_class || "gf-input-error")
           ]}
+          required={@required}
+          aria-required={@required && "true"}
           {@rest}
         />
       </label>

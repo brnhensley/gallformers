@@ -237,7 +237,10 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Index do
               </tr>
             </thead>
             <tbody>
-              <tr :for={taxonomy <- paginated_taxonomies(@taxonomies, @current_page, @page_size, @sort_by, @sort_dir)}>
+              <tr :for={
+                taxonomy <-
+                  paginated_taxonomies(@taxonomies, @current_page, @page_size, @sort_by, @sort_dir)
+              }>
                 <td>
                   <.link
                     navigate={~p"/admin/taxonomy/#{taxonomy.id}"}

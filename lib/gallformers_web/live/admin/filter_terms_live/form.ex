@@ -170,7 +170,7 @@ defmodule GallformersWeb.Admin.FilterTermsLive.Form do
         <.form for={@form} id="filter-field-form" phx-change="validate" phx-submit="save">
           <div class="mb-3">
             <label class="gf-label">
-              {FilterFields.singular_label(@filter_type)}:
+              {FilterFields.singular_label(@filter_type)}:<span class="text-red-600 ml-0.5">*</span>
             </label>
             <input
               type="text"

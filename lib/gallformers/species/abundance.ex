@@ -5,6 +5,11 @@ defmodule Gallformers.Species.Abundance do
   Describes how common a species is (e.g., "common", "rare", "uncommon").
   """
   use Ecto.Schema
+  import Ecto.Changeset
+
+  @behaviour Gallformers.SchemaFields
+
+  @required_fields [:abundance]
 
   @type t :: %__MODULE__{
           id: integer() | nil,
@@ -19,5 +24,18 @@ defmodule Gallformers.Species.Abundance do
     field :reference, :string
 
     has_many :species, Gallformers.Species.Species
+  end
+
+  @impl Gallformers.SchemaFields
+  def required_fields, do: @required_fields
+
+  @doc """
+  Creates a changeset for an abundance level.
+  """
+  def changeset(abundance, attrs) do
+    abundance
+    |> cast(attrs, [:abundance, :description, :reference])
+    |> validate_required(@required_fields)
+    |> unique_constraint(:abundance)
   end
 end

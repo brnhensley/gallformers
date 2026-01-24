@@ -364,6 +364,7 @@ defmodule GallformersWeb.Admin.GallHostLive do
                   on_open="open_host_dropdown"
                   on_close="close_host_dropdown"
                   size="md"
+                  required={true}
                 />
                 <p :if={@hosts == []} class="text-red-600 text-xs mt-1">
                   You must map this gall to at least one host.

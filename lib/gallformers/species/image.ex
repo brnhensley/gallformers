@@ -5,6 +5,11 @@ defmodule Gallformers.Species.Image do
   Images are associated with species and stored on S3/CloudFront.
   """
   use Ecto.Schema
+  import Ecto.Changeset
+
+  @behaviour Gallformers.SchemaFields
+
+  @required_fields [:species_id, :path]
 
   # CloudFront base URL for images
   @image_base_url "https://dhz6u1p7t6okk.cloudfront.net"
@@ -78,4 +83,35 @@ defmodule Gallformers.Species.Image do
   """
   @spec base_url() :: String.t()
   def base_url, do: @image_base_url
+
+  @impl Gallformers.SchemaFields
+  def required_fields, do: @required_fields
+
+  @doc """
+  Creates a changeset for an image.
+
+  Note: Attribution validation (checking creator for non-CC0 licenses) is handled
+  separately by the Images context since it requires preloaded source data.
+  """
+  def changeset(image, attrs) do
+    image
+    |> cast(attrs, [
+      :species_id,
+      :source_id,
+      :path,
+      :default,
+      :sort_order,
+      :creator,
+      :attribution,
+      :license,
+      :licenselink,
+      :sourcelink,
+      :uploader,
+      :lastchangedby,
+      :caption
+    ])
+    |> validate_required(@required_fields)
+    |> foreign_key_constraint(:species_id)
+    |> foreign_key_constraint(:source_id)
+  end
 end

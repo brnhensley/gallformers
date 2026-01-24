@@ -151,10 +151,10 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
           <div class="mb-3">
             <.input
               field={@form[:name]}
+              schema={Taxonomy.Taxonomy}
               type="text"
-              label="Name:"
+              label="Name"
               placeholder="Enter taxonomy name"
-              required
             />
           </div>
 
@@ -162,11 +162,11 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
             <div>
               <.input
                 field={@form[:type]}
+                schema={Taxonomy.Taxonomy}
                 type="select"
-                label="Type:"
+                label="Type"
                 prompt="Select type"
                 options={[{"Family", "family"}, {"Genus", "genus"}, {"Section", "section"}]}
-                required
               />
             </div>
             <div>

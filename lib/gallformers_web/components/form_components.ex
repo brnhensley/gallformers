@@ -29,12 +29,13 @@ defmodule GallformersWeb.FormComponents do
   attr :selected, :list, default: [], doc: "list of selected values"
   attr :on_toggle, :string, required: true, doc: "event name for toggle"
   attr :class, :any, default: nil, doc: "additional CSS classes"
+  attr :required, :boolean, default: false, doc: "whether this field is required"
 
   def multi_select(assigns) do
     ~H"""
     <div id={@id} class={@class}>
       <label :if={@label} class="gf-label mb-2">
-        {@label}
+        {@label}<span :if={@required} class="text-red-500 ml-0.5">*</span>
       </label>
       <div class="flex flex-wrap gap-2">
         <button
@@ -383,6 +384,7 @@ defmodule GallformersWeb.FormComponents do
     doc: "size variant: sm (admin) or md (public)"
 
   attr :class, :any, default: nil, doc: "additional CSS classes"
+  attr :required, :boolean, default: false, doc: "whether this field is required"
 
   def multi_select_dropdown(assigns) do
     # Resolve result_id and result_label (default to item_id/item_label)
@@ -416,7 +418,9 @@ defmodule GallformersWeb.FormComponents do
 
     ~H"""
     <div class={@class}>
-      <label :if={@label} class="gf-label">{@label}</label>
+      <label :if={@label} class="gf-label">
+        {@label}<span :if={@required} class="text-red-500 ml-0.5">*</span>
+      </label>
       <div
         id={@id}
         phx-hook="Typeahead"
@@ -617,6 +621,7 @@ defmodule GallformersWeb.FormComponents do
   attr :result_slot, :any, default: nil, doc: "optional slot for custom result rendering"
   attr :class, :string, default: "", doc: "additional CSS classes for the wrapper"
   attr :target, :any, default: nil, doc: "phx-target for events (use @myself for LiveComponents)"
+  attr :required, :boolean, default: false, doc: "whether this field is required"
 
   slot :result, doc: "optional slot for custom result item rendering" do
     attr :item, :any
@@ -641,7 +646,9 @@ defmodule GallformersWeb.FormComponents do
       data-input-id={"#{@id}-input"}
       class={@class}
     >
-      <label class="gf-label">{@label}</label>
+      <label class="gf-label">
+        {@label}<span :if={@required} class="text-red-500 ml-0.5">*</span>
+      </label>
       <%= if @selected do %>
         <div
           id={"#{@id}-selected"}
@@ -763,6 +770,7 @@ defmodule GallformersWeb.FormComponents do
   attr :option_label, :atom, required: true, doc: "field name to display from option map"
   attr :query, :string, required: true, doc: "current search query"
   attr :focused, :boolean, required: true, doc: "whether the input is focused"
+  attr :required, :boolean, default: false, doc: "whether this field is required"
 
   def multi_select_typeahead(assigns) do
     option_label = assigns.option_label
@@ -795,7 +803,9 @@ defmodule GallformersWeb.FormComponents do
       data-input-id={@id}
       class="mb-2"
     >
-      <label class="gf-label">{@label}</label>
+      <label class="gf-label">
+        {@label}<span :if={@required} class="text-red-500 ml-0.5">*</span>
+      </label>
       <div class="relative">
         <%!-- Selected tags and input --%>
         <div class="flex flex-wrap gap-1 p-2 border border-gray-300 rounded-md bg-white min-h-[42px]">

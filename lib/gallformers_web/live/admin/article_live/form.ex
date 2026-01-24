@@ -616,7 +616,7 @@ defmodule GallformersWeb.Admin.ArticleLive.Form do
               class="space-y-4"
             >
               <div>
-                <.input field={@form[:title]} label="Title" required />
+                <.input field={@form[:title]} schema={Article} label="Title" />
               </div>
               <div>
                 <.input
@@ -626,7 +626,7 @@ defmodule GallformersWeb.Admin.ArticleLive.Form do
                 />
               </div>
               <div>
-                <.input field={@form[:author]} label="Author" required />
+                <.input field={@form[:author]} schema={Article} label="Author" />
               </div>
               <div>
                 <.input
@@ -641,7 +641,9 @@ defmodule GallformersWeb.Admin.ArticleLive.Form do
                 </p>
               </div>
               <div>
-                <label class="gf-label">Content (Markdown)</label>
+                <label class="gf-label">
+                  Content (Markdown)<span class="text-red-600 ml-0.5">*</span>
+                </label>
                 <textarea
                   name={@form[:content].name}
                   id={@form[:content].id}
