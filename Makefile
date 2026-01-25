@@ -210,6 +210,8 @@ ci: assets/node_modules
 	mix compile --warnings-as-errors
 	@echo "==> Running Credo..."
 	mix credo --strict
+	@echo "==> Linting migrations..."
+	mix migrations.lint
 	@echo "==> Running tests..."
 	mix test
 	@echo "==> Building assets (validates JS/CSS bundling)..."
