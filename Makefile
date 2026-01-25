@@ -2,7 +2,7 @@
 #
 # Phoenix/LiveView development commands
 
-.PHONY: dev test test-db download-db ci help deps assets setup clean check-db build run-local-release
+.PHONY: dev test test-db download-db ci help deps assets setup clean check-db build run-local-release dump-schema
 
 # Download production database for local dev
 # Uses public S3 snapshot (updated daily by GitHub Actions)
@@ -48,6 +48,14 @@ check-db:
 		echo ""; \
 		exit 1; \
 	fi
+
+# Dump database schema (removes SQLite internal tables that break ecto.load)
+dump-schema:
+	mix ecto.dump
+	@echo "Cleaning SQLite internal tables from structure.sql..."
+	@grep -v -E "species_fts_|sqlite_sequence" priv/repo/structure.sql > priv/repo/structure_clean.sql
+	@mv priv/repo/structure_clean.sql priv/repo/structure.sql
+	@echo "Schema dumped to priv/repo/structure.sql"
 
 # Full setup (deps + assets + database)
 setup: deps assets check-db

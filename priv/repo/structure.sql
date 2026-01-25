@@ -250,13 +250,7 @@ CREATE VIRTUAL TABLE species_fts USING fts5(
   prefix='2 3'
 )
 /* species_fts(species_id,name,aliases) */;
-CREATE TABLE IF NOT EXISTS 'species_fts_data'(id INTEGER PRIMARY KEY, block BLOB);
-CREATE TABLE IF NOT EXISTS 'species_fts_idx'(segid, term, pgno, PRIMARY KEY(segid, term)) WITHOUT ROWID;
-CREATE TABLE IF NOT EXISTS 'species_fts_content'(id INTEGER PRIMARY KEY, c0, c1, c2);
-CREATE TABLE IF NOT EXISTS 'species_fts_docsize'(id INTEGER PRIMARY KEY, sz BLOB);
-CREATE TABLE IF NOT EXISTS 'species_fts_config'(k PRIMARY KEY, v) WITHOUT ROWID;
 CREATE TABLE IF NOT EXISTS "articles" ("id" INTEGER PRIMARY KEY AUTOINCREMENT, "slug" TEXT NOT NULL, "title" TEXT NOT NULL, "author" TEXT NOT NULL, "content" TEXT NOT NULL, "tags" TEXT, "is_published" INTEGER DEFAULT false NOT NULL, "description" TEXT, "published_at" TEXT, "inserted_at" TEXT NOT NULL, "updated_at" TEXT NOT NULL);
-CREATE TABLE sqlite_sequence(name,seq);
 CREATE UNIQUE INDEX "articles_slug_index" ON "articles" ("slug");
 CREATE INDEX "articles_is_published_index" ON "articles" ("is_published");
 CREATE TABLE IF NOT EXISTS "users" ("id" INTEGER PRIMARY KEY AUTOINCREMENT, "auth0_id" TEXT NOT NULL, "display_name" TEXT, "nickname" TEXT, "inaturalist_url" TEXT, "social_url" TEXT, "personal_url" TEXT, "show_on_about" INTEGER DEFAULT false NOT NULL, "about_me" TEXT, "inserted_at" TEXT NOT NULL, "updated_at" TEXT NOT NULL);
