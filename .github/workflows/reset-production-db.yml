@@ -205,26 +205,23 @@ jobs:
           echo "Cloning machine $OLD_MACHINE_ID with new volume $NEW_VOLUME_ID..."
 
           # Clone the existing machine but attach our new volume instead
-          CLONE_OUTPUT=$(flyctl machine clone "$OLD_MACHINE_ID" \
+          # Don't capture output - let it stream naturally for better debugging
+          flyctl machine clone "$OLD_MACHINE_ID" \
             -a gallformers \
             --attach-volume "$NEW_VOLUME_ID:/data" \
-            --region "$REGION" \
-            2>&1)
+            --region "$REGION"
 
-          echo "$CLONE_OUTPUT"
+          echo "Clone command completed, finding new machine ID..."
 
-          # Extract the new machine ID from the output
-          # flyctl machine clone outputs: "Machine <id> has been created..."
-          NEW_MACHINE_ID=$(echo "$CLONE_OUTPUT" | grep -oP 'Machine \K[a-z0-9]+(?= has been created)')
-
-          if [ -z "$NEW_MACHINE_ID" ]; then
-            # Try alternative parsing (use "== $old | not" instead of "!=" to avoid shell escaping issues)
-            NEW_MACHINE_ID=$(flyctl machines list -a gallformers --json | \
-              jq -r --arg old "$OLD_MACHINE_ID" '.[] | select(.id == $old | not) | .id' | head -1)
-          fi
+          # Query machine list to find the new machine (the one that isn't the old one)
+          # Use "== $old | not" instead of "!=" to avoid shell escaping issues
+          NEW_MACHINE_ID=$(flyctl machines list -a gallformers --json | \
+            jq -r --arg old "$OLD_MACHINE_ID" '.[] | select(.id == $old | not) | .id' | head -1)
 
           if [ -z "$NEW_MACHINE_ID" ] || [ "$NEW_MACHINE_ID" = "null" ]; then
             echo "ERROR: Could not determine new machine ID"
+            echo "Current machines:"
+            flyctl machines list -a gallformers
             exit 1
           fi
 
