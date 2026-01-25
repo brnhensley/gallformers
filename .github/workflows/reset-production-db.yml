@@ -1,15 +1,33 @@
 name: Reset Production Database
 
+# This workflow replaces the production database using a volume-swap approach:
+# 1. Creates a new volume
+# 2. Populates it via a one-off machine
+# 3. Clones the production machine with the new volume attached
+# 4. Verifies the new machine is healthy and serving correct data
+# 5. Destroys the old machine
+# 6. Clears Litestream state for fresh replication
+#
+# Benefits
+# - Zero downtime (old machine serves traffic until new one is ready)
+# - No race conditions (old machine untouched during setup)
+# - Easy rollback (destroy new machine if something goes wrong)
+# - Atomic switchover
+
 on:
   workflow_dispatch:
     inputs:
       s3_path:
-        description: 'S3 path to database (e.g., s3://gallformers-backups/reset/gallformers.sqlite)'
+        description: "S3 path to database (e.g., s3://gallformers-backups/reset/gallformers.sqlite)"
         required: true
-        default: 's3://gallformers-backups/reset/gallformers.sqlite'
+        default: "s3://gallformers-backups/reset/gallformers.sqlite"
       confirm:
         description: 'Type "RESET" to confirm (this will replace the production database)'
         required: true
+      keep_old_volume:
+        description: "Keep old volume for rollback (true/false)"
+        required: false
+        default: "true"
 
 jobs:
   reset:
@@ -23,57 +41,106 @@ jobs:
       - name: Setup Fly CLI
         uses: superfly/flyctl-actions/setup-flyctl@master
 
-      - name: Verify Fly CLI installed
-        run: flyctl version
+      - name: Verify prerequisites
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          echo "Verifying Fly CLI..."
+          flyctl version
 
-      - name: Download and validate database
+          echo "Verifying app access..."
+          flyctl status -a gallformers
+
+          echo "Checking current machine count..."
+          MACHINE_COUNT=$(flyctl machines list -a gallformers --json | jq 'length')
+          if [ "$MACHINE_COUNT" -ne 1 ]; then
+            echo "ERROR: Expected exactly 1 machine, found $MACHINE_COUNT"
+            echo "This workflow assumes a single-machine deployment."
+            exit 1
+          fi
+
+      - name: Download and validate source database
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.LITESTREAM_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.LITESTREAM_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: us-east-1
         run: |
-          # Ensure sqlite3 is available
+          echo "Installing sqlite3..."
           sudo apt-get update && sudo apt-get install -y sqlite3
 
           echo "Downloading from S3: ${{ inputs.s3_path }}"
-          aws s3 cp "${{ inputs.s3_path }}" reset-db.sqlite
+          aws s3 cp "${{ inputs.s3_path }}" /tmp/reset-db.sqlite
 
           echo "Validating database integrity..."
-          RESULT=$(sqlite3 reset-db.sqlite "PRAGMA integrity_check;")
+          RESULT=$(sqlite3 /tmp/reset-db.sqlite "PRAGMA integrity_check;")
           if [ "$RESULT" != "ok" ]; then
-            echo "INTEGRITY CHECK FAILED - aborting reset"
+            echo "ERROR: INTEGRITY CHECK FAILED"
             echo "$RESULT"
             exit 1
           fi
 
-          SPECIES_COUNT=$(sqlite3 reset-db.sqlite "SELECT COUNT(*) FROM species;")
+          SPECIES_COUNT=$(sqlite3 /tmp/reset-db.sqlite "SELECT COUNT(*) FROM species;")
           if [ "$SPECIES_COUNT" -lt 5000 ]; then
-            echo "Sanity check failed: only $SPECIES_COUNT species (expected 5000+)"
+            echo "ERROR: Sanity check failed - only $SPECIES_COUNT species (expected 5000+)"
             exit 1
           fi
-          echo "Database validated: $SPECIES_COUNT species, integrity OK"
 
-      - name: Get machine and volume info
+          FILE_SIZE=$(stat -c%s /tmp/reset-db.sqlite)
+          echo "EXPECTED_SPECIES_COUNT=$SPECIES_COUNT" >> $GITHUB_ENV
+          echo "EXPECTED_FILE_SIZE=$FILE_SIZE" >> $GITHUB_ENV
+          echo "Database validated: $SPECIES_COUNT species, ${FILE_SIZE} bytes, integrity OK"
+
+      - name: Get current machine info
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
-          echo "Getting machine ID..."
-          MACHINE_ID=$(flyctl machines list -a gallformers --json | jq -r '.[0].id')
-          if [ -z "$MACHINE_ID" ] || [ "$MACHINE_ID" = "null" ]; then
-            echo "ERROR: No machine found"
-            exit 1
-          fi
-          echo "MACHINE_ID=$MACHINE_ID" >> $GITHUB_ENV
-          echo "Machine ID: $MACHINE_ID"
+          echo "Getting current machine details..."
+          MACHINE_JSON=$(flyctl machines list -a gallformers --json | jq '.[0]')
 
-          echo "Getting volume ID..."
-          VOLUME_ID=$(flyctl volumes list -a gallformers --json | jq -r '.[0].id')
-          if [ -z "$VOLUME_ID" ] || [ "$VOLUME_ID" = "null" ]; then
-            echo "ERROR: No volume found"
+          OLD_MACHINE_ID=$(echo "$MACHINE_JSON" | jq -r '.id')
+          OLD_VOLUME_ID=$(echo "$MACHINE_JSON" | jq -r '.config.mounts[0].volume')
+          REGION=$(echo "$MACHINE_JSON" | jq -r '.region')
+
+          if [ -z "$OLD_MACHINE_ID" ] || [ "$OLD_MACHINE_ID" = "null" ]; then
+            echo "ERROR: Could not get machine ID"
             exit 1
           fi
-          echo "VOLUME_ID=$VOLUME_ID" >> $GITHUB_ENV
-          echo "Volume ID: $VOLUME_ID"
+
+          if [ -z "$OLD_VOLUME_ID" ] || [ "$OLD_VOLUME_ID" = "null" ]; then
+            echo "ERROR: Could not get volume ID"
+            exit 1
+          fi
+
+          echo "OLD_MACHINE_ID=$OLD_MACHINE_ID" >> $GITHUB_ENV
+          echo "OLD_VOLUME_ID=$OLD_VOLUME_ID" >> $GITHUB_ENV
+          echo "REGION=$REGION" >> $GITHUB_ENV
+
+          echo "Current machine: $OLD_MACHINE_ID"
+          echo "Current volume: $OLD_VOLUME_ID"
+          echo "Region: $REGION"
+
+      - name: Create new volume
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          echo "Creating new volume in region $REGION..."
+          VOLUME_JSON=$(flyctl volumes create gallformers_data_reset \
+            -a gallformers \
+            --region "$REGION" \
+            --size 10 \
+            --yes \
+            --json)
+
+          NEW_VOLUME_ID=$(echo "$VOLUME_JSON" | jq -r '.id')
+
+          if [ -z "$NEW_VOLUME_ID" ] || [ "$NEW_VOLUME_ID" = "null" ]; then
+            echo "ERROR: Failed to create volume"
+            echo "$VOLUME_JSON"
+            exit 1
+          fi
+
+          echo "NEW_VOLUME_ID=$NEW_VOLUME_ID" >> $GITHUB_ENV
+          echo "Created volume: $NEW_VOLUME_ID"
 
       - name: Generate presigned S3 URL
         env:
@@ -81,37 +148,153 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.LITESTREAM_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: us-east-1
         run: |
-          # Generate a presigned URL valid for 10 minutes
-          PRESIGNED_URL=$(aws s3 presign "${{ inputs.s3_path }}" --expires-in 600)
-          echo "PRESIGNED_URL=$PRESIGNED_URL" >> $GITHUB_ENV
-          echo "Generated presigned URL (expires in 10 min)"
+          # Generate a presigned URL valid for 15 minutes
+          PRESIGNED_URL=$(aws s3 presign "${{ inputs.s3_path }}" --expires-in 900)
+          # Store in a file to avoid shell escaping issues and log exposure
+          echo "$PRESIGNED_URL" > /tmp/presigned_url.txt
+          echo "Generated presigned URL (expires in 15 min)"
 
-      - name: Replace database via SSH
+      - name: Populate new volume via one-off machine
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
-          echo "Replacing database on running machine via SSH..."
+          PRESIGNED_URL=$(cat /tmp/presigned_url.txt)
 
-          # Download from S3 and replace database
-          flyctl ssh console -a gallformers -C "sh -c 'set -e && \
-            echo Downloading database from S3... && \
-            curl -sS -o /tmp/newdb.sqlite \"$PRESIGNED_URL\" && \
-            echo Stopping app to release database locks... && \
-            pkill -f beam.smp || true && \
-            sleep 2 && \
-            echo Backing up old database files... && \
-            mv /data/gallformers.sqlite /data/gallformers.sqlite_BAK 2>/dev/null || true && \
-            mv /data/gallformers.sqlite-wal /data/gallformers.sqlite-wal_BAK 2>/dev/null || true && \
-            mv /data/gallformers.sqlite-shm /data/gallformers.sqlite-shm_BAK 2>/dev/null || true && \
-            rm -rf /data/backups/* /data/.gallformers.sqlite-litestream && \
-            echo Moving new database into place... && \
-            mv /tmp/newdb.sqlite /data/gallformers.sqlite && \
-            chmod 644 /data/gallformers.sqlite && \
-            echo Database replaced: && \
-            ls -la /data/'"
+          echo "Starting one-off machine to populate volume..."
 
-          echo "Restarting machine..."
-          flyctl machine restart $MACHINE_ID -a gallformers
+          # Use Alpine with curl and sqlite3 for minimal image
+          # The machine will download the database, validate it, and exit
+          flyctl machine run alpine:latest \
+            -a gallformers \
+            --region "$REGION" \
+            --vm-size shared-cpu-1x \
+            --vm-memory 512 \
+            --volume "$NEW_VOLUME_ID:/data" \
+            --rm \
+            --restart no \
+            --entrypoint sh \
+            -- -c "
+              set -e
+              echo 'Installing dependencies...'
+              apk add --no-cache curl sqlite
+
+              echo 'Downloading database from S3...'
+              curl -sfS -o /data/gallformers.sqlite '$PRESIGNED_URL'
+
+              echo 'Validating integrity...'
+              RESULT=\$(sqlite3 /data/gallformers.sqlite 'PRAGMA integrity_check;')
+              if [ \"\$RESULT\" != 'ok' ]; then
+                echo 'ERROR: Integrity check failed'
+                exit 1
+              fi
+
+              echo 'Setting permissions...'
+              chmod 644 /data/gallformers.sqlite
+
+              echo 'Database ready:'
+              ls -la /data/
+              sqlite3 /data/gallformers.sqlite 'SELECT COUNT(*) FROM species;'
+            "
+
+          echo "Volume populated successfully"
+
+      - name: Clone production machine with new volume
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          echo "Cloning machine $OLD_MACHINE_ID with new volume $NEW_VOLUME_ID..."
+
+          # Clone the existing machine but attach our new volume instead
+          CLONE_OUTPUT=$(flyctl machine clone "$OLD_MACHINE_ID" \
+            -a gallformers \
+            --attach-volume "$NEW_VOLUME_ID:/data" \
+            --region "$REGION" \
+            2>&1)
+
+          echo "$CLONE_OUTPUT"
+
+          # Extract the new machine ID from the output
+          # flyctl machine clone outputs: "Machine <id> has been created..."
+          NEW_MACHINE_ID=$(echo "$CLONE_OUTPUT" | grep -oP 'Machine \K[a-z0-9]+(?= has been created)')
+
+          if [ -z "$NEW_MACHINE_ID" ]; then
+            # Try alternative parsing (use "== $old | not" instead of "!=" to avoid shell escaping issues)
+            NEW_MACHINE_ID=$(flyctl machines list -a gallformers --json | \
+              jq -r --arg old "$OLD_MACHINE_ID" '.[] | select(.id == $old | not) | .id' | head -1)
+          fi
+
+          if [ -z "$NEW_MACHINE_ID" ] || [ "$NEW_MACHINE_ID" = "null" ]; then
+            echo "ERROR: Could not determine new machine ID"
+            exit 1
+          fi
+
+          echo "NEW_MACHINE_ID=$NEW_MACHINE_ID" >> $GITHUB_ENV
+          echo "Created new machine: $NEW_MACHINE_ID"
+
+      - name: Wait for new machine to be healthy
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          echo "Waiting for machine $NEW_MACHINE_ID to be healthy..."
+
+          MAX_ATTEMPTS=60
+          SLEEP_SECONDS=5
+
+          for i in $(seq 1 $MAX_ATTEMPTS); do
+            MACHINE_JSON=$(flyctl machines list -a gallformers --json | \
+              jq --arg id "$NEW_MACHINE_ID" '.[] | select(.id == $id)')
+
+            STATE=$(echo "$MACHINE_JSON" | jq -r '.state')
+            # Get all health check statuses
+            CHECKS=$(echo "$MACHINE_JSON" | jq -r '.checks // [] | map(.status) | join(",")')
+
+            echo "Attempt $i/$MAX_ATTEMPTS: state=$STATE, checks=$CHECKS"
+
+            if [ "$STATE" = "started" ]; then
+              # Check if all health checks are passing (use "== | not" to avoid shell escaping issues with "!=")
+              FAILING=$(echo "$MACHINE_JSON" | jq '[.checks // [] | .[] | select(.status == "passing" | not)] | length')
+              if [ "$FAILING" = "0" ]; then
+                echo "Machine is healthy!"
+                break
+              fi
+            fi
+
+            if [ "$i" -eq "$MAX_ATTEMPTS" ]; then
+              echo "ERROR: Machine failed to become healthy after $((MAX_ATTEMPTS * SLEEP_SECONDS)) seconds"
+              echo "Final state: $STATE"
+              echo "Check statuses: $CHECKS"
+              echo ""
+              echo "Rolling back: destroying new machine..."
+              flyctl machine destroy "$NEW_MACHINE_ID" -a gallformers --force || true
+              exit 1
+            fi
+
+            sleep $SLEEP_SECONDS
+          done
+
+      - name: Verify database content on new machine
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          echo "Verifying database content on new machine..."
+
+          # SSH to new machine and check species count
+          # Use tail -1 to skip flyctl's informational messages (e.g., "Only one machine available...")
+          ACTUAL_COUNT=$(flyctl ssh console -a gallformers \
+            -s -C "sqlite3 /data/gallformers.sqlite 'SELECT COUNT(*) FROM species;'" \
+            2>/dev/null | tail -1 | tr -d '[:space:]')
+
+          echo "Expected species count: $EXPECTED_SPECIES_COUNT"
+          echo "Actual species count: $ACTUAL_COUNT"
+
+          if [ "$ACTUAL_COUNT" != "$EXPECTED_SPECIES_COUNT" ]; then
+            echo "ERROR: Species count mismatch!"
+            echo "Rolling back: destroying new machine..."
+            flyctl machine destroy "$NEW_MACHINE_ID" -a gallformers --force || true
+            exit 1
+          fi
+
+          echo "Database content verified successfully"
 
       - name: Clear old Litestream generations
         env:
@@ -119,41 +302,82 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.LITESTREAM_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: us-east-1
         run: |
-          echo "Clearing old Litestream generations for fresh start..."
-          aws s3 rm s3://gallformers-backups/litestream/ --recursive || true
+          echo "Clearing old Litestream generations for fresh replication..."
+          if ! aws s3 rm s3://gallformers-backups/litestream/ --recursive; then
+            echo "WARNING: Failed to clear Litestream generations"
+            echo "Manual cleanup may be required"
+          fi
+          echo "Litestream state cleared"
 
-      - name: Wait for machine to be healthy
+      - name: Destroy old machine
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
-          echo "Waiting for machine to restart and pass health checks..."
-          sleep 30
-          for i in {1..30}; do
-            STATE=$(flyctl machines list -a gallformers --json | jq -r '.[0].state')
-            CHECKS=$(flyctl machines list -a gallformers --json | jq -r '.[0].checks[0].status // "unknown"')
-            echo "Machine state: $STATE, health: $CHECKS"
-            if [ "$STATE" = "started" ] && [ "$CHECKS" = "passing" ]; then
-              echo "Machine healthy"
-              break
-            fi
-            if [ $i -eq 30 ]; then
-              echo "WARNING: Machine may not be fully healthy yet"
-            fi
-            sleep 5
-          done
+          echo "Destroying old machine $OLD_MACHINE_ID..."
+          flyctl machine destroy "$OLD_MACHINE_ID" -a gallformers --force
 
-      - name: Cleanup reset file from S3
+          echo "Old machine destroyed"
+
+      - name: Handle old volume
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          if [ "${{ inputs.keep_old_volume }}" = "true" ]; then
+            echo "Keeping old volume $OLD_VOLUME_ID for rollback"
+            echo ""
+            echo "To rollback manually:"
+            echo "  1. flyctl machine clone <new_machine_id> --attach-volume $OLD_VOLUME_ID:/data"
+            echo "  2. Verify new machine is healthy"
+            echo "  3. flyctl machine destroy <current_machine_id>"
+            echo ""
+            echo "To delete the old volume later:"
+            echo "  flyctl volumes destroy $OLD_VOLUME_ID -a gallformers"
+          else
+            echo "Destroying old volume $OLD_VOLUME_ID..."
+            flyctl volumes destroy "$OLD_VOLUME_ID" -a gallformers --yes
+            echo "Old volume destroyed"
+          fi
+
+      - name: Cleanup source file from S3
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.LITESTREAM_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.LITESTREAM_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: us-east-1
         run: |
-          echo "Cleaning up: ${{ inputs.s3_path }}"
-          aws s3 rm "${{ inputs.s3_path }}"
+          echo "Moving source file to processed location..."
+          TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+          aws s3 mv "${{ inputs.s3_path }}" \
+            "s3://gallformers-backups/reset/processed/gallformers-$TIMESTAMP.sqlite"
+          echo "Source file archived (not deleted, for safety)"
 
-      - name: Verify deployment
+      - name: Final verification
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
-          echo "Checking deployment status..."
+          echo "=== Final Status ==="
           flyctl status -a gallformers
+          echo ""
+
+          echo "=== Current Machines ==="
+          flyctl machines list -a gallformers
+          echo ""
+
+          echo "=== Current Volumes ==="
+          flyctl volumes list -a gallformers
+          echo ""
+
+          echo "=== Health Check ==="
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://gallformers.fly.dev/health || echo "failed")
+          if [ "$HTTP_STATUS" = "200" ]; then
+            echo "Health endpoint: OK (200)"
+          else
+            echo "WARNING: Health endpoint returned: $HTTP_STATUS"
+          fi
+          echo ""
+
+          echo "=== Reset Complete ==="
+          echo "New machine ID: $NEW_MACHINE_ID"
+          echo "New volume ID: $NEW_VOLUME_ID"
+          if [ "${{ inputs.keep_old_volume }}" = "true" ]; then
+            echo "Old volume (for rollback): $OLD_VOLUME_ID"
+          fi
