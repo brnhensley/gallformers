@@ -93,22 +93,22 @@ jobs:
           echo "Replacing database on running machine via SSH..."
 
           # Download from S3 and replace database
-          flyctl ssh console -a gallformers -C "set -e && \
-            echo 'Downloading database from S3...' && \
+          flyctl ssh console -a gallformers -C "sh -c 'set -e && \
+            echo Downloading database from S3... && \
             curl -sS -o /tmp/newdb.sqlite \"$PRESIGNED_URL\" && \
-            echo 'Stopping app to release database locks...' && \
-            pkill -f 'beam.smp' || true && \
+            echo Stopping app to release database locks... && \
+            pkill -f beam.smp || true && \
             sleep 2 && \
-            echo 'Backing up old database files...' && \
+            echo Backing up old database files... && \
             mv /data/gallformers.sqlite /data/gallformers.sqlite_BAK 2>/dev/null || true && \
             mv /data/gallformers.sqlite-wal /data/gallformers.sqlite-wal_BAK 2>/dev/null || true && \
             mv /data/gallformers.sqlite-shm /data/gallformers.sqlite-shm_BAK 2>/dev/null || true && \
             rm -rf /data/backups/* /data/.gallformers.sqlite-litestream && \
-            echo 'Moving new database into place...' && \
+            echo Moving new database into place... && \
             mv /tmp/newdb.sqlite /data/gallformers.sqlite && \
             chmod 644 /data/gallformers.sqlite && \
-            echo 'Database replaced:' && \
-            ls -la /data/"
+            echo Database replaced: && \
+            ls -la /data/'"
 
           echo "Restarting machine..."
           flyctl machine restart $MACHINE_ID -a gallformers
