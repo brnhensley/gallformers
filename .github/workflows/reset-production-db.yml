@@ -127,7 +127,7 @@ jobs:
           VOLUME_JSON=$(flyctl volumes create gallformers_data_reset \
             -a gallformers \
             --region "$REGION" \
-            --size 10 \
+            --size 1 \
             --yes \
             --json)
 
