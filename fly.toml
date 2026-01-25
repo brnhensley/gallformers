@@ -4,6 +4,10 @@
 app = "gallformers"
 primary_region = "iad"
 
+# Graceful shutdown: send SIGTERM and wait for Litestream to flush WAL to S3
+kill_signal = "SIGTERM"
+kill_timeout = "30s"
+
 [build]
   dockerfile = "Dockerfile"
 

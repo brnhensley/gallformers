@@ -1,0 +1,129 @@
+name: Reset Production Database
+
+on:
+  workflow_dispatch:
+    inputs:
+      source:
+        description: 'Database source'
+        required: true
+        type: choice
+        options:
+          - 'repo'        # priv/gallformers.sqlite from this repo
+          - 's3-path'     # Specify an S3 path
+      s3_path:
+        description: 'S3 path (only if source=s3-path, e.g., s3://gallformers-backups/some/path.sqlite)'
+        required: false
+      confirm:
+        description: 'Type "RESET" to confirm (this will replace the production database)'
+        required: true
+
+jobs:
+  reset:
+    if: github.event.inputs.confirm == 'RESET'
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Validate inputs
+        run: |
+          if [ "${{ inputs.source }}" = "s3-path" ] && [ -z "${{ inputs.s3_path }}" ]; then
+            echo "ERROR: s3_path is required when source is 's3-path'"
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+
+      - name: Setup Fly CLI
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Prepare database file
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.LITESTREAM_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.LITESTREAM_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: us-east-1
+        run: |
+          if [ "${{ inputs.source }}" = "repo" ]; then
+            echo "Using database from repository: priv/gallformers.sqlite"
+            cp priv/gallformers.sqlite reset-db.sqlite
+          else
+            echo "Downloading from S3: ${{ inputs.s3_path }}"
+            aws s3 cp "${{ inputs.s3_path }}" reset-db.sqlite
+          fi
+
+          echo "Validating database integrity..."
+          RESULT=$(sqlite3 reset-db.sqlite "PRAGMA integrity_check;")
+          if [ "$RESULT" != "ok" ]; then
+            echo "INTEGRITY CHECK FAILED - aborting reset"
+            echo "$RESULT"
+            exit 1
+          fi
+
+          SPECIES_COUNT=$(sqlite3 reset-db.sqlite "SELECT COUNT(*) FROM species;")
+          if [ "$SPECIES_COUNT" -lt 5000 ]; then
+            echo "Sanity check failed: only $SPECIES_COUNT species (expected 5000+)"
+            exit 1
+          fi
+          echo "Database validated: $SPECIES_COUNT species, integrity OK"
+
+      - name: Upload to private S3 reset location
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.LITESTREAM_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.LITESTREAM_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: us-east-1
+        run: |
+          aws s3 cp reset-db.sqlite s3://gallformers-backups/reset/gallformers.sqlite
+
+      - name: Scale down Fly app
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          echo "Scaling down to 0 machines..."
+          fly scale count 0 -a gallformers --yes
+
+      - name: Wait for machines to stop
+        run: sleep 10
+
+      - name: Replace database on volume
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.LITESTREAM_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.LITESTREAM_SECRET_ACCESS_KEY }}
+        run: |
+          echo "Running one-off machine to replace database..."
+          fly ssh console -a gallformers -C "
+            rm -f /data/gallformers.sqlite /data/gallformers.sqlite-wal /data/gallformers.sqlite-shm
+            aws s3 cp s3://gallformers-backups/reset/gallformers.sqlite /data/gallformers.sqlite
+            chown gallformers:gallformers /data/gallformers.sqlite
+            echo 'Database replaced successfully'
+          "
+
+      - name: Clear old Litestream generations
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.LITESTREAM_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.LITESTREAM_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: us-east-1
+        run: |
+          echo "Clearing old Litestream generations for fresh start..."
+          aws s3 rm s3://gallformers-backups/litestream/ --recursive || true
+
+      - name: Deploy and scale back up
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          echo "Deploying (runs migrations and starts Litestream)..."
+          fly deploy -a gallformers
+
+      - name: Cleanup reset file from S3
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.LITESTREAM_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.LITESTREAM_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: us-east-1
+        run: |
+          aws s3 rm s3://gallformers-backups/reset/gallformers.sqlite
+
+      - name: Verify deployment
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          echo "Checking deployment status..."
+          fly status -a gallformers

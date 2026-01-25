@@ -23,6 +23,25 @@ jobs:
           litestream restore -o gallformers.sqlite \
             s3://gallformers-backups/litestream
 
+      - name: Validate database integrity
+        run: |
+          echo "Running integrity check..."
+          RESULT=$(sqlite3 gallformers.sqlite "PRAGMA integrity_check;")
+          if [ "$RESULT" != "ok" ]; then
+            echo "INTEGRITY CHECK FAILED:"
+            echo "$RESULT"
+            exit 1
+          fi
+          echo "Integrity check passed."
+
+          echo "Running sanity checks..."
+          SPECIES_COUNT=$(sqlite3 gallformers.sqlite "SELECT COUNT(*) FROM species;")
+          if [ "$SPECIES_COUNT" -lt 5000 ]; then
+            echo "Sanity check failed: only $SPECIES_COUNT species (expected 5000+)"
+            exit 1
+          fi
+          echo "Database validated: $SPECIES_COUNT species, integrity OK"
+
       - name: Upload full backup (private, contains PII)
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.LITESTREAM_ACCESS_KEY_ID }}

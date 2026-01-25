@@ -51,7 +51,8 @@ RUN mix release
 # Stage 2: Runtime
 FROM alpine:3.20 AS runtime
 
-RUN apk add --no-cache libstdc++ openssl ncurses-libs sqlite su-exec
+# Runtime dependencies + aws-cli for database reset workflow
+RUN apk add --no-cache libstdc++ openssl ncurses-libs sqlite su-exec aws-cli
 
 # Install Litestream for continuous SQLite replication
 ADD https://github.com/benbjohnson/litestream/releases/download/v0.3.13/litestream-v0.3.13-linux-amd64.tar.gz /tmp/litestream.tar.gz
