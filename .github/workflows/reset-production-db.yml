@@ -75,37 +75,38 @@ jobs:
           echo "VOLUME_ID=$VOLUME_ID" >> $GITHUB_ENV
           echo "Volume ID: $VOLUME_ID"
 
-      - name: Replace database via SSH
+      - name: Generate presigned S3 URL
         env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
           AWS_ACCESS_KEY_ID: ${{ secrets.LITESTREAM_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.LITESTREAM_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: us-east-1
-          S3_PATH: ${{ inputs.s3_path }}
+        run: |
+          # Generate a presigned URL valid for 10 minutes
+          PRESIGNED_URL=$(aws s3 presign "${{ inputs.s3_path }}" --expires-in 600)
+          echo "PRESIGNED_URL=$PRESIGNED_URL" >> $GITHUB_ENV
+          echo "Generated presigned URL (expires in 10 min)"
+
+      - name: Replace database via SSH
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
           echo "Replacing database on running machine via SSH..."
 
-          # Upload the validated database directly to the machine
-          cat reset-db.sqlite | flyctl ssh console -a gallformers -C "cat > /tmp/newdb.sqlite"
-
-          # Replace the database
-          flyctl ssh console -a gallformers -C "
-            set -e
-            echo 'Stopping app to release database locks...'
-            pkill -f 'beam.smp' || true
-            sleep 2
-
-            echo 'Removing old database files...'
-            rm -f /data/gallformers.sqlite /data/gallformers.sqlite-wal /data/gallformers.sqlite-shm
-            rm -rf /data/backups/* /data/.gallformers.sqlite-litestream
-
-            echo 'Moving new database into place...'
-            mv /tmp/newdb.sqlite /data/gallformers.sqlite
-            chmod 644 /data/gallformers.sqlite
-
-            echo 'Database replaced:'
-            ls -la /data/
-          "
+          # Download from S3 and replace database
+          flyctl ssh console -a gallformers -C "set -e && \
+            echo 'Downloading database from S3...' && \
+            curl -sS -o /tmp/newdb.sqlite \"$PRESIGNED_URL\" && \
+            echo 'Stopping app to release database locks...' && \
+            pkill -f 'beam.smp' || true && \
+            sleep 2 && \
+            echo 'Removing old database files...' && \
+            rm -f /data/gallformers.sqlite /data/gallformers.sqlite-wal /data/gallformers.sqlite-shm && \
+            rm -rf /data/backups/* /data/.gallformers.sqlite-litestream && \
+            echo 'Moving new database into place...' && \
+            mv /tmp/newdb.sqlite /data/gallformers.sqlite && \
+            chmod 644 /data/gallformers.sqlite && \
+            echo 'Database replaced:' && \
+            ls -la /data/"
 
           echo "Restarting machine..."
           flyctl machine restart $MACHINE_ID -a gallformers
