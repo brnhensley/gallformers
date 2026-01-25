@@ -64,20 +64,6 @@ CREATE TABLE source (
     link     TEXT NOT NULL, -- add NOT NULL in 004
     citation TEXT NOT NULL -- add NOT NULL in 004
 , datacomplete BOOLEAN DEFAULT 0 NOT NULL, license TEXT DEFAULT '' NOT NULL, licenselink TEXT DEFAULT '' NOT NULL);
-CREATE TABLE host (
-    id              INTEGER PRIMARY KEY
-                            NOT NULL,
-    host_species_id INTEGER,
-    gall_species_id INTEGER,
-    FOREIGN KEY (
-        host_species_id
-    )
-    REFERENCES species (id) ON DELETE CASCADE,
-    FOREIGN KEY (
-        gall_species_id
-    )
-    REFERENCES species (id) ON DELETE CASCADE
-);
 CREATE TABLE alias (
     id       INTEGER PRIMARY KEY NOT NULL,
     name     TEXT NOT NULL,
@@ -240,12 +226,6 @@ CREATE TABLE gallform (
     FOREIGN KEY (form_id) REFERENCES form (id) ON DELETE CASCADE,
     PRIMARY KEY (gall_id, form_id)
 );
-CREATE TABLE place (
-    id INTEGER PRIMARY KEY NOT NULL,
-    name TEXT UNIQUE NOT NULL,
-    code TEXT NOT NULL,
-    type TEXT NOT NULL CHECK (type IN ('continent', 'country', 'region', 'state', 'province', 'county', 'city') )
-);
 CREATE TABLE placeplace (
     place_id INTEGER,
     parent_id INTEGER,
@@ -276,6 +256,7 @@ CREATE TABLE IF NOT EXISTS 'species_fts_content'(id INTEGER PRIMARY KEY, c0, c1,
 CREATE TABLE IF NOT EXISTS 'species_fts_docsize'(id INTEGER PRIMARY KEY, sz BLOB);
 CREATE TABLE IF NOT EXISTS 'species_fts_config'(k PRIMARY KEY, v) WITHOUT ROWID;
 CREATE TABLE IF NOT EXISTS "articles" ("id" INTEGER PRIMARY KEY AUTOINCREMENT, "slug" TEXT NOT NULL, "title" TEXT NOT NULL, "author" TEXT NOT NULL, "content" TEXT NOT NULL, "tags" TEXT, "is_published" INTEGER DEFAULT false NOT NULL, "description" TEXT, "published_at" TEXT, "inserted_at" TEXT NOT NULL, "updated_at" TEXT NOT NULL);
+CREATE TABLE sqlite_sequence(name,seq);
 CREATE UNIQUE INDEX "articles_slug_index" ON "articles" ("slug");
 CREATE INDEX "articles_is_published_index" ON "articles" ("is_published");
 CREATE TABLE IF NOT EXISTS "users" ("id" INTEGER PRIMARY KEY AUTOINCREMENT, "auth0_id" TEXT NOT NULL, "display_name" TEXT, "nickname" TEXT, "inaturalist_url" TEXT, "social_url" TEXT, "personal_url" TEXT, "show_on_about" INTEGER DEFAULT false NOT NULL, "about_me" TEXT, "inserted_at" TEXT NOT NULL, "updated_at" TEXT NOT NULL);
@@ -299,6 +280,21 @@ CREATE TABLE IF NOT EXISTS "image" (
   FOREIGN KEY (source_id) REFERENCES source (id) ON DELETE SET NULL
 );
 CREATE INDEX "image_species_id_sort_order_index" ON "image" ("species_id", "sort_order");
+CREATE TABLE IF NOT EXISTS "place" (
+  id INTEGER PRIMARY KEY NOT NULL,
+  name TEXT UNIQUE NOT NULL,
+  code TEXT NOT NULL,
+  type TEXT NOT NULL CHECK (type IN ('continent', 'country', 'region', 'state', 'province', 'county', 'city'))
+);
+CREATE TABLE IF NOT EXISTS "host" (
+  id INTEGER PRIMARY KEY NOT NULL,
+  host_species_id INTEGER NOT NULL,
+  gall_species_id INTEGER NOT NULL,
+  FOREIGN KEY (host_species_id) REFERENCES species (id) ON DELETE CASCADE,
+  FOREIGN KEY (gall_species_id) REFERENCES species (id) ON DELETE CASCADE
+);
 INSERT INTO schema_migrations VALUES(20260113220009,'2026-01-23T01:02:10');
 INSERT INTO schema_migrations VALUES(20260115203624,'2026-01-24T18:08:08');
+INSERT INTO schema_migrations VALUES(20260124180614,'2026-01-25T01:34:10');
 INSERT INTO schema_migrations VALUES(20260124180615,'2026-01-24 18:08:04');
+INSERT INTO schema_migrations VALUES(20260125012931,'2026-01-25T01:34:10');
