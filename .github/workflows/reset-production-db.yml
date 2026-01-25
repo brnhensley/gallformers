@@ -75,59 +75,40 @@ jobs:
           echo "VOLUME_ID=$VOLUME_ID" >> $GITHUB_ENV
           echo "Volume ID: $VOLUME_ID"
 
-      - name: Stop machine to release volume
-        env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
-        run: |
-          echo "Stopping machine $MACHINE_ID..."
-          flyctl machine stop $MACHINE_ID -a gallformers --wait-timeout 60s
-
-          echo "Waiting for machine to fully stop and release volume..."
-          for i in {1..30}; do
-            STATE=$(flyctl machines list -a gallformers --json | jq -r '.[0].state')
-            echo "Machine state: $STATE"
-            if [ "$STATE" = "stopped" ]; then
-              echo "Machine stopped successfully"
-              break
-            fi
-            if [ $i -eq 30 ]; then
-              echo "ERROR: Machine did not stop in time"
-              exit 1
-            fi
-            sleep 2
-          done
-
-          # Extra wait for volume to be released
-          sleep 5
-
-      - name: Replace database using one-off machine
+      - name: Replace database via SSH
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
           AWS_ACCESS_KEY_ID: ${{ secrets.LITESTREAM_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.LITESTREAM_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: us-east-1
+          S3_PATH: ${{ inputs.s3_path }}
         run: |
-          echo "Running one-off machine to replace database on volume $VOLUME_ID..."
+          echo "Replacing database on running machine via SSH..."
 
-          # Run alpine container with aws-cli, mount the volume BY ID, replace the DB
-          flyctl machine run alpine:latest \
-            -a gallformers \
-            --region iad \
-            --volume $VOLUME_ID:/data \
-            --env AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID \
-            --env AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY \
-            --env AWS_DEFAULT_REGION=us-east-1 \
-            --env S3_PATH="${{ inputs.s3_path }}" \
-            --restart no \
-            --rm \
-            -- sh -c "
-              apk add --no-cache aws-cli &&
-              rm -f /data/gallformers.sqlite /data/gallformers.sqlite-wal /data/gallformers.sqlite-shm &&
-              rm -rf /data/backups/* /data/.gallformers.sqlite-litestream &&
-              aws s3 cp \$S3_PATH /data/gallformers.sqlite &&
-              chmod 644 /data/gallformers.sqlite &&
-              ls -la /data/ &&
-              echo 'Database replaced successfully'
-            "
+          # Upload the validated database directly to the machine
+          cat reset-db.sqlite | flyctl ssh console -a gallformers -C "cat > /tmp/newdb.sqlite"
+
+          # Replace the database
+          flyctl ssh console -a gallformers -C "
+            set -e
+            echo 'Stopping app to release database locks...'
+            pkill -f 'beam.smp' || true
+            sleep 2
+
+            echo 'Removing old database files...'
+            rm -f /data/gallformers.sqlite /data/gallformers.sqlite-wal /data/gallformers.sqlite-shm
+            rm -rf /data/backups/* /data/.gallformers.sqlite-litestream
+
+            echo 'Moving new database into place...'
+            mv /tmp/newdb.sqlite /data/gallformers.sqlite
+            chmod 644 /data/gallformers.sqlite
+
+            echo 'Database replaced:'
+            ls -la /data/
+          "
+
+          echo "Restarting machine..."
+          flyctl machine restart $MACHINE_ID -a gallformers
 
       - name: Clear old Litestream generations
         env:
@@ -138,14 +119,25 @@ jobs:
           echo "Clearing old Litestream generations for fresh start..."
           aws s3 rm s3://gallformers-backups/litestream/ --recursive || true
 
-      - name: Start machine
+      - name: Wait for machine to be healthy
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
-          echo "Starting machine $MACHINE_ID..."
-          flyctl machine start $MACHINE_ID -a gallformers
-          echo "Waiting for machine to start..."
-          sleep 10
+          echo "Waiting for machine to restart and pass health checks..."
+          sleep 30
+          for i in {1..30}; do
+            STATE=$(flyctl machines list -a gallformers --json | jq -r '.[0].state')
+            CHECKS=$(flyctl machines list -a gallformers --json | jq -r '.[0].checks[0].status // "unknown"')
+            echo "Machine state: $STATE, health: $CHECKS"
+            if [ "$STATE" = "started" ] && [ "$CHECKS" = "passing" ]; then
+              echo "Machine healthy"
+              break
+            fi
+            if [ $i -eq 30 ]; then
+              echo "WARNING: Machine may not be fully healthy yet"
+            fi
+            sleep 5
+          done
 
       - name: Cleanup reset file from S3
         env:
