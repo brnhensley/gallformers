@@ -80,9 +80,25 @@ jobs:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
           echo "Stopping machine $MACHINE_ID..."
-          flyctl machine stop $MACHINE_ID -a gallformers || true
-          echo "Waiting for machine to stop..."
-          sleep 10
+          flyctl machine stop $MACHINE_ID -a gallformers --wait --timeout 60
+
+          echo "Waiting for machine to fully stop and release volume..."
+          for i in {1..30}; do
+            STATE=$(flyctl machines list -a gallformers --json | jq -r '.[0].state')
+            echo "Machine state: $STATE"
+            if [ "$STATE" = "stopped" ]; then
+              echo "Machine stopped successfully"
+              break
+            fi
+            if [ $i -eq 30 ]; then
+              echo "ERROR: Machine did not stop in time"
+              exit 1
+            fi
+            sleep 2
+          done
+
+          # Extra wait for volume to be released
+          sleep 5
 
       - name: Replace database using one-off machine
         env:
