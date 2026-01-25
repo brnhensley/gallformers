@@ -297,16 +297,29 @@ jobs:
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
-          echo "Verifying database content on new machine..."
+          echo "Verifying database content on new machine $NEW_MACHINE_ID..."
 
-          # SSH to new machine and check species count
-          # Use tail -1 to skip flyctl's informational messages (e.g., "Only one machine available...")
-          ACTUAL_COUNT=$(flyctl ssh console -a gallformers \
-            -s -C "sqlite3 /data/gallformers.sqlite 'SELECT COUNT(*) FROM species;'" \
-            2>/dev/null | tail -1 | tr -d '[:space:]')
+          # SSH to the specific new machine (not the old one)
+          # Don't suppress stderr so we can see any errors
+          SSH_OUTPUT=$(flyctl ssh console -a gallformers \
+            --machine "$NEW_MACHINE_ID" \
+            -C "sqlite3 /data/gallformers.sqlite 'SELECT COUNT(*) FROM species;'" \
+            2>&1)
+
+          echo "SSH output: $SSH_OUTPUT"
+
+          # Extract just the number (last line, strip whitespace)
+          ACTUAL_COUNT=$(echo "$SSH_OUTPUT" | tail -1 | tr -d '[:space:]')
 
           echo "Expected species count: $EXPECTED_SPECIES_COUNT"
           echo "Actual species count: $ACTUAL_COUNT"
+
+          if [ -z "$ACTUAL_COUNT" ]; then
+            echo "ERROR: Could not get species count from new machine"
+            echo "Rolling back: destroying new machine..."
+            flyctl machine destroy "$NEW_MACHINE_ID" -a gallformers --force || true
+            exit 1
+          fi
 
           if [ "$ACTUAL_COUNT" != "$EXPECTED_SPECIES_COUNT" ]; then
             echo "ERROR: Species count mismatch!"
