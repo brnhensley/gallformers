@@ -378,11 +378,15 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.LITESTREAM_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: us-east-1
         run: |
-          echo "Moving source file to processed location..."
-          TIMESTAMP=$(date +%Y%m%d-%H%M%S)
-          aws s3 mv "${{ inputs.s3_path }}" \
-            "s3://gallformers-backups/reset/processed/gallformers-$TIMESTAMP.sqlite"
-          echo "Source file archived (not deleted, for safety)"
+          echo "Deleting source file from S3..."
+          # Use rm instead of mv to avoid GetObjectTagging permission issues
+          # The old volume is preserved for rollback, so we don't need to keep the S3 file
+          if aws s3 rm "${{ inputs.s3_path }}"; then
+            echo "Source file deleted"
+          else
+            echo "WARNING: Failed to delete source file (non-fatal)"
+            echo "You may want to manually delete: ${{ inputs.s3_path }}"
+          fi
 
       - name: Final verification
         env:

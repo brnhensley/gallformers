@@ -90,12 +90,13 @@ aws s3 ls s3://gallformers-backups/reset/
 
 ### 3. Run the Workflow
 
-1. Go to **GitHub Actions** → **Reset Production Database**
+1. Go to **GitHub Actions** → **Reset Production Database** https://github.com/jeffdc/gallformers/actions/workflows/reset-production-db.yml
 2. Click **Run workflow**
 3. Confirm the S3 path (default: `s3://gallformers-backups/reset/gallformers.sqlite`)
 4. Choose whether to keep the old volume for rollback (recommended: `true`)
 5. Type `RESET` in the confirmation field
 6. Click **Run workflow**
+7. Will need approval of the run. If you are Jeff, go into the run and click approve. If you are not, then Jeff will get an email (or you can ping him)
 
 ### 4. Monitor Execution
 
@@ -110,7 +111,7 @@ The workflow takes approximately 3-5 minutes. Watch for:
 7. **Verify content** - SSH check of species count
 8. **Clear Litestream** - Removes old backup generations
 9. **Destroy old machine** - Removes previous machine
-10. **Archive source** - Moves S3 file to `processed/` folder
+10. **Cleanup source** - Deletes S3 source file (old volume preserved for rollback)
 
 ### 5. Verify Success
 
@@ -215,13 +216,9 @@ flyctl volumes destroy <BAD_VOLUME_ID> -a gallformers
 
 **Symptoms:** You chose `keep_old_volume=false` and now need to go back.
 
-**Recovery:** Use the [Restore Database](./restore-database.md) runbook to restore from Litestream backups. Note that Litestream state was cleared, so you'll need to restore from the backup generations that existed before the reset.
+**Recovery:** Use the [Restore Database](./restore-database.md) runbook to restore from Litestream backups. Note that Litestream state was cleared during reset, so you'll need to restore from backup generations that existed before the reset (if any still exist in S3).
 
-If Litestream backups are unavailable, check for the original database in processed files:
-
-```bash
-aws s3 ls s3://gallformers-backups/reset/processed/
-```
+If no Litestream backups are available, you'll need to re-upload your original database and run the reset workflow again.
 
 ## Verification Checklist
 
@@ -241,9 +238,6 @@ After confirming the reset is successful and stable (recommend waiting 24 hours)
 # Delete the old volume if you kept it
 flyctl volumes list -a gallformers
 flyctl volumes destroy <OLD_VOLUME_ID> -a gallformers
-
-# Archived source files are kept in S3 for reference
-aws s3 ls s3://gallformers-backups/reset/processed/
 ```
 
 ## Troubleshooting
