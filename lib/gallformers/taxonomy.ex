@@ -237,6 +237,37 @@ defmodule Gallformers.Taxonomy do
   end
 
   @doc """
+  Links a species to its taxonomy, creating the genus if needed.
+
+  Call this within a transaction after creating a species. It handles:
+  - Creating a new genus under the selected section or family (if genus_is_new is true)
+  - Linking the species to an existing genus (if genus exists)
+  - No-op if no taxonomy info is available
+
+  ## Parameters
+  - species_id: The ID of the newly created species
+  - taxonomy: Map from lookup_taxonomy_for_new_species/1
+  - genus_is_new: Boolean indicating if genus needs to be created
+  - parent_id: The section or family ID to create the genus under (required if genus_is_new is true)
+
+  Returns :ok on success.
+  """
+  @spec link_species_taxonomy(integer(), map() | nil, boolean(), integer() | nil) :: :ok
+  def link_species_taxonomy(species_id, taxonomy, true = _genus_is_new, parent_id) do
+    # parent_id can be either a section ID or family ID - genus is created under it
+    {:ok, _genus} = create_genus_for_species(taxonomy.genus, parent_id, species_id)
+    :ok
+  end
+
+  def link_species_taxonomy(species_id, %{genus_id: genus_id}, false, _parent_id)
+      when not is_nil(genus_id) do
+    link_species_to_taxonomy(species_id, genus_id)
+    :ok
+  end
+
+  def link_species_taxonomy(_species_id, _taxonomy, false, _parent_id), do: :ok
+
+  @doc """
   Links a species to a taxonomy entry (genus).
   """
   @spec link_species_to_taxonomy(integer(), integer()) :: {:ok, any()} | {:error, term()}
@@ -323,63 +354,58 @@ defmodule Gallformers.Taxonomy do
   Returns a map with taxonomy names and IDs (or nil if not found).
   Section is optional and will only be present for plant hosts in genera
   that have sections (primarily Quercus).
+
+  The data model has:
+  - Family → Genus → Section (hierarchy via parent_id)
+  - Species links directly to both genus AND section via speciestaxonomy
   """
   @spec get_taxonomy_for_species(integer()) :: map() | nil
   def get_taxonomy_for_species(species_id) do
-    # First get the genus, which may have a section parent before family
-    base_query =
+    # Get the genus link - genus's parent is the family
+    genus_query =
       from st in "speciestaxonomy",
         join: g in Taxonomy,
         on: st.taxonomy_id == g.id and g.type == "genus",
-        left_join: parent in Taxonomy,
-        on: g.parent_id == parent.id,
+        left_join: family in Taxonomy,
+        on: g.parent_id == family.id,
         where: st.species_id == ^species_id,
         limit: 1,
         select: %{
           genus: g.name,
           genus_id: g.id,
-          parent_id: parent.id,
-          parent_name: parent.name,
-          parent_type: parent.type,
-          parent_description: parent.description
+          family: family.name,
+          family_id: family.id
         }
 
-    case Repo.one(base_query) do
+    # Get the section link (if any) - species may be directly linked to a section
+    section_query =
+      from st in "speciestaxonomy",
+        join: s in Taxonomy,
+        on: st.taxonomy_id == s.id and s.type == "section",
+        where: st.species_id == ^species_id,
+        limit: 1,
+        select: %{
+          section: s.name,
+          section_id: s.id,
+          section_description: s.description
+        }
+
+    case Repo.one(genus_query) do
       nil ->
         nil
 
-      result ->
-        # If parent is a section, we need to get the family from section's parent
-        if result.parent_type == "section" do
-          family_query =
-            from t in Taxonomy,
-              join: parent in Taxonomy,
-              on: t.parent_id == parent.id,
-              where: t.id == ^result.parent_id,
-              select: %{family: parent.name, family_id: parent.id}
+      genus_result ->
+        section_result = Repo.one(section_query)
 
-          family_result = Repo.one(family_query) || %{family: nil, family_id: nil}
-
-          %{
-            genus: result.genus,
-            genus_id: result.genus_id,
-            section: result.parent_name,
-            section_id: result.parent_id,
-            section_description: result.parent_description,
-            family: family_result.family,
-            family_id: family_result.family_id
-          }
-        else
-          # Parent is the family directly
-          %{
-            genus: result.genus,
-            genus_id: result.genus_id,
-            section: nil,
-            section_id: nil,
-            family: result.parent_name,
-            family_id: result.parent_id
-          }
-        end
+        %{
+          genus: genus_result.genus,
+          genus_id: genus_result.genus_id,
+          section: section_result && section_result.section,
+          section_id: section_result && section_result.section_id,
+          section_description: section_result && section_result.section_description,
+          family: genus_result.family,
+          family_id: genus_result.family_id
+        }
     end
   end
 
@@ -646,6 +672,57 @@ defmodule Gallformers.Taxonomy do
       select: {t.name, t.id}
     )
     |> Repo.all()
+  end
+
+  @doc """
+  Returns sections for a given family, for use in select dropdowns.
+
+  Sections are children of genera, not families directly. This function
+  finds all sections under any genus that belongs to the given family.
+  """
+  @spec list_sections_for_family(integer()) :: [{String.t(), integer()}]
+  def list_sections_for_family(family_id) when is_integer(family_id) do
+    from(s in Taxonomy,
+      join: g in Taxonomy,
+      on: s.parent_id == g.id,
+      where: s.type == "section" and g.type == "genus" and g.parent_id == ^family_id,
+      order_by: s.name,
+      select: {s.name, s.id}
+    )
+    |> Repo.all()
+  end
+
+  def list_sections_for_family(_), do: []
+
+  @doc """
+  Returns all sections for use in select dropdowns.
+  """
+  @spec list_sections_for_select() :: [{String.t(), integer()}]
+  def list_sections_for_select do
+    from(t in Taxonomy,
+      where: t.type == "section",
+      order_by: t.name,
+      select: {t.name, t.id}
+    )
+    |> Repo.all()
+  end
+
+  @doc """
+  Updates a genus's parent to a new section.
+
+  Used when changing what section a host's genus belongs to.
+  """
+  @spec update_genus_parent(integer(), integer()) :: {:ok, Taxonomy.t()} | {:error, term()}
+  def update_genus_parent(genus_id, new_parent_id) do
+    case get_taxonomy(genus_id) do
+      nil ->
+        {:error, :genus_not_found}
+
+      genus ->
+        genus
+        |> Taxonomy.changeset(%{parent_id: new_parent_id})
+        |> Repo.update()
+    end
   end
 
   @doc """

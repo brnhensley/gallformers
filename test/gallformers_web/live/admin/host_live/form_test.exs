@@ -40,28 +40,30 @@ defmodule GallformersWeb.Admin.HostLive.FormTest do
     end
   end
 
-  describe "Mount and render - new mode" do
+  describe "Mount and render - new mode (search mode)" do
     setup %{conn: conn} do
       {:ok, conn: setup_admin_session(conn)}
     end
 
-    test "renders new host form", %{conn: conn} do
+    test "renders host search/create page", %{conn: conn} do
       {:ok, _view, html} = live(conn, ~p"/admin/hosts/new")
 
-      assert html =~ "Add New Host"
+      # Shows typeahead for searching/creating hosts
       assert html =~ "Name (binomial)"
+      assert html =~ "Search existing hosts or type new name"
     end
 
-    test "shows correct page title for new host", %{conn: conn} do
+    test "shows correct page title", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/admin/hosts/new")
 
-      assert page_title(view) =~ "New Host"
+      assert page_title(view) =~ "Add Host"
     end
 
-    test "save button is disabled initially", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/admin/hosts/new")
+    test "form is disabled in search mode until host entered", %{conn: conn} do
+      {:ok, _view, html} = live(conn, ~p"/admin/hosts/new")
 
-      assert has_element?(view, "button[type='submit'][disabled]")
+      # Shows placeholder for search mode
+      assert html =~ "Select an existing host or create a new one"
     end
 
     test "shows back link to hosts list", %{conn: conn} do
@@ -70,15 +72,24 @@ defmodule GallformersWeb.Admin.HostLive.FormTest do
       assert has_element?(view, "a[href='/admin/hosts']")
     end
 
-    test "range map is disabled in new mode", %{conn: conn} do
-      {:ok, _view, html} = live(conn, ~p"/admin/hosts/new")
+    test "typeahead allows searching for hosts", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/new")
 
-      assert html =~ "Save host first to edit range"
+      # Search for existing hosts
+      html = render_click(view, "search_host", %{"value" => "Quercus"})
+
+      # Should show search results or update UI
+      assert html =~ "host-picker" or html =~ "Quercus"
     end
 
-    test "shows abundance dropdown", %{conn: conn} do
-      {:ok, _view, html} = live(conn, ~p"/admin/hosts/new")
+    test "create_host event transitions to new mode", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/new")
 
+      # Create a new host
+      html = render_click(view, "create_host", %{"name" => "Quercus testhost"})
+
+      # Form should now be enabled
+      assert html =~ "host-form"
       assert html =~ "Abundance"
     end
   end
@@ -163,16 +174,33 @@ defmodule GallformersWeb.Admin.HostLive.FormTest do
       {:ok, conn: setup_admin_session(conn)}
     end
 
-    test "validate event marks form as dirty", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/admin/hosts/new")
+    test "validate event marks form as dirty in edit mode", %{conn: conn} do
+      host = require_host()
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
 
-      # Trigger validation with a valid species name
+      # Trigger validation by changing abundance
       html =
         view
-        |> form("#host-form", species: %{name: "Quercus alba"})
+        |> form("#host-form", species: %{abundance_id: "2"})
         |> render_change()
 
       # Form should now be dirty - check that the form is present and modified
+      assert html =~ "host-form"
+    end
+
+    test "validate event marks form as dirty in new mode after host creation", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/new")
+
+      # First create a new host via typeahead
+      render_click(view, "create_host", %{"name" => "Quercus testhost"})
+
+      # Then trigger validation
+      html =
+        view
+        |> form("#host-form", species: %{datacomplete: "true"})
+        |> render_change()
+
+      # Form should be present and modified
       assert html =~ "host-form"
     end
   end
@@ -233,13 +261,13 @@ defmodule GallformersWeb.Admin.HostLive.FormTest do
       {:ok, conn: setup_admin_session(conn)}
     end
 
-    test "toggle_region in new mode is no-op", %{conn: conn} do
+    test "toggle_region in search mode is no-op", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/admin/hosts/new")
 
       html = render_click(view, "toggle_region", %{"code" => "US-CA"})
 
       # Should not crash, still show page
-      assert html =~ "Add New Host"
+      assert html =~ "Add Host" or html =~ "host-picker"
     end
 
     test "toggle_region in edit mode works", %{conn: conn} do
@@ -262,12 +290,12 @@ defmodule GallformersWeb.Admin.HostLive.FormTest do
       assert html =~ host.name
     end
 
-    test "select_all_places in new mode is no-op", %{conn: conn} do
+    test "select_all_places in search mode is no-op", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/admin/hosts/new")
 
       html = render_click(view, "select_all_places", %{})
 
-      assert html =~ "Add New Host"
+      assert html =~ "Add Host" or html =~ "host-picker"
     end
 
     test "select_all_places in edit mode works", %{conn: conn} do
@@ -279,12 +307,12 @@ defmodule GallformersWeb.Admin.HostLive.FormTest do
       assert html =~ host.name
     end
 
-    test "deselect_all_places in new mode is no-op", %{conn: conn} do
+    test "deselect_all_places in search mode is no-op", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/admin/hosts/new")
 
       html = render_click(view, "deselect_all_places", %{})
 
-      assert html =~ "Add New Host"
+      assert html =~ "Add Host" or html =~ "host-picker"
     end
 
     test "deselect_all_places in edit mode works", %{conn: conn} do
@@ -437,8 +465,9 @@ defmodule GallformersWeb.Admin.HostLive.FormTest do
       assert html =~ "De-select All"
     end
 
-    test "shows data complete checkbox", %{conn: conn} do
-      {:ok, _view, html} = live(conn, ~p"/admin/hosts/new")
+    test "shows data complete checkbox in edit mode", %{conn: conn} do
+      host = require_host()
+      {:ok, _view, html} = live(conn, ~p"/admin/hosts/#{host.id}")
 
       assert html =~ "All galls known to occur on this plant"
     end

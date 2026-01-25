@@ -21,6 +21,7 @@ defmodule GallformersWeb.Admin.HostLive.Form do
     current_user = session["current_user"]
     abundances = Species.list_abundances()
     all_places = Places.list_places()
+    families = Taxonomy.list_families_for_select()
 
     socket =
       socket
@@ -28,6 +29,7 @@ defmodule GallformersWeb.Admin.HostLive.Form do
       |> assign(:page_title, "Host")
       |> assign(:abundances, abundances)
       |> assign(:all_places, all_places)
+      |> assign(:families, families)
       |> init_form_state()
 
     {:ok, socket}
@@ -43,25 +45,31 @@ defmodule GallformersWeb.Admin.HostLive.Form do
   end
 
   defp apply_action(socket, :new, _params) do
-    host = %SpeciesSchema{taxoncode: "plant"}
-    changeset = Hosts.change_host(host)
-
+    # New host - start in search mode so user can enter a name
     socket
-    |> assign(:page_title, "New Host")
-    |> assign(:host, host)
-    |> assign(:form, to_form(changeset))
-    |> assign(:mode, :new)
+    |> assign(:page_title, "Add Host")
+    |> assign(:mode, :search)
+    |> assign(:host, nil)
+    |> assign(:form, nil)
     # Deferred changes tracking
     |> assign(DeferredChanges.init(:aliases, []))
     |> assign(:original_places, [])
     |> assign(:places, [])
     |> assign(:taxonomy, nil)
+    |> assign(:genus_is_new, false)
+    |> assign(:selected_family_id, nil)
+    |> assign(:selected_section_id, nil)
+    |> assign(:sections_for_family, [])
     |> assign(:new_alias_name, "")
     |> assign(:new_alias_type, "common")
     # Rename modal state
     |> assign(:show_rename_modal, false)
     |> assign(:rename_value, "")
     |> assign(:add_alias_on_rename, false)
+    # Typeahead search state
+    |> assign(:host_search_query, "")
+    |> assign(:host_search_results, [])
+    |> reset_dirty()
   end
 
   defp apply_action(socket, :edit, %{"id" => id}) do
@@ -79,28 +87,65 @@ defmodule GallformersWeb.Admin.HostLive.Form do
           |> put_flash(:error, "This is not a host. Use the Gall admin for gall species.")
           |> push_navigate(to: ~p"/admin/hosts")
         else
-          changeset = Hosts.change_host(host)
-          aliases = Hosts.get_aliases_for_host_full(host_id)
-          places = Hosts.get_places_for_host(host_id)
-          taxonomy = Taxonomy.get_taxonomy_for_species(host_id)
-
-          socket
-          |> assign(:page_title, "Edit Host - #{host.name}")
-          |> assign(:host, host)
-          |> assign(:form, to_form(changeset))
-          |> assign(:mode, :edit)
-          # Deferred changes tracking
-          |> assign(DeferredChanges.init(:aliases, aliases))
-          |> assign(:original_places, places)
-          |> assign(:places, places)
-          |> assign(:taxonomy, taxonomy)
-          |> assign(:new_alias_name, "")
-          |> assign(:new_alias_type, "common")
-          # Rename modal state
-          |> assign(:show_rename_modal, false)
-          |> assign(:rename_value, host.name)
-          |> assign(:add_alias_on_rename, false)
+          load_host_for_edit(socket, host)
         end
+    end
+  end
+
+  defp load_host_for_edit(socket, host) do
+    host_id = host.id
+    changeset = Hosts.change_host(host)
+    aliases = Hosts.get_aliases_for_host_full(host_id)
+    places = Hosts.get_places_for_host(host_id)
+    taxonomy = Taxonomy.get_taxonomy_for_species(host_id)
+
+    # Load sections for the host's family
+    family_id = taxonomy && taxonomy.family_id
+    sections_for_family = load_sections_for_family(family_id)
+
+    socket
+    |> assign(:page_title, "Edit Host - #{host.name}")
+    |> assign(:host, host)
+    |> assign(:form, to_form(changeset))
+    |> assign(:mode, :edit)
+    # Deferred changes tracking
+    |> assign(DeferredChanges.init(:aliases, aliases))
+    |> assign(:original_places, places)
+    |> assign(:places, places)
+    |> assign(:taxonomy, taxonomy)
+    |> assign(:genus_is_new, false)
+    |> assign(:selected_family_id, family_id)
+    |> assign(:selected_section_id, taxonomy && taxonomy.section_id)
+    |> assign(:sections_for_family, sections_for_family)
+    |> assign(:new_alias_name, "")
+    |> assign(:new_alias_type, "common")
+    # Rename modal state
+    |> assign(:show_rename_modal, false)
+    |> assign(:rename_value, host.name)
+    |> assign(:add_alias_on_rename, false)
+    # Typeahead state (cleared in edit mode)
+    |> assign(:host_search_query, "")
+    |> assign(:host_search_results, [])
+    |> reset_dirty()
+  end
+
+  defp load_sections_for_family(nil), do: []
+  defp load_sections_for_family(family_id), do: Taxonomy.list_sections_for_family(family_id)
+
+  # Updates the genus's section if it changed
+  defp maybe_update_section(socket) do
+    taxonomy = socket.assigns.taxonomy
+    selected_section_id = socket.assigns.selected_section_id
+    original_section_id = taxonomy && taxonomy.section_id
+
+    # Only update if section changed and genus exists
+    if taxonomy && taxonomy.genus_id && selected_section_id != original_section_id do
+      # New parent is either the section or the family (if section cleared)
+      new_parent_id = selected_section_id || taxonomy.family_id
+
+      if new_parent_id do
+        Taxonomy.update_genus_parent(taxonomy.genus_id, new_parent_id)
+      end
     end
   end
 
@@ -124,14 +169,89 @@ defmodule GallformersWeb.Admin.HostLive.Form do
 
   @impl true
   def handle_event("save", %{"species" => params}, socket) do
-    params = Map.put(params, "taxoncode", "plant")
-    save_host(socket, socket.assigns.mode, params)
+    # Validate that family is selected when genus is new
+    if socket.assigns.genus_is_new && is_nil(socket.assigns.selected_family_id) do
+      {:noreply, put_flash(socket, :error, "Please select a Family for the new genus")}
+    else
+      # Name is captured via typeahead (outside the form), so add it from socket assigns
+      params =
+        params
+        |> Map.put("taxoncode", "plant")
+        |> Map.put("name", socket.assigns.host.name)
+
+      save_host(socket, socket.assigns.mode, params)
+    end
   end
 
   @impl true
   def handle_event(event, params, socket)
       when event in ~w(request_cancel cancel_discard confirm_discard) do
     handle_form_event(event, params, socket)
+  end
+
+  # =================================================================
+  # Event handlers - Host search/select/create (typeahead)
+  # =================================================================
+
+  @impl true
+  def handle_event("search_host", %{"value" => query}, socket) do
+    results =
+      if String.length(query) >= 2 do
+        Species.search_species(query, 10)
+        |> Enum.filter(&(&1.taxoncode == "plant"))
+      else
+        []
+      end
+
+    {:noreply,
+     socket
+     |> assign(:host_search_query, query)
+     |> assign(:host_search_results, results)}
+  end
+
+  @impl true
+  def handle_event("select_host", %{"id" => id}, socket) do
+    species_id = String.to_integer(id)
+    # Navigate to the edit URL so the URL reflects the selected host
+    {:noreply, push_patch(socket, to: ~p"/admin/hosts/#{species_id}")}
+  end
+
+  @impl true
+  def handle_event("create_host", %{"name" => name}, socket) do
+    # User wants to create a new host with this name
+    {:noreply, init_new_host_state(socket, name)}
+  end
+
+  @impl true
+  def handle_event("clear_host", _params, socket) do
+    # Clear selection and return to search mode
+    {:noreply, close_form(socket)}
+  end
+
+  @impl true
+  def handle_event("select_family", %{"family_id" => family_id}, socket) do
+    family_id = if family_id == "", do: nil, else: String.to_integer(family_id)
+
+    # Load sections for the selected family
+    sections_for_family =
+      if family_id do
+        Taxonomy.list_sections_for_family(family_id)
+      else
+        []
+      end
+
+    {:noreply,
+     socket
+     |> assign(:selected_family_id, family_id)
+     |> assign(:selected_section_id, nil)
+     |> assign(:sections_for_family, sections_for_family)
+     |> mark_dirty()}
+  end
+
+  @impl true
+  def handle_event("select_section", %{"section_id" => section_id}, socket) do
+    section_id = if section_id == "", do: nil, else: String.to_integer(section_id)
+    {:noreply, socket |> assign(:selected_section_id, section_id) |> mark_dirty()}
   end
 
   # Alias events
@@ -317,17 +437,91 @@ defmodule GallformersWeb.Admin.HostLive.Form do
     if code in places, do: Enum.reject(places, &(&1 == code)), else: places ++ [code]
   end
 
+  # Initialize state for a new host (user typed new name in typeahead)
+  defp init_new_host_state(socket, name) do
+    host = %SpeciesSchema{taxoncode: "plant", name: name}
+    changeset = Hosts.change_host(host)
+    # Look up taxonomy from the genus name - this always returns a result
+    # with genus_is_new: true/false to indicate if genus needs to be created
+    taxonomy = Taxonomy.lookup_taxonomy_for_new_species(name)
+    genus_is_new = taxonomy && taxonomy.genus_is_new
+    # If genus exists, family/section is already known; if new, user must select
+    selected_family_id = taxonomy && taxonomy.family_id
+    selected_section_id = taxonomy && taxonomy.section_id
+
+    # Load sections if we have a family
+    sections_for_family = load_sections_for_family(selected_family_id)
+
+    socket
+    |> assign(:mode, :new)
+    |> assign(:page_title, "New Host")
+    |> assign(:host, host)
+    |> assign(:form, to_form(changeset))
+    # Deferred changes tracking
+    |> assign(DeferredChanges.init(:aliases, []))
+    |> assign(:original_places, [])
+    |> assign(:places, [])
+    |> assign(:taxonomy, taxonomy)
+    |> assign(:genus_is_new, genus_is_new)
+    |> assign(:selected_family_id, selected_family_id)
+    |> assign(:selected_section_id, selected_section_id)
+    |> assign(:sections_for_family, sections_for_family)
+    |> assign(:new_alias_name, "")
+    |> assign(:new_alias_type, "common")
+    # Rename modal state
+    |> assign(:show_rename_modal, false)
+    |> assign(:rename_value, "")
+    |> assign(:add_alias_on_rename, false)
+    # Clear search state
+    |> assign(:host_search_query, "")
+    |> assign(:host_search_results, [])
+    # Mark form dirty since user entered a name (enables save button)
+    |> reset_dirty()
+    |> mark_dirty()
+  end
+
   defp save_host(socket, :new, params) do
-    case Hosts.create_host(params) do
+    aliases_to_add = socket.assigns.aliases
+    taxonomy = socket.assigns.taxonomy
+    genus_is_new = socket.assigns.genus_is_new
+    selected_family_id = socket.assigns.selected_family_id
+    selected_section_id = socket.assigns.selected_section_id
+
+    # Use section as parent if selected, otherwise family
+    parent_id = selected_section_id || selected_family_id
+
+    transaction_result =
+      Repo.transaction(fn ->
+        case Hosts.create_host(params) do
+          {:ok, host} ->
+            # Handle taxonomy: create genus if new, or link to existing
+            Taxonomy.link_species_taxonomy(host.id, taxonomy, genus_is_new, parent_id)
+
+            # Add any aliases entered before save
+            for a <- aliases_to_add do
+              Hosts.create_alias_for_host(host.id, %{name: a.name, type: a.type})
+            end
+
+            host
+
+          {:error, changeset} ->
+            Repo.rollback(changeset)
+        end
+      end)
+
+    case transaction_result do
       {:ok, host} ->
         # Redirect to edit mode for the new host so user can add range/aliases
         {:noreply,
          socket
-         |> put_flash(:info, "Host created. Now add range and aliases.")
+         |> put_flash(:info, "Host created successfully")
          |> push_navigate(to: ~p"/admin/hosts/#{host.id}")}
 
       {:error, %Ecto.Changeset{} = changeset} ->
         {:noreply, assign(socket, :form, to_form(changeset))}
+
+      {:error, _reason} ->
+        {:noreply, put_flash(socket, :error, "Failed to create host. Please try again.")}
     end
   end
 
@@ -352,6 +546,9 @@ defmodule GallformersWeb.Admin.HostLive.Form do
               socket.assigns.places,
               socket.assigns.all_places
             )
+
+            # Update section if it changed
+            maybe_update_section(socket)
 
             updated_host
 
@@ -454,183 +651,236 @@ defmodule GallformersWeb.Admin.HostLive.Form do
           </.link>
         </:quick_links>
 
-        <.form for={@form} id="host-form" phx-change="validate" phx-submit="save">
-          <%!-- Row: Name --%>
-          <div class="mb-3">
+        <%!-- Name field with typeahead for search/create --%>
+        <div class="mb-3">
+          <%= if @mode == :edit do %>
+            <%!-- Edit mode: show selected name with rename button --%>
             <label class="gf-label">Name (binomial):</label>
-            <%= if @mode == :edit do %>
-              <div class="flex gap-2">
+            <div class="flex gap-2">
+              <input
+                type="text"
+                value={@host.name}
+                disabled
+                class="flex-1 px-3 py-2 bg-gray-100 border border-gray-300 rounded text-gray-700 text-sm italic"
+              />
+              <button
+                type="button"
+                phx-click="open_rename_modal"
+                class="px-3 py-2 text-sm bg-gray-200 hover:bg-gray-300 border border-gray-300 rounded"
+              >
+                Rename
+              </button>
+            </div>
+          <% else %>
+            <%!-- Search/New mode: typeahead for search or create --%>
+            <.typeahead
+              id="host-picker"
+              label="Name (binomial):"
+              placeholder="Search existing hosts or type new name..."
+              search_event="search_host"
+              select_event="select_host"
+              clear_event="clear_host"
+              create_event="create_host"
+              allow_new={true}
+              query={@host_search_query}
+              results={@host_search_results}
+              selected={@host}
+              display_fn={fn host -> host.name end}
+            />
+            <p :if={@mode == :search} class="text-gray-500 text-xs mt-1">
+              Type to search existing hosts, or enter a new name to create one.
+            </p>
+          <% end %>
+        </div>
+
+        <%!-- Rest of form - disabled until host selected/created --%>
+        <fieldset disabled={@mode == :search} class={[@mode == :search && "opacity-50"]}>
+          <.form :if={@form} for={@form} id="host-form" phx-change="validate" phx-submit="save">
+            <%!-- Row: Genus | Family --%>
+            <div class="grid grid-cols-2 gap-4 mb-3">
+              <div>
+                <label class="gf-label">
+                  Genus (filled automatically):
+                </label>
                 <input
                   type="text"
-                  value={@host.name}
+                  value={if @taxonomy, do: @taxonomy.genus, else: ""}
                   disabled
-                  class="flex-1 px-3 py-2 bg-gray-100 border border-gray-300 rounded text-gray-700 text-sm italic"
+                  class="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded text-gray-500 text-sm italic"
                 />
-                <button
-                  type="button"
-                  phx-click="open_rename_modal"
-                  class="px-3 py-2 text-sm bg-gray-200 hover:bg-gray-300 border border-gray-300 rounded"
-                >
-                  Rename
-                </button>
+                <p :if={@genus_is_new} class="text-amber-600 text-xs mt-1">
+                  New genus - will be created under selected section/family
+                </p>
               </div>
-            <% else %>
-              <.input
-                field={@form[:name]}
-                schema={SpeciesSchema}
-                type="text"
-                label="Name"
-                placeholder="Enter host name (e.g., Quercus alba)..."
-                class="w-full"
-              />
-            <% end %>
-          </div>
-
-          <%!-- Row: Genus | Family --%>
-          <div class="grid grid-cols-2 gap-4 mb-3">
-            <div>
-              <label class="gf-label">
-                Genus (filled automatically):
-              </label>
-              <input
-                type="text"
-                value={if @taxonomy, do: @taxonomy.genus, else: ""}
-                disabled
-                class="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded text-gray-500 text-sm italic"
-              />
-            </div>
-            <div>
-              <label class="gf-label">
-                Family:
-              </label>
-              <input
-                type="text"
-                value={if @taxonomy, do: @taxonomy.family, else: ""}
-                disabled
-                class="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded text-gray-500 text-sm"
-              />
-            </div>
-          </div>
-
-          <%!-- Row: Section | Abundance --%>
-          <div class="grid grid-cols-2 gap-4 mb-3">
-            <div>
-              <label class="gf-label">Section:</label>
-              <input
-                type="text"
-                value={if @taxonomy && @taxonomy.section, do: @taxonomy.section, else: ""}
-                disabled
-                class="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded text-gray-500 text-sm"
-              />
-            </div>
-            <div>
-              <label class="gf-label">Abundance:</label>
-              <.input
-                field={@form[:abundance_id]}
-                type="select"
-                options={Enum.map(@abundances, &{&1.abundance, &1.id})}
-                prompt=""
-                class="gf-select w-full text-sm"
-              />
-            </div>
-          </div>
-
-          <%!-- Range Map Section --%>
-          <div class="mb-3 border border-gray-300 rounded">
-            <div class="grid grid-cols-6 gap-2 p-3">
-              <%!-- Legend --%>
-              <div class="col-span-1">
-                <div class="text-sm font-medium text-gray-700 mb-2">Legend:</div>
-                <div class="space-y-1">
-                  <div class="flex items-center gap-2">
-                    <div class="w-4 h-4 rounded bg-green-700"></div>
-                    <span class="text-xs text-gray-600">In Range</span>
-                  </div>
-                  <div class="flex items-center gap-2">
-                    <div class="w-4 h-4 rounded border border-gray-300 bg-white"></div>
-                    <span class="text-xs text-gray-600">Out of Range</span>
-                  </div>
-                </div>
-                <div class="text-sm font-medium text-gray-700 mt-4 mb-2">Map Actions:</div>
-                <div class="space-y-2">
-                  <button
-                    type="button"
-                    phx-click="select_all_places"
-                    class="block w-full px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded"
-                    disabled={@mode == :new}
+              <div>
+                <label class="gf-label">
+                  Family:<span :if={@genus_is_new} class="text-red-600 ml-0.5">*</span>
+                </label>
+                <%= if @genus_is_new do %>
+                  <%!-- Genus is new - user must select a family --%>
+                  <select
+                    name="family_id"
+                    phx-change="select_family"
+                    class="w-full px-3 py-2 border border-gray-300 rounded text-sm"
                   >
-                    Select All
-                  </button>
-                  <button
-                    type="button"
-                    phx-click="deselect_all_places"
-                    class="block w-full px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded"
-                    disabled={@mode == :new}
-                  >
-                    De-select All
-                  </button>
-                </div>
-              </div>
-              <%!-- Map --%>
-              <div class="col-span-5">
-                <label class="gf-label">Range:</label>
-                <%= if @mode == :edit do %>
-                  <div
-                    id="host-range-map"
-                    phx-hook="RangeMap"
-                    phx-update="ignore"
-                    data-in-range={Jason.encode!(@places)}
-                    data-excluded-range={Jason.encode!([])}
-                    data-editable="true"
-                    class="border border-gray-300 rounded bg-gray-50 min-h-[300px]"
-                  >
-                    <div class="flex items-center justify-center h-64 text-gray-400">
-                      Loading map...
-                    </div>
-                  </div>
+                    <option value="">-- Select Family --</option>
+                    <%= for {name, id} <- @families do %>
+                      <option value={id} selected={@selected_family_id == id}>{name}</option>
+                    <% end %>
+                  </select>
+                  <p :if={is_nil(@selected_family_id)} class="text-red-600 text-xs mt-1">
+                    Please select a family for the new genus
+                  </p>
                 <% else %>
-                  <div class="border border-gray-300 rounded bg-gray-100 min-h-[200px] flex items-center justify-center">
-                    <p class="text-gray-500 text-sm">Save host first to edit range</p>
-                  </div>
+                  <%!-- Genus exists - family is read-only --%>
+                  <input
+                    type="text"
+                    value={if @taxonomy, do: @taxonomy.family, else: ""}
+                    disabled
+                    class="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded text-gray-500 text-sm"
+                  />
                 <% end %>
               </div>
             </div>
-          </div>
 
-          <%!-- Aliases Table --%>
-          <%= if @mode == :edit do %>
+            <%!-- Row: Section | Abundance --%>
+            <div class="grid grid-cols-2 gap-4 mb-3">
+              <div>
+                <label class="gf-label">Section:</label>
+                <%= if @sections_for_family != [] do %>
+                  <select
+                    name="section_id"
+                    phx-change="select_section"
+                    class="w-full px-3 py-2 border border-gray-300 rounded text-sm"
+                  >
+                    <option value="">-- No Section --</option>
+                    <%= for {name, id} <- @sections_for_family do %>
+                      <option value={id} selected={@selected_section_id == id}>{name}</option>
+                    <% end %>
+                  </select>
+                <% else %>
+                  <input
+                    type="text"
+                    value=""
+                    disabled
+                    placeholder="No sections for this family"
+                    class="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded text-gray-500 text-sm"
+                  />
+                <% end %>
+              </div>
+              <div>
+                <label class="gf-label">Abundance:</label>
+                <.input
+                  field={@form[:abundance_id]}
+                  type="select"
+                  options={Enum.map(@abundances, &{&1.abundance, &1.id})}
+                  prompt=""
+                  class="gf-select w-full text-sm"
+                />
+              </div>
+            </div>
+
+            <%!-- Range Map Section --%>
+            <div class="mb-3 border border-gray-300 rounded">
+              <div class="grid grid-cols-6 gap-2 p-3">
+                <%!-- Legend --%>
+                <div class="col-span-1">
+                  <div class="text-sm font-medium text-gray-700 mb-2">Legend:</div>
+                  <div class="space-y-1">
+                    <div class="flex items-center gap-2">
+                      <div class="w-4 h-4 rounded bg-green-700"></div>
+                      <span class="text-xs text-gray-600">In Range</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <div class="w-4 h-4 rounded border border-gray-300 bg-white"></div>
+                      <span class="text-xs text-gray-600">Out of Range</span>
+                    </div>
+                  </div>
+                  <div class="text-sm font-medium text-gray-700 mt-4 mb-2">Map Actions:</div>
+                  <div class="space-y-2">
+                    <button
+                      type="button"
+                      phx-click="select_all_places"
+                      class="block w-full px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded"
+                      disabled={@mode == :new}
+                    >
+                      Select All
+                    </button>
+                    <button
+                      type="button"
+                      phx-click="deselect_all_places"
+                      class="block w-full px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded"
+                      disabled={@mode == :new}
+                    >
+                      De-select All
+                    </button>
+                  </div>
+                </div>
+                <%!-- Map --%>
+                <div class="col-span-5">
+                  <label class="gf-label">Range:</label>
+                  <%= if @mode == :edit do %>
+                    <div
+                      id="host-range-map"
+                      phx-hook="RangeMap"
+                      phx-update="ignore"
+                      data-in-range={Jason.encode!(@places)}
+                      data-excluded-range={Jason.encode!([])}
+                      data-editable="true"
+                      class="border border-gray-300 rounded bg-gray-50 min-h-[300px]"
+                    >
+                      <div class="flex items-center justify-center h-64 text-gray-400">
+                        Loading map...
+                      </div>
+                    </div>
+                  <% else %>
+                    <div class="border border-gray-300 rounded bg-gray-100 min-h-[200px] flex items-center justify-center">
+                      <p class="text-gray-500 text-sm">Save host first to edit range</p>
+                    </div>
+                  <% end %>
+                </div>
+              </div>
+            </div>
+
+            <%!-- Aliases Table --%>
             <.alias_editor
               aliases={@aliases}
               new_alias_name={@new_alias_name}
               new_alias_type={@new_alias_type}
             />
-          <% end %>
 
-          <%!-- Data Complete checkbox --%>
-          <div class="space-y-2 mb-4">
-            <.input
-              type="checkbox"
-              field={@form[:datacomplete]}
-              label="All galls known to occur on this plant have been added to the database, and can be filtered by Location and Detachable. However, sources and images for galls associated with this host may be incomplete or absent, and other filters may not have been entered comprehensively or at all."
-            />
-          </div>
-
-          <%!-- Action buttons --%>
-          <div class="flex justify-between pt-3 border-t border-gray-200">
-            <div>
-              <button
-                :if={@mode == :edit}
-                type="button"
-                phx-click="delete"
-                data-confirm="Are you sure you want to delete this host? This will remove all associated gall mappings and range data."
-                class="gf-btn gf-btn-danger"
-              >
-                Delete
-              </button>
+            <%!-- Data Complete checkbox --%>
+            <div class="space-y-2 mb-4">
+              <.input
+                type="checkbox"
+                field={@form[:datacomplete]}
+                label="All galls known to occur on this plant have been added to the database, and can be filtered by Location and Detachable. However, sources and images for galls associated with this host may be incomplete or absent, and other filters may not have been entered comprehensively or at all."
+              />
             </div>
-            <.form_actions form_dirty={@form_dirty} mode={@mode} />
-          </div>
-        </.form>
+
+            <%!-- Action buttons --%>
+            <div class="flex justify-between pt-3 border-t border-gray-200">
+              <div>
+                <button
+                  :if={@mode == :edit}
+                  type="button"
+                  phx-click="delete"
+                  data-confirm="Are you sure you want to delete this host? This will remove all associated gall mappings and range data."
+                  class="gf-btn gf-btn-danger"
+                >
+                  Delete
+                </button>
+              </div>
+              <.form_actions form_dirty={@form_dirty} mode={@mode} />
+            </div>
+          </.form>
+        </fieldset>
+
+        <%!-- Placeholder when no host selected --%>
+        <div :if={@mode == :search} class="text-center py-8 text-gray-500">
+          <.icon name="ph-magnifying-glass" class="h-12 w-12 mx-auto mb-3 text-gray-300" />
+          <p>Select an existing host or create a new one to edit details.</p>
+        </div>
 
         <.discard_confirm_modal show={@show_discard_confirm} />
       </Layouts.admin_edit_layout>
