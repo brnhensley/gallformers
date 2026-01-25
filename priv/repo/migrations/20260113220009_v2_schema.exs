@@ -3,7 +3,7 @@ defmodule Gallformers.Repo.Migrations.V2Schema do
   Combined V2 schema migration for one-time V1 to V2 migration.
   Creates all new tables and columns needed for V2.
   """
-  use Ecto.Migration
+  use Gallformers.Migration
 
   def up do
     # --- Species FTS ---

@@ -8,39 +8,41 @@ defmodule Gallformers.Repo.Migrations.AddNotNullToHostForeignKeys do
 
   SQLite requires table recreation to add NOT NULL constraints.
   """
-  use Ecto.Migration
+  use Gallformers.Migration
 
   def up do
-    # SQLite doesn't support ALTER COLUMN, so we recreate the table
+    # All statements in single execute to keep PRAGMA in same connection context
     execute("""
+    PRAGMA foreign_keys = OFF;
     CREATE TABLE host_new (
       id INTEGER PRIMARY KEY NOT NULL,
       host_species_id INTEGER NOT NULL,
       gall_species_id INTEGER NOT NULL,
       FOREIGN KEY (host_species_id) REFERENCES species (id) ON DELETE CASCADE,
       FOREIGN KEY (gall_species_id) REFERENCES species (id) ON DELETE CASCADE
-    )
+    );
+    INSERT INTO host_new SELECT * FROM host;
+    DROP TABLE host;
+    ALTER TABLE host_new RENAME TO host;
+    PRAGMA foreign_keys = ON;
     """)
-
-    execute("INSERT INTO host_new SELECT * FROM host")
-    execute("DROP TABLE host")
-    execute("ALTER TABLE host_new RENAME TO host")
   end
 
   def down do
-    # Reverse: recreate table without NOT NULL constraints
+    # All statements in single execute to keep PRAGMA in same connection context
     execute("""
+    PRAGMA foreign_keys = OFF;
     CREATE TABLE host_new (
       id INTEGER PRIMARY KEY NOT NULL,
       host_species_id INTEGER,
       gall_species_id INTEGER,
       FOREIGN KEY (host_species_id) REFERENCES species (id) ON DELETE CASCADE,
       FOREIGN KEY (gall_species_id) REFERENCES species (id) ON DELETE CASCADE
-    )
+    );
+    INSERT INTO host_new SELECT * FROM host;
+    DROP TABLE host;
+    ALTER TABLE host_new RENAME TO host;
+    PRAGMA foreign_keys = ON;
     """)
-
-    execute("INSERT INTO host_new SELECT * FROM host")
-    execute("DROP TABLE host")
-    execute("ALTER TABLE host_new RENAME TO host")
   end
 end

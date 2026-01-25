@@ -3,10 +3,10 @@ import Config
 config :gallformers, env: :dev
 
 # Configure your database
-# For development, use the local database in priv/
-# Production uses DATABASE_PATH environment variable (configured in runtime.exs)
+# DATABASE_PATH env var overrides the default for migration testing
+# Falls back to local database in priv/ for normal development
 config :gallformers, Gallformers.Repo,
-  database: Path.expand("../priv/gallformers.sqlite", __DIR__),
+  database: System.get_env("DATABASE_PATH", Path.expand("../priv/gallformers.sqlite", __DIR__)),
   pool_size: 5,
   stacktrace: true,
   show_sensitive_data_on_connection_error: true

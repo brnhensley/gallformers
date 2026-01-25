@@ -3,7 +3,7 @@ defmodule Gallformers.Repo.Migrations.SeedArticles do
   Seeds the articles table with initial reference articles.
   Only runs if the articles table is empty to avoid overwriting future edits.
   """
-  use Ecto.Migration
+  use Gallformers.Migration
   import Ecto.Query
 
   def up do

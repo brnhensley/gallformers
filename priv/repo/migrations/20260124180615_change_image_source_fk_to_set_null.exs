@@ -1,5 +1,5 @@
 defmodule Gallformers.Repo.Migrations.ChangeImageSourceFkToSetNull do
-  use Ecto.Migration
+  use Gallformers.Migration
 
   @moduledoc """
   Changes the image.source_id foreign key from ON DELETE CASCADE to ON DELETE SET NULL.
@@ -9,11 +9,9 @@ defmodule Gallformers.Repo.Migrations.ChangeImageSourceFkToSetNull do
   """
 
   def up do
-    # SQLite doesn't support ALTER CONSTRAINT, so we recreate the table
-    # Must disable FK checks during table swap
-    execute("PRAGMA foreign_keys = OFF")
-
+    # All statements in single execute to keep PRAGMA in same connection context
     execute("""
+    PRAGMA foreign_keys = OFF;
     CREATE TABLE image_new (
       id          INTEGER PRIMARY KEY NOT NULL,
       species_id  INTEGER NOT NULL,
@@ -31,25 +29,19 @@ defmodule Gallformers.Repo.Migrations.ChangeImageSourceFkToSetNull do
       sort_order  INTEGER DEFAULT 0 NOT NULL,
       FOREIGN KEY (species_id) REFERENCES species (id) ON DELETE CASCADE,
       FOREIGN KEY (source_id) REFERENCES source (id) ON DELETE SET NULL
-    )
+    );
+    INSERT INTO image_new SELECT * FROM image;
+    DROP TABLE image;
+    ALTER TABLE image_new RENAME TO image;
+    CREATE INDEX "image_species_id_sort_order_index" ON "image" ("species_id", "sort_order");
+    PRAGMA foreign_keys = ON;
     """)
-
-    execute("INSERT INTO image_new SELECT * FROM image")
-    execute("DROP TABLE image")
-    execute("ALTER TABLE image_new RENAME TO image")
-
-    # Recreate the index
-    execute(
-      ~s|CREATE INDEX "image_species_id_sort_order_index" ON "image" ("species_id", "sort_order")|
-    )
-
-    execute("PRAGMA foreign_keys = ON")
   end
 
   def down do
-    execute("PRAGMA foreign_keys = OFF")
-
+    # All statements in single execute to keep PRAGMA in same connection context
     execute("""
+    PRAGMA foreign_keys = OFF;
     CREATE TABLE image_new (
       id          INTEGER PRIMARY KEY NOT NULL,
       species_id  INTEGER NOT NULL,
@@ -67,17 +59,12 @@ defmodule Gallformers.Repo.Migrations.ChangeImageSourceFkToSetNull do
       sort_order  INTEGER DEFAULT 0 NOT NULL,
       FOREIGN KEY (species_id) REFERENCES species (id) ON DELETE CASCADE,
       FOREIGN KEY (source_id) REFERENCES source (id) ON DELETE CASCADE
-    )
+    );
+    INSERT INTO image_new SELECT * FROM image;
+    DROP TABLE image;
+    ALTER TABLE image_new RENAME TO image;
+    CREATE INDEX "image_species_id_sort_order_index" ON "image" ("species_id", "sort_order");
+    PRAGMA foreign_keys = ON;
     """)
-
-    execute("INSERT INTO image_new SELECT * FROM image")
-    execute("DROP TABLE image")
-    execute("ALTER TABLE image_new RENAME TO image")
-
-    execute(
-      ~s|CREATE INDEX "image_species_id_sort_order_index" ON "image" ("species_id", "sort_order")|
-    )
-
-    execute("PRAGMA foreign_keys = ON")
   end
 end

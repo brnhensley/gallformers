@@ -34,8 +34,8 @@ defmodule Mix.Tasks.Migrations.Lint do
   @migrations_path "priv/repo/migrations"
 
   # Migrations created before this version are grandfathered in
-  # This was when Gallformers.Migration was introduced
-  @skip_before_version 20_260_126_000_000
+  # V2 migrations start at 20260113, so this checks all of them
+  @skip_before_version 20_260_101_000_000
 
   @impl Mix.Task
   def run(_args) do
