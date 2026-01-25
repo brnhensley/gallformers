@@ -198,6 +198,30 @@ jobs:
 
           echo "Volume populated successfully"
 
+      - name: Wait for volume to be fully detached
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          echo "Waiting for volume $NEW_VOLUME_ID to be fully detached..."
+
+          for i in $(seq 1 30); do
+            ATTACHED=$(flyctl volumes list -a gallformers --json | \
+              jq -r --arg vol "$NEW_VOLUME_ID" '.[] | select(.id == $vol) | .attached_machine_id // empty')
+
+            if [ -z "$ATTACHED" ]; then
+              echo "Volume is detached and ready"
+              break
+            fi
+
+            echo "Attempt $i/30: Volume still attached to $ATTACHED, waiting..."
+            sleep 2
+
+            if [ "$i" -eq 30 ]; then
+              echo "ERROR: Volume still attached after 60 seconds"
+              exit 1
+            fi
+          done
+
       - name: Clone production machine with new volume
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
