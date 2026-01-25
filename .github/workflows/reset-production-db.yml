@@ -3,16 +3,10 @@ name: Reset Production Database
 on:
   workflow_dispatch:
     inputs:
-      source:
-        description: 'Database source'
-        required: true
-        type: choice
-        options:
-          - 'repo'        # priv/gallformers.sqlite from this repo
-          - 's3-path'     # Specify an S3 path
       s3_path:
-        description: 'S3 path (only if source=s3-path, e.g., s3://gallformers-backups/some/path.sqlite)'
-        required: false
+        description: 'S3 path to database (e.g., s3://gallformers-backups/reset/gallformers.sqlite)'
+        required: true
+        default: 's3://gallformers-backups/reset/gallformers.sqlite'
       confirm:
         description: 'Type "RESET" to confirm (this will replace the production database)'
         required: true
@@ -24,31 +18,19 @@ jobs:
     environment: production
 
     steps:
-      - name: Validate inputs
-        run: |
-          if [ "${{ inputs.source }}" = "s3-path" ] && [ -z "${{ inputs.s3_path }}" ]; then
-            echo "ERROR: s3_path is required when source is 's3-path'"
-            exit 1
-          fi
-
       - uses: actions/checkout@v4
 
       - name: Setup Fly CLI
         uses: superfly/flyctl-actions/setup-flyctl@master
 
-      - name: Prepare database file
+      - name: Download and validate database
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.LITESTREAM_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.LITESTREAM_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: us-east-1
         run: |
-          if [ "${{ inputs.source }}" = "repo" ]; then
-            echo "Using database from repository: priv/gallformers.sqlite"
-            cp priv/gallformers.sqlite reset-db.sqlite
-          else
-            echo "Downloading from S3: ${{ inputs.s3_path }}"
-            aws s3 cp "${{ inputs.s3_path }}" reset-db.sqlite
-          fi
+          echo "Downloading from S3: ${{ inputs.s3_path }}"
+          aws s3 cp "${{ inputs.s3_path }}" reset-db.sqlite
 
           echo "Validating database integrity..."
           RESULT=$(sqlite3 reset-db.sqlite "PRAGMA integrity_check;")

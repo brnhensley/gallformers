@@ -2,7 +2,7 @@
 #
 # Phoenix/LiveView development commands
 
-.PHONY: dev test test-db download-db ci help deps assets setup clean check-db build run-local-release dump-schema
+.PHONY: dev test test-db download-db ci help deps assets setup clean check-db build run-local-release dump-schema upload-reset-db
 
 # Download production database for local dev
 # Uses public S3 snapshot (updated daily by GitHub Actions)
@@ -13,6 +13,32 @@ download-db:
 	@mkdir -p priv
 	curl -L -o priv/gallformers.sqlite $(DB_URL)
 	@echo "Database downloaded to priv/gallformers.sqlite"
+
+# Upload a database for production reset
+# Usage: make upload-reset-db FILE=path/to/database.sqlite
+upload-reset-db:
+	@if [ -z "$(FILE)" ]; then \
+		echo "Usage: make upload-reset-db FILE=path/to/database.sqlite"; \
+		exit 1; \
+	fi
+	@if [ ! -f "$(FILE)" ]; then \
+		echo "ERROR: File not found: $(FILE)"; \
+		exit 1; \
+	fi
+	@echo "Validating database integrity..."
+	@RESULT=$$(sqlite3 "$(FILE)" "PRAGMA integrity_check;"); \
+	if [ "$$RESULT" != "ok" ]; then \
+		echo "INTEGRITY CHECK FAILED:"; \
+		echo "$$RESULT"; \
+		exit 1; \
+	fi
+	@SPECIES=$$(sqlite3 "$(FILE)" "SELECT COUNT(*) FROM species;"); \
+	echo "Database has $$SPECIES species"
+	@echo "Uploading to s3://gallformers-backups/reset/gallformers.sqlite..."
+	@aws s3 cp "$(FILE)" s3://gallformers-backups/reset/gallformers.sqlite
+	@echo ""
+	@echo "Done! Now run the 'Reset Production Database' workflow in GitHub Actions."
+	@echo "The default S3 path is already set to this location."
 
 # =============================================================================
 # Build Dependencies
