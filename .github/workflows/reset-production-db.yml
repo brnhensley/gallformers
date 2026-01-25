@@ -80,7 +80,7 @@ jobs:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
           echo "Stopping machine $MACHINE_ID..."
-          flyctl machine stop $MACHINE_ID -a gallformers --wait --timeout 60
+          flyctl machine stop $MACHINE_ID -a gallformers --wait-timeout 60s
 
           echo "Waiting for machine to fully stop and release volume..."
           for i in {1..30}; do
