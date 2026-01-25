@@ -53,14 +53,36 @@ jobs:
           fi
           echo "Database validated: $SPECIES_COUNT species, integrity OK"
 
-      - name: Scale down to release volume
+      - name: Get machine and volume info
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
-          echo "Scaling down to 0 to release volume..."
-          flyctl scale count 0 -a gallformers --yes
-          echo "Waiting for machines to stop..."
-          sleep 15
+          echo "Getting machine ID..."
+          MACHINE_ID=$(flyctl machines list -a gallformers --json | jq -r '.[0].id')
+          if [ -z "$MACHINE_ID" ] || [ "$MACHINE_ID" = "null" ]; then
+            echo "ERROR: No machine found"
+            exit 1
+          fi
+          echo "MACHINE_ID=$MACHINE_ID" >> $GITHUB_ENV
+          echo "Machine ID: $MACHINE_ID"
+
+          echo "Getting volume ID..."
+          VOLUME_ID=$(flyctl volumes list -a gallformers --json | jq -r '.[0].id')
+          if [ -z "$VOLUME_ID" ] || [ "$VOLUME_ID" = "null" ]; then
+            echo "ERROR: No volume found"
+            exit 1
+          fi
+          echo "VOLUME_ID=$VOLUME_ID" >> $GITHUB_ENV
+          echo "Volume ID: $VOLUME_ID"
+
+      - name: Stop machine to release volume
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          echo "Stopping machine $MACHINE_ID..."
+          flyctl machine stop $MACHINE_ID -a gallformers || true
+          echo "Waiting for machine to stop..."
+          sleep 10
 
       - name: Replace database using one-off machine
         env:
@@ -68,13 +90,13 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.LITESTREAM_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.LITESTREAM_SECRET_ACCESS_KEY }}
         run: |
-          echo "Running one-off machine to replace database..."
+          echo "Running one-off machine to replace database on volume $VOLUME_ID..."
 
-          # Run alpine container with aws-cli, mount the volume, replace the DB
+          # Run alpine container with aws-cli, mount the volume BY ID, replace the DB
           flyctl machine run alpine:latest \
             -a gallformers \
             --region iad \
-            --volume gallformers_data:/data \
+            --volume $VOLUME_ID:/data \
             --env AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID \
             --env AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY \
             --env AWS_DEFAULT_REGION=us-east-1 \
@@ -84,7 +106,7 @@ jobs:
             -- sh -c "
               apk add --no-cache aws-cli &&
               rm -f /data/gallformers.sqlite /data/gallformers.sqlite-wal /data/gallformers.sqlite-shm &&
-              rm -rf /data/backups/* &&
+              rm -rf /data/backups/* /data/.gallformers.sqlite-litestream &&
               aws s3 cp \$S3_PATH /data/gallformers.sqlite &&
               chmod 644 /data/gallformers.sqlite &&
               ls -la /data/ &&
@@ -100,12 +122,14 @@ jobs:
           echo "Clearing old Litestream generations for fresh start..."
           aws s3 rm s3://gallformers-backups/litestream/ --recursive || true
 
-      - name: Deploy and scale back up
+      - name: Start machine
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
-          echo "Deploying (runs migrations and starts Litestream)..."
-          flyctl deploy --remote-only -a gallformers
+          echo "Starting machine $MACHINE_ID..."
+          flyctl machine start $MACHINE_ID -a gallformers
+          echo "Waiting for machine to start..."
+          sleep 10
 
       - name: Cleanup reset file from S3
         env:
