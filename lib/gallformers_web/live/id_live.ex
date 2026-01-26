@@ -545,7 +545,7 @@ defmodule GallformersWeb.IDLive do
 
       summary_data
       |> Enum.map(fn {gall_id, filters} ->
-        {gall_id, GallSummary.generate(filters, mode: :short)}
+        {gall_id, GallSummary.generate(filters, mode: :medium)}
       end)
       |> Enum.into(%{})
     end
@@ -1045,7 +1045,7 @@ defmodule GallformersWeb.IDLive do
           <p class="text-sm font-medium text-gray-900 group-hover:text-gf-maroon truncate italic">
             {@gall.name}
           </p>
-          <p :if={!@gall.image_url && @summary} class="text-xs text-gray-600 line-clamp-2 mt-1">
+          <p :if={!@gall.image_url && @summary} class="text-xs text-gray-600 mt-1" title={@summary}>
             {@summary}
           </p>
           <div class="flex gap-1 mt-1">
