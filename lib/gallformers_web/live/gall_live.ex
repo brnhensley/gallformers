@@ -156,7 +156,7 @@ defmodule GallformersWeb.GallLive do
   end
 
   defp get_detachable_display(value), do: Map.get(@detachable_values, value, "")
-  defp format_fields(fields), do: Enum.join(fields, ", ")
+  defp format_fields(fields), do: fields |> Enum.map(& &1.field) |> Enum.join(", ")
 
   # Extract the gallformers code from the species name by removing the genus and any trailing parenthetical
   defp get_gallformers_code(species_name, genus_name) when is_binary(genus_name) do
