@@ -93,6 +93,20 @@
   margin-bottom: 0.25em;
 }
 
+/* Tooltip content styling (dark background context) */
+[role="tooltip"] mark,
+[role="tooltip"] code {
+  background-color: transparent;
+  color: #fcd34d; /* amber-300 - good contrast on dark bg */
+  font-style: italic;
+  padding: 0;
+}
+
+[role="tooltip"] em {
+  color: #fcd34d; /* amber-300 */
+  font-style: italic;
+}
+
 /* Add variants based on LiveView classes */
 @custom-variant phx-click-loading (.phx-click-loading&, .phx-click-loading &);
 @custom-variant phx-submit-loading (.phx-submit-loading&, .phx-submit-loading &);

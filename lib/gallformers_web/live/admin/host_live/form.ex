@@ -66,6 +66,9 @@ defmodule GallformersWeb.Admin.HostLive.Form do
     |> assign(:show_rename_modal, false)
     |> assign(:rename_value, "")
     |> assign(:add_alias_on_rename, false)
+    # Genus confirmation modal state
+    |> assign(:show_genus_confirm, false)
+    |> assign(:pending_genus_info, nil)
     # Typeahead search state
     |> assign(:host_search_query, "")
     |> assign(:host_search_results, [])
@@ -123,6 +126,9 @@ defmodule GallformersWeb.Admin.HostLive.Form do
     |> assign(:show_rename_modal, false)
     |> assign(:rename_value, host.name)
     |> assign(:add_alias_on_rename, false)
+    # Genus confirmation modal state
+    |> assign(:show_genus_confirm, false)
+    |> assign(:pending_genus_info, nil)
     # Typeahead state (cleared in edit mode)
     |> assign(:host_search_query, "")
     |> assign(:host_search_results, [])
@@ -393,21 +399,15 @@ defmodule GallformersWeb.Admin.HostLive.Form do
                socket.assigns.add_alias_on_rename
              ) do
           {:ok, updated_host} ->
-            # Reload aliases if we added one
-            aliases =
-              if socket.assigns.add_alias_on_rename do
-                Hosts.get_aliases_for_host_full(socket.assigns.host.id)
-              else
-                socket.assigns.aliases
-              end
+            {:noreply, handle_rename_success(socket, updated_host, new_name)}
 
+          {:needs_genus_confirmation, info} ->
+            # Genus change requires user confirmation to create new genus
             {:noreply,
              socket
-             |> assign(:host, updated_host)
-             |> assign(:aliases, aliases)
              |> assign(:show_rename_modal, false)
-             |> assign(:page_title, "Edit Host - #{new_name}")
-             |> put_flash(:info, "Host renamed successfully")}
+             |> assign(:show_genus_confirm, true)
+             |> assign(:pending_genus_info, info)}
 
           {:error, :name_exists} ->
             {:noreply, put_flash(socket, :error, "That name is already in use")}
@@ -418,7 +418,66 @@ defmodule GallformersWeb.Admin.HostLive.Form do
     end
   end
 
+  # Genus confirmation modal events
+
+  @impl true
+  def handle_event("cancel_genus_confirm", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:show_genus_confirm, false)
+     |> assign(:pending_genus_info, nil)}
+  end
+
+  @impl true
+  def handle_event("confirm_genus_creation", _params, socket) do
+    info = socket.assigns.pending_genus_info
+
+    case Hosts.rename_host_with_new_genus(
+           info.host_id,
+           info.new_name,
+           info.new_genus,
+           info.family_id,
+           info.add_alias
+         ) do
+      {:ok, updated_host} ->
+        {:noreply,
+         socket
+         |> assign(:show_genus_confirm, false)
+         |> assign(:pending_genus_info, nil)
+         |> handle_rename_success(updated_host, info.new_name)
+         |> put_flash(:info, "Host renamed and new genus \"#{info.new_genus}\" created")}
+
+      {:error, reason} ->
+        {:noreply,
+         socket
+         |> assign(:show_genus_confirm, false)
+         |> assign(:pending_genus_info, nil)
+         |> put_flash(:error, "Failed to create genus: #{inspect(reason)}")}
+    end
+  end
+
   # Helper functions for handle_event
+
+  defp handle_rename_success(socket, updated_host, new_name) do
+    # Reload aliases if we added one
+    aliases =
+      if socket.assigns.add_alias_on_rename do
+        Hosts.get_aliases_for_host_full(socket.assigns.host.id)
+      else
+        socket.assigns.aliases
+      end
+
+    # Reload taxonomy since genus may have changed
+    taxonomy = Taxonomy.get_taxonomy_for_species(updated_host.id)
+
+    socket
+    |> assign(:host, updated_host)
+    |> assign(:aliases, aliases)
+    |> assign(:taxonomy, taxonomy)
+    |> assign(:show_rename_modal, false)
+    |> assign(:page_title, "Edit Host - #{new_name}")
+    |> put_flash(:info, "Host renamed successfully")
+  end
 
   defp toggle_region(%{assigns: %{mode: mode}} = socket, _code) when mode != :edit, do: socket
 
@@ -655,7 +714,21 @@ defmodule GallformersWeb.Admin.HostLive.Form do
         <div class="mb-3">
           <%= if @mode == :edit do %>
             <%!-- Edit mode: show selected name with rename button --%>
-            <label class="gf-label">Name (binomial):</label>
+            <label class="gf-label">
+              Name (binomial):
+              <.info_tip position="right">
+                <p class="mb-2">
+                  Names must be in binomial form: <mark>Genus species</mark>
+                </p>
+                <p class="mb-2">
+                  Indicate hybrids with 'x' between genus and species, e.g.,
+                  <mark>Quercus x leana</mark>
+                </p>
+                <p>
+                  Both genus and species can contain dashes.
+                </p>
+              </.info_tip>
+            </label>
             <div class="flex gap-2">
               <input
                 type="text"
@@ -686,7 +759,22 @@ defmodule GallformersWeb.Admin.HostLive.Form do
               results={@host_search_results}
               selected={@host}
               display_fn={fn host -> host.name end}
-            />
+            >
+              <:label_suffix>
+                <.info_tip position="right">
+                  <p class="mb-2">
+                    Names must be in binomial form: <mark>Genus species</mark>
+                  </p>
+                  <p class="mb-2">
+                    Indicate hybrids with 'x' between genus and species, e.g.,
+                    <mark>Quercus x leana</mark>
+                  </p>
+                  <p>
+                    Both genus and species can contain dashes.
+                  </p>
+                </.info_tip>
+              </:label_suffix>
+            </.typeahead>
             <p :if={@mode == :search} class="text-gray-500 text-xs mt-1">
               Type to search existing hosts, or enter a new name to create one.
             </p>
@@ -820,19 +908,13 @@ defmodule GallformersWeb.Admin.HostLive.Form do
                 <div class="col-span-5">
                   <label class="gf-label">Range:</label>
                   <%= if @mode == :edit do %>
-                    <div
+                    <.range_map
                       id="host-range-map"
-                      phx-hook="RangeMap"
-                      phx-update="ignore"
-                      data-in-range={Jason.encode!(@places)}
-                      data-excluded-range={Jason.encode!([])}
-                      data-editable="true"
+                      in_range={@places}
+                      excluded_range={[]}
+                      editable
                       class="border border-gray-300 rounded bg-gray-50 min-h-[300px]"
-                    >
-                      <div class="flex items-center justify-center h-64 text-gray-400">
-                        Loading map...
-                      </div>
-                    </div>
+                    />
                   <% else %>
                     <div class="border border-gray-300 rounded bg-gray-100 min-h-[200px] flex items-center justify-center">
                       <p class="text-gray-500 text-sm">Save host first to edit range</p>
@@ -891,6 +973,44 @@ defmodule GallformersWeb.Admin.HostLive.Form do
         add_alias_checked={@add_alias_on_rename}
         entity_type="Host"
       />
+
+      <%!-- Genus confirmation modal --%>
+      <.modal
+        :if={@show_genus_confirm}
+        id="genus-confirm-modal"
+        show
+        on_cancel={JS.push("cancel_genus_confirm")}
+      >
+        <:header>Create New Genus?</:header>
+        <:body>
+          <p class="text-gray-700 mb-4">
+            Renaming to
+            <em class="font-medium">{@pending_genus_info && @pending_genus_info.new_name}</em>
+            will create a new genus
+            <strong>{@pending_genus_info && @pending_genus_info.new_genus}</strong>
+            under the family <strong>{@pending_genus_info && @pending_genus_info.family_name}</strong>.
+          </p>
+          <p class="text-gray-600 text-sm">
+            This will create a new genus entry in the taxonomy. Are you sure you want to continue?
+          </p>
+        </:body>
+        <:footer>
+          <button
+            type="button"
+            phx-click="cancel_genus_confirm"
+            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            phx-click="confirm_genus_creation"
+            class="px-4 py-2 text-sm font-medium text-white bg-gf-maroon border border-transparent rounded-md hover:bg-gf-maroon/90"
+          >
+            Create Genus & Rename
+          </button>
+        </:footer>
+      </.modal>
     </Layouts.admin>
     """
   end

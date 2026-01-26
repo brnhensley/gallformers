@@ -109,16 +109,22 @@ const RangeMap = {
 
     // Create container structure
     const container = document.createElement('div')
-    container.className = 'range-map-container'
+    container.className = 'range-map-container relative'
 
-    // Create thumbnail SVG
+    // Create tooltip first so SVG can reference it
+    const tooltip = document.createElement('div')
+    tooltip.className = 'range-map-tooltip hidden absolute bg-gray-800 text-white text-sm px-2 py-1 rounded pointer-events-none z-50'
+    tooltip.id = `${this.el.id}-tooltip`
+    container.appendChild(tooltip)
+
+    // Create thumbnail SVG (pass container for tooltip positioning)
     const thumbnailWrapper = document.createElement('div')
     thumbnailWrapper.className = 'range-map-thumbnail cursor-pointer'
     thumbnailWrapper.setAttribute('role', 'button')
     thumbnailWrapper.setAttribute('tabindex', '0')
     thumbnailWrapper.setAttribute('aria-label', 'Click to expand map')
 
-    const svg = this.createSvg(false)
+    const svg = this.createSvg(false, container)
     thumbnailWrapper.appendChild(svg)
 
     // Add "Click to expand" hint
@@ -141,12 +147,6 @@ const RangeMap = {
     // Create modal (hidden by default)
     const modal = this.createModal()
     container.appendChild(modal)
-
-    // Create tooltip
-    const tooltip = document.createElement('div')
-    tooltip.className = 'range-map-tooltip hidden absolute bg-gray-800 text-white text-sm px-2 py-1 rounded pointer-events-none z-50'
-    tooltip.id = `${this.el.id}-tooltip`
-    container.appendChild(tooltip)
 
     this.el.appendChild(container)
   },

@@ -627,6 +627,8 @@ defmodule GallformersWeb.FormComponents do
     attr :item, :any
   end
 
+  slot :label_suffix, doc: "optional content to render after the label (e.g., info_tip)"
+
   def typeahead(assigns) do
     # Determine if we should show the "create new" option
     show_create_option =
@@ -648,6 +650,7 @@ defmodule GallformersWeb.FormComponents do
     >
       <label class="gf-label">
         {@label}<span :if={@required} class="text-red-500 ml-0.5">*</span>
+        {render_slot(@label_suffix)}
       </label>
       <%= if @selected do %>
         <div

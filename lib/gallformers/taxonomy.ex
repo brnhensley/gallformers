@@ -285,6 +285,35 @@ defmodule Gallformers.Taxonomy do
   end
 
   @doc """
+  Updates a species' genus link.
+
+  Removes any existing genus links and creates a new one to the specified genus.
+  Used when renaming a species to a different genus.
+  """
+  @spec update_species_genus(integer(), integer()) :: :ok | {:error, term()}
+  def update_species_genus(species_id, new_genus_id) do
+    # First, find all genus taxonomy IDs
+    genus_ids_query =
+      from(t in Taxonomy,
+        where: t.type == "genus",
+        select: t.id
+      )
+
+    # Remove any existing genus links for this species
+    # (SQLite doesn't support JOINs in DELETE, so we use a subquery)
+    from(st in "speciestaxonomy",
+      where: st.species_id == ^species_id and st.taxonomy_id in subquery(genus_ids_query)
+    )
+    |> Repo.delete_all()
+
+    # Then link to the new genus
+    case link_species_to_taxonomy(species_id, new_genus_id) do
+      {:ok, _} -> :ok
+      error -> error
+    end
+  end
+
+  @doc """
   Looks up taxonomy info (genus, section, family) from a species name.
 
   Extracts the genus from the first word of the species name,
