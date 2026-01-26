@@ -290,7 +290,7 @@ defmodule GallformersWeb.API.GallController do
   defp gall_to_full_response(gall) do
     aliases = Species.get_aliases_for_species(gall.id)
     hosts = Hosts.get_hosts_for_gall(gall.id)
-    filter_fields = get_filter_fields_for_gall(gall.gall_id)
+    filter_fields = Species.get_gall_filter_values(gall.gall_id)
     places = Hosts.get_places_for_gall(gall.id)
     excluded_places = Hosts.get_excluded_places_for_gall(gall.id)
 
@@ -328,110 +328,6 @@ defmodule GallformersWeb.API.GallController do
     }
   end
 
-  defp get_filter_fields_for_gall(gall_id) do
-    %{
-      colors: get_gall_colors(gall_id),
-      shapes: get_gall_shapes(gall_id),
-      textures: get_gall_textures(gall_id),
-      locations: get_gall_locations(gall_id),
-      alignments: get_gall_alignments(gall_id),
-      walls: get_gall_walls(gall_id),
-      cells: get_gall_cells(gall_id),
-      seasons: get_gall_seasons(gall_id),
-      forms: get_gall_forms(gall_id)
-    }
-  end
-
-  defp get_gall_colors(gall_id) do
-    from(gc in "gallcolor",
-      join: c in "color",
-      on: gc.color_id == c.id,
-      where: gc.gall_id == ^gall_id,
-      select: %{id: c.id, field: c.color}
-    )
-    |> Repo.all()
-  end
-
-  defp get_gall_shapes(gall_id) do
-    from(gs in "gallshape",
-      join: s in "shape",
-      on: gs.shape_id == s.id,
-      where: gs.gall_id == ^gall_id,
-      select: %{id: s.id, field: s.shape}
-    )
-    |> Repo.all()
-  end
-
-  defp get_gall_textures(gall_id) do
-    from(gt in "galltexture",
-      join: t in "texture",
-      on: gt.texture_id == t.id,
-      where: gt.gall_id == ^gall_id,
-      select: %{id: t.id, field: t.texture}
-    )
-    |> Repo.all()
-  end
-
-  defp get_gall_locations(gall_id) do
-    from(gl in "galllocation",
-      join: l in "location",
-      on: gl.location_id == l.id,
-      where: gl.gall_id == ^gall_id,
-      select: %{id: l.id, field: l.location}
-    )
-    |> Repo.all()
-  end
-
-  defp get_gall_alignments(gall_id) do
-    from(ga in "gallalignment",
-      join: a in "alignment",
-      on: ga.alignment_id == a.id,
-      where: ga.gall_id == ^gall_id,
-      select: %{id: a.id, field: a.alignment}
-    )
-    |> Repo.all()
-  end
-
-  defp get_gall_walls(gall_id) do
-    from(gw in "gallwalls",
-      join: w in "walls",
-      on: gw.walls_id == w.id,
-      where: gw.gall_id == ^gall_id,
-      select: %{id: w.id, field: w.walls}
-    )
-    |> Repo.all()
-  end
-
-  defp get_gall_cells(gall_id) do
-    from(gc in "gallcells",
-      join: c in "cells",
-      on: gc.cells_id == c.id,
-      where: gc.gall_id == ^gall_id,
-      select: %{id: c.id, field: c.cells}
-    )
-    |> Repo.all()
-  end
-
-  defp get_gall_seasons(gall_id) do
-    from(gs in "gallseason",
-      join: s in "season",
-      on: gs.season_id == s.id,
-      where: gs.gall_id == ^gall_id,
-      select: %{id: s.id, field: s.season}
-    )
-    |> Repo.all()
-  end
-
-  defp get_gall_forms(gall_id) do
-    from(gf in "gallform",
-      join: f in "form",
-      on: gf.form_id == f.id,
-      where: gf.gall_id == ^gall_id,
-      select: %{id: f.id, field: f.form}
-    )
-    |> Repo.all()
-  end
-
   defp get_galls_for_id_tool do
     # Get all galls with basic info
     galls =
@@ -461,7 +357,7 @@ defmodule GallformersWeb.API.GallController do
 
     # Build the full response for each gall
     Enum.map(galls, fn gall ->
-      filter_fields = get_filter_fields_strings_for_gall(gall.gall_id)
+      filter_fields = build_gall_filter_strings_for_api(gall.gall_id)
       hosts = Hosts.get_hosts_for_gall(gall.id)
       places = Hosts.get_places_for_gall(gall.id)
       taxonomy = Taxonomy.get_taxonomy_for_species(gall.id)
@@ -495,108 +391,20 @@ defmodule GallformersWeb.API.GallController do
     end)
   end
 
-  defp get_filter_fields_strings_for_gall(gall_id) do
+  defp build_gall_filter_strings_for_api(gall_id) do
+    filter_values = Species.get_gall_filter_values(gall_id)
+
     %{
-      colors: get_color_strings(gall_id),
-      shapes: get_shape_strings(gall_id),
-      textures: get_texture_strings(gall_id),
-      locations: get_location_strings(gall_id),
-      alignments: get_alignment_strings(gall_id),
-      walls: get_walls_strings(gall_id),
-      cells: get_cells_strings(gall_id),
-      seasons: get_season_strings(gall_id),
-      forms: get_form_strings(gall_id)
+      colors: Enum.map(filter_values.colors, & &1.field),
+      shapes: Enum.map(filter_values.shapes, & &1.field),
+      textures: Enum.map(filter_values.textures, & &1.field),
+      locations: Enum.map(filter_values.locations, & &1.field),
+      alignments: Enum.map(filter_values.alignments, & &1.field),
+      walls: Enum.map(filter_values.walls, & &1.field),
+      cells: Enum.map(filter_values.cells, & &1.field),
+      seasons: Enum.map(filter_values.seasons, & &1.field),
+      forms: Enum.map(filter_values.forms, & &1.field)
     }
-  end
-
-  defp get_color_strings(gall_id) do
-    from(gc in "gallcolor",
-      join: c in "color",
-      on: gc.color_id == c.id,
-      where: gc.gall_id == ^gall_id,
-      select: c.color
-    )
-    |> Repo.all()
-  end
-
-  defp get_shape_strings(gall_id) do
-    from(gs in "gallshape",
-      join: s in "shape",
-      on: gs.shape_id == s.id,
-      where: gs.gall_id == ^gall_id,
-      select: s.shape
-    )
-    |> Repo.all()
-  end
-
-  defp get_texture_strings(gall_id) do
-    from(gt in "galltexture",
-      join: t in "texture",
-      on: gt.texture_id == t.id,
-      where: gt.gall_id == ^gall_id,
-      select: t.texture
-    )
-    |> Repo.all()
-  end
-
-  defp get_location_strings(gall_id) do
-    from(gl in "galllocation",
-      join: l in "location",
-      on: gl.location_id == l.id,
-      where: gl.gall_id == ^gall_id,
-      select: l.location
-    )
-    |> Repo.all()
-  end
-
-  defp get_alignment_strings(gall_id) do
-    from(ga in "gallalignment",
-      join: a in "alignment",
-      on: ga.alignment_id == a.id,
-      where: ga.gall_id == ^gall_id,
-      select: a.alignment
-    )
-    |> Repo.all()
-  end
-
-  defp get_walls_strings(gall_id) do
-    from(gw in "gallwalls",
-      join: w in "walls",
-      on: gw.walls_id == w.id,
-      where: gw.gall_id == ^gall_id,
-      select: w.walls
-    )
-    |> Repo.all()
-  end
-
-  defp get_cells_strings(gall_id) do
-    from(gc in "gallcells",
-      join: c in "cells",
-      on: gc.cells_id == c.id,
-      where: gc.gall_id == ^gall_id,
-      select: c.cells
-    )
-    |> Repo.all()
-  end
-
-  defp get_season_strings(gall_id) do
-    from(gs in "gallseason",
-      join: s in "season",
-      on: gs.season_id == s.id,
-      where: gs.gall_id == ^gall_id,
-      select: s.season
-    )
-    |> Repo.all()
-  end
-
-  defp get_form_strings(gall_id) do
-    from(gf in "gallform",
-      join: f in "form",
-      on: gf.form_id == f.id,
-      where: gf.gall_id == ^gall_id,
-      select: f.form
-    )
-    |> Repo.all()
   end
 
   defp detachable_to_string(nil), do: ""

@@ -6,10 +6,6 @@ defmodule GallformersWeb.GenusLive do
   """
   use GallformersWeb, :live_view
 
-  import Ecto.Query
-
-  alias Gallformers.Repo
-  alias Gallformers.Species.Species
   alias Gallformers.Taxonomy
 
   @impl true
@@ -62,7 +58,9 @@ defmodule GallformersWeb.GenusLive do
   defp assign_genus_data(socket, genus, genus_id) do
     family = if genus.parent_id, do: Taxonomy.get_taxonomy(genus.parent_id), else: nil
     species_ids = Taxonomy.get_species_ids_for_genus(genus_id)
-    species = if species_ids == [], do: [], else: get_species_info(species_ids)
+
+    species =
+      if species_ids == [], do: [], else: Gallformers.Species.list_species_by_ids(species_ids)
 
     assign(socket,
       page_title: "Genus #{genus.name}",
@@ -77,19 +75,6 @@ defmodule GallformersWeb.GenusLive do
       species: species,
       error: nil
     )
-  end
-
-  defp get_species_info(species_ids) do
-    from(s in Species,
-      where: s.id in ^species_ids,
-      order_by: s.name,
-      select: %{
-        id: s.id,
-        name: s.name,
-        taxoncode: s.taxoncode
-      }
-    )
-    |> Repo.all()
   end
 
   defp format_with_description(name, description) do

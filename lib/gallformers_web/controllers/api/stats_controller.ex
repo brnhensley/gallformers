@@ -8,11 +8,7 @@ defmodule GallformersWeb.API.StatsController do
   use GallformersWeb, :controller
   use OpenApiSpex.ControllerSpecs
 
-  import Ecto.Query
-
-  alias Gallformers.{Glossaries, Hosts, Repo, Sources, Species}
-  alias Gallformers.Species.{Gall, GallSpecies, Image}
-  alias Gallformers.Species.Species, as: SpeciesSchema
+  alias Gallformers.{Glossaries, Hosts, Images, Sources, Species}
   alias GallformersWeb.Schemas
 
   tags(["Stats"])
@@ -35,27 +31,10 @@ defmodule GallformersWeb.API.StatsController do
       hosts: Hosts.count_hosts(),
       sources: Sources.count_sources(),
       glossary: Glossaries.count_glossary(),
-      undescribed_galls: count_undescribed_galls(),
-      images: count_images()
+      undescribed_galls: Species.count_undescribed_galls(),
+      images: Images.count_images()
     }
 
     json(conn, stats)
-  end
-
-  defp count_undescribed_galls do
-    from(s in SpeciesSchema,
-      join: gs in GallSpecies,
-      on: gs.species_id == s.id,
-      join: g in Gall,
-      on: gs.gall_id == g.id,
-      where: s.taxoncode == "gall" and g.undescribed == true,
-      select: count(s.id)
-    )
-    |> Repo.one()
-  end
-
-  defp count_images do
-    from(i in Image, select: count(i.id))
-    |> Repo.one()
   end
 end

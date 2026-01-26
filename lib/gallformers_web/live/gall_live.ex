@@ -68,7 +68,7 @@ defmodule GallformersWeb.GallLive do
         taxonomy = get_taxonomy_info(gall_id)
         range = Hosts.get_places_for_gall(gall_id) |> MapSet.new()
         excluded_range = Hosts.get_excluded_places_for_gall(gall_id) |> MapSet.new()
-        gall_filters = get_gall_filter_fields(gall.gall_id)
+        gall_filters = Gallformers.Species.get_gall_filter_values(gall.gall_id)
 
         # Check if Gallformers notes exist for this species
         gallformers_notes = Enum.find(sources, fn s -> s.id == @gallformers_notes_source_id end)
@@ -153,90 +153,6 @@ defmodule GallformersWeb.GallLive do
         alt: "Gall image"
       })
     end)
-  end
-
-  defp get_gall_filter_fields(gall_id) do
-    %{
-      colors:
-        get_filter_values(
-          gall_id,
-          "gallcolor",
-          :color_id,
-          Gallformers.FilterFields.Color,
-          :color
-        ),
-      shapes:
-        get_filter_values(
-          gall_id,
-          "gallshape",
-          :shape_id,
-          Gallformers.FilterFields.Shape,
-          :shape
-        ),
-      textures:
-        get_filter_values(
-          gall_id,
-          "galltexture",
-          :texture_id,
-          Gallformers.FilterFields.Texture,
-          :texture
-        ),
-      alignments:
-        get_filter_values(
-          gall_id,
-          "gallalignment",
-          :alignment_id,
-          Gallformers.FilterFields.Alignment,
-          :alignment
-        ),
-      walls:
-        get_filter_values(
-          gall_id,
-          "gallwalls",
-          :walls_id,
-          Gallformers.FilterFields.Walls,
-          :walls
-        ),
-      locations:
-        get_filter_values(
-          gall_id,
-          "galllocation",
-          :location_id,
-          Gallformers.FilterFields.Location,
-          :location
-        ),
-      forms:
-        get_filter_values(gall_id, "gallform", :form_id, Gallformers.FilterFields.Form, :form),
-      cells:
-        get_filter_values(
-          gall_id,
-          "gallcells",
-          :cells_id,
-          Gallformers.FilterFields.Cells,
-          :cells
-        ),
-      seasons:
-        get_filter_values(
-          gall_id,
-          "gallseason",
-          :season_id,
-          Gallformers.FilterFields.Season,
-          :season
-        )
-    }
-  end
-
-  defp get_filter_values(gall_id, join_table, fk_col, schema, field) when is_atom(fk_col) do
-    import Ecto.Query
-    alias Gallformers.Repo
-
-    from(j in join_table,
-      join: s in ^schema,
-      on: field(j, ^fk_col) == s.id,
-      where: j.gall_id == ^gall_id,
-      select: field(s, ^field)
-    )
-    |> Repo.all()
   end
 
   defp get_detachable_display(value), do: Map.get(@detachable_values, value, "")

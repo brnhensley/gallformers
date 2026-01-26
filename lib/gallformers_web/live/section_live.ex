@@ -60,7 +60,7 @@ defmodule GallformersWeb.SectionLive do
            )}
         else
           # Get species for this section
-          species = get_species_for_section(section_id)
+          species = Gallformers.Taxonomy.get_species_for_section(section_id)
 
           {:ok,
            assign(socket,
@@ -77,25 +77,6 @@ defmodule GallformersWeb.SectionLive do
            )}
         end
     end
-  end
-
-  defp get_species_for_section(section_id) do
-    import Ecto.Query
-    alias Gallformers.Repo
-    alias Gallformers.Species.Species
-
-    from(s in Species,
-      join: st in "speciestaxonomy",
-      on: st.species_id == s.id,
-      where: st.taxonomy_id == ^section_id,
-      order_by: s.name,
-      select: %{
-        id: s.id,
-        name: s.name,
-        taxoncode: s.taxoncode
-      }
-    )
-    |> Repo.all()
   end
 
   defp format_full_name(name, description) do

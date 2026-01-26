@@ -726,6 +726,24 @@ defmodule Gallformers.Taxonomy do
   end
 
   @doc """
+  Gets all species in a Section by ID.
+  """
+  def get_species_for_section(section_id) do
+    from(s in Gallformers.Species.Species,
+      join: st in "speciestaxonomy",
+      on: st.species_id == s.id,
+      where: st.taxonomy_id == ^section_id,
+      order_by: s.name,
+      select: %{
+        id: s.id,
+        name: s.name,
+        taxoncode: s.taxoncode
+      }
+    )
+    |> Repo.all()
+  end
+
+  @doc """
   Returns genera for use in typeahead/select components.
   Each result includes the parent family ID for auto-population.
   Excludes genera named "Unknown" as those are created automatically.

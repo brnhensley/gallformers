@@ -206,22 +206,24 @@ defmodule Gallformers.Search do
   """
   @spec global_search(String.t()) :: map()
   def global_search(query) when is_binary(query) do
-    trimmed = String.trim(query)
+    query
+    |> String.trim()
+    |> do_global_search()
+  end
 
-    if trimmed == "" do
-      empty_results()
-    else
-      search_terms = Ranking.parse_query(trimmed)
+  defp do_global_search(""), do: empty_results()
 
-      %{
-        galls: search_galls_with_aliases(trimmed),
-        hosts: search_hosts_with_aliases(trimmed),
-        glossary: search_glossary(trimmed) |> Ranking.add_scores_and_sort(search_terms),
-        sources: search_sources(trimmed) |> Ranking.add_scores_and_sort(search_terms),
-        taxonomy: search_taxonomy(trimmed) |> Ranking.add_scores_and_sort(search_terms),
-        places: search_places(trimmed) |> Ranking.add_scores_and_sort(search_terms)
-      }
-    end
+  defp do_global_search(query) do
+    search_terms = Ranking.parse_query(query)
+
+    %{
+      galls: search_galls_with_aliases(query),
+      hosts: search_hosts_with_aliases(query),
+      glossary: search_glossary(query) |> Ranking.add_scores_and_sort(search_terms),
+      sources: search_sources(query) |> Ranking.add_scores_and_sort(search_terms),
+      taxonomy: search_taxonomy(query) |> Ranking.add_scores_and_sort(search_terms),
+      places: search_places(query) |> Ranking.add_scores_and_sort(search_terms)
+    }
   end
 
   @doc """

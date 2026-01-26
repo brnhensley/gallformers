@@ -627,8 +627,7 @@ defmodule Gallformers.Images do
     do: Keyword.put(opts, :continuation_token, token)
 
   defp original_gall_image?(obj) do
-    key = obj[:key] || obj.key
-    String.contains?(key, "_original.") && image_extension?(key)
+    String.contains?(obj[:key], "_original.") && image_extension?(obj[:key])
   end
 
   defp image_extension?(path) do
@@ -637,9 +636,9 @@ defmodule Gallformers.Images do
 
   defp extract_s3_object_info(obj) do
     %{
-      key: obj[:key] || obj.key,
-      last_modified: obj[:last_modified] || obj.last_modified,
-      size: obj[:size] || obj.size
+      key: obj[:key],
+      last_modified: obj[:last_modified],
+      size: obj[:size]
     }
   end
 

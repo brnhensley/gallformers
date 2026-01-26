@@ -104,20 +104,7 @@ defmodule GallformersWeb.FamilyLive do
   end
 
   defp get_species_info(species_ids) do
-    import Ecto.Query
-    alias Gallformers.Repo
-    alias Gallformers.Species.Species
-
-    from(s in Species,
-      where: s.id in ^species_ids,
-      order_by: s.name,
-      select: %{
-        id: s.id,
-        name: s.name,
-        taxoncode: s.taxoncode
-      }
-    )
-    |> Repo.all()
+    Gallformers.Species.list_species_by_ids(species_ids)
     |> Enum.map(fn s ->
       url = if s.taxoncode == "gall", do: "/gall/#{s.id}", else: "/host/#{s.id}"
       Map.put(s, :url, url)

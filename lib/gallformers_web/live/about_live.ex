@@ -6,11 +6,7 @@ defmodule GallformersWeb.AboutLive do
   """
   use GallformersWeb, :live_view
 
-  import Ecto.Query
-
-  alias Gallformers.{Accounts, Hosts, Repo, Sources, Species, Taxonomy, Version}
-  alias Gallformers.Species.{Gall, GallSpecies}
-  alias Gallformers.Species.Species, as: SpeciesSchema
+  alias Gallformers.{Accounts, Hosts, Sources, Species, Taxonomy, Version}
 
   @impl true
   def mount(_params, _session, socket) do
@@ -48,7 +44,7 @@ defmodule GallformersWeb.AboutLive do
       gall_genera: count_genera_for_taxoncode("gall"),
       host_families: count_families_for_taxoncode("plant"),
       host_genera: count_genera_for_taxoncode("plant"),
-      undescribed: count_undescribed_galls()
+      undescribed: Gallformers.Species.count_undescribed_galls()
     }
   end
 
@@ -60,18 +56,6 @@ defmodule GallformersWeb.AboutLive do
   defp count_genera_for_taxoncode(_taxoncode) do
     # Simplified - count all genera
     Taxonomy.list_genera() |> length()
-  end
-
-  defp count_undescribed_galls do
-    from(s in SpeciesSchema,
-      join: gs in GallSpecies,
-      on: gs.species_id == s.id,
-      join: g in Gall,
-      on: gs.gall_id == g.id,
-      where: g.undescribed == true,
-      select: count(s.id)
-    )
-    |> Repo.one()
   end
 
   defp display_name(admin) do

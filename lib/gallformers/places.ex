@@ -49,6 +49,25 @@ defmodule Gallformers.Places do
   end
 
   @doc """
+  Gets a place's parent by ID.
+  """
+  def get_parent_place(place_id) do
+    from(p in "place",
+      join: pp in "placeplace",
+      on: pp.parent_id == p.id,
+      where: pp.place_id == ^place_id,
+      select: %{
+        id: p.id,
+        name: p.name,
+        code: p.code,
+        type: p.type
+      },
+      limit: 1
+    )
+    |> Repo.one()
+  end
+
+  @doc """
   Searches places by name (case-insensitive).
   """
   @spec search_places(String.t(), integer()) :: [Place.t()]

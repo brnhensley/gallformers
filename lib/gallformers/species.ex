@@ -10,6 +10,7 @@ defmodule Gallformers.Species do
   alias Gallformers.Repo
   alias Gallformers.Search.Ranking
   alias Gallformers.Species.{Abundance, Alias, Gall, GallSpecies, Image, Species}
+  require Logger
 
   @doc """
   Returns a random gall that has a default image.
@@ -136,6 +137,21 @@ defmodule Gallformers.Species do
   end
 
   @doc """
+  Gets the count of galls that are undescribed.
+  """
+  def count_undescribed_galls do
+    from(s in Species,
+      join: gs in GallSpecies,
+      on: gs.species_id == s.id,
+      join: g in Gall,
+      on: gs.gall_id == g.id,
+      where: g.undescribed == true,
+      select: count(s.id)
+    )
+    |> Repo.one()
+  end
+
+  @doc """
   Gets a single species by ID.
   """
   @spec get_species(integer()) :: Species.t() | nil
@@ -178,6 +194,25 @@ defmodule Gallformers.Species do
         }
 
     Repo.one(query)
+  end
+
+  @doc """
+  Returns species info for a list of IDs.
+
+  Returns a list of maps with :id, :name, and :taxoncode, ordered by name.
+  """
+  @spec list_species_by_ids([integer()]) :: [map()]
+  def list_species_by_ids(species_ids) when is_list(species_ids) do
+    from(s in Species,
+      where: s.id in ^species_ids,
+      order_by: s.name,
+      select: %{
+        id: s.id,
+        name: s.name,
+        taxoncode: s.taxoncode
+      }
+    )
+    |> Repo.all()
   end
 
   @doc """
@@ -445,7 +480,8 @@ defmodule Gallformers.Species do
           |> Enum.map(&transform_species_fts_row/1)
           |> Ranking.add_scores_and_sort(search_terms)
 
-        {:error, _} ->
+        {:error, error} ->
+          Logger.warning("FTS query failed: #{inspect(error)}, query: #{fts_query}")
           []
       end
     end

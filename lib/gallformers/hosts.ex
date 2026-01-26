@@ -145,6 +145,23 @@ defmodule Gallformers.Hosts do
   end
 
   @doc """
+  Gets hosts for a Place.
+  """
+  def get_hosts_for_place(place_id) do
+    from(s in Species,
+      join: sp in "speciesplace",
+      on: sp.species_id == s.id,
+      where: sp.place_id == ^place_id and s.taxoncode == "plant",
+      order_by: s.name,
+      select: %{
+        id: s.id,
+        name: s.name
+      }
+    )
+    |> Repo.all()
+  end
+
+  @doc """
   Gets place codes for a host species (range data).
   """
   @spec get_places_for_host(integer()) :: [String.t()]

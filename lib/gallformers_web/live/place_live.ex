@@ -6,10 +6,6 @@ defmodule GallformersWeb.PlaceLive do
   """
   use GallformersWeb, :live_view
 
-  import Ecto.Query
-
-  alias Gallformers.Repo
-  alias Gallformers.Species.Species
   alias Phoenix.LiveView.JS
 
   @page_size 25
@@ -36,7 +32,7 @@ defmodule GallformersWeb.PlaceLive do
   end
 
   defp load_place(socket, place_id) do
-    case get_place(place_id) do
+    case Gallformers.Places.get_place(place_id) do
       nil ->
         {:ok,
          assign(socket,
@@ -52,10 +48,10 @@ defmodule GallformersWeb.PlaceLive do
 
       place ->
         # Get parent place via placeplace join table
-        parent = get_parent_place(place_id)
+        parent = Gallformers.Places.get_parent_place(place_id)
 
         # Get hosts for this place
-        hosts = get_hosts_for_place(place_id)
+        hosts = Gallformers.Hosts.get_hosts_for_place(place_id)
 
         {:ok,
          assign(socket,
@@ -75,49 +71,6 @@ defmodule GallformersWeb.PlaceLive do
            error: nil
          )}
     end
-  end
-
-  defp get_place(place_id) do
-    from(p in "place",
-      where: p.id == ^place_id,
-      select: %{
-        id: p.id,
-        name: p.name,
-        code: p.code,
-        type: p.type
-      }
-    )
-    |> Repo.one()
-  end
-
-  defp get_parent_place(place_id) do
-    from(p in "place",
-      join: pp in "placeplace",
-      on: pp.parent_id == p.id,
-      where: pp.place_id == ^place_id,
-      select: %{
-        id: p.id,
-        name: p.name,
-        code: p.code,
-        type: p.type
-      },
-      limit: 1
-    )
-    |> Repo.one()
-  end
-
-  defp get_hosts_for_place(place_id) do
-    from(s in Species,
-      join: sp in "speciesplace",
-      on: sp.species_id == s.id,
-      where: sp.place_id == ^place_id and s.taxoncode == "plant",
-      order_by: s.name,
-      select: %{
-        id: s.id,
-        name: s.name
-      }
-    )
-    |> Repo.all()
   end
 
   defp format_parent_info(place, parent) do
