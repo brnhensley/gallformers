@@ -7,7 +7,7 @@ defmodule GallformersWeb.IDLive do
   """
   use GallformersWeb, :live_view
 
-  alias Gallformers.{Hosts, IDTool, Places, Taxonomy}
+  alias Gallformers.{GallSummary, Hosts, IDTool, Places, Taxonomy}
 
   # URL parameter keys (short codes for compact URLs)
   @url_params %{
@@ -62,6 +62,7 @@ defmodule GallformersWeb.IDLive do
        texture_focused: false,
        # Results
        results: [],
+       summaries: %{},
        total_count: 0,
        show_advanced: false
      )}
@@ -511,7 +512,7 @@ defmodule GallformersWeb.IDLive do
     if socket.assigns.selected_host || socket.assigns.selected_genus do
       load_results(socket)
     else
-      assign(socket, results: [])
+      assign(socket, results: [], summaries: %{})
     end
   end
 
@@ -519,10 +520,34 @@ defmodule GallformersWeb.IDLive do
     filter_params = build_filter_params(socket)
     results = IDTool.filter_galls(filter_params)
 
+    # Generate summaries for galls without images
+    summaries = generate_summaries_for_imageless(results)
+
     if socket.assigns.filters == default_filters() do
-      assign(socket, results: results, total_count: length(results))
+      assign(socket, results: results, summaries: summaries, total_count: length(results))
     else
-      assign(socket, results: results)
+      assign(socket, results: results, summaries: summaries)
+    end
+  end
+
+  defp generate_summaries_for_imageless(results) do
+    # Find galls without images
+    gall_ids_without_images =
+      results
+      |> Enum.filter(&is_nil(&1.image_url))
+      |> Enum.map(& &1.gall_id)
+
+    if Enum.empty?(gall_ids_without_images) do
+      %{}
+    else
+      # Fetch summary data and generate summaries
+      summary_data = IDTool.get_summary_data(gall_ids_without_images)
+
+      summary_data
+      |> Enum.map(fn {gall_id, filters} ->
+        {gall_id, GallSummary.generate(filters, mode: :short)}
+      end)
+      |> Enum.into(%{})
     end
   end
 
@@ -722,6 +747,7 @@ defmodule GallformersWeb.IDLive do
         <%!-- Results Grid --%>
         <.results_grid
           results={@results}
+          summaries={@summaries}
           total_count={@total_count}
           has_selection={@selected_host != nil or @selected_genus != nil}
           selected_host={@selected_host}
@@ -940,6 +966,7 @@ defmodule GallformersWeb.IDLive do
 
   # Component: Results Grid
   attr :results, :list, required: true
+  attr :summaries, :map, required: true
   attr :has_selection, :boolean, required: true
   attr :selected_host, :any, required: true
   attr :total_count, :integer, required: true
@@ -979,7 +1006,7 @@ defmodule GallformersWeb.IDLive do
           </div>
         <% else %>
           <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-            <.gall_card :for={gall <- @results} gall={gall} />
+            <.gall_card :for={gall <- @results} gall={gall} summary={@summaries[gall.gall_id]} />
           </div>
           <div class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded text-sm">
             <p>
@@ -997,6 +1024,7 @@ defmodule GallformersWeb.IDLive do
 
   # Component: Individual Gall Card
   attr :gall, :map, required: true
+  attr :summary, :string, default: nil
 
   defp gall_card(assigns) do
     ~H"""
@@ -1016,6 +1044,9 @@ defmodule GallformersWeb.IDLive do
         <div class="p-2">
           <p class="text-sm font-medium text-gray-900 group-hover:text-gf-maroon truncate italic">
             {@gall.name}
+          </p>
+          <p :if={!@gall.image_url && @summary} class="text-xs text-gray-600 line-clamp-2 mt-1">
+            {@summary}
           </p>
           <div class="flex gap-1 mt-1">
             <span

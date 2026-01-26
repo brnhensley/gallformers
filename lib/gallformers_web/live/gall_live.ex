@@ -7,7 +7,7 @@ defmodule GallformersWeb.GallLive do
   """
   use GallformersWeb, :live_view
 
-  alias Gallformers.{Hosts, Markdown, Sources, Species, Taxonomy}
+  alias Gallformers.{GallSummary, Hosts, Markdown, Sources, Species, Taxonomy}
   alias GallformersWeb.SEO
 
   @aliases_page_size 10
@@ -77,12 +77,9 @@ defmodule GallformersWeb.GallLive do
         # Build SEO data
         page_url = "/gall/#{gall_id}"
 
-        page_description =
-          if gall.undescribed do
-            "#{gall.name} - A gall species on Gallformers. The inducer of this gall is unknown or undescribed."
-          else
-            "#{gall.name} - A gall species documented on Gallformers."
-          end
+        # Generate SEO description using gall filter data
+        summary_filters = GallSummary.from_db_filters(gall_filters, gall.detachable)
+        page_description = GallSummary.for_seo(gall.name, summary_filters)
 
         page_image =
           case images do

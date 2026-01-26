@@ -90,6 +90,45 @@ defmodule Gallformers.IDTool do
   end
 
   @doc """
+  Fetches filter data for multiple galls by gall_id, for summary generation.
+
+  Returns a map of gall_id => filter_data:
+  ```
+  %{
+    123 => %{
+      shapes: ["spherical"],
+      colors: ["red", "brown"],
+      textures: ["hairy"],
+      locations: ["leaf"],
+      seasons: ["spring"],
+      detachable: "detachable",
+      forms: ["gall"]
+    }
+  }
+  ```
+  """
+  @spec get_summary_data([integer()]) :: %{integer() => map()}
+  def get_summary_data([]), do: %{}
+
+  def get_summary_data(gall_ids) when is_list(gall_ids) do
+    # Fetch all filter values for the given gall IDs in bulk
+    gall_ids
+    |> Enum.map(fn gall_id ->
+      filters = Species.get_gall_filter_values(gall_id)
+      detachable = get_gall_detachable(gall_id)
+      summary_data = Gallformers.GallSummary.from_db_filters(filters, detachable)
+      {gall_id, summary_data}
+    end)
+    |> Enum.into(%{})
+  end
+
+  defp get_gall_detachable(gall_id) do
+    from(g in Gall, where: g.id == ^gall_id, select: g.detachable)
+    |> Repo.one()
+    |> Kernel.||(0)
+  end
+
+  @doc """
   Returns the count of galls matching the filters.
   """
   @spec count_filtered_galls(map()) :: integer()
