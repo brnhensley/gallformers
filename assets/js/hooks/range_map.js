@@ -44,6 +44,15 @@ const RangeMap = {
     this.transform = { k: 1, x: 0, y: 0 }
     this.zoomBehavior = null
 
+    // Listen for range updates from the server (used with phx-update="ignore")
+    this.handleEvent('range-update', ({ in_range, excluded_range }) => {
+      this.inRange = new Set(in_range || [])
+      this.excludedRange = new Set(excluded_range || [])
+      if (this.features.length > 0) {
+        this.updateColors()
+      }
+    })
+
     this.loadTopology()
   },
 
@@ -75,6 +84,23 @@ const RangeMap = {
     if (this.excludedRange.has(code)) return COLORS.excluded
     if (this.inRange.has(code)) return COLORS.inRange
     return COLORS.default
+  },
+
+  // Update colors of existing paths without full re-render (preserves modal state)
+  updateColors() {
+    // Update thumbnail map
+    const thumbnailPaths = this.el.querySelectorAll('.range-map-thumbnail path[data-code]')
+    thumbnailPaths.forEach(pathEl => {
+      const code = pathEl.getAttribute('data-code')
+      pathEl.setAttribute('fill', this.getFill(code))
+    })
+
+    // Update modal map if open
+    const modalPaths = this.el.querySelectorAll('.range-map-modal path[data-code]')
+    modalPaths.forEach(pathEl => {
+      const code = pathEl.getAttribute('data-code')
+      pathEl.setAttribute('fill', this.getFill(code))
+    })
   },
 
   render() {

@@ -193,6 +193,26 @@ defmodule Gallformers.Hosts do
   end
 
   @doc """
+  Gets place codes for a list of host species IDs.
+
+  Returns the union of all places where any of the hosts occur.
+  Used for computing gall range from a local/pending list of hosts.
+  """
+  @spec get_places_for_host_species_ids([integer()]) :: [String.t()]
+  def get_places_for_host_species_ids([]), do: []
+
+  def get_places_for_host_species_ids(host_species_ids) do
+    from(p in "place",
+      join: sp in "speciesplace",
+      on: sp.place_id == p.id,
+      where: sp.species_id in ^host_species_ids,
+      distinct: true,
+      select: p.code
+    )
+    |> Repo.all()
+  end
+
+  @doc """
   Gets excluded place codes for a gall species (direct range exclusions).
   """
   @spec get_excluded_places_for_gall(integer()) :: [String.t()]

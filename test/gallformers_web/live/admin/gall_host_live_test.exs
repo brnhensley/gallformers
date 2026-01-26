@@ -513,10 +513,16 @@ defmodule GallformersWeb.Admin.GallHostLiveTest do
       assert html =~ "De-select All"
     end
 
-    test "done link returns to admin", %{conn: conn} do
+    test "cancel button present for navigation", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/admin/gallhost")
 
-      assert has_element?(view, "a[href='/admin']", "Done")
+      assert has_element?(view, "button[phx-click='request_cancel']", "Cancel")
+    end
+
+    test "save button present and disabled without gall selected", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/admin/gallhost")
+
+      assert has_element?(view, "button[phx-click='save'][disabled]", "Save")
     end
 
     test "view public page link shown when gall selected", %{conn: conn} do

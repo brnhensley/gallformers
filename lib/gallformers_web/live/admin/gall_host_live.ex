@@ -8,12 +8,19 @@ defmodule GallformersWeb.Admin.GallHostLive do
   3. Managing which places are excluded from its range
 
   The gall's effective range = (union of all host places) - (excluded places)
+
+  Changes are deferred until Save is clicked, following the same pattern as other
+  admin edit pages. Uses DeferredChanges for host tracking and manual tracking
+  for exclusion place IDs.
   """
   use GallformersWeb, :live_view
+  use GallformersWeb.Admin.FormHelpers
 
   alias Gallformers.Hosts
   alias Gallformers.Places
+  alias Gallformers.Repo
   alias Gallformers.Species
+  alias GallformersWeb.Admin.DeferredChanges
 
   @impl true
   def mount(_params, session, socket) do
@@ -29,17 +36,25 @@ defmodule GallformersWeb.Admin.GallHostLive do
       |> assign(:gall_search_query, "")
       |> assign(:gall_search_results, [])
       |> assign(:selected_gall, nil)
-      # Host management state
-      |> assign(:hosts, [])
+      # Host management state (deferred changes)
+      |> assign(DeferredChanges.init(:hosts, []))
       |> assign(:host_search_query, "")
       |> assign(:host_search_results, [])
       |> assign(:host_dropdown_open, false)
-      # Range state
+      # Range/exclusion state (manual tracking)
       |> assign(:host_places, [])
+      |> assign(:original_excluded_place_ids, [])
+      |> assign(:excluded_place_ids, [])
       |> assign(:excluded_places, [])
       |> assign(:in_range, [])
+      # Form state
+      |> init_form_state()
 
     {:ok, socket}
+  end
+
+  def close_form(socket) do
+    push_navigate(socket, to: ~p"/admin")
   end
 
   @impl true
@@ -95,8 +110,12 @@ defmodule GallformersWeb.Admin.GallHostLive do
     socket =
       socket
       |> assign(:selected_gall, nil)
-      |> assign(:hosts, [])
+      |> assign(DeferredChanges.init(:hosts, []))
+      |> assign(:original_excluded_place_ids, [])
+      |> assign(:excluded_place_ids, [])
       |> assign_range_data([], [])
+      |> assign(:page_title, "Gall-Host Mappings")
+      |> reset_dirty()
 
     {:noreply, socket}
   end
@@ -135,22 +154,33 @@ defmodule GallformersWeb.Admin.GallHostLive do
   def handle_event("add_host", %{"id" => host_id_str}, socket) do
     gall = socket.assigns.selected_gall
 
-    with %{id: gall_id} <- gall,
+    with %{id: _gall_id} <- gall,
          {host_id, ""} <- Integer.parse(host_id_str) do
-      case Species.add_host_to_species(gall_id, host_id) do
-        {:ok, _} ->
+      # Check if host already exists in pending list
+      if DeferredChanges.exists?(socket, :hosts, :host_species_id, host_id) do
+        {:noreply, put_flash(socket, :error, "Host already associated")}
+      else
+        # Find the host in search results to get its name
+        host_result = Enum.find(socket.assigns.host_search_results, &(&1.id == host_id))
+
+        if host_result do
           socket =
             socket
-            |> reload_hosts_and_places()
+            |> DeferredChanges.add_pending(
+              :hosts,
+              %{host_species_id: host_id, host_name: host_result.name},
+              id_field: :host_relation_id
+            )
             |> assign(:host_search_query, "")
             |> assign(:host_search_results, [])
             |> assign(:host_dropdown_open, false)
-            |> put_flash(:info, "Host added")
+            |> recompute_host_places_and_range()
+            |> mark_dirty()
 
           {:noreply, socket}
-
-        {:error, _} ->
-          {:noreply, put_flash(socket, :error, "Failed to add host (may already be associated)")}
+        else
+          {:noreply, put_flash(socket, :error, "Host not found in search results")}
+        end
       end
     else
       nil -> {:noreply, put_flash(socket, :error, "Select a gall first")}
@@ -162,12 +192,11 @@ defmodule GallformersWeb.Admin.GallHostLive do
   def handle_event("remove_host", %{"id" => id}, socket) do
     case Integer.parse(id) do
       {relation_id, ""} ->
-        Species.remove_host_from_species(relation_id)
-
         socket =
           socket
-          |> reload_hosts_and_places()
-          |> put_flash(:info, "Host removed")
+          |> DeferredChanges.remove_pending(:hosts, relation_id, id_field: :host_relation_id)
+          |> recompute_host_places_and_range()
+          |> mark_dirty()
 
         {:noreply, socket}
 
@@ -182,12 +211,29 @@ defmodule GallformersWeb.Admin.GallHostLive do
 
   @impl true
   def handle_event("toggle_region", %{"code" => code}, socket) do
-    with %{id: gall_id} <- socket.assigns.selected_gall,
+    with %{id: _gall_id} <- socket.assigns.selected_gall,
          %{id: place_id} <- Enum.find(socket.assigns.all_places, &(&1.code == code)),
          true <- code in socket.assigns.host_places do
-      Hosts.toggle_exclusion_for_gall(gall_id, place_id)
-      excluded_places = Hosts.get_excluded_places_for_gall(gall_id)
-      {:noreply, assign_range_data(socket, socket.assigns.host_places, excluded_places)}
+      # Toggle in local excluded_place_ids list
+      excluded_place_ids = socket.assigns.excluded_place_ids
+
+      new_excluded_place_ids =
+        if place_id in excluded_place_ids do
+          List.delete(excluded_place_ids, place_id)
+        else
+          [place_id | excluded_place_ids]
+        end
+
+      excluded_places = place_ids_to_codes(socket.assigns.all_places, new_excluded_place_ids)
+
+      socket =
+        socket
+        |> assign(:excluded_place_ids, new_excluded_place_ids)
+        |> assign_range_data(socket.assigns.host_places, excluded_places)
+        |> push_range_update()
+        |> mark_dirty()
+
+      {:noreply, socket}
     else
       _ -> {:noreply, socket}
     end
@@ -199,8 +245,14 @@ defmodule GallformersWeb.Admin.GallHostLive do
 
     if gall do
       # Select all = remove all exclusions (all host places are in range)
-      Hosts.set_range_exclusions_for_gall(gall.id, [])
-      {:noreply, assign_range_data(socket, socket.assigns.host_places, [])}
+      socket =
+        socket
+        |> assign(:excluded_place_ids, [])
+        |> assign_range_data(socket.assigns.host_places, [])
+        |> push_range_update()
+        |> mark_dirty()
+
+      {:noreply, socket}
     else
       {:noreply, socket}
     end
@@ -212,13 +264,78 @@ defmodule GallformersWeb.Admin.GallHostLive do
 
     if gall do
       # Deselect all = exclude all host places
-      host_place_ids = Hosts.get_host_place_ids_for_gall(gall.id)
-      Hosts.set_range_exclusions_for_gall(gall.id, host_place_ids)
-      excluded_places = Hosts.get_excluded_places_for_gall(gall.id)
-      {:noreply, assign_range_data(socket, socket.assigns.host_places, excluded_places)}
+      all_host_place_ids =
+        place_codes_to_ids(socket.assigns.all_places, socket.assigns.host_places)
+
+      excluded_places = socket.assigns.host_places
+
+      socket =
+        socket
+        |> assign(:excluded_place_ids, all_host_place_ids)
+        |> assign_range_data(socket.assigns.host_places, excluded_places)
+        |> push_range_update()
+        |> mark_dirty()
+
+      {:noreply, socket}
     else
       {:noreply, socket}
     end
+  end
+
+  # ============================================
+  # Save/Cancel Events
+  # ============================================
+
+  @impl true
+  def handle_event("save", _params, socket) do
+    gall = socket.assigns.selected_gall
+
+    if gall do
+      # Compute host changes
+      {hosts_to_add, hosts_to_remove} =
+        DeferredChanges.compute_changes(socket, :hosts, id_field: :host_relation_id)
+
+      # Wrap in transaction
+      result =
+        Repo.transaction(fn ->
+          # Remove hosts
+          for relation_id <- hosts_to_remove do
+            Species.remove_host_from_species(relation_id)
+          end
+
+          # Add hosts
+          for host <- hosts_to_add do
+            Species.add_host_to_species(gall.id, host.host_species_id)
+          end
+
+          # Set exclusions (replaces existing)
+          Hosts.set_range_exclusions_for_gall(gall.id, socket.assigns.excluded_place_ids)
+
+          :ok
+        end)
+
+      case result do
+        {:ok, :ok} ->
+          # Refresh state from DB
+          socket =
+            socket
+            |> load_gall(gall.id)
+            |> put_flash(:info, "Changes saved")
+
+          {:noreply, socket}
+
+        {:error, _reason} ->
+          {:noreply, put_flash(socket, :error, "Failed to save changes")}
+      end
+    else
+      {:noreply, put_flash(socket, :error, "No gall selected")}
+    end
+  end
+
+  @impl true
+  def handle_event(event, params, socket)
+      when event in ~w(request_cancel cancel_discard confirm_discard) do
+    handle_form_event(event, params, socket)
   end
 
   # ============================================
@@ -236,44 +353,65 @@ defmodule GallformersWeb.Admin.GallHostLive do
         else
           hosts = Hosts.get_hosts_for_gall(gall_id)
           host_places = Hosts.get_places_for_gall(gall_id)
-          excluded_places = Hosts.get_excluded_places_for_gall(gall_id)
+          excluded_place_ids = Hosts.get_excluded_place_ids_for_gall(gall_id)
+          excluded_places = place_ids_to_codes(socket.assigns.all_places, excluded_place_ids)
 
           socket
           |> assign(:selected_gall, gall)
-          |> assign(:hosts, hosts)
+          |> assign(DeferredChanges.init(:hosts, hosts))
+          |> assign(:original_excluded_place_ids, excluded_place_ids)
+          |> assign(:excluded_place_ids, excluded_place_ids)
           |> assign_range_data(host_places, excluded_places)
           |> assign(:page_title, "Gall-Host Mappings - #{gall.name}")
+          |> reset_dirty()
         end
     end
   end
 
-  defp reload_hosts_and_places(socket) do
-    gall = socket.assigns.selected_gall
+  # Convert list of place IDs to list of place codes
+  defp place_ids_to_codes(all_places, place_ids) do
+    place_id_set = MapSet.new(place_ids)
 
-    if gall do
-      hosts = Hosts.get_hosts_for_gall(gall.id)
-      host_places = Hosts.get_places_for_gall(gall.id)
+    all_places
+    |> Enum.filter(&MapSet.member?(place_id_set, &1.id))
+    |> Enum.map(& &1.code)
+  end
 
-      # Clean up exclusions that no longer apply (host was removed)
-      current_exclusions = Hosts.get_excluded_places_for_gall(gall.id)
-      valid_exclusions = Enum.filter(current_exclusions, &(&1 in host_places))
+  # Convert list of place codes to list of place IDs
+  defp place_codes_to_ids(all_places, codes) do
+    code_set = MapSet.new(codes)
 
-      # If exclusions changed, update the database
-      if length(valid_exclusions) != length(current_exclusions) do
-        valid_place_ids =
-          socket.assigns.all_places
-          |> Enum.filter(&(&1.code in valid_exclusions))
-          |> Enum.map(& &1.id)
+    all_places
+    |> Enum.filter(&MapSet.member?(code_set, &1.code))
+    |> Enum.map(& &1.id)
+  end
 
-        Hosts.set_range_exclusions_for_gall(gall.id, valid_place_ids)
-      end
+  # Compute host places from local hosts list and update range data
+  defp recompute_host_places_and_range(socket) do
+    hosts = socket.assigns.hosts
+    host_species_ids = Enum.map(hosts, & &1.host_species_id)
+    host_places = Hosts.get_places_for_host_species_ids(host_species_ids)
 
-      socket
-      |> assign(:hosts, hosts)
-      |> assign_range_data(host_places, valid_exclusions)
-    else
-      socket
-    end
+    # Clean up excluded_place_ids that no longer apply (host was removed)
+    excluded_place_ids = socket.assigns.excluded_place_ids
+    excluded_places = place_ids_to_codes(socket.assigns.all_places, excluded_place_ids)
+    valid_exclusions = Enum.filter(excluded_places, &(&1 in host_places))
+
+    # Update excluded_place_ids to only include valid ones
+    valid_excluded_place_ids = place_codes_to_ids(socket.assigns.all_places, valid_exclusions)
+
+    socket
+    |> assign(:excluded_place_ids, valid_excluded_place_ids)
+    |> assign_range_data(host_places, valid_exclusions)
+    |> push_range_update()
+  end
+
+  # Push range data update to the RangeMap hook
+  defp push_range_update(socket) do
+    push_event(socket, "range-update", %{
+      in_range: socket.assigns.in_range,
+      excluded_range: socket.assigns.excluded_places
+    })
   end
 
   # Assigns host_places, excluded_places, and computed in_range together
@@ -289,7 +427,12 @@ defmodule GallformersWeb.Admin.GallHostLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.admin flash={@flash} current_user={@current_user} page_title={@page_title}>
+    <Layouts.admin
+      flash={@flash}
+      current_user={@current_user}
+      page_title={@page_title}
+      public_url={if @selected_gall, do: ~p"/gall/#{@selected_gall.id}"}
+    >
       <div class="max-w-7xl mx-auto">
         <div class="mb-4">
           <.link navigate={~p"/admin"} class="hover:underline text-sm">
@@ -493,17 +636,28 @@ defmodule GallformersWeb.Admin.GallHostLive do
                   Edit gall details
                 </.link>
               </div>
-              <div>
-                <.link
-                  navigate={~p"/admin"}
-                  class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
+              <div class="flex gap-2">
+                <button type="button" phx-click="request_cancel" class="gf-btn gf-btn-soft">
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  phx-click="save"
+                  disabled={not @form_dirty or @selected_gall == nil}
+                  class={[
+                    "gf-btn",
+                    if(@form_dirty and @selected_gall, do: "gf-btn-primary", else: "gf-btn-disabled")
+                  ]}
                 >
-                  Done
-                </.link>
+                  Save
+                </button>
               </div>
             </div>
           </div>
         </div>
+
+        <%!-- Discard confirmation modal --%>
+        <.discard_confirm_modal show={@show_discard_confirm} />
       </div>
     </Layouts.admin>
     """
