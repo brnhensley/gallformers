@@ -26,7 +26,7 @@ defmodule Gallformers.GallSummary do
       "A spherical, red gall found on the leaf."
 
       iex> GallSummary.generate(%{forms: ["non-gall"], colors: ["red"]})
-      "A red growth."
+      "A red structure."
   """
   @spec generate(map() | nil, keyword()) :: String.t()
   def generate(filters, opts \\ [])

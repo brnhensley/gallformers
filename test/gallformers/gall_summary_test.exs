@@ -135,7 +135,7 @@ defmodule Gallformers.GallSummaryTest do
       assert GallSummary.generate(nil) == "A gall."
     end
 
-    test "non-gall form uses growth instead of gall" do
+    test "non-gall form uses structure instead of gall" do
       filters = %{
         colors: ["red"],
         locations: ["stem"],
@@ -144,7 +144,7 @@ defmodule Gallformers.GallSummaryTest do
 
       result = GallSummary.generate(filters)
 
-      assert result == "A red growth found on the stem."
+      assert result == "A red structure found on the stem."
     end
 
     test "erineum form uses erineum with correct article" do
