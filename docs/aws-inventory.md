@@ -12,7 +12,7 @@ Current state of AWS resources used by Gallformers, for potential management via
 | Resource | Current Region | Target Region | Migration Needed |
 |----------|---------------|---------------|------------------|
 | `gallformers` (images) | us-east-2 | us-east-1 | Yes |
-| `gallformers-dev` | us-east-2 | us-east-1 | Yes (or deprecate) |
+| `gallformers-dev` | ~~us-east-2~~ | N/A | **Deleted** |
 | `gallformers-backups` | us-east-1 | us-east-1 | No |
 | `gallformers-full-backups` | us-east-1 | us-east-1 | No |
 | CloudFront | Global | Global | Update origin after bucket migration |
@@ -72,19 +72,9 @@ Current state of AWS resources used by Gallformers, for potential management via
 - Writes via `s3-upload` IAM user (`S3_PUT_AWS_ACCESS_KEY_ID`)
 - Reads are public (no IAM needed)
 
-### `gallformers-dev` (Images - Development)
+### ~~`gallformers-dev`~~ (Deleted)
 
-| Property | Value |
-|----------|-------|
-| Region | `us-east-2` |
-| Purpose | Development image storage |
-| Access | Unknown (likely private) |
-| Versioning | Unknown |
-
-**Usage:**
-- Referenced in `.env.local-docker`
-- For local/dev image uploads
-- **Consider deprecating** - may not be actively used
+Deprecated and deleted on 2026-01-28. Was in us-east-2, only referenced by archived V1 env files. No active usage. Contents (stale dev database backups from April 2025) were not preserved.
 
 ### `gallformers-backups` (Database Backups - Sanitized)
 
@@ -340,7 +330,7 @@ When implementing OpenTofu, consider:
 2. **Fix policy name typo** - `GallfomersImagesPolicy` → `GallformersImagesPolicy`
 3. **Consolidate s3-upload policies** - merge `s3-put` and inline policy into one
 4. **Enable versioning** on `gallformers` bucket for safety
-5. **Deprecate `gallformers-dev`** if not actively used
+5. ~~**Deprecate `gallformers-dev`**~~ - **Done** (deleted 2026-01-28)
 
 ## Next Steps
 
@@ -348,6 +338,6 @@ When implementing OpenTofu, consider:
 2. [x] Document AWS Account ID
 3. [ ] Migrate `gallformers` bucket to us-east-1 (or create new + migrate data)
 4. [ ] Update CloudFront origin after bucket migration
-5. [ ] Decide fate of `gallformers-dev` bucket
+5. [x] Decide fate of `gallformers-dev` bucket (deleted 2026-01-28)
 6. [ ] Create OpenTofu configuration to manage these resources
 7. [ ] Import existing resources into OpenTofu state
