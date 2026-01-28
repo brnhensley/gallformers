@@ -26,7 +26,8 @@ defmodule GallformersWeb.IDLive do
     walls: "wa",
     cells: "ce",
     season: "se",
-    undescribed: "un"
+    undescribed: "un",
+    show_non_galls: "ng"
   }
 
   @impl true
@@ -90,7 +91,8 @@ defmodule GallformersWeb.IDLive do
       walls: parse_int(params[@url_params.walls]),
       cells: parse_int(params[@url_params.cells]),
       season: parse_int(params[@url_params.season]),
-      undescribed: params[@url_params.undescribed] == "1"
+      undescribed: params[@url_params.undescribed] == "1",
+      show_non_galls: params[@url_params.show_non_galls] != "0"
     }
   end
 
@@ -188,7 +190,8 @@ defmodule GallformersWeb.IDLive do
       walls: nil,
       cells: nil,
       season: nil,
-      undescribed: false
+      undescribed: false,
+      show_non_galls: true
     }
   end
 
@@ -403,7 +406,7 @@ defmodule GallformersWeb.IDLive do
   end
 
   # Valid filter keys from @url_params
-  @valid_filter_keys ~w(host genus genus_type locations color shape textures alignment detachable place family form walls cells season undescribed)
+  @valid_filter_keys ~w(host genus genus_type locations color shape textures alignment detachable place family form walls cells season undescribed show_non_galls)
 
   @impl true
   def handle_event("change_filter", %{"filter" => filter, "value" => value}, socket)
@@ -412,6 +415,7 @@ defmodule GallformersWeb.IDLive do
 
     parsed_value =
       case filter_key do
+        :show_non_galls -> value == "true"
         :undescribed -> value == "true"
         :detachable -> if value == "", do: nil, else: value
         :place -> if value == "", do: nil, else: value
@@ -495,6 +499,11 @@ defmodule GallformersWeb.IDLive do
         do: Map.put(params, @url_params.undescribed, "1"),
         else: params
 
+    params =
+      if filters.show_non_galls,
+        do: params,
+        else: Map.put(params, @url_params.show_non_galls, "0")
+
     params
   end
 
@@ -569,7 +578,8 @@ defmodule GallformersWeb.IDLive do
       walls_ids: wrap_value(filters.walls),
       cells_ids: wrap_value(filters.cells),
       season_ids: wrap_value(filters.season),
-      undescribed: filters.undescribed
+      undescribed: filters.undescribed,
+      exclude_non_galls: !filters.show_non_galls
     }
   end
 
@@ -736,7 +746,8 @@ defmodule GallformersWeb.IDLive do
               <.color_filter options={@filter_options.colors} value={@filters.color} />
             </div>
 
-            <div class="mt-3">
+            <div class="mt-3 flex flex-wrap gap-6">
+              <.show_non_galls_filter value={@filters.show_non_galls} />
               <.undescribed_filter value={@filters.undescribed} />
             </div>
           </div>
@@ -751,6 +762,7 @@ defmodule GallformersWeb.IDLive do
           total_count={@total_count}
           has_selection={@selected_host != nil or @selected_genus != nil}
           selected_host={@selected_host}
+          show_non_galls={@filters.show_non_galls}
         />
       </div>
     </Layouts.app>
@@ -875,6 +887,9 @@ defmodule GallformersWeb.IDLive do
   attr :value, :integer, required: true
 
   defp form_filter(assigns) do
+    filtered_options = Enum.reject(assigns.options, &(&1.form == "non-gall"))
+    assigns = assign(assigns, :filtered_options, filtered_options)
+
     ~H"""
     <form phx-change="change_filter" phx-value-filter="form">
       <.input
@@ -882,7 +897,7 @@ defmodule GallformersWeb.IDLive do
         name="value"
         label="Form"
         prompt="Any Form"
-        options={Enum.map(@options, &{&1.form, &1.id})}
+        options={Enum.map(@filtered_options, &{&1.form, &1.id})}
         value={@value}
       />
     </form>
@@ -946,6 +961,24 @@ defmodule GallformersWeb.IDLive do
     """
   end
 
+  # Component: Show Non-Galls Filter
+  attr :value, :boolean, required: true
+
+  defp show_non_galls_filter(assigns) do
+    ~H"""
+    <div class="mb-2">
+      <form phx-change="change_filter" phx-value-filter="show_non_galls">
+        <.input
+          type="checkbox"
+          name="value"
+          checked={@value}
+          label="Show Non-Galls"
+        />
+      </form>
+    </div>
+    """
+  end
+
   # Component: Undescribed Filter
   attr :value, :boolean, required: true
 
@@ -970,6 +1003,7 @@ defmodule GallformersWeb.IDLive do
   attr :has_selection, :boolean, required: true
   attr :selected_host, :any, required: true
   attr :total_count, :integer, required: true
+  attr :show_non_galls, :boolean, required: true
 
   defp results_grid(assigns) do
     ~H"""
@@ -989,7 +1023,8 @@ defmodule GallformersWeb.IDLive do
 
         <p class="text-sm text-gray-600 mb-3">
           Showing <span class="font-semibold">{length(@results)}</span>
-          <span :if={length(@results) != @total_count}>of {@total_count}</span> galls:
+          <span :if={length(@results) != @total_count}>of {@total_count}</span>
+          {if @show_non_galls, do: "species", else: "galls"}:
         </p>
 
         <%= if length(@results) == 0 do %>

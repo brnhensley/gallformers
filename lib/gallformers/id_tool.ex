@@ -84,6 +84,7 @@ defmodule Gallformers.IDTool do
     |> apply_detachable_filter(filters[:detachable])
     |> apply_place_filter(filters[:place_codes])
     |> apply_undescribed_filter(filters[:undescribed])
+    |> apply_exclude_non_gall_filter(filters[:exclude_non_galls])
     |> select_gall_fields()
     |> Repo.all()
     |> attach_images()
@@ -420,6 +421,22 @@ defmodule Gallformers.IDTool do
   defp apply_undescribed_filter(query, true) do
     from [s, _gs, g] in query,
       where: g.undescribed == true
+  end
+
+  defp apply_exclude_non_gall_filter(query, nil), do: query
+  defp apply_exclude_non_gall_filter(query, false), do: query
+
+  defp apply_exclude_non_gall_filter(query, true) do
+    non_gall_gall_ids =
+      from(gf in "gallform",
+        join: f in Form,
+        on: f.id == gf.form_id,
+        where: f.form == "non-gall",
+        select: gf.gall_id
+      )
+
+    from [s, _gs, g] in query,
+      where: g.id not in subquery(non_gall_gall_ids)
   end
 
   defp attach_non_gall_flag(galls) do
