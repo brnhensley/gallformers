@@ -30,9 +30,9 @@ tofu import aws_iam_user.s3_upload s3-upload
 tofu import aws_iam_policy.litestream_gallformers_backup \
   "arn:aws:iam::${ACCOUNT_ID}:policy/LitestreamGallformersBackup"
 
-# s3-put: S3 write/delete access to the gallformers images bucket
-tofu import aws_iam_policy.s3_put \
-  "arn:aws:iam::${ACCOUNT_ID}:policy/s3-put"
+# GallformersImageUpload: S3 write/delete/list access to the images bucket
+tofu import aws_iam_policy.gallformers_image_upload \
+  "arn:aws:iam::${ACCOUNT_ID}:policy/GallformersImageUpload"
 
 # --- Policy Attachments ---
 
@@ -40,14 +40,6 @@ tofu import aws_iam_policy.s3_put \
 tofu import aws_iam_user_policy_attachment.litestream_gallformers_backup \
   "litestream-gallformers/arn:aws:iam::${ACCOUNT_ID}:policy/LitestreamGallformersBackup"
 
-# s3-upload <- s3-put
-tofu import aws_iam_user_policy_attachment.s3_upload_put \
-  "s3-upload/arn:aws:iam::${ACCOUNT_ID}:policy/s3-put"
-
-# --- Inline Policies ---
-
-# GallfomersImagesPolicy on s3-upload (note: typo in name matches AWS)
-# After import, run `tofu state show aws_iam_user_policy.s3_upload_images`
-# to verify the policy document and update iam.tf to match.
-tofu import aws_iam_user_policy.s3_upload_images \
-  "s3-upload:GallfomersImagesPolicy"
+# s3-upload <- GallformersImageUpload
+tofu import aws_iam_user_policy_attachment.s3_upload_image_upload \
+  "s3-upload/arn:aws:iam::${ACCOUNT_ID}:policy/GallformersImageUpload"

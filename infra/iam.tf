@@ -65,20 +65,31 @@ resource "aws_iam_policy" "litestream_gallformers_backup" {
   }
 }
 
-resource "aws_iam_policy" "s3_put" {
-  name = "s3-put"
+resource "aws_iam_policy" "gallformers_image_upload" {
+  name = "GallformersImageUpload"
 
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {
+        Sid    = "ImageBucketWrite"
         Effect = "Allow"
         Action = [
           "s3:Put*",
           "s3:DeleteObject",
         ]
         Resource = [
-          "arn:aws:s3:::gallformers/*",
+          "${aws_s3_bucket.images.arn}/*",
+        ]
+      },
+      {
+        Sid    = "ImageBucketList"
+        Effect = "Allow"
+        Action = [
+          "s3:ListBucket",
+        ]
+        Resource = [
+          aws_s3_bucket.images.arn,
         ]
       }
     ]
@@ -99,40 +110,8 @@ resource "aws_iam_user_policy_attachment" "litestream_gallformers_backup" {
   policy_arn = aws_iam_policy.litestream_gallformers_backup.arn
 }
 
-resource "aws_iam_user_policy_attachment" "s3_upload_put" {
+resource "aws_iam_user_policy_attachment" "s3_upload_image_upload" {
   user       = aws_iam_user.s3_upload.name
-  policy_arn = aws_iam_policy.s3_put.arn
+  policy_arn = aws_iam_policy.gallformers_image_upload.arn
 }
 
-# -----------------------------------------------------------------------------
-# Inline Policies
-# -----------------------------------------------------------------------------
-
-# Inline policy on s3-upload with a legacy typo in the name ("Gallfomers" not
-# "Gallformers"). Imported as-is — consolidation and renaming tracked in
-# gallformers-111t.
-#
-# TODO: After running `tofu import`, run `tofu state show` on this resource to
-# get the actual policy document from AWS. Update the policy JSON below to match
-# and eliminate plan drift.
-resource "aws_iam_user_policy" "s3_upload_images" {
-  name = "GallfomersImagesPolicy"
-  user = aws_iam_user.s3_upload.name
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "s3:PutObject",
-          "s3:GetObject",
-          "s3:DeleteObject",
-        ]
-        Resource = [
-          "arn:aws:s3:::gallformers/*",
-        ]
-      }
-    ]
-  })
-}
