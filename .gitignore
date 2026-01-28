@@ -86,3 +86,10 @@ api/bin/
 # bv (beads viewer) local config and caches
 .bv/
 .beads/.bv.lock
+
+# OpenTofu / Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+.terraform.lock.hcl
