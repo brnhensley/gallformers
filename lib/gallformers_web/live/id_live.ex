@@ -1028,8 +1028,8 @@ defmodule GallformersWeb.IDLive do
 
   defp gall_card(assigns) do
     ~H"""
-    <.link href={"/gall/#{@gall.id}"} class="block group">
-      <div class="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow">
+    <div class="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow">
+      <.link href={"/gall/#{@gall.id}"} class="block group">
         <div class="aspect-square bg-gray-100">
           <img
             src={@gall.image_url || ~p"/images/noimage.jpg"}
@@ -1048,17 +1048,25 @@ defmodule GallformersWeb.IDLive do
           <p :if={!@gall.image_url && @summary} class="text-xs text-gray-600 mt-1" title={@summary}>
             {@summary}
           </p>
-          <div class="flex gap-1 mt-1">
-            <span
-              :if={@gall.undescribed}
-              class="inline-flex items-center px-1.5 py-0.5 text-xs font-medium rounded bg-red-100 text-red-700"
-            >
-              Undescribed
-            </span>
-          </div>
         </div>
+      </.link>
+      <div :if={@gall.undescribed || @gall.non_gall} class="flex flex-wrap gap-1 px-2 pb-2">
+        <span
+          :if={@gall.undescribed}
+          class="inline-flex items-center px-1.5 py-0.5 text-xs font-medium rounded bg-red-100 text-red-700 cursor-help"
+          title="This species has not yet been formally described in scientific literature."
+        >
+          Undescribed
+        </span>
+        <span
+          :if={@gall.non_gall}
+          class="inline-flex items-center px-1.5 py-0.5 text-xs font-medium rounded bg-amber-100 text-amber-700 cursor-help"
+          title="This is not a true gall but a different type of plant growth or damage caused by an organism that is often mistaken for a gall."
+        >
+          Non-gall
+        </span>
       </div>
-    </.link>
+    </div>
     """
   end
 end

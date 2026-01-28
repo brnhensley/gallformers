@@ -135,7 +135,7 @@ defmodule Gallformers.GallSummary do
     forms = get_values(filters, :forms)
 
     cond do
-      Enum.any?(forms, &(&1 in @non_gall_forms)) -> "growth"
+      Enum.any?(forms, &(&1 in @non_gall_forms)) -> "structure"
       Enum.any?(forms, &(&1 in @erineum_forms)) -> "erineum"
       true -> "gall"
     end

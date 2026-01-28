@@ -87,6 +87,7 @@ defmodule Gallformers.IDTool do
     |> select_gall_fields()
     |> Repo.all()
     |> attach_images()
+    |> attach_non_gall_flag()
   end
 
   @doc """
@@ -419,6 +420,24 @@ defmodule Gallformers.IDTool do
   defp apply_undescribed_filter(query, true) do
     from [s, _gs, g] in query,
       where: g.undescribed == true
+  end
+
+  defp attach_non_gall_flag(galls) do
+    gall_ids = Enum.map(galls, & &1.gall_id)
+
+    non_gall_gall_ids =
+      from(gf in "gallform",
+        join: f in Form,
+        on: f.id == gf.form_id,
+        where: gf.gall_id in ^gall_ids and f.form == "non-gall",
+        select: gf.gall_id
+      )
+      |> Repo.all()
+      |> MapSet.new()
+
+    Enum.map(galls, fn gall ->
+      Map.put(gall, :non_gall, MapSet.member?(non_gall_gall_ids, gall.gall_id))
+    end)
   end
 
   defp attach_images(galls) do
