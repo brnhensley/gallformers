@@ -1,5 +1,5 @@
 defmodule Gallformers.IDToolTest do
-  use Gallformers.DataCase, async: true
+  use Gallformers.DataCase, async: false
 
   alias Gallformers.IDTool
 
@@ -15,7 +15,7 @@ defmodule Gallformers.IDToolTest do
 
     test "returns map keyed by gall_id with filter values" do
       # Test with non-existent IDs should return empty map
-      result = IDTool.get_summary_data([99999, 99998])
+      result = IDTool.get_summary_data([99_999, 99_998])
       assert result == %{} or is_map(result)
     end
   end

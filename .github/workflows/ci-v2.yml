@@ -62,17 +62,8 @@ jobs:
           MIX_ENV=test mix ecto.load --quiet
           sqlite3 priv/gallformers_test.sqlite < priv/repo/test_seeds.sql
 
-      - name: Check formatting
-        run: mix format --check-formatted
-
-      - name: Compile (warnings as errors)
-        run: mix compile --warnings-as-errors
-
-      - name: Run tests
-        run: mix test
-
-      - name: Check code quality (Credo)
-        run: mix credo --strict
+      - name: Run precommit checks (format, compile, credo, migrations, tests)
+        run: mix precommit
 
   assets:
     name: Assets

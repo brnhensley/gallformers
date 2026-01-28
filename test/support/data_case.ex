@@ -39,6 +39,10 @@ defmodule Gallformers.DataCase do
   Sets up the sandbox based on the test tags.
   """
   def setup_sandbox(tags) do
+    if tags[:async] do
+      raise "async: true is not supported with SQLite. Use async: false (the default)."
+    end
+
     pid = Sandbox.start_owner!(Gallformers.Repo, shared: not tags[:async])
     on_exit(fn -> Sandbox.stop_owner(pid) end)
   end

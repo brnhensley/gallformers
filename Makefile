@@ -238,16 +238,11 @@ e2e-changed:
 
 # Run CI checks (same as GitHub Actions)
 ci: assets/node_modules
-	@echo "==> Checking formatting..."
-	mix format --check-formatted
-	@echo "==> Compiling with warnings as errors..."
-	mix compile --warnings-as-errors
-	@echo "==> Running Credo..."
-	mix credo --strict
-	@echo "==> Linting migrations..."
-	mix migrations.lint
-	@echo "==> Running tests..."
-	mix test
+	@echo "==> Running precommit checks (format, compile, credo, migrations, tests)..."
+	mix precommit
+	@echo ""
+	@echo "==> Core CI checks passed! Running extended checks..."
+	@echo ""
 	@echo "==> Building assets (validates JS/CSS bundling)..."
 	mix assets.deploy
 	@echo "==> Running Dialyzer..."

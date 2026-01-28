@@ -104,10 +104,11 @@ defmodule Gallformers.MixProject do
         "phx.digest"
       ],
       precommit: [
-        "compile --warnings-as-errors",
-        "deps.unlock --unused",
         "format_check",
+        "compile --warnings-as-errors",
+        "credo --strict",
         "migrations.lint",
+        "deps.unlock --unused",
         "test"
       ]
     ]

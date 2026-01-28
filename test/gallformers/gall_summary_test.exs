@@ -1,5 +1,5 @@
 defmodule Gallformers.GallSummaryTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias Gallformers.GallSummary
 

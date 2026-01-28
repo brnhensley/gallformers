@@ -1,5 +1,5 @@
 defmodule GallformersWeb.Admin.DeferredChangesTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias GallformersWeb.Admin.DeferredChanges
 
