@@ -260,7 +260,7 @@ Deprecated and deleted on 2026-01-28. Was in us-east-2, only referenced by archi
 
 ### Lambda: Image Processing
 
-Per `openspec/changes/add-image-processing/design.md`:
+Per `docs/plans/add-image-processing/design.md`:
 
 | Property | Planned Value |
 |----------|---------------|
