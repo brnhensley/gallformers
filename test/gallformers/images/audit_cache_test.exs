@@ -94,10 +94,9 @@ defmodule Gallformers.Images.AuditCacheTest do
       # Give the async task a moment to start
       Process.sleep(50)
 
-      # Status should show scanning or complete
+      # Status should show the scan completed (with s3_enabled: false, it completes instantly)
       status_after = GenServer.call(name, :status)
-      # Either scanning started or already completed
-      assert status_after.scanning? == true or status_after.last_scanned != nil
+      assert status_after.last_scanned != nil
 
       GenServer.stop(pid)
     end

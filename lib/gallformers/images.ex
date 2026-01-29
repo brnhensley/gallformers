@@ -626,7 +626,12 @@ defmodule Gallformers.Images do
   """
   @spec list_all_s3_gall_paths() :: {:ok, [map()]} | {:error, term()}
   def list_all_s3_gall_paths do
-    list_s3_gall_paths_recursive("gall/", nil, [])
+    if Application.get_env(:gallformers, :s3_enabled, true) do
+      list_s3_gall_paths_recursive("gall/", nil, [])
+    else
+      # Return empty list in test environment to avoid real S3 calls
+      {:ok, []}
+    end
   end
 
   defp list_s3_gall_paths_recursive(prefix, continuation_token, acc) do
