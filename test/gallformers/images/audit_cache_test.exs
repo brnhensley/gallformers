@@ -2,8 +2,9 @@ defmodule Gallformers.Images.AuditCacheTest do
   @moduledoc """
   Unit tests for the Images.AuditCache GenServer.
   """
-  use ExUnit.Case, async: false
+  use Gallformers.DataCase
 
+  alias Ecto.Adapters.SQL.Sandbox
   alias Gallformers.Images.AuditCache
 
   # Use a unique name for test instances to avoid conflicts with the application's cache
@@ -11,6 +12,8 @@ defmodule Gallformers.Images.AuditCacheTest do
     name = :"test_cache_#{System.unique_integer([:positive])}"
     opts = Keyword.put(opts, :name, name)
     {:ok, pid} = AuditCache.start_link(opts)
+    # Allow the GenServer to access the test's sandbox connection
+    Sandbox.allow(Gallformers.Repo, self(), pid)
     {pid, name}
   end
 
