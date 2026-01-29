@@ -491,7 +491,7 @@ defmodule Gallformers.Search do
   end
 
   @doc """
-  Searches taxonomy entries (genus, family, section) by name.
+  Searches taxonomy entries (genus, family, section) by name or description.
   """
   @spec search_taxonomy(String.t()) :: [map()]
   def search_taxonomy(query) do
@@ -500,7 +500,8 @@ defmodule Gallformers.Search do
     from(t in Taxonomy,
       where:
         t.type in ["genus", "family", "section"] and
-          fragment("lower(?) LIKE ?", t.name, ^search_term),
+          (fragment("lower(?) LIKE ?", t.name, ^search_term) or
+             fragment("lower(coalesce(?, '')) LIKE ?", t.description, ^search_term)),
       order_by: [t.type, t.name],
       select: %{
         id: t.id,
