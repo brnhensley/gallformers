@@ -138,7 +138,6 @@ defmodule GallformersWeb.Router do
       # Content pages
       live "/about", AboutLive
       live "/filterguide", FilterGuideLive
-      live "/resources", ResourcesLive
       live "/glossary", GlossaryLive
       live "/articles", ArticlesLive
       live "/articles/:slug", ArticleLive

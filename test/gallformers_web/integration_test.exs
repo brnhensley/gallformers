@@ -29,11 +29,6 @@ defmodule GallformersWeb.IntegrationTest do
       assert is_binary(html)
     end
 
-    test "resources page loads successfully", %{conn: conn} do
-      {:ok, _view, html} = live(conn, ~p"/resources")
-      assert is_binary(html)
-    end
-
     test "filter guide page loads successfully", %{conn: conn} do
       {:ok, _view, html} = live(conn, ~p"/filterguide")
       assert is_binary(html)

@@ -50,7 +50,6 @@ defmodule GallformersWeb.SitemapController do
       %{loc: "#{@base_url}/about", changefreq: "monthly", priority: "0.8"},
       %{loc: "#{@base_url}/glossary", changefreq: "weekly", priority: "0.8"},
       %{loc: "#{@base_url}/filterguide", changefreq: "monthly", priority: "0.7"},
-      %{loc: "#{@base_url}/resources", changefreq: "monthly", priority: "0.7"},
       %{loc: "#{@base_url}/articles", changefreq: "weekly", priority: "0.7"},
       %{loc: "#{@base_url}/explore", changefreq: "weekly", priority: "0.8"},
       %{loc: "#{@base_url}/id", changefreq: "weekly", priority: "0.9"}
