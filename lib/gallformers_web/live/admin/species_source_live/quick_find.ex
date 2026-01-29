@@ -62,6 +62,20 @@ defmodule GallformersWeb.Admin.SpeciesSourceLive.QuickFind do
             _ -> socket
           end
 
+        # Show all mappings for a species (from admin gall/host forms)
+        %{"species_id" => species_id_str} ->
+          with {species_id, ""} <- Integer.parse(species_id_str),
+               species when not is_nil(species) <- Gallformers.Species.get_species(species_id) do
+            results = Sources.get_species_source_mappings_for_species(species_id)
+
+            socket
+            |> assign(:search_query, species.name)
+            |> assign(:results, results)
+            |> assign(:searched, true)
+          else
+            _ -> socket
+          end
+
         # Allow pre-populating search via query param
         %{"q" => query} when query != "" ->
           results = Sources.search_species_source_mappings(query)

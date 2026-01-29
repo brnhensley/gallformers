@@ -62,7 +62,10 @@ defmodule Gallformers.Sources.Source do
     |> validate_length(:title, min: 1, max: 500)
     |> validate_format(:pubyear, ~r/^[12][0-9]{3}$/, message: "must be a valid 4-digit year")
     |> validate_license_link()
-    |> unique_constraint(:title)
+    |> unsafe_validate_unique(:title, Gallformers.Repo,
+      message: "a source with this title already exists"
+    )
+    |> unique_constraint(:title, message: "a source with this title already exists")
   end
 
   # Convert nil values to empty strings for NOT NULL columns with DEFAULT ''

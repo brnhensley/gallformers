@@ -268,26 +268,109 @@ defmodule Gallformers.Sources do
 
   @doc """
   Creates a species-source mapping.
+
+  If useasdefault is set to 1, clears all other defaults for that species first.
   """
   @spec create_species_source(map()) :: {:ok, SpeciesSource.t()} | {:error, Ecto.Changeset.t()}
   def create_species_source(attrs \\ %{}) do
-    %SpeciesSource{}
-    |> SpeciesSource.changeset(attrs)
-    |> Repo.insert()
-    |> broadcast(:species_source_created)
+    changeset = SpeciesSource.changeset(%SpeciesSource{}, attrs)
+
+    result =
+      if setting_as_default?(attrs) do
+        species_id = get_species_id_from_attrs(attrs)
+        insert_with_default_transaction(changeset, species_id)
+      else
+        Repo.insert(changeset)
+      end
+
+    result |> broadcast(:species_source_created)
   end
 
   @doc """
   Updates a species-source mapping.
+
+  If useasdefault is set to 1, clears all other defaults for that species first.
   """
   @spec update_species_source(SpeciesSource.t(), map()) ::
           {:ok, SpeciesSource.t()} | {:error, Ecto.Changeset.t()}
   def update_species_source(%SpeciesSource{} = species_source, attrs) do
-    species_source
-    |> SpeciesSource.changeset(attrs)
-    |> Repo.update()
-    |> broadcast(:species_source_updated)
+    changeset = SpeciesSource.changeset(species_source, attrs)
+
+    result =
+      if setting_as_default?(attrs) do
+        update_with_default_transaction(changeset, species_source.species_id, species_source.id)
+      else
+        Repo.update(changeset)
+      end
+
+    result |> broadcast(:species_source_updated)
   end
+
+  # Inserts a species-source mapping with transaction to clear other defaults
+  defp insert_with_default_transaction(changeset, species_id) do
+    Repo.transaction(fn ->
+      clear_other_defaults(species_id, nil)
+      insert_or_rollback(changeset)
+    end)
+  end
+
+  # Updates a species-source mapping with transaction to clear other defaults
+  defp update_with_default_transaction(changeset, species_id, exclude_id) do
+    Repo.transaction(fn ->
+      clear_other_defaults(species_id, exclude_id)
+      update_or_rollback(changeset)
+    end)
+  end
+
+  defp insert_or_rollback(changeset) do
+    case Repo.insert(changeset) do
+      {:ok, record} -> record
+      {:error, changeset} -> Repo.rollback(changeset)
+    end
+  end
+
+  defp update_or_rollback(changeset) do
+    case Repo.update(changeset) do
+      {:ok, record} -> record
+      {:error, changeset} -> Repo.rollback(changeset)
+    end
+  end
+
+  # Checks if attrs are setting useasdefault to 1/true
+  defp setting_as_default?(attrs) do
+    useasdefault = attrs["useasdefault"] || attrs[:useasdefault]
+    useasdefault in [1, "1", true, "true"]
+  end
+
+  # Gets species_id from attrs (handles both string and atom keys)
+  defp get_species_id_from_attrs(attrs) do
+    species_id = attrs["species_id"] || attrs[:species_id]
+
+    case species_id do
+      id when is_integer(id) -> id
+      id when is_binary(id) -> String.to_integer(id)
+      _ -> nil
+    end
+  end
+
+  # Clears useasdefault flag on all other mappings for a species
+  defp clear_other_defaults(species_id, exclude_id) when not is_nil(species_id) do
+    query =
+      from(ss in SpeciesSource,
+        where: ss.species_id == ^species_id and ss.useasdefault == 1
+      )
+
+    query =
+      if exclude_id do
+        from(ss in query, where: ss.id != ^exclude_id)
+      else
+        query
+      end
+
+    Repo.update_all(query, set: [useasdefault: 0])
+  end
+
+  defp clear_other_defaults(_, _), do: :ok
 
   @doc """
   Deletes a species-source mapping.
@@ -330,6 +413,36 @@ defmodule Gallformers.Sources do
           fragment("lower(?) LIKE ?", ss.description, ^search_term),
       order_by: [asc: sp.name, asc: src.title],
       limit: ^limit,
+      select: %{
+        id: ss.id,
+        species_id: sp.id,
+        species_name: sp.name,
+        species_taxoncode: sp.taxoncode,
+        source_id: src.id,
+        source_title: src.title,
+        source_author: src.author,
+        source_pubyear: src.pubyear,
+        description: ss.description,
+        externallink: ss.externallink,
+        useasdefault: ss.useasdefault
+      }
+    )
+    |> Repo.all()
+  end
+
+  @doc """
+  Gets all species-source mappings for a specific species.
+  Returns mappings in the same format as search_species_source_mappings for display.
+  """
+  @spec get_species_source_mappings_for_species(integer()) :: [map()]
+  def get_species_source_mappings_for_species(species_id) do
+    from(ss in SpeciesSource,
+      join: sp in Species,
+      on: ss.species_id == sp.id,
+      join: src in Source,
+      on: ss.source_id == src.id,
+      where: ss.species_id == ^species_id,
+      order_by: [asc: src.title],
       select: %{
         id: ss.id,
         species_id: sp.id,

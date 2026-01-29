@@ -365,15 +365,19 @@ defmodule GallformersWeb.Admin.HostLive.Form do
 
   @impl true
   def handle_event("delete", _params, socket) do
-    case Hosts.delete_host(socket.assigns.host.id) do
-      {:ok, _} ->
-        {:noreply,
-         socket
-         |> put_flash(:info, "Host deleted successfully")
-         |> push_navigate(to: ~p"/admin/hosts")}
+    if Gallformers.Accounts.superadmin?(socket.assigns.current_user) do
+      case Hosts.delete_host(socket.assigns.host.id) do
+        {:ok, _} ->
+          {:noreply,
+           socket
+           |> put_flash(:info, "Host deleted successfully")
+           |> push_navigate(to: ~p"/admin/hosts")}
 
-      {:error, _} ->
-        {:noreply, put_flash(socket, :error, "Failed to delete host")}
+        {:error, _} ->
+          {:noreply, put_flash(socket, :error, "Failed to delete host")}
+      end
+    else
+      {:noreply, put_flash(socket, :error, "Only super admins can delete hosts")}
     end
   end
 
@@ -944,7 +948,7 @@ defmodule GallformersWeb.Admin.HostLive.Form do
             <div class="flex justify-between pt-3 border-t border-gray-200">
               <div>
                 <button
-                  :if={@mode == :edit}
+                  :if={@mode == :edit && Gallformers.Accounts.superadmin?(@current_user)}
                   type="button"
                   phx-click="delete"
                   data-confirm="Are you sure you want to delete this host? This will remove all associated gall mappings and range data."

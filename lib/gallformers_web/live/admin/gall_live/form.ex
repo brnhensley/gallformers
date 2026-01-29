@@ -730,15 +730,19 @@ defmodule GallformersWeb.Admin.GallLive.Form do
 
   @impl true
   def handle_event("delete", _params, socket) do
-    case Species.delete_species(socket.assigns.gall) do
-      {:ok, _} ->
-        {:noreply,
-         socket
-         |> put_flash(:info, "Gall deleted successfully")
-         |> init_empty_gall_state()}
+    if Gallformers.Accounts.superadmin?(socket.assigns.current_user) do
+      case Species.delete_species(socket.assigns.gall) do
+        {:ok, _} ->
+          {:noreply,
+           socket
+           |> put_flash(:info, "Gall deleted successfully")
+           |> init_empty_gall_state()}
 
-      {:error, _changeset} ->
-        {:noreply, put_flash(socket, :error, "Failed to delete gall")}
+        {:error, _changeset} ->
+          {:noreply, put_flash(socket, :error, "Failed to delete gall")}
+      end
+    else
+      {:noreply, put_flash(socket, :error, "Only super admins can delete galls")}
     end
   end
 
@@ -1367,7 +1371,7 @@ defmodule GallformersWeb.Admin.GallLive.Form do
               <div class="flex justify-between pt-3 border-t border-gray-200">
                 <div>
                   <button
-                    :if={@mode == :edit}
+                    :if={@mode == :edit && Gallformers.Accounts.superadmin?(@current_user)}
                     type="button"
                     phx-click="delete"
                     data-confirm="Are you sure? This will delete the gall and all its associations."
