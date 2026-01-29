@@ -19,12 +19,26 @@ defmodule Gallformers.Version do
                  date = Date.utc_today()
                  date_str = "#{date.year}.#{date.month}.#{date.day}"
 
+                 # Check GIT_SHA env var first (set during Docker build),
+                 # fall back to git command for local development
                  git_hash =
-                   case System.cmd("git", ["rev-parse", "--short", "HEAD"],
-                          stderr_to_stdout: true
-                        ) do
-                     {hash, 0} -> String.trim(hash)
-                     _ -> "unknown"
+                   case System.get_env("GIT_SHA") do
+                     nil ->
+                       case System.cmd("git", ["rev-parse", "--short", "HEAD"],
+                              stderr_to_stdout: true
+                            ) do
+                         {hash, 0} -> String.trim(hash)
+                         _ -> "unknown"
+                       end
+
+                     "" ->
+                       "unknown"
+
+                     "unknown" ->
+                       "unknown"
+
+                     hash ->
+                       String.trim(hash)
                    end
 
                  "#{date_str}+#{git_hash}"
