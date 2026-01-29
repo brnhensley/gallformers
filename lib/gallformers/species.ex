@@ -789,7 +789,7 @@ defmodule Gallformers.Species do
     alias_changeset =
       %Alias{}
       |> Ecto.Changeset.cast(
-        %{name: old_name, type: "scientific synonym", description: "Previous name"},
+        %{name: old_name, type: "scientific", description: "Previous name"},
         [:name, :type, :description]
       )
 

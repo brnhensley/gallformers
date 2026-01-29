@@ -7,6 +7,8 @@ defmodule Gallformers.Taxonomy do
 
   import Ecto.Query
   alias Gallformers.Repo
+  alias Gallformers.Species.Alias
+  alias Gallformers.Species.Species
   alias Gallformers.Taxonomy.Taxonomy
 
   @doc """
@@ -594,13 +596,94 @@ defmodule Gallformers.Taxonomy do
 
   @doc """
   Updates a taxonomy entry.
+
+  When renaming a genus, automatically updates all linked species names and
+  creates scientific synonyms with the old names.
   """
   @spec update_taxonomy(Taxonomy.t(), map()) :: {:ok, Taxonomy.t()} | {:error, Ecto.Changeset.t()}
   def update_taxonomy(%Taxonomy{} = taxonomy, attrs) do
-    taxonomy
-    |> Taxonomy.changeset(attrs)
-    |> Repo.update()
+    new_name = attrs["name"] || attrs[:name]
+    is_genus_rename = taxonomy.type == "genus" && new_name && new_name != taxonomy.name
+
+    if is_genus_rename do
+      update_genus_with_species_sync(taxonomy, attrs)
+    else
+      taxonomy
+      |> Taxonomy.changeset(attrs)
+      |> Repo.update()
+      |> broadcast(:taxonomy_updated)
+    end
+  end
+
+  # Updates a genus and syncs all linked species names, adding synonyms for old names.
+  defp update_genus_with_species_sync(%Taxonomy{} = taxonomy, attrs) do
+    old_genus_name = taxonomy.name
+    new_genus_name = attrs["name"] || attrs[:name]
+
+    Repo.transaction(fn ->
+      # Update species names and create synonyms
+      sync_species_names_on_genus_rename(taxonomy.id, old_genus_name, new_genus_name)
+
+      # Update the genus itself
+      taxonomy
+      |> Taxonomy.changeset(attrs)
+      |> Repo.update!()
+    end)
     |> broadcast(:taxonomy_updated)
+  end
+
+  # Updates all species linked to a genus when the genus is renamed.
+  # For each species:
+  # 1. Creates a "scientific synonym" alias with the old species name
+  # 2. Updates the species name by replacing the old genus with the new genus
+  defp sync_species_names_on_genus_rename(genus_id, old_genus_name, new_genus_name) do
+    species_ids = get_species_ids_for_genus(genus_id)
+
+    for species_id <- species_ids do
+      species = Repo.get!(Species, species_id)
+      old_species_name = species.name
+
+      # Create the new name by replacing the genus portion
+      new_species_name = replace_genus_in_name(old_species_name, old_genus_name, new_genus_name)
+
+      # Create synonym alias with the old name
+      create_rename_synonym(species_id, old_species_name)
+
+      # Update the species name
+      species
+      |> Species.changeset(%{name: new_species_name})
+      |> Repo.update!()
+    end
+  end
+
+  # Replaces the genus portion (first word) of a species name.
+  # Example: replace_genus_in_name("Quercus alba", "Quercus", "Oakus") -> "Oakus alba"
+  defp replace_genus_in_name(species_name, old_genus, new_genus) do
+    case String.split(species_name, " ", parts: 2) do
+      [^old_genus, epithet] -> "#{new_genus} #{epithet}"
+      [^old_genus] -> new_genus
+      # If the species name doesn't start with the expected genus, just replace first word
+      [_other_genus, epithet] -> "#{new_genus} #{epithet}"
+      _ -> species_name
+    end
+  end
+
+  # Creates a scientific synonym alias for a species rename.
+  defp create_rename_synonym(species_id, old_name) do
+    alias_changeset =
+      %Alias{}
+      |> Ecto.Changeset.cast(
+        %{name: old_name, type: "scientific", description: "Previous name"},
+        [:name, :type, :description]
+      )
+
+    case Repo.insert(alias_changeset) do
+      {:ok, new_alias} ->
+        Repo.insert_all("aliasspecies", [%{alias_id: new_alias.id, species_id: species_id}])
+
+      {:error, _} ->
+        nil
+    end
   end
 
   @doc """
