@@ -862,6 +862,139 @@ defmodule Gallformers.Taxonomy do
   end
 
   @doc """
+  Lists all sections with their parent genus and species count.
+  """
+  @spec list_sections_with_details() :: [map()]
+  def list_sections_with_details do
+    from(s in Taxonomy,
+      left_join: g in Taxonomy,
+      on: s.parent_id == g.id,
+      left_join: st in "speciestaxonomy",
+      on: st.taxonomy_id == s.id,
+      where: s.type == "section",
+      group_by: [s.id, s.name, s.description, g.id, g.name],
+      order_by: [g.name, s.name],
+      select: %{
+        id: s.id,
+        name: s.name,
+        description: s.description,
+        genus_id: g.id,
+        genus_name: g.name,
+        species_count: count(st.species_id)
+      }
+    )
+    |> Repo.all()
+  end
+
+  @doc """
+  Searches sections by name (case-insensitive).
+  """
+  @spec search_sections(String.t()) :: [map()]
+  def search_sections(query) do
+    search_pattern = "%#{String.downcase(query)}%"
+
+    from(s in Taxonomy,
+      left_join: g in Taxonomy,
+      on: s.parent_id == g.id,
+      left_join: st in "speciestaxonomy",
+      on: st.taxonomy_id == s.id,
+      where: s.type == "section",
+      where: fragment("lower(?) LIKE ?", s.name, ^search_pattern),
+      group_by: [s.id, s.name, s.description, g.id, g.name],
+      order_by: [g.name, s.name],
+      select: %{
+        id: s.id,
+        name: s.name,
+        description: s.description,
+        genus_id: g.id,
+        genus_name: g.name,
+        species_count: count(st.species_id)
+      }
+    )
+    |> Repo.all()
+  end
+
+  @doc """
+  Updates the species assigned to a section.
+
+  Removes all existing species and adds the new ones.
+  Also updates the section's parent_id to the genus of the first species
+  (sections derive their parent from their species).
+
+  Returns {:ok, section} on success or {:error, reason} on failure.
+  """
+  @spec update_section_species(integer(), [integer()]) :: {:ok, Taxonomy.t()} | {:error, term()}
+  def update_section_species(section_id, species_ids) when is_list(species_ids) do
+    Repo.transaction(fn ->
+      # Remove existing species links
+      from(st in "speciestaxonomy",
+        where: st.taxonomy_id == ^section_id
+      )
+      |> Repo.delete_all()
+
+      # Add new species links and update parent genus
+      add_species_to_section(section_id, species_ids)
+
+      Repo.get!(Taxonomy, section_id)
+    end)
+    |> case do
+      {:ok, section} ->
+        Phoenix.PubSub.broadcast(Gallformers.PubSub, "taxonomy", {:section_updated, section})
+        {:ok, section}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp add_species_to_section(_section_id, []), do: :ok
+
+  defp add_species_to_section(section_id, species_ids) do
+    new_links =
+      Enum.map(species_ids, fn species_id ->
+        %{species_id: species_id, taxonomy_id: section_id}
+      end)
+
+    Repo.insert_all("speciestaxonomy", new_links)
+
+    # Update section's parent genus based on first species
+    update_section_parent_genus(section_id, hd(species_ids))
+  end
+
+  defp update_section_parent_genus(section_id, first_species_id) do
+    first_species = Repo.get!(Species, first_species_id)
+
+    with genus_name when genus_name != nil <- extract_genus_from_name(first_species.name),
+         %{id: genus_id} <- get_taxonomy_by_name(genus_name, "genus") do
+      from(t in Taxonomy, where: t.id == ^section_id)
+      |> Repo.update_all(set: [parent_id: genus_id])
+    end
+
+    :ok
+  end
+
+  @doc """
+  Searches host species by name for section assignment.
+  Returns hosts that match the query.
+  """
+  @spec search_hosts_for_section(String.t(), integer()) :: [map()]
+  def search_hosts_for_section(query, limit \\ 20) do
+    search_pattern = "%#{String.downcase(query)}%"
+
+    from(s in Species,
+      where: s.taxoncode == "plant",
+      where: fragment("lower(?) LIKE ?", s.name, ^search_pattern),
+      order_by: s.name,
+      limit: ^limit,
+      select: %{
+        id: s.id,
+        name: s.name
+      }
+    )
+    |> Repo.all()
+  end
+
+  @doc """
   Returns genera for use in typeahead/select components.
   Each result includes the parent family ID for auto-population.
   Excludes genera named "Unknown" as those are created automatically.
