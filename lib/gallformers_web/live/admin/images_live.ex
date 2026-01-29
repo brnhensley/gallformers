@@ -121,9 +121,40 @@ defmodule GallformersWeb.Admin.ImagesLive do
                   View public page
                 </.link>
               </div>
-              <p :if={@images != []} class="text-sm text-gray-500">
-                Drag to reorder. First image is the default.
-              </p>
+              <div class="flex items-center gap-4">
+                <p :if={@images != [] && @view_mode == :grid} class="text-sm text-gray-500">
+                  Drag to reorder. First image is the default.
+                </p>
+                <%!-- View Toggle --%>
+                <div class="flex border border-gray-300 rounded-md overflow-hidden">
+                  <button
+                    type="button"
+                    phx-click="toggle_view"
+                    phx-value-view="grid"
+                    class={[
+                      "px-3 py-1.5 text-sm",
+                      @view_mode == :grid && "bg-gf-maroon text-white",
+                      @view_mode != :grid && "bg-white text-gray-600 hover:bg-gray-50"
+                    ]}
+                    title="Grid view"
+                  >
+                    <.icon name="ph-squares-four" class="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    phx-click="toggle_view"
+                    phx-value-view="table"
+                    class={[
+                      "px-3 py-1.5 text-sm border-l border-gray-300",
+                      @view_mode == :table && "bg-gf-maroon text-white",
+                      @view_mode != :table && "bg-white text-gray-600 hover:bg-gray-50"
+                    ]}
+                    title="Table view"
+                  >
+                    <.icon name="ph-list" class="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
             </div>
 
             <div
@@ -149,71 +180,79 @@ defmodule GallformersWeb.Admin.ImagesLive do
             </div>
 
             <div :if={@images != []} id={"images-version-#{@images_version}"}>
-              <div
-                id="sortable-images"
-                phx-hook="SortableImages"
-                phx-update="ignore"
-                class="flex flex-wrap gap-6"
-              >
+              <%!-- Grid View --%>
+              <div :if={@view_mode == :grid}>
                 <div
-                  :for={image <- @images}
-                  data-image-id={image.id}
-                  class={[
-                    "relative group cursor-move",
-                    image.sort_order == 0 && "ring-2 ring-gf-maroon ring-offset-2",
-                    image_incomplete?(image) && "ring-2 ring-orange-400 ring-offset-2"
-                  ]}
+                  id="sortable-images"
+                  phx-hook="SortableImages"
+                  phx-update="ignore"
+                  class="flex flex-wrap gap-6"
                 >
-                  <img
-                    src={Image.sized_url(image.path, :original)}
-                    alt={image.caption || "Species image"}
-                    class="w-48 h-48 object-cover rounded"
-                  />
                   <div
-                    :if={image.sort_order == 0}
-                    class="absolute top-2 left-2 bg-gf-maroon text-white text-sm px-2 py-1 rounded"
+                    :for={image <- @images}
+                    data-image-id={image.id}
+                    class={[
+                      "relative group cursor-move",
+                      image.sort_order == 0 && "ring-2 ring-gf-maroon ring-offset-2",
+                      image_incomplete?(image) && "ring-2 ring-orange-400 ring-offset-2"
+                    ]}
                   >
-                    Default
-                  </div>
-                  <%!-- Warning badge for incomplete images --%>
-                  <div
-                    :if={image_incomplete?(image)}
-                    class="absolute top-2 right-2 bg-orange-500 text-white w-7 h-7 rounded-full flex items-center justify-center"
-                    title="Missing required metadata"
-                  >
-                    <.icon name="ph-warning" class="w-4 h-4" />
-                  </div>
-                  <%!-- Hover overlay with all actions --%>
-                  <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded flex items-center justify-center gap-4">
-                    <button
-                      type="button"
-                      phx-click="view_image"
-                      phx-value-id={image.id}
-                      class="p-2 bg-white rounded text-gray-700 hover:text-gf-maroon"
-                      aria-label="View image"
+                    <img
+                      src={Image.sized_url(image.path, :original)}
+                      alt={image.caption || "Species image"}
+                      class="w-48 h-48 object-cover rounded"
+                    />
+                    <div
+                      :if={image.sort_order == 0}
+                      class="absolute top-2 left-2 bg-gf-maroon text-white text-sm px-2 py-1 rounded"
                     >
-                      <.icon name="ph-eye" class="h-6 w-6" />
-                    </button>
-                    <button
-                      type="button"
-                      phx-click="edit_image"
-                      phx-value-id={image.id}
-                      class="p-2 bg-white rounded text-gray-700 hover:text-gf-maroon"
-                      aria-label="Edit image"
+                      Default
+                    </div>
+                    <%!-- Warning badge for incomplete images --%>
+                    <div
+                      :if={image_incomplete?(image)}
+                      class="absolute top-2 right-2 bg-orange-500 text-white w-7 h-7 rounded-full flex items-center justify-center"
+                      title="Missing required metadata"
                     >
-                      <.icon name="ph-pencil" class="h-6 w-6" />
-                    </button>
-                    <button
-                      type="button"
-                      phx-click="confirm_delete"
-                      phx-value-id={image.id}
-                      class="p-2 bg-white rounded text-gray-700 hover:text-red-600"
-                      aria-label="Delete image"
-                    >
-                      <.icon name="ph-trash" class="h-6 w-6" />
-                    </button>
+                      <.icon name="ph-warning" class="w-4 h-4" />
+                    </div>
+                    <%!-- Hover overlay with all actions --%>
+                    <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded flex items-center justify-center gap-4">
+                      <button
+                        type="button"
+                        phx-click="view_image"
+                        phx-value-id={image.id}
+                        class="p-2 bg-white rounded text-gray-700 hover:text-gf-maroon"
+                        aria-label="View image"
+                      >
+                        <.icon name="ph-eye" class="h-6 w-6" />
+                      </button>
+                      <button
+                        type="button"
+                        phx-click="edit_image"
+                        phx-value-id={image.id}
+                        class="p-2 bg-white rounded text-gray-700 hover:text-gf-maroon"
+                        aria-label="Edit image"
+                      >
+                        <.icon name="ph-pencil" class="h-6 w-6" />
+                      </button>
+                      <button
+                        type="button"
+                        phx-click="confirm_delete"
+                        phx-value-id={image.id}
+                        class="p-2 bg-white rounded text-gray-700 hover:text-red-600"
+                        aria-label="Delete image"
+                      >
+                        <.icon name="ph-trash" class="h-6 w-6" />
+                      </button>
+                    </div>
                   </div>
                 </div>
+              </div>
+
+              <%!-- Table View (placeholder) --%>
+              <div :if={@view_mode == :table} class="text-gray-500 text-center py-8">
+                Table view coming soon...
               </div>
             </div>
           </div>
