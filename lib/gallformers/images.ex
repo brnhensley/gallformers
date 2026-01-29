@@ -321,7 +321,7 @@ defmodule Gallformers.Images do
 
   defp spawn_resize_tasks(body, original_path) do
     Enum.each(@sizes, fn {size_name, width} ->
-      Task.start(fn -> resize_and_upload(body, original_path, size_name, width) end)
+      Gallformers.Async.run(fn -> resize_and_upload(body, original_path, size_name, width) end)
     end)
   end
 

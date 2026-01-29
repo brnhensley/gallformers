@@ -214,7 +214,7 @@ defmodule Gallformers.Images.AuditCache do
   end
 
   defp trigger_async_scan(server_pid) do
-    Task.start(fn ->
+    Gallformers.Async.run(fn ->
       send(server_pid, {:scan_started})
 
       case do_scan() do

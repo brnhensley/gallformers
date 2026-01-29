@@ -3,6 +3,7 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Index do
   Admin page for listing and managing taxonomic classifications.
 
   Displays families, genera, and sections with their hierarchical relationships.
+  Supports moving genera between families via selection and modal.
   """
   use GallformersWeb, :live_view
 
@@ -27,6 +28,10 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Index do
       |> assign(:page_size, @page_size)
       |> assign(:sort_by, :name)
       |> assign(:sort_dir, :asc)
+      |> assign(:selected_genera, MapSet.new())
+      |> assign(:show_move_modal, false)
+      |> assign(:families, [])
+      |> assign(:move_target_family_id, nil)
       |> load_taxonomies()
 
     {:ok, socket}
@@ -105,8 +110,85 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Index do
   end
 
   @impl true
+  def handle_event("toggle_select", %{"id" => id_str}, socket) do
+    id = String.to_integer(id_str)
+    selected = socket.assigns.selected_genera
+
+    new_selected =
+      if MapSet.member?(selected, id) do
+        MapSet.delete(selected, id)
+      else
+        MapSet.put(selected, id)
+      end
+
+    {:noreply, assign(socket, :selected_genera, new_selected)}
+  end
+
+  @impl true
+  def handle_event("clear_selection", _params, socket) do
+    {:noreply, assign(socket, :selected_genera, MapSet.new())}
+  end
+
+  @impl true
+  def handle_event("open_move_modal", _params, socket) do
+    families = Taxonomy.list_families_for_select()
+
+    {:noreply,
+     socket
+     |> assign(:show_move_modal, true)
+     |> assign(:families, families)
+     |> assign(:move_target_family_id, nil)}
+  end
+
+  @impl true
+  def handle_event("close_move_modal", _params, socket) do
+    {:noreply, assign(socket, :show_move_modal, false)}
+  end
+
+  @impl true
+  def handle_event("select_target_family", %{"family_id" => family_id}, socket) do
+    family_id = if family_id == "", do: nil, else: String.to_integer(family_id)
+    {:noreply, assign(socket, :move_target_family_id, family_id)}
+  end
+
+  @impl true
+  def handle_event("move_genera", _params, socket) do
+    selected_ids = MapSet.to_list(socket.assigns.selected_genera)
+    target_family_id = socket.assigns.move_target_family_id
+
+    if target_family_id == nil do
+      {:noreply, put_flash(socket, :error, "Please select a destination family.")}
+    else
+      # Get the current family of the first selected genus to use as old_family_id
+      first_genus = Taxonomy.get_taxonomy!(hd(selected_ids))
+      old_family_id = first_genus.parent_id
+
+      case Taxonomy.move_genera(selected_ids, old_family_id, target_family_id) do
+        {:ok, count} ->
+          {:noreply,
+           socket
+           |> put_flash(
+             :info,
+             "Successfully moved #{count} #{if count == 1, do: "genus", else: "genera"}."
+           )
+           |> assign(:show_move_modal, false)
+           |> assign(:selected_genera, MapSet.new())
+           |> load_taxonomies()}
+
+        {:error, reason} ->
+          {:noreply, put_flash(socket, :error, "Failed to move genera: #{inspect(reason)}")}
+      end
+    end
+  end
+
+  @impl true
   def handle_info({event, _taxonomy}, socket)
       when event in [:taxonomy_created, :taxonomy_updated, :taxonomy_deleted] do
+    {:noreply, load_taxonomies(socket)}
+  end
+
+  @impl true
+  def handle_info(:genera_moved, socket) do
     {:noreply, load_taxonomies(socket)}
   end
 
@@ -177,7 +259,7 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Index do
     ~H"""
     <Layouts.admin flash={@flash} current_user={@current_user} page_title="Taxonomy">
       <div class="space-y-6">
-        <%!-- Header with search, filter, and new button --%>
+        <%!-- Header with search, filter, and buttons --%>
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div class="flex items-center gap-4 flex-1 max-w-2xl">
             <form phx-change="search" phx-submit="search" id="taxonomy-search-form" class="flex-1">
@@ -199,9 +281,28 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Index do
               />
             </form>
           </div>
-          <.link navigate={~p"/admin/taxonomy/new"} class="gf-btn gf-btn-primary">
-            New Entry
-          </.link>
+          <div class="flex items-center gap-2">
+            <button
+              :if={MapSet.size(@selected_genera) > 0}
+              type="button"
+              phx-click="open_move_modal"
+              class="gf-btn gf-btn-secondary"
+            >
+              <.icon name="ph-arrow-right" class="h-4 w-4 mr-1" />
+              Move {MapSet.size(@selected_genera)} Selected
+            </button>
+            <button
+              :if={MapSet.size(@selected_genera) > 0}
+              type="button"
+              phx-click="clear_selection"
+              class="gf-btn gf-btn-ghost text-sm"
+            >
+              Clear
+            </button>
+            <.link navigate={~p"/admin/taxonomy/new"} class="gf-btn gf-btn-primary">
+              New Entry
+            </.link>
+          </div>
         </div>
 
         <%!-- Taxonomy list table --%>
@@ -209,6 +310,7 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Index do
           <table class="gf-table gf-table-dark">
             <thead>
               <tr>
+                <th class="w-10"></th>
                 <th class="sortable" phx-click="sort" phx-value-column="name">
                   Name
                   <span :if={@sort_by == :name} class="ml-1">
@@ -237,10 +339,24 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Index do
               </tr>
             </thead>
             <tbody>
-              <tr :for={
-                taxonomy <-
-                  paginated_taxonomies(@taxonomies, @current_page, @page_size, @sort_by, @sort_dir)
-              }>
+              <tr
+                :for={
+                  taxonomy <-
+                    paginated_taxonomies(@taxonomies, @current_page, @page_size, @sort_by, @sort_dir)
+                }
+                class={if MapSet.member?(@selected_genera, taxonomy.id), do: "bg-canary", else: ""}
+              >
+                <td class="text-center">
+                  <%= if taxonomy.type == "genus" do %>
+                    <input
+                      type="checkbox"
+                      checked={MapSet.member?(@selected_genera, taxonomy.id)}
+                      phx-click="toggle_select"
+                      phx-value-id={taxonomy.id}
+                      class="h-4 w-4 rounded border-gray-300 text-gf-maroon focus:ring-gf-maroon"
+                    />
+                  <% end %>
+                </td>
                 <td>
                   <.link
                     navigate={~p"/admin/taxonomy/#{taxonomy.id}"}
@@ -287,7 +403,7 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Index do
                 </td>
               </tr>
               <tr :if={@taxonomies == []}>
-                <td colspan="5" class="text-center text-gray-500">
+                <td colspan="6" class="text-center text-gray-500">
                   No taxonomy entries found.
                 </td>
               </tr>
@@ -309,6 +425,71 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Index do
           </p>
         <% end %>
       </div>
+
+      <%!-- Move Genera Modal --%>
+      <.modal
+        :if={@show_move_modal}
+        id="move-genera-modal"
+        show
+        on_cancel={JS.push("close_move_modal")}
+      >
+        <:header>
+          <h3 class="text-lg font-semibold text-gray-900">
+            Move {MapSet.size(@selected_genera)} {if MapSet.size(@selected_genera) == 1,
+              do: "Genus",
+              else: "Genera"}
+          </h3>
+        </:header>
+
+        <:body>
+          <div class="space-y-4">
+            <div>
+              <p class="text-sm text-gray-600 mb-2">Selected genera:</p>
+              <div class="flex flex-wrap gap-2">
+                <%= for taxonomy <- Enum.filter(@taxonomies, fn t -> MapSet.member?(@selected_genera, t.id) end) do %>
+                  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                    {taxonomy.name}
+                  </span>
+                <% end %>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">
+                Destination Family
+              </label>
+              <select phx-change="select_target_family" name="family_id" class="gf-select w-full">
+                <option value="">Select a family...</option>
+                <%= for {name, id} <- @families do %>
+                  <option value={id} selected={@move_target_family_id == id}>{name}</option>
+                <% end %>
+              </select>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 rounded-lg p-3">
+              <p class="text-sm text-amber-800">
+                <.icon name="ph-warning" class="h-4 w-4 inline mr-1" />
+                This will move the selected genera and all their species to the new family.
+                This change takes effect immediately.
+              </p>
+            </div>
+          </div>
+        </:body>
+
+        <:footer>
+          <button type="button" phx-click="close_move_modal" class="gf-btn gf-btn-secondary">
+            Cancel
+          </button>
+          <button
+            type="button"
+            phx-click="move_genera"
+            disabled={@move_target_family_id == nil}
+            class="gf-btn gf-btn-primary"
+          >
+            Move to Selected Family
+          </button>
+        </:footer>
+      </.modal>
     </Layouts.admin>
     """
   end

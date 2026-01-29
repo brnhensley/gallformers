@@ -27,13 +27,11 @@ defmodule Gallformers.Analytics do
   """
   @spec track_page_view(map()) :: :ok
   def track_page_view(attrs) do
-    Task.start(fn ->
+    Gallformers.Async.run(fn ->
       %PageView{}
       |> PageView.changeset(attrs)
       |> Repo.insert()
     end)
-
-    :ok
   end
 
   @doc """

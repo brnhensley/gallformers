@@ -2,6 +2,9 @@ import Config
 
 config :gallformers, env: :test
 
+# Run async tasks synchronously to avoid sandbox connection issues
+config :gallformers, async_tasks: false
+
 # Configure your database
 # Use a schema-only test database (no production data)
 config :gallformers, Gallformers.Repo,

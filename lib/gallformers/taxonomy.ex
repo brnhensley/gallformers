@@ -906,6 +906,54 @@ defmodule Gallformers.Taxonomy do
   end
 
   @doc """
+  Moves one or more genera from one family to another.
+
+  This operation:
+  1. Updates the parent_id for all specified genera
+  2. Removes old family-genus mappings from taxonomytaxonomy
+  3. Creates new family-genus mappings in taxonomytaxonomy
+
+  Returns {:ok, count} on success where count is the number of genera moved.
+  """
+  @spec move_genera([integer()], integer(), integer()) :: {:ok, integer()} | {:error, term()}
+  def move_genera([_ | _] = genus_ids, old_family_id, new_family_id) do
+    Repo.transaction(fn ->
+      # Update parent_id on all genera
+      {updated_count, _} =
+        from(t in Taxonomy,
+          where: t.id in ^genus_ids and t.type == "genus"
+        )
+        |> Repo.update_all(set: [parent_id: new_family_id])
+
+      # Delete old family-genus mappings
+      from(tt in "taxonomytaxonomy",
+        where: tt.child_id in ^genus_ids and tt.taxonomy_id == ^old_family_id
+      )
+      |> Repo.delete_all()
+
+      # Create new family-genus mappings
+      new_mappings =
+        Enum.map(genus_ids, fn genus_id ->
+          %{taxonomy_id: new_family_id, child_id: genus_id}
+        end)
+
+      Repo.insert_all("taxonomytaxonomy", new_mappings, on_conflict: :nothing)
+
+      updated_count
+    end)
+    |> case do
+      {:ok, count} ->
+        Phoenix.PubSub.broadcast(Gallformers.PubSub, "taxonomy", :genera_moved)
+        {:ok, count}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  def move_genera([], _old_family_id, _new_family_id), do: {:error, :no_genera_selected}
+
+  @doc """
   Subscribes to taxonomy changes.
   """
   @spec subscribe() :: :ok | {:error, term()}

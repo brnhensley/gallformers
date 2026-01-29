@@ -650,7 +650,7 @@ defmodule GallformersWeb.Admin.ImagesLive do
       })
 
       # Generate size variants in the background
-      Task.start(fn ->
+      Gallformers.Async.run(fn ->
         # Wait for CDN to propagate
         Process.sleep(5000)
         Images.generate_size_variants(path)
