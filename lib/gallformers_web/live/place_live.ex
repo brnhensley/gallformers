@@ -9,6 +9,7 @@ defmodule GallformersWeb.PlaceLive do
   alias Phoenix.LiveView.JS
 
   @page_size 25
+  @valid_sort_columns ~w(name aliases)
 
   @impl true
   def mount(%{"id" => id}, _session, socket) do
@@ -68,6 +69,8 @@ defmodule GallformersWeb.PlaceLive do
            search_query: "",
            current_page: 1,
            page_size: @page_size,
+           sort_by: :name,
+           sort_dir: :asc,
            error: nil
          )}
     end
@@ -94,21 +97,55 @@ defmodule GallformersWeb.PlaceLive do
     {:noreply, assign(socket, current_page: page)}
   end
 
+  @impl true
+  def handle_event("sort", %{"column" => column}, socket) when column in @valid_sort_columns do
+    column_atom = String.to_existing_atom(column)
+
+    {new_sort_by, new_sort_dir} =
+      if socket.assigns.sort_by == column_atom do
+        new_dir = if socket.assigns.sort_dir == :asc, do: :desc, else: :asc
+        {column_atom, new_dir}
+      else
+        {column_atom, :asc}
+      end
+
+    {:noreply,
+     socket
+     |> assign(:sort_by, new_sort_by)
+     |> assign(:sort_dir, new_sort_dir)
+     |> assign(:current_page, 1)}
+  end
+
   defp filtered_hosts(hosts, ""), do: hosts
 
   defp filtered_hosts(hosts, query) do
     query_down = String.downcase(query)
 
     Enum.filter(hosts, fn host ->
-      String.contains?(String.downcase(host.name), query_down)
+      name_matches = String.contains?(String.downcase(host.name), query_down)
+      aliases_match = host.aliases && String.contains?(String.downcase(host.aliases), query_down)
+      name_matches or aliases_match
     end)
   end
 
-  defp paginated_hosts(hosts, current_page, page_size) do
+  defp paginated_hosts(hosts, current_page, page_size, sort_by, sort_dir) do
     hosts
+    |> sorted_hosts(sort_by, sort_dir)
     |> Enum.drop((current_page - 1) * page_size)
     |> Enum.take(page_size)
   end
+
+  defp sorted_hosts(hosts, sort_by, sort_dir) do
+    sorted = Enum.sort_by(hosts, &sort_key(&1, sort_by))
+    if sort_dir == :desc, do: Enum.reverse(sorted), else: sorted
+  end
+
+  defp sort_key(host, :name), do: normalize_for_sort(host.name)
+  defp sort_key(host, :aliases), do: normalize_for_sort(host.aliases)
+
+  defp normalize_for_sort(nil), do: ""
+  defp normalize_for_sort(value) when is_binary(value), do: String.downcase(value)
+  defp normalize_for_sort(value), do: value
 
   defp total_pages(hosts, page_size) do
     max(1, ceil(length(hosts) / page_size))
@@ -169,11 +206,29 @@ defmodule GallformersWeb.PlaceLive do
                   <table class="gf-table">
                     <thead>
                       <tr>
-                        <th>Species Name</th>
+                        <th class="sortable cursor-pointer" phx-click="sort" phx-value-column="name">
+                          Species Name
+                          <span :if={@sort_by == :name} class="ml-1">
+                            {if @sort_dir == :asc, do: "↑", else: "↓"}
+                          </span>
+                        </th>
+                        <th
+                          class="sortable cursor-pointer"
+                          phx-click="sort"
+                          phx-value-column="aliases"
+                        >
+                          Aliases
+                          <span :if={@sort_by == :aliases} class="ml-1">
+                            {if @sort_dir == :asc, do: "↑", else: "↓"}
+                          </span>
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
-                      <tr :for={host <- paginated_hosts(filtered, @current_page, @page_size)}>
+                      <tr :for={
+                        host <-
+                          paginated_hosts(filtered, @current_page, @page_size, @sort_by, @sort_dir)
+                      }>
                         <td>
                           <.link
                             href={"/host/#{host.id}"}
@@ -182,6 +237,7 @@ defmodule GallformersWeb.PlaceLive do
                             <em>{host.name}</em>
                           </.link>
                         </td>
+                        <td class="text-gray-600">{host.aliases}</td>
                       </tr>
                     </tbody>
                   </table>

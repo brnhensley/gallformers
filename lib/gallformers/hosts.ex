@@ -145,17 +145,23 @@ defmodule Gallformers.Hosts do
   end
 
   @doc """
-  Gets hosts for a Place.
+  Gets hosts for a Place with their aliases.
   """
   def get_hosts_for_place(place_id) do
     from(s in Species,
       join: sp in "speciesplace",
       on: sp.species_id == s.id,
+      left_join: als in "aliasspecies",
+      on: als.species_id == s.id,
+      left_join: a in "alias",
+      on: a.id == als.alias_id,
       where: sp.place_id == ^place_id and s.taxoncode == "plant",
+      group_by: [s.id, s.name],
       order_by: s.name,
       select: %{
         id: s.id,
-        name: s.name
+        name: s.name,
+        aliases: fragment("GROUP_CONCAT(?, ', ')", a.name)
       }
     )
     |> Repo.all()
