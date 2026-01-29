@@ -35,6 +35,7 @@ defmodule GallformersWeb.Admin.DashboardLive do
           href="/admin/sources"
         />
         <.stat_card title="Images" value={@stats.image_count} icon="ph-image" href="/admin/images" />
+        <.stat_card title="Analytics" icon="ph-chart-line" href="/admin/analytics" />
       </div>
 
       <%!-- Welcome --%>
@@ -110,6 +111,11 @@ defmodule GallformersWeb.Admin.DashboardLive do
   # Private Components
   # =================================================================
 
+  attr :title, :string, required: true
+  attr :icon, :string, required: true
+  attr :href, :string, required: true
+  attr :value, :integer, default: nil
+
   defp stat_card(assigns) do
     ~H"""
     <a
@@ -125,7 +131,8 @@ defmodule GallformersWeb.Admin.DashboardLive do
         <div class="ml-3 w-0 flex-1">
           <dl>
             <dt class="text-xs font-medium text-gray-500 truncate">{@title}</dt>
-            <dd class="text-xl font-semibold text-gray-900">{format_number(@value)}</dd>
+            <dd :if={@value} class="text-xl font-semibold text-gray-900">{format_number(@value)}</dd>
+            <dd :if={is_nil(@value)} class="text-sm font-medium text-gf-maroon">View →</dd>
           </dl>
         </div>
       </div>
