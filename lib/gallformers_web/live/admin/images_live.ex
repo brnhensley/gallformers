@@ -134,10 +134,12 @@ defmodule GallformersWeb.Admin.ImagesLive do
                     type="button"
                     phx-click="toggle_view"
                     phx-value-view="grid"
+                    disabled={@copy_mode != nil}
                     class={[
                       "px-3 py-1.5 text-sm",
                       @view_mode == :grid && "bg-gf-maroon text-white",
-                      @view_mode != :grid && "bg-white text-gray-600 hover:bg-gray-50"
+                      @view_mode != :grid && !@copy_mode && "bg-white text-gray-600 hover:bg-gray-50",
+                      @copy_mode && @view_mode != :grid && "bg-gray-100 text-gray-400 cursor-not-allowed"
                     ]}
                     title="Grid view"
                   >
@@ -147,10 +149,12 @@ defmodule GallformersWeb.Admin.ImagesLive do
                     type="button"
                     phx-click="toggle_view"
                     phx-value-view="table"
+                    disabled={@copy_mode != nil}
                     class={[
                       "px-3 py-1.5 text-sm border-l border-gray-300",
                       @view_mode == :table && "bg-gf-maroon text-white",
-                      @view_mode != :table && "bg-white text-gray-600 hover:bg-gray-50"
+                      @view_mode != :table && !@copy_mode && "bg-white text-gray-600 hover:bg-gray-50",
+                      @copy_mode && @view_mode != :table && "bg-gray-100 text-gray-400 cursor-not-allowed"
                     ]}
                     title="Table view"
                   >
@@ -258,6 +262,14 @@ defmodule GallformersWeb.Admin.ImagesLive do
                 <table class="min-w-full divide-y divide-gray-200">
                   <thead class="bg-gray-50">
                     <tr>
+                      <th :if={@copy_mode} class="px-3 py-3 text-center w-[50px]">
+                        <input
+                          type="checkbox"
+                          phx-click="select_all_targets"
+                          checked={all_targets_selected?(@copy_mode, @images)}
+                          class="rounded border-gray-300 text-gf-maroon focus:ring-gf-maroon"
+                        />
+                      </th>
                       <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[120px]">
                         Image
                       </th>
@@ -291,7 +303,30 @@ defmodule GallformersWeb.Admin.ImagesLive do
                     </tr>
                   </thead>
                   <tbody class="bg-white divide-y divide-gray-200">
-                    <tr :for={image <- @images} class="hover:bg-gray-50">
+                    <tr
+                      :for={image <- @images}
+                      class={[
+                        "hover:bg-gray-50",
+                        @copy_mode && image.id == @copy_mode.source_id && "bg-canary",
+                        @copy_mode && MapSet.member?(@copy_mode.selected_ids, image.id) && "bg-blue-50"
+                      ]}
+                    >
+                      <%!-- Checkbox column (copy mode only) --%>
+                      <td :if={@copy_mode} class="px-3 py-2 text-center">
+                        <%= if image.id == @copy_mode.source_id do %>
+                          <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gf-maroon text-white">
+                            SRC
+                          </span>
+                        <% else %>
+                          <input
+                            type="checkbox"
+                            phx-click="toggle_copy_target"
+                            phx-value-id={image.id}
+                            checked={MapSet.member?(@copy_mode.selected_ids, image.id)}
+                            class="rounded border-gray-300 text-gf-maroon focus:ring-gf-maroon"
+                          />
+                        <% end %>
+                      </td>
                       <td class="px-3 py-2">
                         <img
                           src={Image.sized_url(image.path, :small)}
@@ -372,26 +407,61 @@ defmodule GallformersWeb.Admin.ImagesLive do
                         <% end %>
                       </td>
                       <td class="px-3 py-2 text-right">
-                        <div class="flex justify-end gap-2">
-                          <button
-                            type="button"
-                            phx-click="edit_image"
-                            phx-value-id={image.id}
-                            class="p-1 text-gray-500 hover:text-gf-maroon"
-                            title="Edit"
-                          >
-                            <.icon name="ph-pencil" class="h-4 w-4" />
-                          </button>
-                          <button
-                            type="button"
-                            phx-click="confirm_delete"
-                            phx-value-id={image.id}
-                            class="p-1 text-gray-500 hover:text-red-600"
-                            title="Delete"
-                          >
-                            <.icon name="ph-trash" class="h-4 w-4" />
-                          </button>
-                        </div>
+                        <%= if @copy_mode && image.id == @copy_mode.source_id do %>
+                          <%!-- Source row: Apply/Cancel buttons --%>
+                          <div class="flex justify-end gap-2">
+                            <button
+                              type="button"
+                              phx-click="confirm_copy"
+                              disabled={MapSet.size(@copy_mode.selected_ids) == 0}
+                              class={[
+                                "px-3 py-1 text-sm rounded",
+                                MapSet.size(@copy_mode.selected_ids) > 0 && "bg-gf-maroon text-white hover:bg-gf-maroon/90",
+                                MapSet.size(@copy_mode.selected_ids) == 0 && "bg-gray-200 text-gray-400 cursor-not-allowed"
+                              ]}
+                            >
+                              Apply ({MapSet.size(@copy_mode.selected_ids)})
+                            </button>
+                            <button
+                              type="button"
+                              phx-click="cancel_copy"
+                              class="px-3 py-1 text-sm rounded border border-gray-300 text-gray-600 hover:bg-gray-50"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        <% else %>
+                          <%!-- Normal row actions (hidden during copy mode for non-source rows) --%>
+                          <div :if={!@copy_mode} class="flex justify-end gap-2">
+                            <button
+                              type="button"
+                              phx-click="start_copy"
+                              phx-value-id={image.id}
+                              class="p-1 text-gray-500 hover:text-gf-maroon"
+                              title="Copy metadata from this image"
+                            >
+                              <.icon name="ph-copy" class="h-4 w-4" />
+                            </button>
+                            <button
+                              type="button"
+                              phx-click="edit_image"
+                              phx-value-id={image.id}
+                              class="p-1 text-gray-500 hover:text-gf-maroon"
+                              title="Edit"
+                            >
+                              <.icon name="ph-pencil" class="h-4 w-4" />
+                            </button>
+                            <button
+                              type="button"
+                              phx-click="confirm_delete"
+                              phx-value-id={image.id}
+                              class="p-1 text-gray-500 hover:text-red-600"
+                              title="Delete"
+                            >
+                              <.icon name="ph-trash" class="h-4 w-4" />
+                            </button>
+                          </div>
+                        <% end %>
                       </td>
                     </tr>
                   </tbody>
@@ -1236,5 +1306,18 @@ defmodule GallformersWeb.Admin.ImagesLive do
       current.sourcelink != original.sourcelink ||
       current.caption != original.caption ||
       current.source_id != original.source_id
+  end
+
+  # Helper to check if all copy targets are selected
+  defp all_targets_selected?(nil, _images), do: false
+
+  defp all_targets_selected?(copy_mode, images) do
+    target_ids =
+      images
+      |> Enum.reject(&(&1.id == copy_mode.source_id))
+      |> Enum.map(& &1.id)
+      |> MapSet.new()
+
+    MapSet.equal?(copy_mode.selected_ids, target_ids) && MapSet.size(target_ids) > 0
   end
 end
