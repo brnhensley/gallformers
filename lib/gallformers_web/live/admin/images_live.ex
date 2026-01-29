@@ -43,6 +43,9 @@ defmodule GallformersWeb.Admin.ImagesLive do
       |> assign(:form_dirty, false)
       # View mode: :grid (default) or :table
       |> assign(:view_mode, :grid)
+      # Copy mode state: nil or %{source_id: id, selected_ids: MapSet.t()}
+      |> assign(:copy_mode, nil)
+      |> assign(:show_copy_confirm, false)
 
     {:ok, socket}
   end
@@ -788,8 +791,98 @@ defmodule GallformersWeb.Admin.ImagesLive do
 
   @impl true
   def handle_event("toggle_view", %{"view" => view}, socket) do
-    view_mode = if view == "table", do: :table, else: :grid
-    {:noreply, assign(socket, :view_mode, view_mode)}
+    # Don't allow view toggle during copy mode
+    if socket.assigns.copy_mode do
+      {:noreply, socket}
+    else
+      view_mode = if view == "table", do: :table, else: :grid
+      {:noreply, assign(socket, :view_mode, view_mode)}
+    end
+  end
+
+  @impl true
+  def handle_event("start_copy", %{"id" => id}, socket) do
+    source_id = String.to_integer(id)
+    copy_mode = %{source_id: source_id, selected_ids: MapSet.new()}
+    {:noreply, assign(socket, :copy_mode, copy_mode)}
+  end
+
+  @impl true
+  def handle_event("cancel_copy", _params, socket) do
+    {:noreply, assign(socket, :copy_mode, nil)}
+  end
+
+  @impl true
+  def handle_event("toggle_copy_target", %{"id" => id}, socket) do
+    image_id = String.to_integer(id)
+    copy_mode = socket.assigns.copy_mode
+
+    selected_ids =
+      if MapSet.member?(copy_mode.selected_ids, image_id) do
+        MapSet.delete(copy_mode.selected_ids, image_id)
+      else
+        MapSet.put(copy_mode.selected_ids, image_id)
+      end
+
+    {:noreply, assign(socket, :copy_mode, %{copy_mode | selected_ids: selected_ids})}
+  end
+
+  @impl true
+  def handle_event("select_all_targets", _params, socket) do
+    copy_mode = socket.assigns.copy_mode
+
+    all_target_ids =
+      socket.assigns.images
+      |> Enum.reject(&(&1.id == copy_mode.source_id))
+      |> Enum.map(& &1.id)
+      |> MapSet.new()
+
+    # Toggle: if all selected, deselect all; otherwise select all
+    selected_ids =
+      if MapSet.equal?(copy_mode.selected_ids, all_target_ids) do
+        MapSet.new()
+      else
+        all_target_ids
+      end
+
+    {:noreply, assign(socket, :copy_mode, %{copy_mode | selected_ids: selected_ids})}
+  end
+
+  @impl true
+  def handle_event("confirm_copy", _params, socket) do
+    # Show confirmation modal by setting a flag
+    {:noreply, assign(socket, :show_copy_confirm, true)}
+  end
+
+  @impl true
+  def handle_event("cancel_copy_confirm", _params, socket) do
+    {:noreply, assign(socket, :show_copy_confirm, false)}
+  end
+
+  @impl true
+  def handle_event("execute_copy", _params, socket) do
+    copy_mode = socket.assigns.copy_mode
+    target_ids = MapSet.to_list(copy_mode.selected_ids)
+
+    updated_by =
+      socket.assigns.current_user.name || socket.assigns.current_user.email || "admin"
+
+    case Images.copy_metadata(copy_mode.source_id, target_ids, updated_by) do
+      {:ok, count} ->
+        images = Images.list_images_for_species(socket.assigns.selected_species.id)
+
+        socket =
+          socket
+          |> assign(:images, images)
+          |> assign(:copy_mode, nil)
+          |> assign(:show_copy_confirm, false)
+          |> put_flash(:info, "Copied metadata to #{count} image(s)")
+
+        {:noreply, socket}
+
+      {:error, reason} ->
+        {:noreply, put_flash(socket, :error, "Failed to copy metadata: #{inspect(reason)}")}
+    end
   end
 
   # Handle presigned URL requests from JS hook
