@@ -11,6 +11,7 @@ defmodule GallformersWeb.Router do
     plug :protect_from_forgery
     plug :put_secure_browser_headers
     plug :fetch_current_user
+    plug GallformersWeb.Plugs.Analytics
   end
 
   pipeline :api do
@@ -131,7 +132,11 @@ defmodule GallformersWeb.Router do
   scope "/", GallformersWeb do
     pipe_through :browser
 
-    live_session :public, on_mount: [{GallformersWeb.Live.UserAuth, :fetch_current_user}] do
+    live_session :public,
+      on_mount: [
+        {GallformersWeb.Live.UserAuth, :fetch_current_user},
+        {GallformersWeb.Analytics.TrackPageView, :default}
+      ] do
       # Home
       live "/", HomeLive
 
