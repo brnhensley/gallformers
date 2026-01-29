@@ -61,7 +61,7 @@ defmodule GallformersWeb.GallLive do
          )}
 
       gall ->
-        hosts = Hosts.get_hosts_for_gall(gall_id)
+        hosts = Hosts.get_hosts_for_gall(gall_id) |> Enum.sort_by(& &1.host_name)
         images = Species.get_images_for_species(gall_id) |> format_images()
         sources = Sources.get_sources_for_species(gall_id)
         aliases = Species.get_aliases_for_species(gall_id)
@@ -69,6 +69,11 @@ defmodule GallformersWeb.GallLive do
         range = Hosts.get_places_for_gall(gall_id) |> MapSet.new()
         excluded_range = Hosts.get_excluded_places_for_gall(gall_id) |> MapSet.new()
         gall_filters = Gallformers.Species.get_gall_filter_values(gall.gall_id)
+        related_galls = Species.get_related_galls(gall)
+
+        # Separate common names from scientific synonyms
+        common_names = Enum.filter(aliases, &(&1.type == "common"))
+        scientific_aliases = Enum.reject(aliases, &(&1.type == "common"))
 
         # Check if Gallformers notes exist for this species
         gallformers_notes = Enum.find(sources, fn s -> s.id == @gallformers_notes_source_id end)
@@ -105,6 +110,9 @@ defmodule GallformersWeb.GallLive do
            taxonomy: taxonomy,
            range: range,
            excluded_range: excluded_range,
+           related_galls: related_galls,
+           common_names: common_names,
+           scientific_aliases: scientific_aliases,
            has_gallformers_notes: has_gallformers_notes,
            notes_alert_dismissed: false,
            aliases_page: 1,
@@ -381,7 +389,10 @@ defmodule GallformersWeb.GallLive do
                 </div>
 
                 <div class="md:w-64 lg:w-80 shrink-0">
-                  <div><strong>Possible Range:</strong></div>
+                  <div class="flex items-center gap-1">
+                    <strong>Possible Range:</strong>
+                    <.info_tip content="The gall's range is computed from the range of all hosts that the gall occurs on. In some cases we have evidence that the gall does not occur across the full range of the hosts and we will remove these places from the range. For undescribed species we will show the expected range based on hosts plus where the galls have been observed." />
+                  </div>
                   <.range_map
                     id="gall-range-map"
                     in_range={MapSet.to_list(@range)}
@@ -390,9 +401,16 @@ defmodule GallformersWeb.GallLive do
                 </div>
               </div>
 
-              <div :if={@gall.aliases && length(@gall.aliases) > 0} class="mt-4">
+              <div :if={length(@common_names) > 0} class="mt-4">
+                <p>
+                  <strong>Common Name(s):</strong>
+                  {Enum.map_join(@common_names, ", ", & &1.name)}
+                </p>
+              </div>
+
+              <div :if={length(@scientific_aliases) > 0} class="mt-4">
                 <h3 class="font-semibold text-gray-800 mb-2">
-                  Synonymy ({length(@gall.aliases)})
+                  Synonymy ({length(@scientific_aliases)})
                 </h3>
                 <div class="bg-white rounded border border-gray-200 overflow-hidden">
                   <table class="gf-table gf-table-compact">
@@ -405,7 +423,7 @@ defmodule GallformersWeb.GallLive do
                     </thead>
                     <tbody>
                       <tr :for={
-                        a <- paginated_aliases(@gall.aliases, @aliases_page, @aliases_page_size)
+                        a <- paginated_aliases(@scientific_aliases, @aliases_page, @aliases_page_size)
                       }>
                         <td><em>{a.name}</em></td>
                         <td class="text-gray-600">{a.type || "—"}</td>
@@ -415,14 +433,27 @@ defmodule GallformersWeb.GallLive do
                   </table>
                 </div>
                 <.pagination
-                  :if={aliases_total_pages(@gall.aliases, @aliases_page_size) > 1}
+                  :if={aliases_total_pages(@scientific_aliases, @aliases_page_size) > 1}
                   page={@aliases_page}
-                  total_pages={aliases_total_pages(@gall.aliases, @aliases_page_size)}
-                  total_items={length(@gall.aliases)}
+                  total_pages={aliases_total_pages(@scientific_aliases, @aliases_page_size)}
+                  total_items={length(@scientific_aliases)}
                   page_size={@aliases_page_size}
                   on_page_change={fn page -> JS.push("aliases_page", value: %{page: page}) end}
                   class="mt-4"
                 />
+              </div>
+
+              <div :if={length(@related_galls) > 0} class="mt-4">
+                <h3 class="font-semibold text-gray-800 mb-2">
+                  Related Galls ({length(@related_galls)})
+                </h3>
+                <ul class="list-disc list-inside space-y-1">
+                  <li :for={related <- @related_galls}>
+                    <.link href={"/gall/#{related.id}"} class="hover:underline">
+                      <em>{related.name}</em>
+                    </.link>
+                  </li>
+                </ul>
               </div>
             </div>
 

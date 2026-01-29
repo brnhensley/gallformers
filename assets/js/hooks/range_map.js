@@ -25,10 +25,9 @@ const projection = geoConicEqualArea()
 
 const path = geoPath(projection)
 
-// Color scheme matching v2_old design
+// Color scheme - V1 style: only show positive range, no excluded regions
 const COLORS = {
   inRange: '#228B22',      // ForestGreen
-  excluded: '#F08080',     // LightCoral
   default: '#FFFFFF',      // White
   stroke: '#333333',       // Dark gray stroke
   hoverStroke: '#000000'   // Black stroke on hover
@@ -81,8 +80,8 @@ const RangeMap = {
   },
 
   getFill(code) {
-    if (this.excludedRange.has(code)) return COLORS.excluded
-    if (this.inRange.has(code)) return COLORS.inRange
+    // V1 behavior: only show positive range (green), excluded regions are not highlighted
+    if (this.inRange.has(code) && !this.excludedRange.has(code)) return COLORS.inRange
     return COLORS.default
   },
 

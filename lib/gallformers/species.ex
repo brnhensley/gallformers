@@ -1169,6 +1169,37 @@ defmodule Gallformers.Species do
   end
 
   @doc """
+  Returns related galls - other galls that share the same genus and species name prefix.
+
+  For a gall like "Callirhytis seminator leaf gall", this finds other galls starting with
+  "Callirhytis seminator " (note the trailing space to ensure it's not a prefix match
+  of a different species like "Callirhytis seminatoris").
+
+  Returns a list of maps with :id and :name keys, excluding the passed-in gall.
+  """
+  @spec get_related_galls(map()) :: [map()]
+  def get_related_galls(gall) when is_map(gall) do
+    name = gall.name || ""
+    name_parts = String.split(name, " ", parts: 3)
+
+    if length(name_parts) >= 2 do
+      # Match on "Genus species " with trailing space to avoid false positives
+      prefix = "#{Enum.at(name_parts, 0)} #{Enum.at(name_parts, 1)} "
+
+      from(s in Species,
+        where: fragment("? LIKE ?", s.name, ^"#{prefix}%"),
+        where: s.id != ^gall.id,
+        where: s.taxoncode == "gall",
+        order_by: s.name,
+        select: %{id: s.id, name: s.name}
+      )
+      |> Repo.all()
+    else
+      []
+    end
+  end
+
+  @doc """
   Creates a gall record for a species.
 
   This creates both the gall record and the gallspecies join record.

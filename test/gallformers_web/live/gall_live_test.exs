@@ -132,7 +132,8 @@ defmodule GallformersWeb.GallLiveTest do
       if gall_with_alias do
         {:ok, _view, html} = live(conn, ~p"/gall/#{gall_with_alias.id}")
 
-        assert html =~ "Synonymy" or html =~ "alias"
+        # Common names are displayed separately from Synonymy
+        assert html =~ "Synonymy" or html =~ "Common Name"
       end
     end
   end
