@@ -11,39 +11,50 @@ defmodule Gallformers.Explore do
   alias Gallformers.Species.{Gall, GallSpecies, Species}
   alias Gallformers.Taxonomy.Taxonomy
 
+  @type key_style :: :short | :long
+
   @doc """
   Returns a hierarchical tree of gall species organized by Family → Genus → Species.
 
   Each node has:
   - key: unique identifier (string)
   - label: display text
-  - url: navigation URL (only for species leaves)
+  - url: navigation URL
   - nodes: child nodes (for families and genera)
+
+  ## Options
+  - `:key_style` - `:short` for `f-123` format (default), `:long` for `family-123` format
   """
-  @spec get_galls_tree() :: [map()]
-  def get_galls_tree do
-    get_species_tree("gall", false)
+  @spec get_galls_tree(keyword()) :: [map()]
+  def get_galls_tree(opts \\ []) do
+    get_species_tree("gall", false, opts)
   end
 
   @doc """
   Returns a hierarchical tree of undescribed gall species.
+
+  ## Options
+  - `:key_style` - `:short` for `f-123` format (default), `:long` for `family-123` format
   """
-  @spec get_undescribed_tree() :: [map()]
-  def get_undescribed_tree do
-    get_species_tree("gall", true)
+  @spec get_undescribed_tree(keyword()) :: [map()]
+  def get_undescribed_tree(opts \\ []) do
+    get_species_tree("gall", true, opts)
   end
 
   @doc """
   Returns a hierarchical tree of host species organized by Family → Genus → Species.
+
+  ## Options
+  - `:key_style` - `:short` for `f-123` format (default), `:long` for `family-123` format
   """
-  @spec get_hosts_tree() :: [map()]
-  def get_hosts_tree do
-    get_species_tree("plant", false)
+  @spec get_hosts_tree(keyword()) :: [map()]
+  def get_hosts_tree(opts \\ []) do
+    get_species_tree("plant", false, opts)
   end
 
-  defp get_species_tree(taxoncode, undescribed_only) do
+  defp get_species_tree(taxoncode, undescribed_only, opts) do
     rows = fetch_tree_data(taxoncode, undescribed_only)
-    build_tree(rows, taxoncode)
+    build_tree(rows, taxoncode, opts)
   end
 
   defp fetch_tree_data("gall", undescribed_only) do
@@ -109,8 +120,9 @@ defmodule Gallformers.Explore do
     |> Repo.all()
   end
 
-  defp build_tree(rows, taxoncode) do
+  defp build_tree(rows, taxoncode, opts) do
     url_prefix = if taxoncode == "plant", do: "/host/", else: "/gall/"
+    key_style = Keyword.get(opts, :key_style, :short)
 
     # Group by family, then genus, then species
     # Using maps to track unique entries and maintain order
@@ -183,40 +195,45 @@ defmodule Gallformers.Explore do
     # Convert to tree nodes
     Enum.map(families_order, fn family_key ->
       family = Map.get(families_map, family_key)
-      genus_nodes = build_genus_nodes(family, url_prefix)
+      genus_nodes = build_genus_nodes(family, url_prefix, key_style)
 
       %{
-        key: "f-#{family.id}",
+        key: format_key("family", "f", family.id, key_style),
         label: format_label(family.name, family.description),
+        url: "/family/#{family.id}",
         nodes: genus_nodes
       }
     end)
   end
 
-  defp build_genus_nodes(family, url_prefix) do
+  defp build_genus_nodes(family, url_prefix, key_style) do
     Enum.map(family.genera_order, fn genus_key ->
       genus = Map.get(family.genera, genus_key)
-      species_nodes = build_species_nodes(genus, url_prefix)
+      species_nodes = build_species_nodes(genus, url_prefix, key_style)
 
       %{
-        key: "g-#{genus.id}",
+        key: format_key("genus", "g", genus.id, key_style),
         label: format_label(genus.name, genus.description),
+        url: "/genus/#{genus.id}",
         nodes: species_nodes
       }
     end)
   end
 
-  defp build_species_nodes(genus, url_prefix) do
+  defp build_species_nodes(genus, url_prefix, key_style) do
     Enum.map(genus.species_order, fn species_key ->
       species = Map.get(genus.species, species_key)
 
       %{
-        key: "s-#{species.id}",
+        key: format_key("species", "s", species.id, key_style),
         label: species.name,
         url: "#{url_prefix}#{species.id}"
       }
     end)
   end
+
+  defp format_key(long, _short, id, :long), do: "#{long}-#{id}"
+  defp format_key(_long, short, id, :short), do: "#{short}-#{id}"
 
   defp format_label(name, nil), do: name
   defp format_label(name, ""), do: name

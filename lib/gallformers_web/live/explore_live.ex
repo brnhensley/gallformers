@@ -43,8 +43,15 @@ defmodule GallformersWeb.ExploreLive do
   end
 
   @impl true
+  def handle_params(params, _uri, socket) do
+    tab = params["tab"]
+    active_tab = if tab in @tabs, do: tab, else: socket.assigns.active_tab
+    {:noreply, assign(socket, active_tab: active_tab)}
+  end
+
+  @impl true
   def handle_event("switch_tab", %{"tab" => tab}, socket) when tab in @tabs do
-    {:noreply, assign(socket, active_tab: tab)}
+    {:noreply, push_patch(socket, to: ~p"/explore?tab=#{tab}")}
   end
 
   @impl true
@@ -329,28 +336,38 @@ defmodule GallformersWeb.ExploreLive do
       <li :for={node <- @nodes} class="py-1">
         <%= if Map.has_key?(node, :nodes) and node.nodes != [] do %>
           <%!-- Branch node (family or genus) --%>
-          <button
-            phx-click="toggle_node"
-            phx-value-key={node.key}
-            phx-value-tab={@tab}
-            class="flex items-center gap-1 text-left hover:text-gf-maroon focus:outline-none focus:text-gf-maroon"
-          >
-            <span class={[
-              "inline-block w-4 h-4 transition-transform",
-              if(MapSet.member?(@expanded, node.key), do: "rotate-90", else: "")
-            ]}>
-              <.icon name="ph-caret-right" class="w-4 h-4" />
-            </span>
-            <span class={[
-              "font-medium",
-              if(String.starts_with?(node.key, "f-"), do: "text-gf-maroon", else: "")
-            ]}>
-              {node.label}
-            </span>
-            <span class="text-xs text-gray-400 ml-1">
-              ({length(node.nodes)})
-            </span>
-          </button>
+          <div class="flex items-center gap-1">
+            <button
+              phx-click="toggle_node"
+              phx-value-key={node.key}
+              phx-value-tab={@tab}
+              class="flex items-center gap-1 text-left hover:text-gf-maroon focus:outline-none focus:text-gf-maroon"
+            >
+              <span class={[
+                "inline-block w-4 h-4 transition-transform",
+                if(MapSet.member?(@expanded, node.key), do: "rotate-90", else: "")
+              ]}>
+                <.icon name="ph-caret-right" class="w-4 h-4" />
+              </span>
+              <span class={[
+                "font-medium",
+                if(String.starts_with?(node.key, "f-"), do: "text-gf-maroon", else: "")
+              ]}>
+                {node.label}
+              </span>
+              <span class="text-xs text-gray-400 ml-1">
+                ({length(node.nodes)})
+              </span>
+            </button>
+            <.link
+              :if={node[:url]}
+              href={node.url}
+              class="text-gray-400 hover:text-gf-maroon"
+              title={"View #{node.label} details"}
+            >
+              <.icon name="ph-arrow-square-out" class="w-4 h-4" />
+            </.link>
+          </div>
           <.tree_menu
             :if={MapSet.member?(@expanded, node.key)}
             nodes={node.nodes}
