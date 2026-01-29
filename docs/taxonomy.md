@@ -69,11 +69,11 @@ The system has special handling for unclassified/undescribed species:
 - Should not be editable (name is fixed)
 
 ### Unknown Genera
-- Each Family should have an "Unknown" Genus
+- Each Family has an "Unknown" Genus (auto-created when family is created)
 - Used when a species' family is known but genus is not
 - The Unknown Family contains only its Unknown Genus
 - Unknown genera should not be editable
-- V2 should auto-create Unknown genera when Families are created
+- When creating undescribed species, the system uses `find_or_create_unknown_genus` to ensure only one Unknown genus exists per family
 
 ### Unknown Genus Display Filtering
 
@@ -168,13 +168,15 @@ The admin UI should present these as separate views or clearly distinguish betwe
 
 | Feature | V1 | V2 Status |
 |---------|-----|-----------|
-| Family CRUD | Yes | Partial (needs taxoncode fix) |
+| Family CRUD | Yes | Yes (family type select implemented) |
 | Genus CRUD | Yes | Yes |
-| Genus move | Yes | **Missing** |
-| Section CRUD | Yes | **Missing** (no Section admin page) |
-| Species-Section assignment | Yes | **Missing** |
-| Unknown auto-creation | Manual | **Planned** |
-| Genus rename with species update | Yes | Yes (added recently) |
+| Genus move | Yes | Yes |
+| Section CRUD | Yes | Yes |
+| Species-Section assignment | Yes | Yes (via Section admin page) |
+| Unknown genus auto-creation | Manual | Yes (auto-creates on family creation) |
+| Unknown genus backfill | N/A | Yes (migration backfilled all families) |
+| Genus rename with species update | Yes | Yes |
+| Unknown genus filtering | No | **Planned** (gallformers-semz.3) |
 
 ## Future Considerations
 

@@ -149,4 +149,97 @@ defmodule Gallformers.TaxonomyTest do
       assert updated_family.name == "NewFamilyName"
     end
   end
+
+  describe "Unknown genus handling" do
+    test "creating a family auto-creates an Unknown genus" do
+      {:ok, family} =
+        Taxonomy.create_taxonomy(%{
+          name: "TestAutoUnknownFamily",
+          type: "family",
+          description: "Wasp"
+        })
+
+      # Verify Unknown genus was auto-created
+      unknown_genus =
+        Repo.one(
+          from(t in Taxonomy.Taxonomy,
+            where: t.name == "Unknown" and t.type == "genus" and t.parent_id == ^family.id
+          )
+        )
+
+      assert unknown_genus != nil
+      assert unknown_genus.description == "Placeholder genus for undescribed species"
+    end
+
+    test "find_or_create_unknown_genus reuses existing Unknown genus" do
+      {:ok, family} =
+        Taxonomy.create_taxonomy(%{
+          name: "TestReuseUnknownFamily",
+          type: "family",
+          description: "Mite"
+        })
+
+      # Family creation already created an Unknown genus
+      {:ok, unknown1} = Taxonomy.find_or_create_unknown_genus(family.id)
+      {:ok, unknown2} = Taxonomy.find_or_create_unknown_genus(family.id)
+
+      # Should return the same genus, not create a new one
+      assert unknown1.id == unknown2.id
+    end
+
+    test "link_species_taxonomy with Unknown genus uses find_or_create" do
+      {:ok, family} =
+        Taxonomy.create_taxonomy(%{
+          name: "TestLinkUnknownFamily",
+          type: "family",
+          description: "Fly"
+        })
+
+      # Get the auto-created Unknown genus
+      {:ok, unknown_genus} = Taxonomy.find_or_create_unknown_genus(family.id)
+
+      # Create two species
+      {:ok, species1} =
+        Repo.insert(%Species{
+          name: "Unknown sp. 1",
+          taxoncode: "gall",
+          datacomplete: false
+        })
+
+      {:ok, species2} =
+        Repo.insert(%Species{
+          name: "Unknown sp. 2",
+          taxoncode: "gall",
+          datacomplete: false
+        })
+
+      # Link both to Unknown genus (simulating undescribed gall creation)
+      taxonomy = %{genus: "Unknown", genus_id: nil}
+      :ok = Taxonomy.link_species_taxonomy(species1.id, taxonomy, true, family.id)
+      :ok = Taxonomy.link_species_taxonomy(species2.id, taxonomy, true, family.id)
+
+      # Both should be linked to the same Unknown genus
+      links =
+        Repo.all(
+          from(st in "speciestaxonomy",
+            where: st.taxonomy_id == ^unknown_genus.id,
+            select: st.species_id
+          )
+        )
+
+      assert species1.id in links
+      assert species2.id in links
+
+      # Should not have created a second Unknown genus
+      unknown_count =
+        Repo.one(
+          from(t in Taxonomy.Taxonomy,
+            where: t.name == "Unknown" and t.type == "genus" and t.parent_id == ^family.id,
+            select: count()
+          )
+        )
+
+      assert unknown_count == 1
+    end
+  end
 end

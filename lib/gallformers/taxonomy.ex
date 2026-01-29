@@ -255,6 +255,13 @@ defmodule Gallformers.Taxonomy do
   Returns :ok on success.
   """
   @spec link_species_taxonomy(integer(), map() | nil, boolean(), integer() | nil) :: :ok
+  def link_species_taxonomy(species_id, %{genus: "Unknown"} = _taxonomy, true, family_id) do
+    # For Unknown genus, use find_or_create to avoid duplicates per family
+    {:ok, genus} = find_or_create_unknown_genus(family_id)
+    link_species_to_taxonomy(species_id, genus.id)
+    :ok
+  end
+
   def link_species_taxonomy(species_id, taxonomy, true = _genus_is_new, parent_id) do
     # parent_id can be either a section ID or family ID - genus is created under it
     {:ok, _genus} = create_genus_for_species(taxonomy.genus, parent_id, species_id)
@@ -585,13 +592,40 @@ defmodule Gallformers.Taxonomy do
 
   @doc """
   Creates a taxonomy entry.
+
+  When creating a family, automatically creates an "Unknown" genus placeholder
+  for undescribed species.
   """
   @spec create_taxonomy(map()) :: {:ok, Taxonomy.t()} | {:error, Ecto.Changeset.t()}
   def create_taxonomy(attrs \\ %{}) do
-    %Taxonomy{}
-    |> Taxonomy.changeset(attrs)
-    |> Repo.insert()
-    |> broadcast(:taxonomy_created)
+    type = attrs["type"] || attrs[:type]
+
+    if type == "family" do
+      create_family_with_unknown_genus(attrs)
+    else
+      %Taxonomy{}
+      |> Taxonomy.changeset(attrs)
+      |> Repo.insert()
+      |> broadcast(:taxonomy_created)
+    end
+  end
+
+  defp create_family_with_unknown_genus(attrs) do
+    Repo.transaction(fn ->
+      case %Taxonomy{} |> Taxonomy.changeset(attrs) |> Repo.insert() do
+        {:ok, family} ->
+          # Auto-create Unknown genus for the new family
+          {:ok, _unknown_genus} = find_or_create_unknown_genus(family.id)
+          family
+
+        {:error, changeset} ->
+          Repo.rollback(changeset)
+      end
+    end)
+    |> case do
+      {:ok, family} -> broadcast({:ok, family}, :taxonomy_created)
+      {:error, changeset} -> {:error, changeset}
+    end
   end
 
   @doc """
