@@ -101,7 +101,6 @@ defmodule GallformersWeb.HostLive do
            sort_dir: :asc,
            selected_source: nil,
            modal_font_size: :base,
-           show_synonymy: false,
            synonymy_page: 1,
            synonymy_page_size: @synonymy_page_size,
            error: nil
@@ -215,11 +214,6 @@ defmodule GallformersWeb.HostLive do
     current_idx = Enum.find_index(@font_sizes, &(&1 == current))
     new_size = Enum.at(@font_sizes, max(current_idx - 1, 0))
     {:noreply, assign(socket, modal_font_size: new_size)}
-  end
-
-  @impl true
-  def handle_event("toggle_synonymy", _params, socket) do
-    {:noreply, assign(socket, show_synonymy: !socket.assigns.show_synonymy)}
   end
 
   @impl true
@@ -387,22 +381,11 @@ defmodule GallformersWeb.HostLive do
 
               <%!-- Synonymy (Scientific Names) --%>
               <% synonyms = get_scientific_synonyms(@host.aliases) %>
-              <div :if={length(synonyms) > 0} class="mt-2">
-                <strong>Synonymy:</strong>
-                <span :if={!@show_synonymy} class="text-gray-700 block truncate max-w-xl">
-                  {synonyms |> Enum.map(& &1.name) |> Enum.join(", ")}
-                </span>
-                <button
-                  type="button"
-                  phx-click="toggle_synonymy"
-                  class="mt-1 px-2 py-1 text-sm border border-gray-300 rounded hover:bg-gray-100"
-                >
-                  {if @show_synonymy, do: "Hide", else: "Click to see all synonym details."}
-                </button>
-                <div
-                  :if={@show_synonymy}
-                  class="mt-2 bg-white rounded border border-gray-200 overflow-hidden"
-                >
+              <div :if={length(synonyms) > 0} class="mt-4">
+                <h3 class="font-semibold text-gray-800 mb-2">
+                  Synonymy ({length(synonyms)})
+                </h3>
+                <div class="bg-white rounded border border-gray-200 overflow-hidden">
                   <table class="gf-table gf-table-compact">
                     <thead>
                       <tr>
@@ -419,16 +402,16 @@ defmodule GallformersWeb.HostLive do
                       </tr>
                     </tbody>
                   </table>
-                  <.pagination
-                    :if={synonymy_total_pages(synonyms, @synonymy_page_size) > 1}
-                    page={@synonymy_page}
-                    total_pages={synonymy_total_pages(synonyms, @synonymy_page_size)}
-                    total_items={length(synonyms)}
-                    page_size={@synonymy_page_size}
-                    on_page_change={fn page -> JS.push("synonymy_page", value: %{page: page}) end}
-                    class="mt-2"
-                  />
                 </div>
+                <.pagination
+                  :if={synonymy_total_pages(synonyms, @synonymy_page_size) > 1}
+                  page={@synonymy_page}
+                  total_pages={synonymy_total_pages(synonyms, @synonymy_page_size)}
+                  total_items={length(synonyms)}
+                  page_size={@synonymy_page_size}
+                  on_page_change={fn page -> JS.push("synonymy_page", value: %{page: page}) end}
+                  class="mt-4"
+                />
               </div>
 
               <div class="pt-2">
