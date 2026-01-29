@@ -41,6 +41,8 @@ defmodule GallformersWeb.Admin.ImagesLive do
       |> assign(:selected_source, nil)
       # Dirty state tracking
       |> assign(:form_dirty, false)
+      # View mode: :grid (default) or :table
+      |> assign(:view_mode, :grid)
 
     {:ok, socket}
   end
@@ -603,6 +605,12 @@ defmodule GallformersWeb.Admin.ImagesLive do
       |> push_patch(to: ~p"/admin/images")
 
     {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("toggle_view", %{"view" => view}, socket) do
+    view_mode = if view == "table", do: :table, else: :grid
+    {:noreply, assign(socket, :view_mode, view_mode)}
   end
 
   # Handle presigned URL requests from JS hook
