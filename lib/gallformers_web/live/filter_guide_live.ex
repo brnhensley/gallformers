@@ -7,6 +7,7 @@ defmodule GallformersWeb.FilterGuideLive do
   use GallformersWeb, :live_view
 
   alias Gallformers.IDTool
+  alias Gallformers.Markdown
 
   @impl true
   def mount(_params, _session, socket) do
@@ -159,7 +160,9 @@ defmodule GallformersWeb.FilterGuideLive do
         </div>
       </dl>
       <%= if @note do %>
-        <p class="mt-3 text-sm text-gray-600 italic">Note: {@note}</p>
+        <p class="mt-3 text-sm text-gray-600 italic">
+          Note: {Phoenix.HTML.raw(Markdown.linkify_glossary_terms(@note))}
+        </p>
       <% end %>
     </section>
     """

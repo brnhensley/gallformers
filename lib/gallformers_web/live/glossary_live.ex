@@ -7,31 +7,40 @@ defmodule GallformersWeb.GlossaryLive do
   use GallformersWeb, :live_view
 
   alias Gallformers.Glossaries
+  alias Gallformers.Markdown
 
   @valid_sort_columns ~w(word definition)
 
   @impl true
   def mount(_params, _session, socket) do
-    entries = Glossaries.list_glossary()
-
     {:ok,
-     assign(socket,
+     socket
+     |> assign(
        page_title: "Glossary",
        page_description:
          "A glossary of gall-related terminology - definitions of terms commonly used in cecidiology and gall biology.",
        page_url: "/glossary",
        page_image: nil,
        page_json_ld: nil,
-       entries: entries,
        sort_by: :word,
-       sort_dir: :asc
-     )}
+       sort_dir: :asc,
+       search_query: ""
+     )
+     |> load_entries()}
   end
 
   @impl true
   def handle_params(params, _uri, socket) do
     # Handle hash navigation for direct term links
     {:noreply, assign(socket, highlight_term: params["term"])}
+  end
+
+  @impl true
+  def handle_event("search", %{"query" => query}, socket) do
+    {:noreply,
+     socket
+     |> assign(:search_query, query)
+     |> load_entries()}
   end
 
   @impl true
@@ -63,6 +72,16 @@ defmodule GallformersWeb.GlossaryLive do
     if sort_dir == :desc, do: Enum.reverse(sorted), else: sorted
   end
 
+  defp load_entries(socket) do
+    entries =
+      case socket.assigns.search_query do
+        "" -> Glossaries.list_glossary()
+        query -> Glossaries.search_glossary(query)
+      end
+
+    assign(socket, :entries, entries)
+  end
+
   defp format_refs(urls) when is_nil(urls), do: []
 
   defp format_refs(urls) do
@@ -84,6 +103,18 @@ defmodule GallformersWeb.GlossaryLive do
         <h1 class="text-3xl font-bold text-gf-maroon mb-6">
           A Glossary of Gall Related Terminology
         </h1>
+
+        <div class="mb-4 max-w-md">
+          <form phx-change="search" phx-submit="search" id="glossary-search-form">
+            <.search_input
+              id="glossary-search"
+              name="query"
+              value={@search_query}
+              placeholder="Filter glossary terms..."
+              phx-debounce="300"
+            />
+          </form>
+        </div>
 
         <%= if Enum.empty?(@entries) do %>
           <div class="bg-gray-50 rounded-lg p-8 text-center text-gray-600">
@@ -122,10 +153,20 @@ defmodule GallformersWeb.GlossaryLive do
               <tbody>
                 <tr :for={entry <- @sorted_entries} id={String.downcase(entry.word)}>
                   <td class="font-bold">
-                    {entry.word}
+                    <span class="inline-flex items-center gap-1">
+                      {entry.word}
+                      <.link
+                        :if={@current_user}
+                        navigate={~p"/admin/glossary/#{entry.id}"}
+                        class="text-gray-400 hover:text-gf-maroon"
+                        title="Edit"
+                      >
+                        <.icon name="ph-pencil-simple" class="size-4" />
+                      </.link>
+                    </span>
                   </td>
                   <td class="text-gray-600">
-                    {entry.definition}
+                    {Phoenix.HTML.raw(Markdown.linkify_glossary_terms(entry.definition || ""))}
                   </td>
                   <td class="text-gray-500">
                     <span :for={ref <- format_refs(entry.urls)}>
