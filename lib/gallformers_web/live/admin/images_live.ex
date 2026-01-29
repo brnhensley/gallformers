@@ -250,9 +250,149 @@ defmodule GallformersWeb.Admin.ImagesLive do
                 </div>
               </div>
 
-              <%!-- Table View (placeholder) --%>
-              <div :if={@view_mode == :table} class="text-gray-500 text-center py-8">
-                Table view coming soon...
+              <%!-- Table View --%>
+              <div :if={@view_mode == :table} class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                  <thead class="bg-gray-50">
+                    <tr>
+                      <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[120px]">
+                        Image
+                      </th>
+                      <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[60px]">
+                        Def
+                      </th>
+                      <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Creator
+                      </th>
+                      <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        License
+                      </th>
+                      <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Source
+                      </th>
+                      <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Source Link
+                      </th>
+                      <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        License Link
+                      </th>
+                      <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Attribution
+                      </th>
+                      <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Caption
+                      </th>
+                      <th class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-[100px]">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody class="bg-white divide-y divide-gray-200">
+                    <tr :for={image <- @images} class="hover:bg-gray-50">
+                      <td class="px-3 py-2">
+                        <img
+                          src={Image.sized_url(image.path, :small)}
+                          alt={image.caption || "Species image"}
+                          class="w-20 h-20 object-cover rounded"
+                        />
+                      </td>
+                      <td class="px-3 py-2 text-center">
+                        <span :if={image.sort_order == 0} class="text-gf-maroon">
+                          <.icon name="ph-check-circle-fill" class="h-5 w-5" />
+                        </span>
+                      </td>
+                      <td class="px-3 py-2 text-sm text-gray-900">
+                        <%= if image.creator && image.creator != "" do %>
+                          {image.creator}
+                        <% else %>
+                          <span class="text-gray-400">—</span>
+                        <% end %>
+                      </td>
+                      <td class="px-3 py-2 text-sm text-gray-900">
+                        <%= if image.license && image.license != "" do %>
+                          {image.license}
+                        <% else %>
+                          <span class="text-gray-400">—</span>
+                        <% end %>
+                      </td>
+                      <td class="px-3 py-2 text-sm text-gray-900">
+                        <%= if image.source do %>
+                          <.link navigate={~p"/source/#{image.source.id}"} class="text-gf-maroon hover:underline">
+                            {String.slice(image.source.title || "", 0, 30)}<%= if String.length(image.source.title || "") > 30, do: "..." %>
+                          </.link>
+                        <% else %>
+                          <span class="text-gray-400">—</span>
+                        <% end %>
+                      </td>
+                      <td class="px-3 py-2 text-sm">
+                        <%= if image.sourcelink && image.sourcelink != "" do %>
+                          <a
+                            href={image.sourcelink}
+                            target="_blank"
+                            rel="noopener"
+                            class="text-gf-maroon hover:underline"
+                            title={image.sourcelink}
+                          >
+                            {URI.parse(image.sourcelink).host || String.slice(image.sourcelink, 0, 20)}
+                          </a>
+                        <% else %>
+                          <span class="text-gray-400">—</span>
+                        <% end %>
+                      </td>
+                      <td class="px-3 py-2 text-sm">
+                        <%= if image.licenselink && image.licenselink != "" do %>
+                          <a
+                            href={image.licenselink}
+                            target="_blank"
+                            rel="noopener"
+                            class="text-gf-maroon hover:underline"
+                            title={image.licenselink}
+                          >
+                            {URI.parse(image.licenselink).host || String.slice(image.licenselink, 0, 20)}
+                          </a>
+                        <% else %>
+                          <span class="text-gray-400">—</span>
+                        <% end %>
+                      </td>
+                      <td class="px-3 py-2 text-sm text-gray-900 max-w-[150px] truncate" title={image.attribution}>
+                        <%= if image.attribution && image.attribution != "" do %>
+                          {image.attribution}
+                        <% else %>
+                          <span class="text-gray-400">—</span>
+                        <% end %>
+                      </td>
+                      <td class="px-3 py-2 text-sm text-gray-900 max-w-[150px] truncate" title={image.caption}>
+                        <%= if image.caption && image.caption != "" do %>
+                          {image.caption}
+                        <% else %>
+                          <span class="text-gray-400">—</span>
+                        <% end %>
+                      </td>
+                      <td class="px-3 py-2 text-right">
+                        <div class="flex justify-end gap-2">
+                          <button
+                            type="button"
+                            phx-click="edit_image"
+                            phx-value-id={image.id}
+                            class="p-1 text-gray-500 hover:text-gf-maroon"
+                            title="Edit"
+                          >
+                            <.icon name="ph-pencil" class="h-4 w-4" />
+                          </button>
+                          <button
+                            type="button"
+                            phx-click="confirm_delete"
+                            phx-value-id={image.id}
+                            class="p-1 text-gray-500 hover:text-red-600"
+                            title="Delete"
+                          >
+                            <.icon name="ph-trash" class="h-4 w-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
