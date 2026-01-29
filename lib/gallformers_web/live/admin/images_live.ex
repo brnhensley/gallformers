@@ -139,7 +139,8 @@ defmodule GallformersWeb.Admin.ImagesLive do
                       "px-3 py-1.5 text-sm",
                       @view_mode == :grid && "bg-gf-maroon text-white",
                       @view_mode != :grid && !@copy_mode && "bg-white text-gray-600 hover:bg-gray-50",
-                      @copy_mode && @view_mode != :grid && "bg-gray-100 text-gray-400 cursor-not-allowed"
+                      @copy_mode && @view_mode != :grid &&
+                        "bg-gray-100 text-gray-400 cursor-not-allowed"
                     ]}
                     title="Grid view"
                   >
@@ -154,7 +155,8 @@ defmodule GallformersWeb.Admin.ImagesLive do
                       "px-3 py-1.5 text-sm border-l border-gray-300",
                       @view_mode == :table && "bg-gf-maroon text-white",
                       @view_mode != :table && !@copy_mode && "bg-white text-gray-600 hover:bg-gray-50",
-                      @copy_mode && @view_mode != :table && "bg-gray-100 text-gray-400 cursor-not-allowed"
+                      @copy_mode && @view_mode != :table &&
+                        "bg-gray-100 text-gray-400 cursor-not-allowed"
                     ]}
                     title="Table view"
                   >
@@ -258,7 +260,12 @@ defmodule GallformersWeb.Admin.ImagesLive do
               </div>
 
               <%!-- Table View --%>
-              <div :if={@view_mode == :table} class="overflow-x-auto">
+              <div
+                :if={@view_mode == :table}
+                class="overflow-x-auto"
+                phx-window-keydown={@copy_mode && "cancel_copy"}
+                phx-key={@copy_mode && "Escape"}
+              >
                 <table class="min-w-full divide-y divide-gray-200">
                   <thead class="bg-gray-50">
                     <tr>
@@ -308,7 +315,8 @@ defmodule GallformersWeb.Admin.ImagesLive do
                       class={[
                         "hover:bg-gray-50",
                         @copy_mode && image.id == @copy_mode.source_id && "bg-canary",
-                        @copy_mode && MapSet.member?(@copy_mode.selected_ids, image.id) && "bg-blue-50"
+                        @copy_mode && MapSet.member?(@copy_mode.selected_ids, image.id) &&
+                          "bg-blue-50"
                       ]}
                     >
                       <%!-- Checkbox column (copy mode only) --%>
@@ -355,8 +363,14 @@ defmodule GallformersWeb.Admin.ImagesLive do
                       </td>
                       <td class="px-3 py-2 text-sm text-gray-900">
                         <%= if image.source do %>
-                          <.link navigate={~p"/source/#{image.source.id}"} class="text-gf-maroon hover:underline">
-                            {String.slice(image.source.title || "", 0, 30)}<%= if String.length(image.source.title || "") > 30, do: "..." %>
+                          <.link
+                            navigate={~p"/source/#{image.source.id}"}
+                            class="text-gf-maroon hover:underline"
+                          >
+                            {String.slice(image.source.title || "", 0, 30)}{if String.length(
+                                                                                 image.source.title ||
+                                                                                   ""
+                                                                               ) > 30, do: "..."}
                           </.link>
                         <% else %>
                           <span class="text-gray-400">—</span>
@@ -386,20 +400,27 @@ defmodule GallformersWeb.Admin.ImagesLive do
                             class="text-gf-maroon hover:underline"
                             title={image.licenselink}
                           >
-                            {URI.parse(image.licenselink).host || String.slice(image.licenselink, 0, 20)}
+                            {URI.parse(image.licenselink).host ||
+                              String.slice(image.licenselink, 0, 20)}
                           </a>
                         <% else %>
                           <span class="text-gray-400">—</span>
                         <% end %>
                       </td>
-                      <td class="px-3 py-2 text-sm text-gray-900 max-w-[150px] truncate" title={image.attribution}>
+                      <td
+                        class="px-3 py-2 text-sm text-gray-900 max-w-[150px] truncate"
+                        title={image.attribution}
+                      >
                         <%= if image.attribution && image.attribution != "" do %>
                           {image.attribution}
                         <% else %>
                           <span class="text-gray-400">—</span>
                         <% end %>
                       </td>
-                      <td class="px-3 py-2 text-sm text-gray-900 max-w-[150px] truncate" title={image.caption}>
+                      <td
+                        class="px-3 py-2 text-sm text-gray-900 max-w-[150px] truncate"
+                        title={image.caption}
+                      >
                         <%= if image.caption && image.caption != "" do %>
                           {image.caption}
                         <% else %>
@@ -416,8 +437,10 @@ defmodule GallformersWeb.Admin.ImagesLive do
                               disabled={MapSet.size(@copy_mode.selected_ids) == 0}
                               class={[
                                 "px-3 py-1 text-sm rounded",
-                                MapSet.size(@copy_mode.selected_ids) > 0 && "bg-gf-maroon text-white hover:bg-gf-maroon/90",
-                                MapSet.size(@copy_mode.selected_ids) == 0 && "bg-gray-200 text-gray-400 cursor-not-allowed"
+                                MapSet.size(@copy_mode.selected_ids) > 0 &&
+                                  "bg-gf-maroon text-white hover:bg-gf-maroon/90",
+                                MapSet.size(@copy_mode.selected_ids) == 0 &&
+                                  "bg-gray-200 text-gray-400 cursor-not-allowed"
                               ]}
                             >
                               Apply ({MapSet.size(@copy_mode.selected_ids)})
