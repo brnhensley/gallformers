@@ -15,9 +15,11 @@ defmodule GallformersWeb.IDLive do
     genus: "g",
     genus_type: "gt",
     locations: "lo",
+    location_logic: "lol",
     color: "co",
     shape: "sh",
     textures: "te",
+    texture_logic: "tel",
     alignment: "al",
     detachable: "de",
     place: "pl",
@@ -30,10 +32,17 @@ defmodule GallformersWeb.IDLive do
     show_non_galls: "ng"
   }
 
+  # Special marker for "leaf (anywhere)" virtual location option
+  @leaf_anywhere_id "leaf_anywhere"
+
   @impl true
   def mount(_params, _session, socket) do
     filter_options = IDTool.get_filter_options()
     places = Places.list_places()
+
+    # Add "leaf (anywhere)" virtual option to locations, sorted alphabetically
+    locations_with_virtual = add_leaf_anywhere_option(filter_options.locations)
+    filter_options = Map.put(filter_options, :locations, locations_with_virtual)
 
     {:ok,
      assign(socket,
@@ -80,9 +89,11 @@ defmodule GallformersWeb.IDLive do
   defp parse_url_params(params) do
     %{
       locations: parse_list(params[@url_params.locations]),
+      location_logic: parse_logic(params[@url_params.location_logic]),
       color: parse_int(params[@url_params.color]),
       shape: parse_int(params[@url_params.shape]),
       textures: parse_list(params[@url_params.textures]),
+      texture_logic: parse_logic(params[@url_params.texture_logic]),
       alignment: parse_int(params[@url_params.alignment]),
       detachable: params[@url_params.detachable],
       place: params[@url_params.place],
@@ -96,13 +107,23 @@ defmodule GallformersWeb.IDLive do
     }
   end
 
+  defp parse_logic("and"), do: :and
+  defp parse_logic(_), do: :or
+
   defp parse_list(nil), do: []
 
   defp parse_list(str) when is_binary(str) do
     str
     |> String.split(",")
-    |> Enum.map(&parse_int/1)
+    |> Enum.map(&parse_list_item/1)
     |> Enum.reject(&is_nil/1)
+  end
+
+  # Parse list item - handles integers and special string markers like "leaf_anywhere"
+  defp parse_list_item(@leaf_anywhere_id), do: @leaf_anywhere_id
+
+  defp parse_list_item(str) do
+    parse_int(str)
   end
 
   defp parse_int(nil), do: nil
@@ -179,9 +200,11 @@ defmodule GallformersWeb.IDLive do
   defp default_filters do
     %{
       locations: [],
+      location_logic: :or,
       color: nil,
       shape: nil,
       textures: [],
+      texture_logic: :or,
       alignment: nil,
       detachable: nil,
       place: nil,
@@ -301,7 +324,7 @@ defmodule GallformersWeb.IDLive do
 
   @impl true
   def handle_event("location_select", %{"id" => id}, socket) do
-    location_id = String.to_integer(id)
+    location_id = parse_location_id(id)
     locations = socket.assigns.filters.locations
 
     new_locations =
@@ -322,7 +345,7 @@ defmodule GallformersWeb.IDLive do
 
   @impl true
   def handle_event("location_remove", %{"id" => id}, socket) do
-    location_id = String.to_integer(id)
+    location_id = parse_location_id(id)
     new_locations = List.delete(socket.assigns.filters.locations, location_id)
 
     socket =
@@ -405,6 +428,31 @@ defmodule GallformersWeb.IDLive do
     {:noreply, socket}
   end
 
+  # Logic toggle handlers
+  @impl true
+  def handle_event("toggle_location_logic", _params, socket) do
+    new_logic = if socket.assigns.filters.location_logic == :or, do: :and, else: :or
+
+    socket =
+      socket
+      |> update_filter(:location_logic, new_logic)
+      |> push_filter_patch()
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("toggle_texture_logic", _params, socket) do
+    new_logic = if socket.assigns.filters.texture_logic == :or, do: :and, else: :or
+
+    socket =
+      socket
+      |> update_filter(:texture_logic, new_logic)
+      |> push_filter_patch()
+
+    {:noreply, socket}
+  end
+
   # Valid filter keys from @url_params
   @valid_filter_keys ~w(host genus genus_type locations color shape textures alignment detachable place family form walls cells season undescribed show_non_galls)
 
@@ -482,9 +530,11 @@ defmodule GallformersWeb.IDLive do
       end
 
     params = maybe_add_list_param(params, @url_params.locations, filters.locations)
+    params = maybe_add_logic_param(params, @url_params.location_logic, filters.location_logic)
     params = maybe_add_param(params, @url_params.color, filters.color)
     params = maybe_add_param(params, @url_params.shape, filters.shape)
     params = maybe_add_list_param(params, @url_params.textures, filters.textures)
+    params = maybe_add_logic_param(params, @url_params.texture_logic, filters.texture_logic)
     params = maybe_add_param(params, @url_params.alignment, filters.alignment)
     params = maybe_add_param(params, @url_params.detachable, filters.detachable)
     params = maybe_add_param(params, @url_params.place, filters.place)
@@ -509,6 +559,10 @@ defmodule GallformersWeb.IDLive do
 
   defp maybe_add_param(params, _key, nil), do: params
   defp maybe_add_param(params, key, value), do: Map.put(params, key, value)
+
+  # Only add logic param if it's :and (since :or is default)
+  defp maybe_add_logic_param(params, _key, :or), do: params
+  defp maybe_add_logic_param(params, key, :and), do: Map.put(params, key, "and")
 
   defp maybe_add_list_param(params, _key, []), do: params
 
@@ -563,13 +617,18 @@ defmodule GallformersWeb.IDLive do
   defp build_filter_params(socket) do
     filters = socket.assigns.filters
 
+    # Expand "leaf (anywhere)" to actual leaf location IDs
+    expanded_locations = expand_location_ids(filters.locations)
+
     %{
       host_ids: wrap_in_list(socket.assigns.selected_host, & &1.id),
       genus_id: maybe_get(socket.assigns.selected_genus, :id),
-      location_ids: non_empty_list(filters.locations),
+      location_ids: non_empty_list(expanded_locations),
+      location_logic: filters.location_logic,
       color_ids: wrap_value(filters.color),
       shape_ids: wrap_value(filters.shape),
       texture_ids: non_empty_list(filters.textures),
+      texture_logic: filters.texture_logic,
       alignment_ids: wrap_value(filters.alignment),
       detachable: parse_detachable(filters.detachable),
       place_codes: wrap_value(filters.place),
@@ -600,6 +659,30 @@ defmodule GallformersWeb.IDLive do
   defp parse_detachable("detachable"), do: 2
   defp parse_detachable("both"), do: 3
   defp parse_detachable(_), do: nil
+
+  # Add "leaf (anywhere)" virtual option to locations list, sorted alphabetically
+  defp add_leaf_anywhere_option(locations) do
+    virtual_option = %{id: @leaf_anywhere_id, location: "leaf (anywhere)"}
+
+    [virtual_option | locations]
+    |> Enum.sort_by(& &1.location)
+  end
+
+  # Parse location ID - handles both integer IDs and "leaf_anywhere" string
+  defp parse_location_id(@leaf_anywhere_id), do: @leaf_anywhere_id
+  defp parse_location_id(id) when is_binary(id), do: String.to_integer(id)
+  defp parse_location_id(id) when is_integer(id), do: id
+
+  # Expand location IDs, replacing "leaf_anywhere" marker with actual leaf location IDs
+  defp expand_location_ids(location_ids) do
+    if @leaf_anywhere_id in location_ids do
+      leaf_ids = IDTool.leaf_location_ids()
+      other_ids = Enum.reject(location_ids, &(&1 == @leaf_anywhere_id))
+      Enum.uniq(leaf_ids ++ other_ids)
+    else
+      location_ids
+    end
+  end
 
   # Helper for formatting host display with aliases
   defp format_host_display(%{name: name, aliases: aliases}) when is_list(aliases) do
@@ -685,17 +768,24 @@ defmodule GallformersWeb.IDLive do
         <div :if={@selected_host != nil or @selected_genus != nil} class="mb-2">
           <%!-- Primary Filters (4-column grid) --%>
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-            <.multi_select_typeahead
-              id="locations"
-              name="location"
-              label="Location(s) on Plant:"
-              placeholder="Locations"
-              options={@filter_options.locations}
-              selected={@filters.locations}
-              option_label={:location}
-              query={@location_query}
-              focused={@location_focused}
-            />
+            <div>
+              <.multi_select_typeahead
+                id="locations"
+                name="location"
+                label="Location(s) on Plant:"
+                placeholder="Locations"
+                options={@filter_options.locations}
+                selected={@filters.locations}
+                option_label={:location}
+                query={@location_query}
+                focused={@location_focused}
+              />
+              <.logic_toggle
+                :if={length(@filters.locations) > 1}
+                logic={@filters.location_logic}
+                toggle_event="toggle_location_logic"
+              />
+            </div>
             <.detachable_filter value={@filters.detachable} />
             <.place_filter places={@places} value={@filters.place} />
             <.family_filter families={@families} value={@filters.family} />
@@ -727,17 +817,24 @@ defmodule GallformersWeb.IDLive do
 
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
               <.season_filter options={@filter_options.seasons} value={@filters.season} />
-              <.multi_select_typeahead
-                id="textures"
-                name="texture"
-                label="Texture(s):"
-                placeholder="Textures"
-                options={@filter_options.textures}
-                selected={@filters.textures}
-                option_label={:texture}
-                query={@texture_query}
-                focused={@texture_focused}
-              />
+              <div>
+                <.multi_select_typeahead
+                  id="textures"
+                  name="texture"
+                  label="Texture(s):"
+                  placeholder="Textures"
+                  options={@filter_options.textures}
+                  selected={@filters.textures}
+                  option_label={:texture}
+                  query={@texture_query}
+                  focused={@texture_focused}
+                />
+                <.logic_toggle
+                  :if={length(@filters.textures) > 1}
+                  logic={@filters.texture_logic}
+                  toggle_event="toggle_texture_logic"
+                />
+              </div>
               <.alignment_filter options={@filter_options.alignments} value={@filters.alignment} />
               <.form_filter options={@filter_options.forms} value={@filters.form} />
               <.walls_filter options={@filter_options.walls} value={@filters.walls} />
@@ -766,6 +863,33 @@ defmodule GallformersWeb.IDLive do
         />
       </div>
     </Layouts.app>
+    """
+  end
+
+  # Component: Logic Toggle (AND/OR)
+  attr :logic, :atom, required: true
+  attr :toggle_event, :string, required: true
+
+  defp logic_toggle(assigns) do
+    ~H"""
+    <button
+      type="button"
+      phx-click={@toggle_event}
+      class="mt-1 text-xs text-gray-600 hover:text-gf-maroon flex items-center gap-1"
+      title={
+        if @logic == :or,
+          do: "Match ANY selected (click to require ALL)",
+          else: "Match ALL selected (click to require ANY)"
+      }
+    >
+      <span class={["px-1.5 py-0.5 rounded", @logic == :or && "bg-blue-100 text-blue-700"]}>
+        ANY
+      </span>
+      <span class="text-gray-400">/</span>
+      <span class={["px-1.5 py-0.5 rounded", @logic == :and && "bg-green-100 text-green-700"]}>
+        ALL
+      </span>
+    </button>
     """
   end
 
@@ -1034,7 +1158,7 @@ defmodule GallformersWeb.IDLive do
             </p>
             <p class="mt-2">
               However, before giving up, try <.link
-                href="/ref/IDGuide#troubleshooting"
+                href="/articles/IDGuide#troubleshooting"
                 class="underline"
               >altering your filter choices</.link>.
             </p>
@@ -1046,7 +1170,7 @@ defmodule GallformersWeb.IDLive do
           <div class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded text-sm">
             <p>
               If none of these results match your gall, you may have found an undescribed species. However, before concluding that your gall is not in the database, try <.link
-                href="/ref/IDGuide#troubleshooting"
+                href="/articles/IDGuide#troubleshooting"
                 class="underline"
               >altering your filter choices</.link>.
             </p>

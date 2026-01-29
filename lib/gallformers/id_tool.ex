@@ -72,10 +72,10 @@ defmodule Gallformers.IDTool do
     |> apply_host_filter(filters[:host_ids])
     |> apply_genus_filter(filters[:genus_id])
     |> apply_family_filter(filters[:family_id])
-    |> apply_location_filter(filters[:location_ids])
+    |> apply_location_filter(filters[:location_ids], filters[:location_logic] || :or)
     |> apply_color_filter(filters[:color_ids])
     |> apply_shape_filter(filters[:shape_ids])
-    |> apply_texture_filter(filters[:texture_ids])
+    |> apply_texture_filter(filters[:texture_ids], filters[:texture_logic] || :or)
     |> apply_alignment_filter(filters[:alignment_ids])
     |> apply_cells_filter(filters[:cells_ids])
     |> apply_walls_filter(filters[:walls_ids])
@@ -137,10 +137,10 @@ defmodule Gallformers.IDTool do
   def count_filtered_galls(filters \\ %{}) do
     base_query()
     |> apply_host_filter(filters[:host_ids])
-    |> apply_location_filter(filters[:location_ids])
+    |> apply_location_filter(filters[:location_ids], filters[:location_logic] || :or)
     |> apply_color_filter(filters[:color_ids])
     |> apply_shape_filter(filters[:shape_ids])
-    |> apply_texture_filter(filters[:texture_ids])
+    |> apply_texture_filter(filters[:texture_ids], filters[:texture_logic] || :or)
     |> apply_alignment_filter(filters[:alignment_ids])
     |> apply_cells_filter(filters[:cells_ids])
     |> apply_walls_filter(filters[:walls_ids])
@@ -162,10 +162,10 @@ defmodule Gallformers.IDTool do
     # Get gall species IDs matching the filters
     gall_ids =
       base_query()
-      |> apply_location_filter(filters[:location_ids])
+      |> apply_location_filter(filters[:location_ids], filters[:location_logic] || :or)
       |> apply_color_filter(filters[:color_ids])
       |> apply_shape_filter(filters[:shape_ids])
-      |> apply_texture_filter(filters[:texture_ids])
+      |> apply_texture_filter(filters[:texture_ids], filters[:texture_logic] || :or)
       |> apply_alignment_filter(filters[:alignment_ids])
       |> apply_cells_filter(filters[:cells_ids])
       |> apply_walls_filter(filters[:walls_ids])
@@ -210,6 +210,19 @@ defmodule Gallformers.IDTool do
 
   @spec list_locations() :: [Location.t()]
   def list_locations, do: Repo.all(from l in Location, order_by: l.location)
+
+  @doc """
+  Returns location IDs for all locations containing "leaf" in their name.
+  Used for the "leaf (anywhere)" virtual filter option.
+  """
+  @spec leaf_location_ids() :: [integer()]
+  def leaf_location_ids do
+    from(l in Location,
+      where: like(l.location, "%leaf%"),
+      select: l.id
+    )
+    |> Repo.all()
+  end
 
   @spec list_seasons() :: [Season.t()]
   def list_seasons, do: Repo.all(from s in Season, order_by: s.season)
@@ -257,14 +270,32 @@ defmodule Gallformers.IDTool do
       where: h.host_species_id in ^host_ids
   end
 
-  defp apply_location_filter(query, nil), do: query
-  defp apply_location_filter(query, []), do: query
+  defp apply_location_filter(query, nil, _logic), do: query
+  defp apply_location_filter(query, [], _logic), do: query
 
-  defp apply_location_filter(query, location_ids) do
+  # OR logic: gall must have ANY of the selected locations
+  defp apply_location_filter(query, location_ids, :or) do
     from [s, _gs, g] in query,
       join: gl in "galllocation",
       on: gl.gall_id == g.id,
       where: gl.location_id in ^location_ids
+  end
+
+  # AND logic: gall must have ALL of the selected locations
+  defp apply_location_filter(query, location_ids, :and) do
+    required_count = length(location_ids)
+
+    # Subquery to find gall IDs that have ALL required locations
+    matching_galls =
+      from(gl in "galllocation",
+        where: gl.location_id in ^location_ids,
+        group_by: gl.gall_id,
+        having: count(fragment("DISTINCT ?", gl.location_id)) == ^required_count,
+        select: gl.gall_id
+      )
+
+    from [s, _gs, g] in query,
+      where: g.id in subquery(matching_galls)
   end
 
   defp apply_color_filter(query, nil), do: query
@@ -287,14 +318,32 @@ defmodule Gallformers.IDTool do
       where: gsh.shape_id in ^shape_ids
   end
 
-  defp apply_texture_filter(query, nil), do: query
-  defp apply_texture_filter(query, []), do: query
+  defp apply_texture_filter(query, nil, _logic), do: query
+  defp apply_texture_filter(query, [], _logic), do: query
 
-  defp apply_texture_filter(query, texture_ids) do
+  # OR logic: gall must have ANY of the selected textures
+  defp apply_texture_filter(query, texture_ids, :or) do
     from [s, _gs, g] in query,
       join: gt in "galltexture",
       on: gt.gall_id == g.id,
       where: gt.texture_id in ^texture_ids
+  end
+
+  # AND logic: gall must have ALL of the selected textures
+  defp apply_texture_filter(query, texture_ids, :and) do
+    required_count = length(texture_ids)
+
+    # Subquery to find gall IDs that have ALL required textures
+    matching_galls =
+      from(gt in "galltexture",
+        where: gt.texture_id in ^texture_ids,
+        group_by: gt.gall_id,
+        having: count(fragment("DISTINCT ?", gt.texture_id)) == ^required_count,
+        select: gt.gall_id
+      )
+
+    from [s, _gs, g] in query,
+      where: g.id in subquery(matching_galls)
   end
 
   defp apply_alignment_filter(query, nil), do: query
