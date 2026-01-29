@@ -97,25 +97,27 @@ defmodule Gallformers.Analytics do
   def parse_user_agent(nil), do: {nil, nil}
 
   def parse_user_agent(user_agent) do
-    browser_name =
-      cond do
-        Browser.chrome?(user_agent) -> "Chrome"
-        Browser.firefox?(user_agent) -> "Firefox"
-        Browser.safari?(user_agent) -> "Safari"
-        Browser.edge?(user_agent) -> "Edge"
-        Browser.opera?(user_agent) -> "Opera"
-        Browser.ie?(user_agent) -> "IE"
-        true -> "Other"
-      end
+    {detect_browser(user_agent), detect_device_type(user_agent)}
+  end
 
-    device_type =
-      cond do
-        Browser.mobile?(user_agent) -> "mobile"
-        Browser.tablet?(user_agent) -> "tablet"
-        true -> "desktop"
-      end
+  defp detect_browser(user_agent) do
+    cond do
+      Browser.chrome?(user_agent) -> "Chrome"
+      Browser.firefox?(user_agent) -> "Firefox"
+      Browser.safari?(user_agent) -> "Safari"
+      Browser.edge?(user_agent) -> "Edge"
+      Browser.opera?(user_agent) -> "Opera"
+      Browser.ie?(user_agent) -> "IE"
+      true -> "Other"
+    end
+  end
 
-    {browser_name, device_type}
+  defp detect_device_type(user_agent) do
+    cond do
+      Browser.mobile?(user_agent) -> "mobile"
+      Browser.tablet?(user_agent) -> "tablet"
+      true -> "desktop"
+    end
   end
 
   # =================================================================
