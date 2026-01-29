@@ -6,7 +6,9 @@ defmodule GallformersWeb.AboutLive do
   """
   use GallformersWeb, :live_view
 
-  alias Gallformers.{Accounts, Hosts, Sources, Species, Taxonomy, Version}
+  import Ecto.Query
+  alias Gallformers.{Accounts, Hosts, Repo, Sources, Species, Version}
+  alias Gallformers.Taxonomy.Taxonomy
 
   @impl true
   def mount(_params, _session, socket) do
@@ -48,14 +50,34 @@ defmodule GallformersWeb.AboutLive do
     }
   end
 
-  defp count_families_for_taxoncode(_taxoncode) do
-    # Simplified - count all families
-    Taxonomy.list_families() |> length()
+  # Count distinct families for species with the given taxoncode.
+  # Joins: species -> speciestaxonomy -> taxonomy (genus) -> parent taxonomy (family)
+  defp count_families_for_taxoncode(taxoncode) do
+    from(s in Gallformers.Species.Species,
+      join: st in "speciestaxonomy",
+      on: st.species_id == s.id,
+      join: g in Taxonomy,
+      on: st.taxonomy_id == g.id,
+      join: f in Taxonomy,
+      on: g.parent_id == f.id,
+      where: s.taxoncode == ^taxoncode and g.type == "genus" and f.type == "family",
+      select: count(f.name, :distinct)
+    )
+    |> Repo.one()
   end
 
-  defp count_genera_for_taxoncode(_taxoncode) do
-    # Simplified - count all genera
-    Taxonomy.list_genera() |> length()
+  # Count distinct genera for species with the given taxoncode.
+  # Joins: species -> speciestaxonomy -> taxonomy (genus)
+  defp count_genera_for_taxoncode(taxoncode) do
+    from(s in Gallformers.Species.Species,
+      join: st in "speciestaxonomy",
+      on: st.species_id == s.id,
+      join: g in Taxonomy,
+      on: st.taxonomy_id == g.id,
+      where: s.taxoncode == ^taxoncode and g.type == "genus",
+      select: count(g.name, :distinct)
+    )
+    |> Repo.one()
   end
 
   defp display_name(admin) do
@@ -198,25 +220,27 @@ defmodule GallformersWeb.AboutLive do
           </ul>
 
           <h2>Funding</h2>
-          <div class="not-prose flex items-center gap-4 mb-6">
-            <.link href="https://www.nsf.gov" target="_blank" rel="noreferrer">
+          <div class="not-prose flex items-center gap-3">
+            <.link href="https://www.nsf.gov" target="_blank" rel="noreferrer" class="shrink-0">
               <img
                 src="/images/nsf-logo.svg"
                 alt="National Science Foundation Logo"
-                class="w-32 h-32"
+                class="w-[200px] h-auto"
               />
             </.link>
-            <p class="text-gray-700">
+            <p>
               This site is supported in part by the National Science Foundation under <.link
                 href="https://www.nsf.gov/awardsearch/showAward?AWD_ID=2418250&HistoricalAwards=false"
                 target="_blank"
                 rel="noreferrer"
-                class="text-gf-maroon hover:underline"
               >
                 Grant No. 2418250
               </.link>.
             </p>
           </div>
+          <p>
+            We are also grateful to our <.link href="/articles/patrons">Patreon supporters</.link>.
+          </p>
 
           <h2>Citing Gallformers</h2>
           <p>
