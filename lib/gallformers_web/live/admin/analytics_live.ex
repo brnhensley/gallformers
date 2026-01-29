@@ -94,7 +94,7 @@ defmodule GallformersWeb.Admin.AnalyticsLive do
           <div class="px-4 py-3 border-b border-gray-200 bg-gray-50">
             <h3 class="text-lg font-semibold text-gray-900">Top Pages</h3>
           </div>
-          <table class="gf-table">
+          <table class="gf-table gf-table-compact">
             <thead>
               <tr>
                 <th>Path</th>
@@ -124,7 +124,7 @@ defmodule GallformersWeb.Admin.AnalyticsLive do
             <div class="px-4 py-3 border-b border-gray-200 bg-gray-50">
               <h3 class="text-lg font-semibold text-gray-900">Top Referrers</h3>
             </div>
-            <table class="gf-table">
+            <table class="gf-table gf-table-compact">
               <thead>
                 <tr>
                   <th>Source</th>
@@ -152,7 +152,7 @@ defmodule GallformersWeb.Admin.AnalyticsLive do
               <div class="px-4 py-3 border-b border-gray-200 bg-gray-50">
                 <h3 class="text-lg font-semibold text-gray-900">Devices</h3>
               </div>
-              <table class="gf-table">
+              <table class="gf-table gf-table-compact">
                 <thead>
                   <tr>
                     <th>Type</th>
@@ -180,7 +180,7 @@ defmodule GallformersWeb.Admin.AnalyticsLive do
               <div class="px-4 py-3 border-b border-gray-200 bg-gray-50">
                 <h3 class="text-lg font-semibold text-gray-900">Browsers</h3>
               </div>
-              <table class="gf-table">
+              <table class="gf-table gf-table-compact">
                 <thead>
                   <tr>
                     <th>Browser</th>
