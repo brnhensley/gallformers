@@ -39,6 +39,13 @@ config :gallformers, Gallformers.Mailer, adapter: Swoosh.Adapters.Test
 # Disable swoosh api client as it is only required for production adapters
 config :swoosh, :api_client, false
 
+# Provide dummy AWS credentials to prevent ExAws from trying instance metadata
+# (which raises RuntimeError in CI). Real S3 calls will fail with auth errors,
+# but those are handled gracefully by the application.
+config :ex_aws,
+  access_key_id: "test-access-key",
+  secret_access_key: "test-secret-key"
+
 # Print only warnings and errors during test
 config :logger, level: :warning
 
