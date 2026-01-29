@@ -492,6 +492,9 @@ defmodule Gallformers.Search do
 
   @doc """
   Searches taxonomy entries (genus, family, section) by name or description.
+
+  Excludes "Unknown" entries (placeholder family and genera) since users
+  searching are looking for real taxonomic names, not placeholders.
   """
   @spec search_taxonomy(String.t()) :: [map()]
   def search_taxonomy(query) do
@@ -500,6 +503,7 @@ defmodule Gallformers.Search do
     from(t in Taxonomy,
       where:
         t.type in ["genus", "family", "section"] and
+          t.name != "Unknown" and
           (fragment("lower(?) LIKE ?", t.name, ^search_term) or
              fragment("lower(coalesce(?, '')) LIKE ?", t.description, ^search_term)),
       order_by: [t.type, t.name],
