@@ -11,6 +11,11 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
 
   alias Gallformers.Taxonomy
 
+  # Family types - these categorize what kind of organism a family contains.
+  # "Plant" indicates a host family; all others are gall-former families.
+  @gall_family_types ~w(Aphid Bacteria Beetle Fly Fungus Midge Mite Moth Nematode Oomycete Psyllid Sawfly Scale Thrips True\ Bug Unknown Virus Wasp)
+  @host_family_types ~w(Plant)
+
   # Required callbacks for FormHelpers
   @impl GallformersWeb.Admin.FormHelpers
   def entity_key, do: :taxonomy
@@ -128,6 +133,13 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
   defp taxonomy_public_url(%{type: "section", id: id}), do: ~p"/section/#{id}"
   defp taxonomy_public_url(_), do: nil
 
+  defp family_type_options do
+    # Group gall-former types first, then host type
+    gall_options = Enum.map(@gall_family_types, &{&1, &1})
+    host_options = Enum.map(@host_family_types, &{"#{&1} (host)", &1})
+    gall_options ++ host_options
+  end
+
   @impl true
   def render(assigns) do
     ~H"""
@@ -174,12 +186,12 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
                 <.input
                   field={@form[:description]}
                   type="select"
-                  label="Taxon:"
-                  prompt="Select taxon type"
-                  options={[{"Gall (insects, mites, etc.)", "gall"}, {"Plant (host)", "plant"}]}
+                  label="Family Type:"
+                  prompt="Select family type"
+                  options={family_type_options()}
                 />
                 <p class="mt-1 text-xs text-gray-500">
-                  Gall families contain gall-forming organisms. Plant families contain host plants.
+                  Select "Plant" for host families; all others are gall-former families.
                 </p>
               <% else %>
                 <.input

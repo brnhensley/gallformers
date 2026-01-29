@@ -4,7 +4,7 @@ This document describes how taxonomy works in Gallformers, including the data mo
 
 ## Overview
 
-Gallformers uses a four-level taxonomic hierarchy to classify both **gall-forming organisms** (insects, mites, etc.) and **host plants**. The two taxonomies are separated by a `taxoncode` field on Families.
+Gallformers uses a four-level taxonomic hierarchy to classify both **gall-forming organisms** (insects, mites, etc.) and **host plants**. The two taxonomies are separated by the **family type** field on Families.
 
 ## Hierarchy
 
@@ -29,13 +29,29 @@ Family
 
 | Level | Required Fields | Optional Fields |
 |-------|-----------------|-----------------|
-| Family | name, taxoncode | description |
+| Family | name, family type | - |
 | Genus | name | description |
 | Section | name | description |
 
 - **name**: The taxonomic name (e.g., "Fagaceae", "Quercus")
-- **description**: Usually a common name (e.g., "oaks" for Quercus)
-- **taxoncode**: Distinguishes gall-former families from plant families
+- **description**: For genera/sections, usually a common name (e.g., "oaks" for Quercus)
+- **family type**: For families only - categorizes what kind of organism the family contains (see below)
+
+## Family Types
+
+Families have a **type** that categorizes the kind of organism they contain. This is stored in the `description` field of the taxonomy table.
+
+**Gall-former family types:**
+- Aphid, Bacteria, Beetle, Fly, Fungus, Midge, Mite, Moth, Nematode, Oomycete, Psyllid, Sawfly, Scale, Thrips, True Bug, Unknown, Virus, Wasp
+
+**Host family type:**
+- Plant
+
+The family type determines whether it's a **gall family** or **host family**:
+- If family type = "Plant" → host family (contains host plants)
+- If family type = anything else → gall family (contains gall-forming organisms)
+
+**Note:** The `taxoncode` field exists on the **species** table (not taxonomy), with values "gall" or "plant". This is the fundamental binary classification at the species level.
 
 ## Uniqueness Rules
 
