@@ -295,7 +295,7 @@ defmodule GallformersWeb.GallLive do
                   >
                     View observations collected with this code on iNaturalist.
                   </a>
-                  <.link href="/ref/link-undescribed-inat" class="text-gf-maroon hover:underline">
+                  <.link href="/articles/link-undescribed-inat" class="text-gf-maroon hover:underline">
                     Learn more about how it works and how you can help.
                   </.link>
                 </p>
@@ -312,6 +312,12 @@ defmodule GallformersWeb.GallLive do
                       >
                         {@taxonomy.family}
                       </.link>
+                      <span
+                        :if={@taxonomy.family_description && @taxonomy.family_description != ""}
+                        class="text-gray-600"
+                      >
+                        ({@taxonomy.family_description})
+                      </span>
                     </span>
                     <span :if={@taxonomy.family && @taxonomy.genus} class="mx-1">|</span>
                     <span :if={@taxonomy.genus}>
@@ -322,6 +328,12 @@ defmodule GallformersWeb.GallLive do
                       >
                         <em>{@taxonomy.genus}</em>
                       </.link>
+                      <span
+                        :if={@taxonomy.genus_description && @taxonomy.genus_description != ""}
+                        class="text-gray-600"
+                      >
+                        ({@taxonomy.genus_description})
+                      </span>
                     </span>
                   </p>
 

@@ -11,6 +11,7 @@ defmodule GallformersWeb.HostLive do
   alias GallformersWeb.SEO
 
   @page_size 10
+  @synonymy_page_size 10
   # Gallformers Notes source ID (same as V1)
   @gallformers_notes_source_id 58
 
@@ -100,6 +101,9 @@ defmodule GallformersWeb.HostLive do
            sort_dir: :asc,
            selected_source: nil,
            modal_font_size: :base,
+           show_synonymy: false,
+           synonymy_page: 1,
+           synonymy_page_size: @synonymy_page_size,
            error: nil
          )}
     end
@@ -213,6 +217,19 @@ defmodule GallformersWeb.HostLive do
     {:noreply, assign(socket, modal_font_size: new_size)}
   end
 
+  @impl true
+  def handle_event("toggle_synonymy", _params, socket) do
+    {:noreply, assign(socket, show_synonymy: !socket.assigns.show_synonymy)}
+  end
+
+  @impl true
+  def handle_event("synonymy_page", %{"page" => page}, socket) do
+    synonyms = get_scientific_synonyms(socket.assigns.host.aliases)
+    total = synonymy_total_pages(synonyms, socket.assigns.synonymy_page_size)
+    page = max(1, min(page, total))
+    {:noreply, assign(socket, synonymy_page: page)}
+  end
+
   defp sorted_galls(galls, sort_by, sort_dir) do
     sorted =
       case sort_by do
@@ -238,6 +255,29 @@ defmodule GallformersWeb.HostLive do
   defp prose_size_class(:base), do: "prose-base"
   defp prose_size_class(:lg), do: "prose-lg"
   defp prose_size_class(:xl), do: "prose-xl"
+
+  # Filter aliases by type
+  defp get_common_names(aliases) do
+    aliases
+    |> Enum.filter(&(&1.type == "common"))
+    |> Enum.sort_by(& &1.name)
+  end
+
+  defp get_scientific_synonyms(aliases) do
+    aliases
+    |> Enum.filter(&(&1.type == "scientific"))
+    |> Enum.sort_by(& &1.name)
+  end
+
+  defp paginated_synonyms(synonyms, page, page_size) do
+    synonyms
+    |> Enum.drop((page - 1) * page_size)
+    |> Enum.take(page_size)
+  end
+
+  defp synonymy_total_pages(synonyms, page_size) do
+    max(1, ceil(length(synonyms) / page_size))
+  end
 
   attr :field, :atom, required: true
   attr :sort_by, :atom, required: true
@@ -296,6 +336,12 @@ defmodule GallformersWeb.HostLive do
                 >
                   {@taxonomy.family}
                 </.link>
+                <span
+                  :if={@taxonomy.family_description && @taxonomy.family_description != ""}
+                  class="text-gray-600"
+                >
+                  ({@taxonomy.family_description})
+                </span>
                 <span :if={@taxonomy.section}>
                   <span class="mx-1">|</span>
                   <strong>Section:</strong>
@@ -305,6 +351,12 @@ defmodule GallformersWeb.HostLive do
                   >
                     <em>{@taxonomy.section}</em>
                   </.link>
+                  <span
+                    :if={@taxonomy.section_description && @taxonomy.section_description != ""}
+                    class="text-gray-600"
+                  >
+                    ({@taxonomy.section_description})
+                  </span>
                 </span>
                 <span class="mx-1">|</span>
                 <strong>Genus:</strong>
@@ -314,19 +366,69 @@ defmodule GallformersWeb.HostLive do
                 >
                   <em>{@taxonomy.genus}</em>
                 </.link>
+                <span
+                  :if={@taxonomy.genus_description && @taxonomy.genus_description != ""}
+                  class="text-gray-600"
+                >
+                  ({@taxonomy.genus_description})
+                </span>
               </p>
 
               <p :if={@host.abundance_name}><strong>Abundance:</strong> {@host.abundance_name}</p>
 
-              <div :if={@host.aliases && length(@host.aliases) > 0}>
-                <strong>Also known as:</strong>
+              <%!-- Common Names --%>
+              <% common_names = get_common_names(@host.aliases) %>
+              <div :if={length(common_names) > 0}>
+                <strong>Common Name(s):</strong>
                 <span class="text-gray-700">
-                  <span :for={{a, i} <- Enum.with_index(@host.aliases)}>
-                    <em>{a.name}</em>{if a.type, do: " (#{a.type})"}{if i <
-                                                                          length(@host.aliases) - 1,
-                                                                        do: ", "}
-                  </span>
+                  {common_names |> Enum.map(& &1.name) |> Enum.join(", ")}
                 </span>
+              </div>
+
+              <%!-- Synonymy (Scientific Names) --%>
+              <% synonyms = get_scientific_synonyms(@host.aliases) %>
+              <div :if={length(synonyms) > 0} class="mt-2">
+                <strong>Synonymy:</strong>
+                <span :if={!@show_synonymy} class="text-gray-700 block truncate max-w-xl">
+                  {synonyms |> Enum.map(& &1.name) |> Enum.join(", ")}
+                </span>
+                <button
+                  type="button"
+                  phx-click="toggle_synonymy"
+                  class="mt-1 px-2 py-1 text-sm border border-gray-300 rounded hover:bg-gray-100"
+                >
+                  {if @show_synonymy, do: "Hide", else: "Click to see all synonym details."}
+                </button>
+                <div
+                  :if={@show_synonymy}
+                  class="mt-2 bg-white rounded border border-gray-200 overflow-hidden"
+                >
+                  <table class="gf-table gf-table-compact">
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>Notes</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr :for={
+                        s <- paginated_synonyms(synonyms, @synonymy_page, @synonymy_page_size)
+                      }>
+                        <td><em>{s.name}</em></td>
+                        <td class="text-gray-600">{s.description || "—"}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                  <.pagination
+                    :if={synonymy_total_pages(synonyms, @synonymy_page_size) > 1}
+                    page={@synonymy_page}
+                    total_pages={synonymy_total_pages(synonyms, @synonymy_page_size)}
+                    total_items={length(synonyms)}
+                    page_size={@synonymy_page_size}
+                    on_page_change={fn page -> JS.push("synonymy_page", value: %{page: page}) end}
+                    class="mt-2"
+                  />
+                </div>
               </div>
 
               <div class="pt-2">

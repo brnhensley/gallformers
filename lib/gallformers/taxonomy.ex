@@ -380,13 +380,15 @@ defmodule Gallformers.Taxonomy do
   @doc """
   Gets the genus, section, and family for a species.
 
-  Returns a map with taxonomy names and IDs (or nil if not found).
+  Returns a map with taxonomy names, IDs, and descriptions (common names) or nil if not found.
   Section is optional and will only be present for plant hosts in genera
   that have sections (primarily Quercus).
 
   The data model has:
   - Family → Genus → Section (hierarchy via parent_id)
   - Species links directly to both genus AND section via speciestaxonomy
+
+  Descriptions contain common names (e.g., "Oaks" for Quercus, "Beeches" for Fagus).
   """
   @spec get_taxonomy_for_species(integer()) :: map() | nil
   def get_taxonomy_for_species(species_id) do
@@ -402,8 +404,10 @@ defmodule Gallformers.Taxonomy do
         select: %{
           genus: g.name,
           genus_id: g.id,
+          genus_description: g.description,
           family: family.name,
-          family_id: family.id
+          family_id: family.id,
+          family_description: family.description
         }
 
     # Get the section link (if any) - species may be directly linked to a section
@@ -429,11 +433,13 @@ defmodule Gallformers.Taxonomy do
         %{
           genus: genus_result.genus,
           genus_id: genus_result.genus_id,
+          genus_description: genus_result.genus_description,
           section: section_result && section_result.section,
           section_id: section_result && section_result.section_id,
           section_description: section_result && section_result.section_description,
           family: genus_result.family,
-          family_id: genus_result.family_id
+          family_id: genus_result.family_id,
+          family_description: genus_result.family_description
         }
     end
   end
