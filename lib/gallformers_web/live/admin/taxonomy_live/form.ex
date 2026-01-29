@@ -170,13 +170,28 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
               />
             </div>
             <div>
-              <.input
-                field={@form[:description]}
-                type="text"
-                label="Description:"
-                placeholder="e.g., 'gall' or 'plant'"
-              />
-              <p class="mt-1 text-xs text-gray-500">For families: "gall" or "plant"</p>
+              <%= if Phoenix.HTML.Form.input_value(@form, :type) == "family" do %>
+                <.input
+                  field={@form[:description]}
+                  type="select"
+                  label="Taxon:"
+                  prompt="Select taxon type"
+                  options={[{"Gall (insects, mites, etc.)", "gall"}, {"Plant (host)", "plant"}]}
+                />
+                <p class="mt-1 text-xs text-gray-500">
+                  Gall families contain gall-forming organisms. Plant families contain host plants.
+                </p>
+              <% else %>
+                <.input
+                  field={@form[:description]}
+                  type="text"
+                  label="Description:"
+                  placeholder="Common name or description"
+                />
+                <p class="mt-1 text-xs text-gray-500">
+                  Optional common name (e.g., "oaks" for Quercus)
+                </p>
+              <% end %>
             </div>
           </div>
 
