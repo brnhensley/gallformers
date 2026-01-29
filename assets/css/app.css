@@ -387,6 +387,19 @@ figcaption {
   padding: 0.5rem 1rem;
 }
 
+/* Dense variant for maximum data density (analytics, logs) */
+.gf-table-dense th {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  line-height: 1.2;
+}
+
+.gf-table-dense td {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8125rem;
+  line-height: 1.3;
+}
+
 /* Zebra striping for tables */
 .gf-table-zebra tbody tr:nth-child(even) {
   background-color: #f9fafb; /* gray-50 */

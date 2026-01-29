@@ -412,7 +412,7 @@ defmodule GallformersWeb.CoreComponents do
 
   attr :variant, :string,
     default: "default",
-    values: ~w(default compact),
+    values: ~w(default compact dense),
     doc: "table density variant"
 
   attr :zebra, :boolean, default: true, doc: "whether to show zebra striping"
@@ -437,6 +437,7 @@ defmodule GallformersWeb.CoreComponents do
     <table class={[
       "gf-table",
       @variant == "compact" && "gf-table-compact",
+      @variant == "dense" && "gf-table-dense",
       @zebra && "gf-table-zebra"
     ]}>
       <thead>

@@ -224,7 +224,11 @@ defmodule Gallformers.ImagesTest do
       %{source: source, target1: target1, target2: target2}
     end
 
-    test "copies metadata from source to targets", %{source: source, target1: target1, target2: target2} do
+    test "copies metadata from source to targets", %{
+      source: source,
+      target1: target1,
+      target2: target2
+    } do
       assert {:ok, 2} = Images.copy_metadata(source.id, [target1.id, target2.id], "admin")
 
       # Reload targets
