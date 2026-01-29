@@ -56,6 +56,27 @@ defmodule Gallformers.Taxonomy do
   end
 
   @doc """
+  Returns IDs of "Unknown" genera that have no species linked.
+
+  These are placeholder genera auto-created for each family but not yet
+  used for any undescribed species. They create UI noise and should
+  typically be hidden from browse/search interfaces.
+  """
+  @spec empty_unknown_genus_ids() :: [integer()]
+  def empty_unknown_genus_ids do
+    from(t in Taxonomy,
+      where: t.type == "genus" and t.name == "Unknown",
+      where:
+        fragment(
+          "NOT EXISTS (SELECT 1 FROM speciestaxonomy st WHERE st.taxonomy_id = ?)",
+          t.id
+        ),
+      select: t.id
+    )
+    |> Repo.all()
+  end
+
+  @doc """
   Gets a taxonomy by ID.
   """
   @spec get_taxonomy(integer()) :: Taxonomy.t() | nil
@@ -506,24 +527,45 @@ defmodule Gallformers.Taxonomy do
 
   Used for typeahead/autocomplete functionality in the ID tool.
   Returns up to `limit` results ordered by name.
-  """
-  @spec search_genera_and_sections(String.t(), integer()) :: [map()]
-  def search_genera_and_sections(query, limit \\ 20) when is_binary(query) do
-    search_pattern = "#{String.downcase(query)}%"
 
-    from(t in Taxonomy,
-      where: t.type in ["genus", "section"],
-      where: fragment("lower(?) LIKE ?", t.name, ^search_pattern),
-      order_by: [t.type, t.name],
-      limit: ^limit,
-      select: %{
-        id: t.id,
-        name: t.name,
-        type: t.type,
-        description: t.description
-      }
-    )
-    |> Repo.all()
+  By default, filters out empty Unknown genera (placeholder genera with
+  no species). Pass `include_empty_unknown: true` to include them.
+  """
+  @spec search_genera_and_sections(String.t(), integer(), keyword()) :: [map()]
+  def search_genera_and_sections(query, limit \\ 20, opts \\ []) when is_binary(query) do
+    search_pattern = "#{String.downcase(query)}%"
+    include_empty_unknown = Keyword.get(opts, :include_empty_unknown, false)
+
+    base_query =
+      from(t in Taxonomy,
+        where: t.type in ["genus", "section"],
+        where: fragment("lower(?) LIKE ?", t.name, ^search_pattern),
+        order_by: [t.type, t.name],
+        limit: ^limit,
+        select: %{
+          id: t.id,
+          name: t.name,
+          type: t.type,
+          description: t.description
+        }
+      )
+
+    query =
+      if include_empty_unknown do
+        base_query
+      else
+        # Exclude Unknown genera that have no species
+        from(t in base_query,
+          where:
+            not (t.name == "Unknown" and t.type == "genus" and
+                   fragment(
+                     "NOT EXISTS (SELECT 1 FROM speciestaxonomy st WHERE st.taxonomy_id = ?)",
+                     t.id
+                   ))
+        )
+      end
+
+    Repo.all(query)
   end
 
   @doc """
@@ -784,9 +826,14 @@ defmodule Gallformers.Taxonomy do
 
   @doc """
   Returns all taxonomies with their parent preloaded, optionally filtered by type.
+
+  ## Options
+  - `hide_empty_unknown` - If true, excludes Unknown genera with no species (default: false)
   """
-  @spec list_taxonomies_with_parent(String.t() | nil) :: [map()]
-  def list_taxonomies_with_parent(type \\ nil) do
+  @spec list_taxonomies_with_parent(String.t() | nil, keyword()) :: [map()]
+  def list_taxonomies_with_parent(type \\ nil, opts \\ []) do
+    hide_empty_unknown = Keyword.get(opts, :hide_empty_unknown, false)
+
     base_query =
       from(t in Taxonomy,
         left_join: p in Taxonomy,
@@ -810,7 +857,21 @@ defmodule Gallformers.Taxonomy do
         base_query
       end
 
-    Repo.all(query_with_type)
+    query =
+      if hide_empty_unknown do
+        from([t, p] in query_with_type,
+          where:
+            not (t.name == "Unknown" and t.type == "genus" and
+                   fragment(
+                     "NOT EXISTS (SELECT 1 FROM speciestaxonomy st WHERE st.taxonomy_id = ?)",
+                     t.id
+                   ))
+        )
+      else
+        query_with_type
+      end
+
+    Repo.all(query)
   end
 
   @doc """

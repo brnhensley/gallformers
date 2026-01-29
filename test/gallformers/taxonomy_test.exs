@@ -241,5 +241,68 @@ defmodule Gallformers.TaxonomyTest do
 
       assert unknown_count == 1
     end
+
+    test "empty_unknown_genus_ids returns IDs of Unknown genera with no species" do
+      # Create a family (will auto-create an empty Unknown genus)
+      {:ok, family} =
+        Taxonomy.create_taxonomy(%{
+          name: "TestEmptyUnknownFamily",
+          type: "family",
+          description: "Midge"
+        })
+
+      {:ok, unknown_genus} = Taxonomy.find_or_create_unknown_genus(family.id)
+
+      # The auto-created Unknown genus should be in the empty list
+      empty_ids = Taxonomy.empty_unknown_genus_ids()
+      assert unknown_genus.id in empty_ids
+
+      # Now link a species to it
+      {:ok, species} =
+        Repo.insert(%Species{
+          name: "Unknown sp. test",
+          taxoncode: "gall",
+          datacomplete: false
+        })
+
+      Taxonomy.link_species_to_taxonomy(species.id, unknown_genus.id)
+
+      # After linking a species, it should no longer be in the empty list
+      empty_ids_after = Taxonomy.empty_unknown_genus_ids()
+      refute unknown_genus.id in empty_ids_after
+    end
+
+    test "search_genera_and_sections filters empty Unknown genera by default" do
+      # Create family with empty Unknown genus
+      {:ok, _family} =
+        Taxonomy.create_taxonomy(%{
+          name: "TestSearchFilterFamily",
+          type: "family",
+          description: "Scale"
+        })
+
+      # Search for "Unknown" - should not find empty Unknown genera
+      results = Taxonomy.search_genera_and_sections("Unknown", 100)
+      empty_unknown_results = Enum.filter(results, &(&1.name == "Unknown" && &1.type == "genus"))
+
+      # All Unknown genera in results should have species (not empty)
+      for result <- empty_unknown_results do
+        species_count =
+          Repo.one(
+            from(st in "speciestaxonomy",
+              where: st.taxonomy_id == ^result.id,
+              select: count()
+            )
+          )
+
+        assert species_count > 0, "Found empty Unknown genus #{result.id} in search results"
+      end
+
+      # With include_empty_unknown: true, should find all Unknown genera
+      results_all =
+        Taxonomy.search_genera_and_sections("Unknown", 100, include_empty_unknown: true)
+
+      assert length(results_all) >= length(results)
+    end
   end
 end

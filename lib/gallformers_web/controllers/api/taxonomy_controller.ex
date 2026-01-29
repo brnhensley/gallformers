@@ -79,7 +79,11 @@ defmodule GallformersWeb.API.TaxonomyController do
   def family(conn, %{"id" => id}) do
     with {:ok, id} <- parse_id(id),
          {:ok, family} <- fetch_taxonomy_by_type(id, "family") do
-      genera = Taxonomy.get_children(id)
+      empty_unknown_ids = MapSet.new(Taxonomy.empty_unknown_genus_ids())
+
+      genera =
+        Taxonomy.get_children(id)
+        |> Enum.reject(fn g -> MapSet.member?(empty_unknown_ids, g.id) end)
 
       json(conn, %{
         id: family.id,
@@ -217,9 +221,12 @@ defmodule GallformersWeb.API.TaxonomyController do
 
   defp get_families_with_genera do
     families = Taxonomy.list_families()
+    empty_unknown_ids = MapSet.new(Taxonomy.empty_unknown_genus_ids())
 
     Enum.map(families, fn family ->
-      genera = Taxonomy.get_children(family.id)
+      genera =
+        Taxonomy.get_children(family.id)
+        |> Enum.reject(fn g -> MapSet.member?(empty_unknown_ids, g.id) end)
 
       %{
         id: family.id,

@@ -176,7 +176,7 @@ The admin UI should present these as separate views or clearly distinguish betwe
 | Unknown genus auto-creation | Manual | Yes (auto-creates on family creation) |
 | Unknown genus backfill | N/A | Yes (migration backfilled all families) |
 | Genus rename with species update | Yes | Yes |
-| Unknown genus filtering | No | **Planned** (gallformers-semz.3) |
+| Unknown genus filtering | No | Yes (hidden by default in admin, API, search) |
 
 ## Future Considerations
 

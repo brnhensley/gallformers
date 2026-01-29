@@ -32,6 +32,7 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Index do
       |> assign(:show_move_modal, false)
       |> assign(:families, [])
       |> assign(:move_target_family_id, nil)
+      |> assign(:hide_empty_unknown, true)
       |> load_taxonomies()
 
     {:ok, socket}
@@ -65,6 +66,17 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Index do
     socket =
       socket
       |> assign(:filter_type, filter_type)
+      |> assign(:current_page, 1)
+      |> load_taxonomies()
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("toggle_empty_unknown", _params, socket) do
+    socket =
+      socket
+      |> assign(:hide_empty_unknown, !socket.assigns.hide_empty_unknown)
       |> assign(:current_page, 1)
       |> load_taxonomies()
 
@@ -193,31 +205,42 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Index do
   end
 
   defp load_taxonomies(socket) do
+    hide_empty_unknown = socket.assigns.hide_empty_unknown
+    opts = [hide_empty_unknown: hide_empty_unknown]
+
     taxonomies =
       case {socket.assigns.search_query, socket.assigns.filter_type} do
-        {"", nil} -> Taxonomy.list_taxonomies_with_parent()
-        {"", type} -> Taxonomy.list_taxonomies_with_parent(type)
-        {query, type} -> search_and_filter(query, type)
+        {"", nil} -> Taxonomy.list_taxonomies_with_parent(nil, opts)
+        {"", type} -> Taxonomy.list_taxonomies_with_parent(type, opts)
+        {query, type} -> search_and_filter(query, type, hide_empty_unknown)
       end
 
     assign(socket, :taxonomies, taxonomies)
   end
 
-  defp search_and_filter(query, type) do
-    Taxonomy.search_taxonomies(query, type, 500)
-    |> Enum.map(fn t ->
-      parent = if t.parent_id, do: Taxonomy.get_taxonomy(t.parent_id), else: nil
+  defp search_and_filter(query, type, hide_empty_unknown) do
+    results =
+      Taxonomy.search_taxonomies(query, type, 500)
+      |> Enum.map(fn t ->
+        parent = if t.parent_id, do: Taxonomy.get_taxonomy(t.parent_id), else: nil
 
-      %{
-        id: t.id,
-        name: t.name,
-        description: t.description,
-        type: t.type,
-        parent_id: t.parent_id,
-        parent_name: parent && parent.name,
-        parent_type: parent && parent.type
-      }
-    end)
+        %{
+          id: t.id,
+          name: t.name,
+          description: t.description,
+          type: t.type,
+          parent_id: t.parent_id,
+          parent_name: parent && parent.name,
+          parent_type: parent && parent.type
+        }
+      end)
+
+    if hide_empty_unknown do
+      empty_ids = Taxonomy.empty_unknown_genus_ids()
+      Enum.reject(results, fn t -> t.id in empty_ids end)
+    else
+      results
+    end
   end
 
   defp sorted_taxonomies(taxonomies, sort_by, sort_dir) do
@@ -280,6 +303,14 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Index do
                 value={@filter_type}
               />
             </form>
+            <label class="flex items-center gap-2 text-sm text-gray-600 cursor-pointer whitespace-nowrap">
+              <input
+                type="checkbox"
+                checked={@hide_empty_unknown}
+                phx-click="toggle_empty_unknown"
+                class="h-4 w-4 rounded border-gray-300 text-gf-maroon focus:ring-gf-maroon"
+              /> Hide empty Unknown
+            </label>
           </div>
           <div class="flex items-center gap-2">
             <button

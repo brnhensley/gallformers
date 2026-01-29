@@ -62,6 +62,9 @@ defmodule GallformersWeb.GenusLive do
     species =
       if species_ids == [], do: [], else: Gallformers.Species.list_species_by_ids(species_ids)
 
+    # Don't index empty Unknown genera (placeholder genera with no species)
+    is_empty_unknown = genus.name == "Unknown" && species == []
+
     assign(socket,
       page_title: "Genus #{genus.name}",
       page_description:
@@ -69,7 +72,7 @@ defmodule GallformersWeb.GenusLive do
       page_url: "/genus/#{genus_id}",
       page_image: nil,
       page_json_ld: nil,
-      page_noindex: false,
+      page_noindex: is_empty_unknown,
       genus: genus,
       family: family,
       species: species,
