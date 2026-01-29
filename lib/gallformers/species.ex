@@ -44,7 +44,9 @@ defmodule Gallformers.Species do
           undescribed: g.undescribed,
           image_path: i.path,
           image_creator: i.creator,
-          image_license: i.license
+          image_license: i.license,
+          image_sourcelink: i.sourcelink,
+          image_licenselink: i.licenselink
         }
 
     case Repo.one(query) do

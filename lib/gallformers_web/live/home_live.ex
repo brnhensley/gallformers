@@ -265,7 +265,36 @@ defmodule GallformersWeb.HomeLive do
             <% end %>
             <%= if @random_gall.image_creator do %>
               <p class="text-xs text-gray-500 mt-2">
-                Photo: {@random_gall.image_creator}
+                Photo:
+                <%= if @random_gall.image_sourcelink do %>
+                  <a
+                    href={@random_gall.image_sourcelink}
+                    target="_blank"
+                    rel="noreferrer"
+                    class="hover:underline"
+                  >
+                    {@random_gall.image_creator}
+                  </a>
+                <% else %>
+                  {@random_gall.image_creator}
+                <% end %>
+                <%= if @random_gall.image_license do %>
+                  <span class="ml-1">
+                    ©
+                    <%= if @random_gall.image_licenselink do %>
+                      <a
+                        href={@random_gall.image_licenselink}
+                        target="_blank"
+                        rel="noreferrer"
+                        class="hover:underline"
+                      >
+                        {@random_gall.image_license}
+                      </a>
+                    <% else %>
+                      {@random_gall.image_license}
+                    <% end %>
+                  </span>
+                <% end %>
               </p>
             <% end %>
           <% else %>
