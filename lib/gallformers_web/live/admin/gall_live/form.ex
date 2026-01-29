@@ -444,17 +444,31 @@ defmodule GallformersWeb.Admin.GallLive.Form do
 
   @impl true
   def handle_event("save", %{"species" => params}, socket) do
-    # Validate that family is selected when genus is new
-    if socket.assigns.genus_is_new && is_nil(socket.assigns.selected_family_id) do
-      {:noreply, put_flash(socket, :error, "Please select a Family for the new genus")}
-    else
-      # Name is captured via typeahead (outside the form), so add it from socket assigns
-      params =
-        params
-        |> Map.put("taxoncode", "gall")
-        |> Map.put("name", socket.assigns.gall.name)
+    cond do
+      # Validate that family is selected when genus is new
+      socket.assigns.genus_is_new && is_nil(socket.assigns.selected_family_id) ->
+        {:noreply, put_flash(socket, :error, "Please select a Family for the new genus")}
 
-      save_gall(socket, socket.assigns.mode, params)
+      # Check for Unknown genus/family without undescribed flag
+      has_unknown_taxonomy?(socket) && !socket.assigns.undescribed &&
+          !socket.assigns[:unknown_taxonomy_confirmed] ->
+        {:noreply,
+         socket
+         |> put_flash(
+           :warning,
+           "This gall has an Unknown genus/family but is not marked as undescribed. " <>
+             "This is likely an error. Click Save again to confirm, or check the Undescribed box."
+         )
+         |> assign(:unknown_taxonomy_confirmed, true)}
+
+      true ->
+        # Name is captured via typeahead (outside the form), so add it from socket assigns
+        params =
+          params
+          |> Map.put("taxoncode", "gall")
+          |> Map.put("name", socket.assigns.gall.name)
+
+        save_gall(socket, socket.assigns.mode, params)
     end
   end
 
@@ -579,7 +593,12 @@ defmodule GallformersWeb.Admin.GallLive.Form do
   @impl true
   def handle_event("toggle_undescribed", _params, socket) do
     new_value = !socket.assigns.undescribed
-    {:noreply, socket |> assign(:undescribed, new_value) |> mark_dirty()}
+
+    {:noreply,
+     socket
+     |> assign(:undescribed, new_value)
+     |> assign(:unknown_taxonomy_confirmed, false)
+     |> mark_dirty()}
   end
 
   @impl true
@@ -782,6 +801,23 @@ defmodule GallformersWeb.Admin.GallLive.Form do
   # =================================================================
   # Private helper functions
   # =================================================================
+
+  # Checks if genus or family is "Unknown"
+  defp has_unknown_taxonomy?(socket) do
+    taxonomy = socket.assigns.taxonomy
+    genus_name = socket.assigns[:genus] || (taxonomy && taxonomy.genus)
+
+    # Check both the selected genus (if new) and the taxonomy data
+    if socket.assigns.genus_is_new do
+      # For new genus flow, check the selected family
+      family = Gallformers.Taxonomy.get_taxonomy(socket.assigns.selected_family_id)
+      family && family.name == "Unknown"
+    else
+      # Check the taxonomy record for Unknown genus or family
+      (genus_name && genus_name == "Unknown") ||
+        (taxonomy && taxonomy.family == "Unknown")
+    end
+  end
 
   defp add_host_to_pending(socket, host_id) do
     host_result = Enum.find(socket.assigns.host_search_results, &(&1.id == host_id))
