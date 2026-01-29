@@ -1,6 +1,6 @@
-defmodule GallformersWeb.RefArticleLive do
+defmodule GallformersWeb.ArticleLive do
   @moduledoc """
-  LiveView for individual reference article pages.
+  LiveView for individual article pages.
 
   Displays a single article with rendered markdown content, metadata,
   and related articles (by shared tags).
@@ -75,7 +75,7 @@ defmodule GallformersWeb.RefArticleLive do
      assign(socket,
        page_title: article.title,
        page_description: page_description,
-       page_url: "/ref/#{article.slug}",
+       page_url: "/articles/#{article.slug}",
        page_image: nil,
        page_json_ld: article_json_ld(article),
        page_noindex: noindex,
@@ -157,7 +157,7 @@ defmodule GallformersWeb.RefArticleLive do
             </div>
             <h1 class="text-2xl font-bold text-gray-700 mb-2">Article Not Found</h1>
             <p class="text-gray-600 mb-4">{@error}</p>
-            <.link href={~p"/refindex"} class="hover:underline">
+            <.link href={~p"/articles"} class="hover:underline">
               Browse all articles
             </.link>
           </div>
@@ -186,7 +186,7 @@ defmodule GallformersWeb.RefArticleLive do
           <%!-- Back link --%>
           <div class="mb-6">
             <.link
-              href={~p"/refindex"}
+              href={~p"/articles"}
               class="hover:underline inline-flex items-center gap-1"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -197,7 +197,7 @@ defmodule GallformersWeb.RefArticleLive do
                   d="M15 19l-7-7 7-7"
                 />
               </svg>
-              Back to Reference Library
+              Back to Articles
             </.link>
           </div>
 
@@ -215,7 +215,7 @@ defmodule GallformersWeb.RefArticleLive do
             <div :if={@article.tags != []} class="flex flex-wrap gap-2 mt-4">
               <.link
                 :for={tag <- @article.tags}
-                href={~p"/refindex?tag=#{tag}"}
+                href={~p"/articles?tag=#{tag}"}
                 class="px-3 py-1 bg-gray-100 text-gray-700 text-sm rounded-full hover:bg-gray-200 transition-colors"
               >
                 {tag}
@@ -234,7 +234,7 @@ defmodule GallformersWeb.RefArticleLive do
             <div class="space-y-4">
               <.link
                 :for={related <- @related_articles}
-                navigate={~p"/ref/#{related.slug}"}
+                navigate={~p"/articles/#{related.slug}"}
                 class="block p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
               >
                 <h3 class="font-medium hover:underline">{related.title}</h3>

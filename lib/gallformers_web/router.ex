@@ -40,6 +40,14 @@ defmodule GallformersWeb.Router do
     get "/robots.txt", RobotsController, :index
   end
 
+  # Legacy URL redirects (301)
+  scope "/", GallformersWeb do
+    pipe_through :browser
+
+    get "/refindex", RedirectController, :articles
+    get "/ref/:slug", RedirectController, :article
+  end
+
   # Auth routes (login/logout via Auth0)
   scope "/auth", GallformersWeb do
     pipe_through :browser
@@ -132,8 +140,8 @@ defmodule GallformersWeb.Router do
       live "/filterguide", FilterGuideLive
       live "/resources", ResourcesLive
       live "/glossary", GlossaryLive
-      live "/refindex", RefIndexLive
-      live "/ref/:slug", RefArticleLive
+      live "/articles", ArticlesLive
+      live "/articles/:slug", ArticleLive
       live "/globalsearch", SearchLive
       live "/explore", ExploreLive
 

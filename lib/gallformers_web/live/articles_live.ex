@@ -1,6 +1,6 @@
-defmodule GallformersWeb.RefIndexLive do
+defmodule GallformersWeb.ArticlesLive do
   @moduledoc """
-  LiveView for the reference library index page.
+  LiveView for the articles index page.
 
   Displays published reference articles with tag filtering.
   """
@@ -15,10 +15,10 @@ defmodule GallformersWeb.RefIndexLive do
 
     {:ok,
      assign(socket,
-       page_title: "Reference Library",
+       page_title: "Articles",
        page_description:
-         "The Gallformers Reference Library - in-depth articles on gall biology, identification guides, and scientific literature.",
-       page_url: "/refindex",
+         "Gallformers Articles - in-depth articles on gall biology, identification guides, and scientific literature.",
+       page_url: "/articles",
        page_image: nil,
        page_json_ld: nil,
        tags: tags,
@@ -96,7 +96,7 @@ defmodule GallformersWeb.RefIndexLive do
     ~H"""
     <Layouts.app flash={@flash} current_user={@current_user}>
       <div class="mx-auto max-w-4xl">
-        <h1 class="text-3xl font-bold text-gf-maroon mb-4">The Gallformers Reference Library</h1>
+        <h1 class="text-3xl font-bold text-gf-maroon mb-4">Gallformers Articles</h1>
 
         <p class="text-gray-700 mb-6">
           In-depth articles on gall biology, identification guides, and scientific literature.
@@ -107,7 +107,7 @@ defmodule GallformersWeb.RefIndexLive do
           <div class="mb-6">
             <div class="flex flex-wrap gap-2">
               <.link
-                patch={~p"/refindex"}
+                patch={~p"/articles"}
                 class={[
                   "px-3 py-1 rounded-full text-sm font-medium transition-colors",
                   if(@selected_tag == nil,
@@ -120,7 +120,7 @@ defmodule GallformersWeb.RefIndexLive do
               </.link>
               <.link
                 :for={tag_info <- @tags}
-                patch={~p"/refindex?tag=#{tag_info.tag}"}
+                patch={~p"/articles?tag=#{tag_info.tag}"}
                 class={[
                   "px-3 py-1 rounded-full text-sm font-medium transition-colors",
                   if(@selected_tag == tag_info.tag,
@@ -162,7 +162,7 @@ defmodule GallformersWeb.RefIndexLive do
             </p>
             <%= if @selected_tag do %>
               <.link
-                patch={~p"/refindex"}
+                patch={~p"/articles"}
                 class="hover:underline"
               >
                 View all articles
@@ -171,7 +171,11 @@ defmodule GallformersWeb.RefIndexLive do
           </div>
         <% else %>
           <div class="space-y-6">
-            <.link :for={article <- @articles} navigate={~p"/ref/#{article.slug}"} class="block group">
+            <.link
+              :for={article <- @articles}
+              navigate={~p"/articles/#{article.slug}"}
+              class="block group"
+            >
               <article class="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
                 <h2 class="text-xl font-semibold text-gf-maroon group-hover:underline mb-2">
                   {article.title}

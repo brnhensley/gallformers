@@ -23,7 +23,7 @@ defmodule GallformersWeb.HomeLiveTest do
       {:ok, _view, html} = live(conn, ~p"/")
 
       assert html =~ ~s(href="/id")
-      assert html =~ ~s(href="/refindex")
+      assert html =~ ~s(href="/articles")
       assert html =~ ~s(href="/explore")
     end
 

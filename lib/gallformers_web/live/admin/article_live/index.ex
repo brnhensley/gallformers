@@ -191,7 +191,7 @@ defmodule GallformersWeb.Admin.ArticleLive.Index do
                       <.action_button
                         icon="ph-arrow-square-out"
                         label={if article.is_published, do: "View", else: "Preview"}
-                        href={~p"/ref/#{article.slug}"}
+                        href={~p"/articles/#{article.slug}"}
                         target="_blank"
                       />
                       <.action_button

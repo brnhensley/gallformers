@@ -475,7 +475,7 @@ defmodule GallformersWeb.Admin.ArticleLive.Form do
       flash={@flash}
       current_user={@current_user}
       page_title={@page_title}
-      public_url={if @mode == :edit, do: ~p"/ref/#{@article.slug}"}
+      public_url={if @mode == :edit, do: ~p"/articles/#{@article.slug}"}
     >
       <Layouts.admin_edit_layout
         back_path={~p"/admin/articles"}
@@ -488,7 +488,7 @@ defmodule GallformersWeb.Admin.ArticleLive.Form do
 
         <:quick_links :if={@mode == :edit}>
           <.link
-            href={~p"/ref/#{@article.slug}"}
+            href={~p"/articles/#{@article.slug}"}
             target="_blank"
             class="text-sm hover:underline"
           >

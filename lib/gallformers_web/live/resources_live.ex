@@ -138,8 +138,8 @@ defmodule GallformersWeb.ResourcesLive do
               </p>
             </div>
             <div class="p-4">
-              <.link href="/refindex" class="hover:underline font-medium">
-                Reference Articles
+              <.link href="/articles" class="hover:underline font-medium">
+                Articles
               </.link>
               <p class="text-gray-600 text-sm mt-1">
                 In-depth articles on gall biology and identification.

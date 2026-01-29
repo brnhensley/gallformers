@@ -133,7 +133,7 @@ defmodule GallformersWeb.HomeLive do
             animals—caused by insects, mites, fungi, bacteria, or other organisms. They're often
             intricate structures that can identify the species that made them, even when that
             organism isn't visible.
-            <.link href="/ref/idguide" class="text-gf-maroon hover:underline whitespace-nowrap">
+            <.link href="/articles/idguide" class="text-gf-maroon hover:underline whitespace-nowrap">
               Learn more →
             </.link>
           </p>
@@ -196,7 +196,7 @@ defmodule GallformersWeb.HomeLive do
                   <.icon name="ph-crosshair" class="size-5 mr-2" /> Identify
                 </.link>
                 <.link
-                  href="/refindex"
+                  href="/articles"
                   class="inline-flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-full hover:bg-gray-200"
                 >
                   <.icon name="ph-article" class="size-5 mr-2" /> Articles

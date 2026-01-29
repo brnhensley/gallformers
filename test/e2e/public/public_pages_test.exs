@@ -67,10 +67,10 @@ defmodule GallformersWeb.E2E.PublicPagesTest do
     end
   end
 
-  describe "reference index page" do
+  describe "articles page" do
     test "loads successfully", %{session: session} do
       session
-      |> visit("/refindex")
+      |> visit("/articles")
       |> assert_has(css(".phx-connected"))
     end
   end

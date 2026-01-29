@@ -64,7 +64,7 @@ defmodule GallformersWeb.Layouts do
     resource_links = [
       %{href: "/filterguide", label: "Filter Terms"},
       %{href: "/glossary", label: "Glossary"},
-      %{href: "/refindex", label: "Reference"}
+      %{href: "/articles", label: "Articles"}
     ]
 
     assigns =
