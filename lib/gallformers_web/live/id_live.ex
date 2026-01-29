@@ -35,6 +35,24 @@ defmodule GallformersWeb.IDLive do
   # Special marker for "leaf (anywhere)" virtual location option
   @leaf_anywhere_id "leaf_anywhere"
 
+  # V1 URL param names -> V2 param names (for backwards compatibility with old bookmarks)
+  @v1_param_mapping %{
+    "hostOrTaxon" => "h",
+    "locations" => "lo",
+    "textures" => "te",
+    "color" => "co",
+    "shape" => "sh",
+    "alignment" => "al",
+    "detachable" => "de",
+    "walls" => "wa",
+    "cells" => "ce",
+    "season" => "se",
+    "form" => "fo",
+    "undescribed" => "un",
+    "place" => "pl",
+    "family" => "fa"
+  }
+
   @impl true
   def mount(_params, _session, socket) do
     filter_options = IDTool.get_filter_options()
@@ -80,9 +98,21 @@ defmodule GallformersWeb.IDLive do
 
   @impl true
   def handle_params(params, _uri, socket) do
+    # Normalize V1 param names to V2 for backwards compatibility
+    params = normalize_v1_params(params)
     filters = parse_url_params(params)
     socket = apply_url_filters(socket, filters, params)
     {:noreply, socket}
+  end
+
+  # Convert V1 URL param names to V2 short codes
+  defp normalize_v1_params(params) do
+    Enum.reduce(@v1_param_mapping, params, fn {v1_key, v2_key}, acc ->
+      case Map.get(acc, v1_key) do
+        nil -> acc
+        value -> acc |> Map.delete(v1_key) |> Map.put(v2_key, value)
+      end
+    end)
   end
 
   # Parse URL parameters into filter map
