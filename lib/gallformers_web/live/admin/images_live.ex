@@ -808,6 +808,59 @@ defmodule GallformersWeb.Admin.ImagesLive do
             </div>
           </:body>
         </.modal>
+
+        <%!-- Copy Confirmation Modal --%>
+        <.modal
+          :if={@show_copy_confirm && @copy_mode}
+          id="copy-confirm-modal"
+          show
+          on_cancel={JS.push("cancel_copy_confirm")}
+        >
+          <:header>Copy Image Metadata</:header>
+          <:body>
+            <div class="space-y-4">
+              <p class="text-gray-600">
+                Copy metadata from:
+              </p>
+              <% source_image = Enum.find(@images, &(&1.id == @copy_mode.source_id)) %>
+              <div class="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
+                <img
+                  :if={source_image}
+                  src={Image.sized_url(source_image.path, :small)}
+                  alt="Source image"
+                  class="w-16 h-16 object-cover rounded"
+                />
+                <div :if={source_image} class="text-sm">
+                  <p><strong>Creator:</strong> {source_image.creator || "—"}</p>
+                  <p><strong>License:</strong> {source_image.license || "—"}</p>
+                </div>
+              </div>
+              <p class="text-gray-600">
+                To <strong>{MapSet.size(@copy_mode.selected_ids)}</strong> selected image(s)?
+              </p>
+              <div class="text-sm text-gray-500 bg-gray-50 p-3 rounded">
+                <p class="font-medium mb-1">Fields to be copied:</p>
+                <p>Creator, License, License Link, Source Link, Attribution, Caption, Source</p>
+              </div>
+              <%= if source_image && image_incomplete?(source_image) do %>
+                <div class="p-3 bg-orange-50 border border-orange-200 rounded-lg flex items-start gap-3">
+                  <.icon name="ph-warning" class="h-5 w-5 text-orange-500 flex-shrink-0 mt-0.5" />
+                  <p class="text-sm text-orange-800">
+                    Source image is missing some metadata. Empty values will overwrite existing data in target images.
+                  </p>
+                </div>
+              <% end %>
+            </div>
+          </:body>
+          <:footer>
+            <.button type="button" variant="secondary" phx-click="cancel_copy_confirm">
+              Cancel
+            </.button>
+            <.button type="button" variant="primary" phx-click="execute_copy">
+              Copy Metadata
+            </.button>
+          </:footer>
+        </.modal>
       </div>
     </Layouts.admin>
     """
