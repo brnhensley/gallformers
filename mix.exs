@@ -76,6 +76,8 @@ defmodule Gallformers.MixProject do
       {:hackney, "~> 1.20"},
       # Image processing
       {:image, "~> 0.54"},
+      # User agent parsing for analytics
+      {:browser, "~> 0.5.5"},
       # Dev/Test tools
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
