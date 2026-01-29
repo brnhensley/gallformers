@@ -512,6 +512,8 @@ This project uses **watchmen** for time tracking. A hook automatically starts th
 
 **Commit messages:** Present tense, imperative mood.
 
+**CRITICAL: Never amend commits.** Always create new commits. Amending pushed commits causes history divergence that requires force-push, which is forbidden.
+
 CRITICAL: Never push to main without explicit approval.
 
 ## Multi-Agent Workflow
