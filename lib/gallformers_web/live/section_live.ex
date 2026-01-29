@@ -99,9 +99,19 @@ defmodule GallformersWeb.SectionLive do
             <%!-- Header --%>
             <div class="mb-6">
               <div class="flex items-center justify-between mb-2">
-                <h1 class="text-2xl font-bold text-gf-maroon">
-                  {format_full_name(@section.name, @section.description)}
-                </h1>
+                <div class="flex items-center gap-2">
+                  <h1 class="text-2xl font-bold text-gf-maroon">
+                    {format_full_name(@section.name, @section.description)}
+                  </h1>
+                  <.link
+                    :if={@current_user}
+                    href={~p"/admin/taxonomy/#{@section.id}"}
+                    class="text-gray-400 hover:text-gf-maroon"
+                    title="Edit in admin"
+                  >
+                    <.icon name="ph-pencil-simple" class="h-5 w-5" />
+                  </.link>
+                </div>
               </div>
             </div>
 

@@ -139,12 +139,22 @@ defmodule GallformersWeb.FamilyLive do
             <div class="bg-white rounded border border-gray-200 shadow-sm">
               <div class="px-4 py-3 border-b border-gray-200">
                 <div class="flex items-center justify-between">
-                  <h1 class="text-2xl font-bold text-gf-maroon">
-                    {@family.name}
-                    <span :if={@family.description} class="text-lg font-normal text-gray-600">
-                      - {@family.description}
-                    </span>
-                  </h1>
+                  <div class="flex items-center gap-2">
+                    <h1 class="text-2xl font-bold text-gf-maroon">
+                      {@family.name}
+                      <span :if={@family.description} class="text-lg font-normal text-gray-600">
+                        - {@family.description}
+                      </span>
+                    </h1>
+                    <.link
+                      :if={@current_user}
+                      href={~p"/admin/taxonomy/#{@family.id}"}
+                      class="text-gray-400 hover:text-gf-maroon"
+                      title="Edit in admin"
+                    >
+                      <.icon name="ph-pencil-simple" class="h-5 w-5" />
+                    </.link>
+                  </div>
                 </div>
               </div>
               <div class="p-4">
