@@ -183,6 +183,43 @@ defmodule Gallformers.Images do
   end
 
   @doc """
+  Copy metadata from source image to target images.
+
+  Copies: creator, license, licenselink, sourcelink, attribution, caption, source_id
+  Updates: lastchangedby on all targets
+
+  Returns {:ok, count} on success, {:error, reason} on failure.
+  """
+  @spec copy_metadata(integer(), [integer()], String.t()) ::
+          {:ok, integer()} | {:error, :source_not_found | term()}
+  def copy_metadata(_source_id, [], _updated_by), do: {:ok, 0}
+
+  def copy_metadata(source_id, target_ids, updated_by) when is_list(target_ids) do
+    case get_image(source_id) do
+      nil ->
+        {:error, :source_not_found}
+
+      source ->
+        metadata = %{
+          creator: source.creator,
+          license: source.license,
+          licenselink: source.licenselink,
+          sourcelink: source.sourcelink,
+          attribution: source.attribution,
+          caption: source.caption,
+          source_id: source.source_id,
+          lastchangedby: updated_by
+        }
+
+        {count, _} =
+          from(i in ImageSchema, where: i.id in ^target_ids)
+          |> Repo.update_all(set: Map.to_list(metadata))
+
+        {:ok, count}
+    end
+  end
+
+  @doc """
   Deletes an image from the database and S3.
 
   Deletes all size variants (original, small, medium, large, xlarge) from S3.
