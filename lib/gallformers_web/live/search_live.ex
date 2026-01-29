@@ -47,7 +47,14 @@ defmodule GallformersWeb.SearchLive do
         socket
       end
 
-    {:noreply, assign(socket, query: query)}
+    page_title =
+      if query == "" do
+        "Search"
+      else
+        "Search Results - '#{query}'"
+      end
+
+    {:noreply, assign(socket, query: query, page_title: page_title)}
   end
 
   @impl true
@@ -213,7 +220,21 @@ defmodule GallformersWeb.SearchLive do
       "genus" -> "Genus #{result.name}"
       "section" -> "Section #{result.name}"
       "family" -> "Family #{result.name}"
+      "place" -> "#{result.name} - #{result.code}"
+      "source" -> format_source_name(result)
       _ -> result.name
+    end
+  end
+
+  defp format_source_name(result) do
+    author = result[:author] || "Unknown"
+    year = result[:pubyear]
+    title = result.name
+
+    if year do
+      "#{author} (#{year}): #{title}"
+    else
+      "#{author}: #{title}"
     end
   end
 
