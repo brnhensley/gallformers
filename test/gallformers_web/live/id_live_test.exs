@@ -20,7 +20,7 @@ defmodule GallformersWeb.IDLiveTest do
     test "shows instruction message when no selection", %{conn: conn} do
       {:ok, _view, html} = live(conn, ~p"/id")
 
-      assert html =~ "Select a Host or Genus"
+      assert html =~ "Select a Host Plant or Plant Genus/Section"
     end
 
     test "has host search input", %{conn: conn} do

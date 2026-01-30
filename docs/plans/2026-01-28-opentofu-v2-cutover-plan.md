@@ -27,7 +27,6 @@ gallformers.fly.dev → Fly.io → V2 (Phoenix)
 - **V1 is live** at gallformers.org on a Digital Ocean droplet (~$25/month)
 - **V2 is staged** at gallformers.fly.dev on Fly.io
 - Both use the same CloudFront distribution (`E3B3XXYW8G4SB2`) and S3 bucket for images
-- V1 had a legacy image domain `static.gallformers.org` (status unknown, needs investigation)
 - V1 database: SQLite on DO mounted volume (`/mnt/gallformers_data/prisma/gallformers.sqlite`, ~50MB)
 - V2 database: SQLite on Fly.io persistent volume (`/data/gallformers.sqlite`)
 - DNS managed at Namecheap for gallformers.org and gallformers.com
@@ -59,13 +58,13 @@ images served via → CloudFront (images) → S3 (us-east-1)
 | `gbcn` | Set up OpenTofu project structure and state backend | Done |
 | `plg7` | Create OpenTofu state bucket in S3 | Open |
 | `87a8` | Set up AWS credentials for OpenTofu operations | Open |
-| `r1kb` | Investigate static.gallformers.org references | Open |
+| `r1kb` | Investigate static.gallformers.org references | Done |
 
 **Details:**
 
 - **State bucket** (`plg7`): Create `gallformers-terraform-state` bucket manually in AWS console. This is the bootstrap step — OpenTofu can't manage the bucket it stores state in. Enable versioning and encryption.
 - **Credentials** (`87a8`): Decide how operators authenticate to AWS for OpenTofu commands. Options: existing `jeff` user, dedicated `opentofu-admin` user, or IAM Identity Center (SSO).
-- **static.gallformers.org** (`r1kb`): V1 had this legacy image domain. Need to determine if anything still references it — database records, external links, DNS. Must be resolved before V2 cutover or old image links could break.
+- **static.gallformers.org** (`r1kb`): Investigation determined that it is totally unused and a dead domain.
 
 ### Phase 2: Import Existing Resources & S3 Migration
 
@@ -146,10 +145,10 @@ images served via → CloudFront (images) → S3 (us-east-1)
 - [ ] V2 CloudFront distribution created and tested (`9mtv`, `pliz`)
 - [ ] ACM certificate issued and validated (`xk5x`)
 - [ ] Auth0 callback URLs updated (`59gg`)
-- [ ] static.gallformers.org investigated and resolved (`r1kb`)
+- [X] static.gallformers.org investigated and resolved (`r1kb`)
 - [ ] Maintenance page verified working
 - [ ] Smoke test script created and tested (`okhy`)
-- [ ] Fly.io monitoring/alerting active (`xj17`)
+- [X] Fly.io monitoring/alerting active (`xj17`)
 - [ ] User communication started — banner on V1 site T-7 days (`3kso`)
 - [ ] Status page updated for V2 and maintenance announced (`c53r`)
 - [ ] Rollback procedure written, tested, and DO Droplet IP documented (`mooa`)
