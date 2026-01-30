@@ -744,8 +744,8 @@ defmodule GallformersWeb.IDLive do
             <div class="md:col-span-5">
               <.typeahead
                 id="host-picker"
-                label="Host:"
-                placeholder="Search hosts..."
+                label="Host Plant Species:"
+                placeholder="Search species..."
                 query={@host_query}
                 results={@host_results}
                 selected={@selected_host}
@@ -768,7 +768,7 @@ defmodule GallformersWeb.IDLive do
             <div class="md:col-span-5">
               <.typeahead
                 id="genus-picker"
-                label="Genus / Section:"
+                label="Host Plant Genus / Section:"
                 placeholder="Search genera..."
                 query={@genus_query}
                 results={@genus_results}
@@ -1165,7 +1165,7 @@ defmodule GallformersWeb.IDLive do
       <%= if !@has_selection do %>
         <div class="text-center py-8 text-gray-600 bg-blue-50 rounded border border-blue-200">
           <p class="text-base">
-            Select a Host or Genus to see matching galls. Then you can use the filters to narrow down the list.
+            Select a Host Plant or Plant Genus/Section to see matching galls. Then you can use the filters to narrow down the list.
           </p>
         </div>
       <% else %>
