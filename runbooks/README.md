@@ -10,7 +10,6 @@ Operational runbooks for Gallformers V2.
 | [Rollback Deployment](./rollback-deployment.md) | Revert to a previous release |
 | [Restore Database](./restore-database.md) | Recover database from backup |
 | [Incident Response](./incident-response.md) | Coordinate response to production incidents |
-| [Set Up Monitoring Alerts](./setup-monitoring-alerts.md) | Configure Grafana alerts for CPU, memory, errors |
 
 ## Usage
 
