@@ -56,8 +56,8 @@ images served via → CloudFront (images) → S3 (us-east-1)
 | Bead | Task | Status |
 |------|------|--------|
 | `gbcn` | Set up OpenTofu project structure and state backend | Done |
-| `plg7` | Create OpenTofu state bucket in S3 | Open |
-| `87a8` | Set up AWS credentials for OpenTofu operations | Open |
+| `plg7` | Create OpenTofu state bucket in S3 | Done |
+| `87a8` | Set up AWS credentials for OpenTofu operations | Done |
 | `r1kb` | Investigate static.gallformers.org references | Done |
 
 **Details:**
@@ -73,9 +73,9 @@ images served via → CloudFront (images) → S3 (us-east-1)
 | Bead | Task | Status | Blocked by |
 |------|------|--------|------------|
 | `fa91` | Import IAM users and policies | Done | — |
-| `1akk` | Migrate images bucket to us-east-1 | In Progress | — |
-| `bfuu` | Import S3 buckets | Open | `1akk` |
-| `6vkv` | Import CloudFront distribution (images) | Open | `1akk` |
+| `1akk` | Migrate images bucket to us-east-1 | Done | — |
+| `bfuu` | Import S3 buckets | Done | `1akk` |
+| `6vkv` | Import CloudFront distribution (images) | Done | `1akk` |
 
 **Details:**
 
@@ -91,7 +91,7 @@ images served via → CloudFront (images) → S3 (us-east-1)
 
 | Bead | Task | Status | Blocked by |
 |------|------|--------|------------|
-| `111t` | Clean up legacy IAM policies (update bucket ARNs) | Open | `1akk` |
+| `111t` | Clean up legacy IAM policies (update bucket ARNs) | Done | `1akk` |
 | `9l6l` | Configure S3 CORS for presigned image uploads | Open | `1akk` |
 | `wy87` | Write OpenTofu operations runbook | Open | — |
 
@@ -222,7 +222,8 @@ Phase E — Post-DNS verification (10 min):
 |------|------|--------|------------|
 | `jqac` | Shut down V1 Digital Ocean droplet | Open | `iqrd` |
 | `94kv` | Delete AWS Lambda downdetector | Open | `iqrd` |
-| `kfk1` | Deprecate old `gallformers` S3 bucket (us-east-2) | Open | `1akk` |
+| `d18u` | Remove legacy IAM policies from s3-upload user | Open | `iqrd` |
+| `kfk1` | Deprecate old `gallformers` S3 bucket (us-east-2) | Open | — |
 | `uo7k` | Deprecate `gallformers-dev` S3 bucket | Open | — |
 | `uuou` | Remove `v1/` directory from repository | Open | `jqac` |
 
@@ -233,10 +234,32 @@ Phase E — Post-DNS verification (10 min):
 - **Old S3 bucket** (`kfk1`): Keep for 30 days after migration as fallback. Verify nothing references it. Then empty and delete. Note: the `gallformers` bucket name becomes globally available after deletion.
 - **Dev bucket** (`uo7k`): Inventory contents, decide if anything is needed, delete.
 - **V1 code** (`uuou`): After DO shutdown, delete `v1/` directory from repo. Update any CI workflows. Code remains in git history.
+- **IAM cleanup** (`d18u`): After verifying V2 image uploads work, remove legacy `s3-put` policy and inline `GallfomersImagesPolicy` from `s3-upload` user. The new `GallformersImageUpload` policy is already attached and points to the new bucket.
 
 **Additional cleanup (part of existing beads):**
 - Remove V1 callback URLs from Auth0 (part of `59gg` follow-up)
 - Reset DNS TTL to 3600 seconds (part of `iqrd` follow-up)
+
+**IAM legacy cleanup (`d18u`) - after verifying image uploads work on V2:**
+
+Remove from `s3-upload` user:
+```bash
+# 1. Detach old s3-put policy
+aws iam detach-user-policy --user-name s3-upload \
+  --policy-arn arn:aws:iam::885187511538:policy/s3-put
+
+# 2. Delete inline policy with typo (references dead SQS)
+aws iam delete-user-policy --user-name s3-upload \
+  --policy-name GallfomersImagesPolicy
+
+# 3. Delete the orphaned s3-put policy
+aws iam delete-policy --policy-arn arn:aws:iam::885187511538:policy/s3-put
+```
+
+Other legacy IAM to remove (part of `94kv` Lambda cleanup):
+- `LambdaSQS` policy
+- `AWSLambdaBasicExecutionRole-*` policies (3 total)
+- `tutum-policy` (ancient Docker Cloud policy, likely unused)
 
 ## Dependency Graph
 
@@ -269,14 +292,14 @@ gbcn ✓ ──┬──► 1akk ──┬──► bfuu ──► 9mtv ──�
 |------|-------|-----|-------|--------|
 | `nq4j` | — | P4 | (EPIC) Implement OpenTofu for AWS Infrastructure | Open |
 | `gbcn` | 1 | P4 | Set up OpenTofu project structure and state backend | **Done** |
-| `plg7` | 1 | P4 | Create OpenTofu state bucket in S3 | Open |
-| `87a8` | 1 | P4 | Set up AWS credentials for OpenTofu operations | Open |
-| `r1kb` | 1 | P3 | Investigate static.gallformers.org references | Open |
+| `plg7` | 1 | P4 | Create OpenTofu state bucket in S3 | **Done** |
+| `87a8` | 1 | P4 | Set up AWS credentials for OpenTofu operations | **Done** |
+| `r1kb` | 1 | P3 | Investigate static.gallformers.org references | **Done** |
 | `fa91` | 2 | P4 | Import IAM users and policies | **Done** |
-| `1akk` | 2 | P4 | Migrate images bucket to us-east-1 | In Progress |
-| `bfuu` | 2 | P4 | Import S3 buckets | Open |
-| `6vkv` | 2 | P4 | Import CloudFront distribution (images) | Open |
-| `111t` | 3 | P4 | Clean up legacy IAM policies | Open |
+| `1akk` | 2 | P4 | Migrate images bucket to us-east-1 | **Done** |
+| `bfuu` | 2 | P4 | Import S3 buckets | **Done** |
+| `6vkv` | 2 | P4 | Import CloudFront distribution (images) | **Done** |
+| `111t` | 3 | P4 | Clean up legacy IAM policies | **Done** |
 | `9l6l` | 3 | P4 | Configure S3 CORS for presigned image uploads | Open |
 | `wy87` | 3 | P4 | Write OpenTofu operations runbook | Open |
 | `xk5x` | 4 | P3 | Create and validate ACM certificate | Open |
@@ -292,6 +315,7 @@ gbcn ✓ ──┬──► 1akk ──┬──► bfuu ──► 9mtv ──�
 | `iqrd` | 5 | P3 | DNS cutover to CloudFront for V2 launch | Open |
 | `jqac` | 7 | P4 | Shut down V1 Digital Ocean droplet | Open |
 | `94kv` | 7 | P4 | Delete AWS Lambda downdetector | Open |
+| `d18u` | 7 | P4 | Remove legacy IAM policies from s3-upload user | Open |
 | `kfk1` | 7 | P4 | Deprecate old gallformers S3 bucket | Open |
 | `uo7k` | 7 | P4 | Deprecate gallformers-dev S3 bucket | Open |
 | `uuou` | 7 | P4 | Remove v1/ directory from repository | Open |
