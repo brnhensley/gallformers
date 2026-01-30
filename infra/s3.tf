@@ -48,3 +48,22 @@ resource "aws_s3_bucket_policy" "images_public_read" {
     ]
   })
 }
+
+resource "aws_s3_bucket_cors_configuration" "images" {
+  bucket = aws_s3_bucket.images.id
+
+  cors_rule {
+    allowed_origins = [
+      "https://gallformers.org",
+      "https://www.gallformers.org",
+      "https://gallformers.com",
+      "https://www.gallformers.com",
+      "https://gallformers.fly.dev",
+      "http://localhost:4000"
+    ]
+    allowed_methods = ["PUT", "GET"]
+    allowed_headers = ["Content-Type", "Content-Length"]
+    expose_headers  = ["ETag"]
+    max_age_seconds = 3600
+  }
+}
