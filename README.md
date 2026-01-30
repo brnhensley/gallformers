@@ -1,5 +1,8 @@
 # Gallformers
 
+[![Uptime](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fjeffdc%2Fgallformers-status%2Fmaster%2Fapi%2Fgallformers-production%2Fuptime.json)](https://jeffdc.github.io/gallformers-status/)
+[![Response Time](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fjeffdc%2Fgallformers-status%2Fmaster%2Fapi%2Fgallformers-production%2Fresponse-time.json)](https://jeffdc.github.io/gallformers-status/)
+
 The gallformers.org website - a comprehensive database and reference guide for galls.
 
 ## Quick Start
