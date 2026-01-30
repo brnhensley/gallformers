@@ -209,6 +209,13 @@ The `users` table contains personally identifiable information:
 - **Auth**: Auth0
 - **Domains**: Namecheap (gallformers.org, gallformers.com)
 
+## Monitoring
+
+- **Status page**: [jeffdc.github.io/gallformers-status](https://jeffdc.github.io/gallformers-status/) - Uptime monitoring via Upptime
+- **Metrics dashboard**: [fly-metrics.net](https://fly-metrics.net/d/fly-app/fly-app?orgId=932898) - CPU, memory, HTTP metrics (view-only, no alerting)
+
+Fly.io also sends automatic email alerts on OOM (out-of-memory) events.
+
 ## Contributing
 
 See [CLAUDE.md](CLAUDE.md) for detailed development guidelines.
