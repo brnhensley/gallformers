@@ -185,7 +185,8 @@ defmodule GallformersWeb.Admin.ImagesLive do
                 <p class="font-medium">Some images need attention</p>
                 <p class="mt-1">
                   Images marked with an orange border are missing required metadata (creator or license).
-                  Hover over the image and click the edit button to add this information.
+                  Hover over the image and click the edit button to add this information or switch to then
+                  table view above and to the right to edit the metadata.
                 </p>
               </div>
             </div>
