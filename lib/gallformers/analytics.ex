@@ -155,6 +155,55 @@ defmodule Gallformers.Analytics do
   end
 
   @doc """
+  Returns daily breakdown of page views and unique visitors for a date range.
+
+  Each day in the range is included, even if there were no page views.
+  Returns a list of maps with keys: :date, :page_views, :unique_visitors
+  """
+  @spec daily_stats(Date.t(), Date.t()) :: [map()]
+  def daily_stats(from_date, to_date) do
+    # Query for days that have data
+    from_datetime = NaiveDateTime.new!(from_date, ~T[00:00:00])
+    to_datetime = NaiveDateTime.new!(to_date, ~T[23:59:59])
+
+    stats_with_data =
+      from(pv in PageView,
+        where: pv.inserted_at >= ^from_datetime and pv.inserted_at <= ^to_datetime,
+        group_by: fragment("date(?)", pv.inserted_at),
+        select: %{
+          date: fragment("date(?)", pv.inserted_at),
+          page_views: count(pv.id),
+          unique_visitors: count(pv.visitor_hash, :distinct)
+        },
+        order_by: fragment("date(?)", pv.inserted_at)
+      )
+      |> Repo.all()
+      |> Enum.map(fn stat ->
+        # Convert string date to Date struct
+        {:ok, date} = Date.from_iso8601(stat.date)
+        %{stat | date: date}
+      end)
+
+    # Fill in missing days with zeros
+    fill_missing_days(from_date, to_date, stats_with_data)
+  end
+
+  defp fill_missing_days(from_date, to_date, stats_with_data) do
+    # Create a map for quick lookup
+    stats_map = Map.new(stats_with_data, &{&1.date, &1})
+
+    # Generate all dates in range
+    Date.range(from_date, to_date)
+    |> Enum.map(fn date ->
+      Map.get(stats_map, date, %{
+        date: date,
+        page_views: 0,
+        unique_visitors: 0
+      })
+    end)
+  end
+
+  @doc """
   Returns top pages for a date range.
   """
   @spec top_pages(Date.t(), Date.t(), integer()) :: [map()]

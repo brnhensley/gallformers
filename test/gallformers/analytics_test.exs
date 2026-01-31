@@ -341,4 +341,109 @@ defmodule Gallformers.AnalyticsTest do
       assert stats_today.page_views >= 1
     end
   end
+
+  describe "daily_stats/2" do
+    test "returns daily breakdown for date range" do
+      today = Date.utc_today()
+      yesterday = Date.add(today, -1)
+
+      # Insert page views for yesterday
+      Repo.insert(%PageView{
+        path: "/page1",
+        visitor_hash: "visitor1",
+        inserted_at: NaiveDateTime.new!(yesterday, ~T[12:00:00])
+      })
+
+      Repo.insert(%PageView{
+        path: "/page2",
+        visitor_hash: "visitor1",
+        inserted_at: NaiveDateTime.new!(yesterday, ~T[13:00:00])
+      })
+
+      Repo.insert(%PageView{
+        path: "/page3",
+        visitor_hash: "visitor2",
+        inserted_at: NaiveDateTime.new!(yesterday, ~T[14:00:00])
+      })
+
+      # Insert page views for today
+      Repo.insert(%PageView{
+        path: "/page1",
+        visitor_hash: "visitor3",
+        inserted_at: NaiveDateTime.new!(today, ~T[10:00:00])
+      })
+
+      daily_stats = Analytics.daily_stats(yesterday, today)
+
+      assert length(daily_stats) == 2
+
+      # Find stats for each day
+      yesterday_stats = Enum.find(daily_stats, &(&1.date == yesterday))
+      today_stats = Enum.find(daily_stats, &(&1.date == today))
+
+      assert yesterday_stats.page_views == 3
+      assert yesterday_stats.unique_visitors == 2
+
+      assert today_stats.page_views >= 1
+      assert today_stats.unique_visitors >= 1
+    end
+
+    test "returns days with zero counts when no page views exist" do
+      # Use a far future date range with no data
+      from_date = Date.add(Date.utc_today(), 1000)
+      to_date = Date.add(from_date, 2)
+
+      daily_stats = Analytics.daily_stats(from_date, to_date)
+
+      # Should have 3 days with all zeros
+      assert length(daily_stats) == 3
+      assert Enum.all?(daily_stats, &(&1.page_views == 0))
+      assert Enum.all?(daily_stats, &(&1.unique_visitors == 0))
+    end
+
+    test "includes days with zero views in the range" do
+      today = Date.utc_today()
+      three_days_ago = Date.add(today, -3)
+
+      # Only insert data for today, none for the days in between
+      Repo.insert(%PageView{
+        path: "/page1",
+        visitor_hash: "visitor1",
+        inserted_at: NaiveDateTime.new!(today, ~T[10:00:00])
+      })
+
+      daily_stats = Analytics.daily_stats(three_days_ago, today)
+
+      # Should have 4 days total (3 days ago, 2 days ago, yesterday, today)
+      assert length(daily_stats) == 4
+
+      # Days with no data should have zero counts
+      zero_days = Enum.filter(daily_stats, &(&1.page_views == 0))
+      assert length(zero_days) == 3
+    end
+
+    test "orders results chronologically" do
+      today = Date.utc_today()
+      two_days_ago = Date.add(today, -2)
+
+      Repo.insert(%PageView{
+        path: "/page1",
+        visitor_hash: "visitor1",
+        inserted_at: NaiveDateTime.new!(two_days_ago, ~T[10:00:00])
+      })
+
+      Repo.insert(%PageView{
+        path: "/page2",
+        visitor_hash: "visitor2",
+        inserted_at: NaiveDateTime.new!(today, ~T[10:00:00])
+      })
+
+      daily_stats = Analytics.daily_stats(two_days_ago, today)
+
+      dates = Enum.map(daily_stats, & &1.date)
+      assert dates == Enum.sort(dates)
+      assert List.first(dates) == two_days_ago
+      assert List.last(dates) == today
+    end
+  end
 end

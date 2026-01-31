@@ -10,7 +10,7 @@ defmodule GallformersWeb.Admin.AnalyticsLive do
 
   alias Gallformers.Analytics
 
-  @default_range "7d"
+  @default_range "today"
   @ranges %{
     "today" => 0,
     "7d" => 6,
@@ -44,9 +44,14 @@ defmodule GallformersWeb.Admin.AnalyticsLive do
 
   defp load_analytics(socket, range) do
     {from_date, to_date} = date_range(range)
+    is_single_day = from_date == to_date
 
     socket
-    |> assign(:stats, Analytics.stats(from_date, to_date))
+    |> assign(:from_date, from_date)
+    |> assign(:to_date, to_date)
+    |> assign(:is_single_day, is_single_day)
+    |> assign(:stats, if(is_single_day, do: Analytics.stats(from_date, to_date), else: nil))
+    |> assign(:daily_stats, if(is_single_day, do: nil, else: Analytics.daily_stats(from_date, to_date)))
     |> assign(:top_pages, Analytics.top_pages(from_date, to_date))
     |> assign(:top_referrers, Analytics.top_referrers(from_date, to_date))
     |> assign(:devices, add_percentages(Analytics.device_breakdown(from_date, to_date)))
@@ -83,10 +88,23 @@ defmodule GallformersWeb.Admin.AnalyticsLive do
           <.range_button range="90d" label="90 days" current={@current_range} />
         </div>
 
-        <%!-- Stats Summary --%>
-        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <%!-- Stats Summary (single day only) --%>
+        <div :if={@is_single_day} class="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <.stat_card title="Page Views" value={@stats.page_views} icon="ph-eye" />
           <.stat_card title="Unique Visitors" value={@stats.unique_visitors} icon="ph-users" />
+        </div>
+
+        <%!-- Daily Breakdown Chart (multi-day) --%>
+        <div :if={!@is_single_day} class="bg-white rounded-lg border border-gray-200 overflow-hidden">
+          <div class="px-4 py-3 border-b border-gray-200 bg-gray-50">
+            <h3 class="text-lg font-semibold text-gray-900">Daily Breakdown</h3>
+            <p class="text-sm text-gray-600 mt-1">
+              Note: Unique visitors are counted per day. The same person visiting on different days appears as unique on each day.
+            </p>
+          </div>
+          <div class="p-4">
+            <.daily_chart data={@daily_stats} />
+          </div>
         </div>
 
         <%!-- Top Pages --%>
@@ -247,6 +265,32 @@ defmodule GallformersWeb.Admin.AnalyticsLive do
         </div>
       </div>
     </div>
+    """
+  end
+
+  defp daily_chart(assigns) do
+    ~H"""
+    <table class="gf-table gf-table-dense">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th class="text-right">Page Views</th>
+          <th class="text-right">Unique Visitors</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr :for={day <- @data}>
+          <td>{Calendar.strftime(day.date, "%b %d, %Y")}</td>
+          <td class="text-right">{format_number(day.page_views)}</td>
+          <td class="text-right">{format_number(day.unique_visitors)}</td>
+        </tr>
+        <tr :if={@data == []}>
+          <td colspan="3" class="text-center text-gray-500 py-8">
+            No data for this period.
+          </td>
+        </tr>
+      </tbody>
+    </table>
     """
   end
 end
