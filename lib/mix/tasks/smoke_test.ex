@@ -32,6 +32,7 @@ defmodule Mix.Tasks.SmokeTest do
     print_usage()
   end
 
+  @spec execute(String.t()) :: no_return()
   defp execute(base_url) do
     # Start necessary applications for HTTP requests
     {:ok, _} = Application.ensure_all_started(:req)
@@ -391,6 +392,7 @@ defmodule Mix.Tasks.SmokeTest do
     IO.puts("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
   end
 
+  @spec exit_with_code(list()) :: no_return()
   defp exit_with_code(results) do
     failed =
       Enum.any?(results, fn
