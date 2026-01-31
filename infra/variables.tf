@@ -9,3 +9,9 @@ variable "project" {
   type        = string
   default     = "gallformers"
 }
+
+variable "aws_account_id" {
+  description = "AWS account ID"
+  type        = string
+  default     = "885187511538"
+}

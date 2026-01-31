@@ -246,14 +246,14 @@ Remove from `s3-upload` user:
 ```bash
 # 1. Detach old s3-put policy
 aws iam detach-user-policy --user-name s3-upload \
-  --policy-arn arn:aws:iam::885187511538:policy/s3-put
+  --policy-arn arn:aws:iam::$(aws sts get-caller-identity --query Account --output text):policy/s3-put
 
 # 2. Delete inline policy with typo (references dead SQS)
 aws iam delete-user-policy --user-name s3-upload \
   --policy-name GallfomersImagesPolicy
 
 # 3. Delete the orphaned s3-put policy
-aws iam delete-policy --policy-arn arn:aws:iam::885187511538:policy/s3-put
+aws iam delete-policy --policy-arn arn:aws:iam::$(aws sts get-caller-identity --query Account --output text):policy/s3-put
 ```
 
 Other legacy IAM to remove (part of `94kv` Lambda cleanup):
