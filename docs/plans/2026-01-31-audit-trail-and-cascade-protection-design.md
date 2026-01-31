@@ -24,11 +24,15 @@ The Gallformers team has experienced **significant data loss trauma** from casca
 - **39 have `ON DELETE CASCADE`** (91%)
 - 4 have `RESTRICT` or `NO ACTION`
 
-**Critical cascade paths identified:**
-1. `taxonomy` (Genus) → `speciestaxonomy` → orphaned Species
-2. `species` → `images`, `host`, `gallspecies`, `speciessource`
-3. `taxonomy.parent_id` (Family) → all child Genera
-4. `gall` → 9+ characteristic join tables
+**Database structure:**
+- **Critical data tables:** `gall`, `species`, `host`, `source`, `taxonomy`
+- **Join tables (many-to-many):** `gallspecies`, `speciessource`, `speciesplace`, `speciestaxonomy`, etc.
+- **Lookup tables:** `place`, `alias`, `abundance`, gall trait tables (color, shape, etc.)
+
+**Actual problems identified:**
+1. `taxonomy.parent_id → taxonomy (CASCADE)` - Deleting parent deletes child taxa
+2. `image.source_id → source (CASCADE)` - Should SET NULL instead (lose metadata, keep image)
+3. No application-level validation prevents deleting entities with dependencies
 
 ### Requirements
 
@@ -76,28 +80,25 @@ The Gallformers team has experienced **significant data loss trauma** from casca
 ### Core Strategy: Three-Part Solution
 
 1. **ex_audit** - Transparent audit tracking
-2. **ON DELETE RESTRICT** - Database-level cascade prevention
-3. **Application validation** - User-friendly error handling + mandatory deletion reasons
+2. **Targeted CASCADE fixes** - Fix 2 specific dangerous cascades
+3. **Application validation** - Prevent deleting entities with dependencies
 
 ### Why This Works
 
-**Prevents cascades:**
-- Database blocks CASCADE deletes with RESTRICT constraint
-- Application validation provides friendly error messages
-- UI forces users to handle dependencies explicitly
+**Most cascades are actually correct:**
+- Join table cascades (speciestaxonomy, gallspecies, etc.) are cleanup ✅
+- Gall trait cascades (gallcolor, gallshape, etc.) are cleanup ✅
+- `image.species_id → species CASCADE` is intentional (with S3 cleanup) ✅
 
-**Prevents race conditions:**
-```
-Thread 1: Check if Genus has children (0 found)
-Thread 2: Add Species to Genus
-Thread 1: Delete Genus → DATABASE BLOCKS (children exist now)
-```
+**Only 2 cascades need fixing:**
+1. `taxonomy.parent_id → taxonomy` - Change to RESTRICT (prevent deleting parent with children)
+2. `image.source_id → source` - Change to SET NULL (lose metadata, keep image)
 
-**Full audit trail:**
-- Every delete tracked through ex_audit
-- User context (who, when, why) captured
-- Original record state preserved for restore
-- No cascade tracking needed (cascades are prevented!)
+**Application validation provides safety:**
+- Shows dependencies before deletion (e.g., "This Genus has 25 Species")
+- Forces user to handle dependencies explicitly
+- Requires deletion reasons for critical entities
+- Prevents race conditions (user checks, database enforces)
 
 ---
 
@@ -135,38 +136,25 @@ CREATE INDEX idx_versions_action ON versions(action);
 
 ### Foreign Key Changes
 
-**Phase 1: Critical Protection (7 constraints)**
+**Only 2 database changes needed:**
 
-```
-CHANGE TO RESTRICT:
-1. speciestaxonomy.species_id → species
-2. speciestaxonomy.taxonomy_id → taxonomy
-3. taxonomy.parent_id → taxonomy
-4. image.species_id → species
-5. gallspecies.species_id → species
-6. host.gall_species_id → species
-7. host.host_species_id → species
+**1. `taxonomy.parent_id → taxonomy`**
+```sql
+-- Change from CASCADE to RESTRICT
+-- Prevents: Delete Family → cascade delete child Genera
 ```
 
-**Impact:** Protects the "delete Genus → lose everything" scenario.
-
-**Phase 2: Gall Characteristics (9 constraints)**
-
-```
-CHANGE TO RESTRICT:
-8-16. gall* join tables (gallalignment, gallcells, gallcolor, etc.)
+**2. `image.source_id → source`**
+```sql
+-- Change from CASCADE to SET NULL
+-- Behavior: Delete source → image.source_id becomes NULL
+-- Result: Images lose source metadata, show as "needs metadata" in editor
 ```
 
-**Impact:** Requires UI for "can't delete Gall, has characteristics."
-
-**Phase 3: Review Remaining**
-
-```
-EVALUATE:
-17-39. Other cascades (aliasspecies, placeplace, etc.)
-```
-
-**Decision criteria:** Is cascade intentional or dangerous?
+**All other cascades are correct and should remain:**
+- ✅ Join table cascades (cleanup relationships)
+- ✅ Gall trait cascades (cleanup characteristics)
+- ✅ `image.species_id → species CASCADE` (intentional, with S3 cleanup)
 
 ---
 
@@ -365,63 +353,88 @@ end
 - No user-facing changes yet
 - Audit tracking begins silently
 
-### Phase 2: Critical Cascade Protection
+### Phase 2: Fix 2 Dangerous Cascades
 
-**For each critical foreign key:**
-
-1. Create migration to rebuild table with RESTRICT
-2. Test in development
-3. Deploy during maintenance window (or zero-downtime with careful steps)
-
-**Example migration:**
+**Migration 1: taxonomy.parent_id RESTRICT**
 ```elixir
-defmodule Gallformers.Repo.Migrations.ProtectSpeciesDeletion do
+defmodule Gallformers.Repo.Migrations.ProtectTaxonomyHierarchy do
   use Ecto.Migration
 
   def up do
     execute "PRAGMA foreign_keys = OFF"
 
-    # Rebuild speciestaxonomy with RESTRICT
-    create table(:speciestaxonomy_new, primary_key: false) do
-      add :species_id, references(:species, on_delete: :restrict),
-        null: false, primary_key: true
-      add :taxonomy_id, references(:taxonomy, on_delete: :restrict),
-        null: false, primary_key: true
+    # Rebuild taxonomy with RESTRICT on parent_id
+    create table(:taxonomy_new) do
+      add :name, :string, null: false
+      add :description, :string, default: ""
+      add :type, :string, null: false
+      add :parent_id, references(:taxonomy_new, on_delete: :restrict)
     end
 
-    execute "INSERT INTO speciestaxonomy_new SELECT * FROM speciestaxonomy"
-    execute "DROP TABLE speciestaxonomy"
-    execute "ALTER TABLE speciestaxonomy_new RENAME TO speciestaxonomy"
+    execute "INSERT INTO taxonomy_new SELECT * FROM taxonomy"
+    execute "DROP TABLE taxonomy"
+    execute "ALTER TABLE taxonomy_new RENAME TO taxonomy"
 
     # Recreate indexes
-    create index(:speciestaxonomy, [:species_id])
-    create index(:speciestaxonomy, [:taxonomy_id])
+    create index(:taxonomy, [:parent_id])
+    create unique_index(:taxonomy, [:name, :type])
 
     execute "PRAGMA foreign_keys = ON"
     execute "PRAGMA foreign_key_check"
   end
+end
+```
 
-  def down do
-    # Reverse: rebuild with CASCADE
+**Migration 2: image.source_id SET NULL**
+```elixir
+defmodule Gallformers.Repo.Migrations.ImageSourceSetNull do
+  use Ecto.Migration
+
+  def up do
+    execute "PRAGMA foreign_keys = OFF"
+
+    # Rebuild image with SET NULL on source_id
+    create table(:image_new) do
+      add :species_id, references(:species, on_delete: :cascade), null: false
+      add :source_id, references(:source, on_delete: :nilify_all)
+      # ... other columns
+    end
+
+    execute "INSERT INTO image_new SELECT * FROM image"
+    execute "DROP TABLE image"
+    execute "ALTER TABLE image_new RENAME TO image"
+
+    # Recreate indexes
+    create index(:image, [:species_id])
+    create index(:image, [:source_id])
+
+    execute "PRAGMA foreign_keys = ON"
+    execute "PRAGMA foreign_key_check"
   end
 end
 ```
 
 ### Phase 3: Application Validation
 
-**For each protected entity type:**
+**Add dependency validation for critical tables:**
 
-1. Add dependency validation to context
-2. Update LiveView delete handlers
-3. Add UI for handling dependencies
-4. Add deletion reason prompts for sensitive types
+- Taxonomy (Genus, Family, Section)
+- Species
+- Gall
+- Host
+- Source
+
+**UI enhancements:**
+- Dependency warning screens
+- Deletion reason prompts
+- "Reassign or delete children first" workflows
 
 ### Phase 4: Rollout
 
-**Week 1:** Deploy audit tracking (silent)
-**Week 2:** Deploy Phase 1 CASCADE → RESTRICT migrations
-**Week 3:** Deploy validation + UI updates
-**Week 4:** Monitor, gather feedback, iterate
+**Week 1:** Deploy ex_audit (silent, starts tracking)
+**Week 2:** Deploy 2 CASCADE fix migrations
+**Week 3:** Deploy application validation + UI
+**Week 4:** Monitor, gather feedback
 
 ---
 
@@ -537,9 +550,9 @@ end
 - ✅ Reduction in manual backup restoration requests
 
 **Technical:**
-- ✅ All Phase 1 foreign keys have RESTRICT
+- ✅ 2 dangerous CASCADE constraints fixed
 - ✅ ex_audit capturing all CRUD operations
-- ✅ Restore functionality tested and documented
+- ✅ Application validation for critical deletes
 
 ---
 
@@ -547,16 +560,16 @@ end
 
 1. **Restore UI:** Should we build an admin UI for browsing/restoring versions, or keep it iex-only initially?
 2. **Retention:** How long to keep audit records? Forever, or prune after N years?
-3. **Phase 2 timing:** When to tackle gall characteristic cascades?
-4. **Backup coordination:** How does this interact with Litestream backups?
+3. **Backup coordination:** How does this interact with Litestream backups?
+4. **Performance:** Will audit logging impact performance on high-volume operations?
 
 ---
 
 ## Next Steps
 
 1. ✅ Design complete (this document)
-2. ⏭️ Create detailed implementation plan
-3. ⏭️ Generate migrations for Phase 1 constraints
+2. ⏭️ Create detailed implementation plan (use superpowers:writing-plans)
+3. ⏭️ Write migrations for 2 CASCADE fixes
 4. ⏭️ Implement ex_audit setup
 5. ⏭️ Build dependency validation
 6. ⏭️ Update UI for deletion workflows
@@ -565,27 +578,34 @@ end
 
 ---
 
-## Appendix: CASCADE Constraint Inventory
+## Appendix: CASCADE Constraint Analysis
 
-### Critical (Phase 1)
-- `speciestaxonomy.species_id → species`
-- `speciestaxonomy.taxonomy_id → taxonomy`
-- `taxonomy.parent_id → taxonomy`
-- `image.species_id → species`
-- `gallspecies.species_id → species`
-- `host.gall_species_id → species`
-- `host.host_species_id → species`
+**Total CASCADE constraints:** 39 out of 43 foreign keys (91%)
 
-### Medium (Phase 2)
-- `gallalignment.gall_id → gall`
-- `gallcells.gall_id → gall`
-- `gallcolor.gall_id → gall`
-- `gallform.gall_id → gall`
-- `galllocation.gall_id → gall`
-- `gallseason.gall_id → gall`
-- `gallshape.gall_id → gall`
-- `galltexture.gall_id → gall`
-- `gallwalls.gall_id → gall`
+### Changes Required (2 constraints)
 
-### Review (Phase 3)
-- All other CASCADE constraints (20 remaining)
+1. **`taxonomy.parent_id → taxonomy`** - Change to RESTRICT
+   - Problem: Delete parent → cascade delete children
+   - Fix: Require explicit handling of child taxa
+
+2. **`image.source_id → source`** - Change to SET NULL
+   - Problem: Delete source → delete images
+   - Fix: Orphan source metadata, keep images
+
+### Correct Behavior (Keep CASCADE)
+
+**Join tables (relationship cleanup):**
+- `speciestaxonomy` (species ↔ taxonomy)
+- `gallspecies` (gall ↔ species)
+- `speciessource` (species ↔ source)
+- `speciesplace` (species ↔ place)
+- `host` (gall species ↔ host species)
+- `aliasspecies`, `taxonomyalias`, etc.
+
+**Gall trait mappings (characteristic cleanup):**
+- `gallcolor`, `gallshape`, `galltexture`, etc. (9 tables)
+- Deleting gall → removes trait associations ✅
+- Deleting trait → never happens (fixed lookup data)
+
+**Intentional data cascades:**
+- `image.species_id → species CASCADE` - Images belong to species, includes S3 cleanup
