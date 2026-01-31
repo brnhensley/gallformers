@@ -6,14 +6,26 @@ defmodule GallformersWeb.Analytics.TrackPageView do
   (which bypass the HTTP Plug).
   """
 
+  import Phoenix.Component
   import Phoenix.LiveView
 
   alias Gallformers.Analytics
 
-  def on_mount(:default, _params, _session, socket) do
-    if connected?(socket) do
-      attach_hook(socket, :track_page_view, :handle_params, &track_navigation/3)
-    end
+  def on_mount(:default, _params, session, socket) do
+    # Assign analytics data from session (set by Analytics plug)
+    socket =
+      assign(socket,
+        analytics_browser: session["analytics_browser"],
+        analytics_device_type: session["analytics_device_type"],
+        analytics_visitor_hash: session["analytics_visitor_hash"]
+      )
+
+    socket =
+      if connected?(socket) do
+        attach_hook(socket, :track_page_view, :handle_params, &track_navigation/3)
+      else
+        socket
+      end
 
     {:cont, socket}
   end

@@ -100,14 +100,26 @@ defmodule Gallformers.Analytics do
 
   defp detect_browser(user_agent) do
     cond do
-      Browser.chrome?(user_agent) -> "Chrome"
-      Browser.firefox?(user_agent) -> "Firefox"
-      Browser.safari?(user_agent) -> "Safari"
+      # Check specific browsers before generic Chromium-based detection
+      String.contains?(user_agent, "SamsungBrowser") -> "Samsung Internet"
+      String.contains?(user_agent, "Brave") -> "Brave"
+      String.contains?(user_agent, "Arc/") -> "Arc"
+      String.contains?(user_agent, "Vivaldi") -> "Vivaldi"
+      String.contains?(user_agent, "DuckDuckGo") -> "DuckDuckGo"
       Browser.edge?(user_agent) -> "Edge"
       Browser.opera?(user_agent) -> "Opera"
+      Browser.chrome?(user_agent) -> "Chrome"
+      Browser.firefox?(user_agent) -> "Firefox"
+      is_safari_ios?(user_agent) -> "Safari (iOS)"
+      Browser.safari?(user_agent) -> "Safari"
       Browser.ie?(user_agent) -> "IE"
       true -> "Other"
     end
+  end
+
+  defp is_safari_ios?(user_agent) do
+    Browser.safari?(user_agent) and
+      (String.contains?(user_agent, "iPhone") or String.contains?(user_agent, "iPad"))
   end
 
   defp detect_device_type(user_agent) do

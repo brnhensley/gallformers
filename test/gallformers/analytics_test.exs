@@ -156,7 +156,7 @@ defmodule Gallformers.AnalyticsTest do
         "Mozilla/5.0 (iPhone; CPU iPhone OS 17_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1"
 
       {browser, device} = Analytics.parse_user_agent(safari_mobile)
-      assert browser == "Safari"
+      assert browser == "Safari (iOS)"
       assert device == "mobile"
     end
 
@@ -188,6 +188,54 @@ defmodule Gallformers.AnalyticsTest do
       unknown_ua = "CustomBot/1.0"
       {browser, _device} = Analytics.parse_user_agent(unknown_ua)
       assert browser == "Other"
+    end
+
+    test "identifies Safari (iOS)" do
+      safari_ios =
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 17_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1"
+
+      {browser, _device} = Analytics.parse_user_agent(safari_ios)
+      assert browser == "Safari (iOS)"
+    end
+
+    test "identifies Samsung Internet" do
+      samsung_ua =
+        "Mozilla/5.0 (Linux; Android 13; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/20.0 Chrome/106.0.5249.126 Mobile Safari/537.36"
+
+      {browser, _device} = Analytics.parse_user_agent(samsung_ua)
+      assert browser == "Samsung Internet"
+    end
+
+    test "identifies Brave" do
+      brave_ua =
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Brave/120.0.0.0"
+
+      {browser, _device} = Analytics.parse_user_agent(brave_ua)
+      assert browser == "Brave"
+    end
+
+    test "identifies Arc" do
+      arc_ua =
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Arc/1.0"
+
+      {browser, _device} = Analytics.parse_user_agent(arc_ua)
+      assert browser == "Arc"
+    end
+
+    test "identifies Vivaldi" do
+      vivaldi_ua =
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Vivaldi/6.5.3206.63"
+
+      {browser, _device} = Analytics.parse_user_agent(vivaldi_ua)
+      assert browser == "Vivaldi"
+    end
+
+    test "identifies DuckDuckGo browser" do
+      ddg_ua =
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 17_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 DuckDuckGo/7 Safari/605.1.15"
+
+      {browser, _device} = Analytics.parse_user_agent(ddg_ua)
+      assert browser == "DuckDuckGo"
     end
   end
 

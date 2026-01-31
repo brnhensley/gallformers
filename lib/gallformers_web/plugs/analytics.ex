@@ -13,6 +13,9 @@ defmodule GallformersWeb.Plugs.Analytics do
   def init(opts), do: opts
 
   def call(conn, _opts) do
+    # Store analytics data in session for LiveView navigations
+    conn = store_analytics_in_session(conn)
+
     register_before_send(conn, fn conn ->
       if conn.status == 200 and Analytics.should_track?(conn.request_path, user_agent(conn)) do
         track(conn)
@@ -64,5 +67,17 @@ defmodule GallformersWeb.Plugs.Analytics do
           [] -> conn.remote_ip |> :inet.ntoa() |> to_string()
         end
     end
+  end
+
+  defp store_analytics_in_session(conn) do
+    ip = get_client_ip(conn)
+    user_agent = user_agent(conn)
+    {browser, device_type} = Analytics.parse_user_agent(user_agent)
+    visitor_hash = Analytics.generate_visitor_hash(ip, user_agent)
+
+    conn
+    |> put_session(:analytics_browser, browser)
+    |> put_session(:analytics_device_type, device_type)
+    |> put_session(:analytics_visitor_hash, visitor_hash)
   end
 end
