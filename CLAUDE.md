@@ -129,8 +129,9 @@ Tests use a **separate test database** (`priv/gallformers_test.sqlite`) that is:
 make test-db               # Rebuild test database manually (rarely needed)
 ```
 
-**Important**: The test database uses `journal_mode: :delete` (not WAL) to prevent sandbox
-rollbacks from affecting the main database file.
+**Important**: The test database uses `journal_mode: :wal` (write-ahead logging) for better
+concurrency. WAL mode allows reads during write transactions, preventing "Database busy" errors
+that occurred with DELETE mode.
 
 ### Unit & Integration Tests
 
