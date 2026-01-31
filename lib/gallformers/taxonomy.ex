@@ -217,18 +217,7 @@ defmodule Gallformers.Taxonomy do
 
           multiple_genera ->
             # Genus exists in multiple families - requires disambiguation
-            possible_families =
-              Enum.map(multiple_genera, fn genus ->
-                taxonomy = build_taxonomy_from_genus(genus)
-
-                %{
-                  genus_id: genus.id,
-                  section: taxonomy.section,
-                  section_id: taxonomy.section_id,
-                  family: taxonomy.family,
-                  family_id: taxonomy.family_id
-                }
-              end)
+            possible_families = Enum.map(multiple_genera, &extract_family_info/1)
 
             %{
               genus: genus_name,
@@ -276,6 +265,18 @@ defmodule Gallformers.Taxonomy do
           family_id: parent.id
         }
     end
+  end
+
+  defp extract_family_info(genus) do
+    taxonomy = build_taxonomy_from_genus(genus)
+
+    %{
+      genus_id: genus.id,
+      section: taxonomy.section,
+      section_id: taxonomy.section_id,
+      family: taxonomy.family,
+      family_id: taxonomy.family_id
+    }
   end
 
   @doc """
