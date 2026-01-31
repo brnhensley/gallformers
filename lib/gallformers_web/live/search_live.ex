@@ -217,12 +217,21 @@ defmodule GallformersWeb.SearchLive do
     case result.type do
       "gall" -> result.name
       "host" -> result.name
-      "genus" -> "Genus #{result.name}"
-      "section" -> "Section #{result.name}"
+      "genus" -> format_taxonomy_with_parent(result, "Genus", "Family")
+      "section" -> format_taxonomy_with_parent(result, "Section", "Genus")
       "family" -> "Family #{result.name}"
       "place" -> "#{result.name} - #{result.code}"
       "source" -> format_source_name(result)
       _ -> result.name
+    end
+  end
+
+  defp format_taxonomy_with_parent(result, type_label, parent_type_label) do
+    base = "#{type_label} #{result.name}"
+
+    case Map.get(result, :parent_name) do
+      nil -> base
+      parent -> "#{base} - #{parent_type_label} #{parent}"
     end
   end
 

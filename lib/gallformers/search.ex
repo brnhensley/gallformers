@@ -501,6 +501,7 @@ defmodule Gallformers.Search do
     search_term = "%#{String.downcase(query)}%"
 
     from(t in Taxonomy,
+      left_join: parent in assoc(t, :parent),
       where:
         t.type in ["genus", "family", "section"] and
           t.name != "Unknown" and
@@ -511,7 +512,8 @@ defmodule Gallformers.Search do
         id: t.id,
         name: t.name,
         type: t.type,
-        description: t.description
+        description: t.description,
+        parent_name: parent.name
       }
     )
     |> Repo.all()
