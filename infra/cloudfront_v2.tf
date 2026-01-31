@@ -42,6 +42,36 @@ resource "aws_acm_certificate_validation" "v2" {
 }
 
 # -----------------------------------------------------------------------------
+# Origin Request Policy (custom for WebSocket support)
+# -----------------------------------------------------------------------------
+# AWS managed policies don't forward the Connection header, which breaks
+# WebSocket. This custom policy forwards all headers including WebSocket
+# upgrade headers (Connection, Upgrade, Sec-WebSocket-*).
+
+resource "aws_cloudfront_origin_request_policy" "websocket" {
+  name    = "GallformersWebSocket"
+  comment = "Forwards all headers except Host for WebSocket + Fly.io routing"
+
+  # allExcept forwards all viewer headers EXCEPT Host.
+  # CloudFront sets Host to the origin domain (gallformers.fly.dev).
+  # This is the same as the managed AllViewerExceptHostHeader policy.
+  headers_config {
+    header_behavior = "allExcept"
+    headers {
+      items = ["host"]
+    }
+  }
+
+  cookies_config {
+    cookie_behavior = "all"
+  }
+
+  query_strings_config {
+    query_string_behavior = "all"
+  }
+}
+
+# -----------------------------------------------------------------------------
 # Distribution
 # -----------------------------------------------------------------------------
 
@@ -97,10 +127,10 @@ resource "aws_cloudfront_distribution" "v2" {
     # AWS managed CachingDisabled policy
     cache_policy_id = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad"
 
-    # AWS managed AllViewerExceptHostHeader policy — forwards all viewer
-    # headers, cookies, and query strings to the origin except Host.
-    # Fly.io sees Host: gallformers.fly.dev and routes correctly.
-    origin_request_policy_id = "b689b0a8-53d0-40ab-baf2-68738e2966ac"
+    # Custom origin request policy that forwards ALL headers including
+    # WebSocket upgrade headers (Connection, Upgrade, Sec-WebSocket-*).
+    # The AWS managed AllViewerExceptHostHeader policy strips Connection.
+    origin_request_policy_id = aws_cloudfront_origin_request_policy.websocket.id
   }
 
   # --- Static assets (cached aggressively) ---
