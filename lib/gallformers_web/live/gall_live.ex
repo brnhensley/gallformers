@@ -593,7 +593,7 @@ defmodule GallformersWeb.GallLive do
         <:header>
           <div class="flex items-center justify-between w-full pr-8">
             <span>{@selected_source.title}</span>
-            <div class="flex items-center gap-1">
+            <div class="flex items-center gap-1 ml-4">
               <button
                 type="button"
                 phx-click="decrease_font_size"
