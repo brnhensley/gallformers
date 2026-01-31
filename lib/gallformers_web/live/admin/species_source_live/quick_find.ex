@@ -259,6 +259,15 @@ defmodule GallformersWeb.Admin.SpeciesSourceLive.QuickFind do
               Search by species name, source title, author, or description text.
             </p>
           </div>
+          <%!-- Quick link to Add from Source --%>
+          <div class="mt-4 text-center">
+            <.link
+              navigate={~p"/admin/species-sources/add"}
+              class="text-sm hover:underline"
+            >
+              Need to add new mappings? Use Add from Source &rarr;
+            </.link>
+          </div>
 
           <div class="p-4">
             <%!-- Search Box --%>
@@ -414,16 +423,6 @@ defmodule GallformersWeb.Admin.SpeciesSourceLive.QuickFind do
               </p>
             <% end %>
           </div>
-        </div>
-
-        <%!-- Quick link to Add from Source --%>
-        <div class="mt-4 text-center">
-          <.link
-            navigate={~p"/admin/species-sources/add"}
-            class="text-sm hover:underline"
-          >
-            Need to add new mappings? Use Add from Source &rarr;
-          </.link>
         </div>
       </div>
     </Layouts.admin>
