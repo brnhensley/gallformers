@@ -86,7 +86,18 @@ if config_env() == :prod do
       ip: {0, 0, 0, 0, 0, 0, 0, 0},
       port: String.to_integer(System.get_env("PORT") || "4000")
     ],
-    secret_key_base: secret_key_base
+    secret_key_base: secret_key_base,
+    # Allow WebSocket connections from CloudFront and production domains.
+    # CloudFront proxies requests with Origin header set to the viewer's domain,
+    # which differs from PHX_HOST (gallformers.fly.dev).
+    check_origin: [
+      "//gallformers.org",
+      "//www.gallformers.org",
+      "//gallformers.com",
+      "//www.gallformers.com",
+      "//gallformers.fly.dev",
+      "//*.cloudfront.net"
+    ]
 
   # ## SSL Support
   #
