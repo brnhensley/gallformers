@@ -44,21 +44,35 @@ resource "aws_acm_certificate_validation" "v2" {
 # -----------------------------------------------------------------------------
 # Origin Request Policy (custom for WebSocket support)
 # -----------------------------------------------------------------------------
-# AWS managed policies don't forward the Connection header, which breaks
-# WebSocket. This custom policy forwards all headers including WebSocket
-# upgrade headers (Connection, Upgrade, Sec-WebSocket-*).
+# CloudFront automatically preserves Connection and Upgrade headers when it
+# detects a WebSocket handshake (by seeing Sec-WebSocket-Key header).
+# We forward only the headers needed for WebSocket + Phoenix functionality.
 
 resource "aws_cloudfront_origin_request_policy" "websocket" {
   name    = "GallformersWebSocket"
-  comment = "Forwards all headers except Host for WebSocket + Fly.io routing"
+  comment = "Forwards WebSocket and CORS headers for Phoenix LiveView"
 
-  # allExcept forwards all viewer headers EXCEPT Host.
-  # CloudFront sets Host to the origin domain (gallformers.fly.dev).
-  # This is the same as the managed AllViewerExceptHostHeader policy.
+  # Forward only headers needed for WebSocket and Phoenix.
+  # CloudFront automatically handles Connection/Upgrade when it sees
+  # Sec-WebSocket-Key (https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/RequestAndResponseBehaviorCustomOrigin.html)
   headers_config {
-    header_behavior = "allExcept"
+    header_behavior = "whitelist"
     headers {
-      items = ["host"]
+      items = [
+        # WebSocket handshake headers (required for CloudFront to detect WebSocket)
+        "Sec-WebSocket-Key",
+        "Sec-WebSocket-Version",
+        "Sec-WebSocket-Protocol",
+        "Sec-WebSocket-Extensions",
+        # CORS and security
+        "Origin",
+        "Referer",
+        # Phoenix features
+        "User-Agent",
+        # CloudFront adds these automatically, but listing for clarity
+        "CloudFront-Viewer-Address",
+        "CloudFront-Viewer-Country"
+      ]
     }
   }
 
@@ -68,6 +82,49 @@ resource "aws_cloudfront_origin_request_policy" "websocket" {
 
   query_strings_config {
     query_string_behavior = "all"
+  }
+}
+
+# -----------------------------------------------------------------------------
+# Response Headers Policy (CORS for longpoll fallback)
+# -----------------------------------------------------------------------------
+# When WebSocket fails, LiveView falls back to longpoll (XHR).
+# This requires CORS headers to allow cross-origin requests.
+
+resource "aws_cloudfront_response_headers_policy" "cors" {
+  name    = "GallformersCORS"
+  comment = "CORS headers for Phoenix LiveView longpoll fallback"
+
+  cors_config {
+    access_control_allow_credentials = true
+
+    access_control_allow_headers {
+      items = [
+        "Accept",
+        "Accept-Language",
+        "Content-Type",
+        "X-CSRF-Token",
+        "Authorization",
+        "Cache-Control"
+      ]
+    }
+
+    access_control_allow_methods {
+      items = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
+    }
+
+    access_control_allow_origins {
+      items = [
+        "https://gallformers.org",
+        "https://www.gallformers.org",
+        "https://gallformers.com",
+        "https://www.gallformers.com"
+      ]
+    }
+
+    access_control_max_age_sec = 600
+
+    origin_override = true
   }
 }
 
@@ -127,10 +184,11 @@ resource "aws_cloudfront_distribution" "v2" {
     # AWS managed CachingDisabled policy
     cache_policy_id = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad"
 
-    # Custom origin request policy that forwards ALL headers including
-    # WebSocket upgrade headers (Connection, Upgrade, Sec-WebSocket-*).
-    # The AWS managed AllViewerExceptHostHeader policy strips Connection.
+    # Custom origin request policy that forwards WebSocket headers
     origin_request_policy_id = aws_cloudfront_origin_request_policy.websocket.id
+
+    # CORS headers for LiveView longpoll fallback
+    response_headers_policy_id = aws_cloudfront_response_headers_policy.cors.id
   }
 
   # --- Static assets (cached aggressively) ---
