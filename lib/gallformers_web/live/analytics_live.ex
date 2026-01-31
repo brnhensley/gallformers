@@ -1,6 +1,6 @@
-defmodule GallformersWeb.Admin.AnalyticsLive do
+defmodule GallformersWeb.AnalyticsLive do
   @moduledoc """
-  Admin dashboard for viewing site analytics.
+  Public page for viewing site analytics.
 
   Displays page views, unique visitors, top pages, referrers,
   device types, and browser breakdown for a configurable date range.
@@ -19,13 +19,14 @@ defmodule GallformersWeb.Admin.AnalyticsLive do
   }
 
   @impl true
-  def mount(_params, session, socket) do
-    current_user = session["current_user"]
-
+  def mount(_params, _session, socket) do
     socket =
       socket
-      |> assign(:current_user, current_user)
       |> assign(:page_title, "Analytics")
+      |> assign(:page_description, "View Gallformers site usage statistics and analytics.")
+      |> assign(:page_url, "/analytics")
+      |> assign(:page_image, nil)
+      |> assign(:page_json_ld, nil)
       |> assign(:current_range, @default_range)
       |> load_analytics(@default_range)
 
@@ -51,7 +52,10 @@ defmodule GallformersWeb.Admin.AnalyticsLive do
     |> assign(:to_date, to_date)
     |> assign(:is_single_day, is_single_day)
     |> assign(:stats, if(is_single_day, do: Analytics.stats(from_date, to_date), else: nil))
-    |> assign(:daily_stats, if(is_single_day, do: nil, else: Analytics.daily_stats(from_date, to_date)))
+    |> assign(
+      :daily_stats,
+      if(is_single_day, do: nil, else: Analytics.daily_stats(from_date, to_date))
+    )
     |> assign(:top_pages, Analytics.top_pages(from_date, to_date))
     |> assign(:top_referrers, Analytics.top_referrers(from_date, to_date))
     |> assign(:devices, add_percentages(Analytics.device_breakdown(from_date, to_date)))
@@ -77,8 +81,18 @@ defmodule GallformersWeb.Admin.AnalyticsLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.admin flash={@flash} current_user={@current_user} page_title="Analytics">
+    <Layouts.app flash={@flash} current_user={@current_user}>
       <div class="space-y-6">
+        <div class="mb-8">
+          <h1 class="text-3xl font-bold text-gf-maroon mb-2">Site Analytics</h1>
+          <p class="text-gray-600">
+            Transparent site usage statistics. Learn more about our <.link
+              href="/privacy"
+              class="text-gf-maroon hover:underline"
+            >privacy-protecting analytics</.link>.
+          </p>
+        </div>
+
         <%!-- Date Range Selector --%>
         <div class="flex items-center gap-2">
           <span class="text-sm text-gray-600">Period:</span>
@@ -223,7 +237,7 @@ defmodule GallformersWeb.Admin.AnalyticsLive do
           </div>
         </div>
       </div>
-    </Layouts.admin>
+    </Layouts.app>
     """
   end
 
@@ -269,28 +283,30 @@ defmodule GallformersWeb.Admin.AnalyticsLive do
   end
 
   defp daily_chart(assigns) do
+    # Prepare data for D3 (format dates nicely)
+    chart_data =
+      Enum.map(assigns.data, fn day ->
+        %{
+          date: Calendar.strftime(day.date, "%b %d"),
+          page_views: day.page_views,
+          unique_visitors: day.unique_visitors
+        }
+      end)
+
+    assigns = assign(assigns, :chart_data, Jason.encode!(chart_data))
+
     ~H"""
-    <table class="gf-table gf-table-dense">
-      <thead>
-        <tr>
-          <th>Date</th>
-          <th class="text-right">Page Views</th>
-          <th class="text-right">Unique Visitors</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr :for={day <- @data}>
-          <td>{Calendar.strftime(day.date, "%b %d, %Y")}</td>
-          <td class="text-right">{format_number(day.page_views)}</td>
-          <td class="text-right">{format_number(day.unique_visitors)}</td>
-        </tr>
-        <tr :if={@data == []}>
-          <td colspan="3" class="text-center text-gray-500 py-8">
-            No data for this period.
-          </td>
-        </tr>
-      </tbody>
-    </table>
+    <div
+      :if={@data != []}
+      phx-hook="DailyChart"
+      id="daily-analytics-chart"
+      data-chart={@chart_data}
+      class="w-full"
+    >
+    </div>
+    <div :if={@data == []} class="text-center text-gray-500 py-8">
+      No data for this period.
+    </div>
     """
   end
 end

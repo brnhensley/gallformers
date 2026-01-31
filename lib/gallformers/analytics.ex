@@ -99,8 +99,14 @@ defmodule Gallformers.Analytics do
   end
 
   defp detect_browser(user_agent) do
+    detect_chromium_based(user_agent) ||
+      detect_common_browsers(user_agent) ||
+      "Other"
+  end
+
+  # credo:disable-for-next-line Credo.Check.Refactor.CyclomaticComplexity
+  defp detect_chromium_based(user_agent) do
     cond do
-      # Check specific browsers before generic Chromium-based detection
       String.contains?(user_agent, "SamsungBrowser") -> "Samsung Internet"
       String.contains?(user_agent, "Brave") -> "Brave"
       String.contains?(user_agent, "Arc/") -> "Arc"
@@ -109,15 +115,21 @@ defmodule Gallformers.Analytics do
       Browser.edge?(user_agent) -> "Edge"
       Browser.opera?(user_agent) -> "Opera"
       Browser.chrome?(user_agent) -> "Chrome"
-      Browser.firefox?(user_agent) -> "Firefox"
-      is_safari_ios?(user_agent) -> "Safari (iOS)"
-      Browser.safari?(user_agent) -> "Safari"
-      Browser.ie?(user_agent) -> "IE"
-      true -> "Other"
+      true -> nil
     end
   end
 
-  defp is_safari_ios?(user_agent) do
+  defp detect_common_browsers(user_agent) do
+    cond do
+      Browser.firefox?(user_agent) -> "Firefox"
+      safari_ios?(user_agent) -> "Safari (iOS)"
+      Browser.safari?(user_agent) -> "Safari"
+      Browser.ie?(user_agent) -> "IE"
+      true -> nil
+    end
+  end
+
+  defp safari_ios?(user_agent) do
     Browser.safari?(user_agent) and
       (String.contains?(user_agent, "iPhone") or String.contains?(user_agent, "iPad"))
   end

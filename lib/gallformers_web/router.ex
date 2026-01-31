@@ -63,7 +63,6 @@ defmodule GallformersWeb.Router do
     pipe_through [:browser, :admin]
 
     live "/", Admin.DashboardLive
-    live "/analytics", Admin.AnalyticsLive
 
     # Gall admin
     live "/galls", Admin.GallLive.Index, :index
@@ -148,6 +147,8 @@ defmodule GallformersWeb.Router do
 
       # Content pages
       live "/about", AboutLive
+      live "/privacy", PrivacyLive
+      live "/analytics", AnalyticsLive
       live "/filterguide", FilterGuideLive
       live "/glossary", GlossaryLive
       live "/articles", ArticlesLive

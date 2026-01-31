@@ -35,7 +35,6 @@ defmodule GallformersWeb.Admin.DashboardLive do
           href="/admin/sources"
         />
         <.stat_card title="Images" value={@stats.image_count} icon="ph-image" href="/admin/images" />
-        <.stat_card title="Analytics" icon="ph-chart-line" href="/admin/analytics" />
       </div>
 
       <%!-- Welcome --%>

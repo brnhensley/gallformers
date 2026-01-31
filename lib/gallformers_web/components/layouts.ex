@@ -64,7 +64,8 @@ defmodule GallformersWeb.Layouts do
     resource_links = [
       %{href: "/filterguide", label: "Filter Terms"},
       %{href: "/glossary", label: "Glossary"},
-      %{href: "/articles", label: "Articles"}
+      %{href: "/articles", label: "Articles"},
+      %{href: "/analytics", label: "Analytics"}
     ]
 
     assigns =
@@ -338,6 +339,9 @@ defmodule GallformersWeb.Layouts do
           >
             Donate
           </a>
+          <a href="/privacy" class="text-base font-medium hover:underline">
+            Privacy
+          </a>
           <a href="/about" class="text-base font-medium hover:underline">
             About
           </a>
@@ -412,6 +416,9 @@ defmodule GallformersWeb.Layouts do
           class="block text-base font-medium hover:underline py-1 px-4"
         >
           Donate
+        </a>
+        <a href="/privacy" class="block text-base font-medium hover:underline py-1 px-4">
+          Privacy
         </a>
         <a href="/about" class="block text-base font-medium hover:underline py-1 px-4">
           About

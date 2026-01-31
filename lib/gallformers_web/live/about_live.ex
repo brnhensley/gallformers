@@ -288,6 +288,12 @@ defmodule GallformersWeb.AboutLive do
             page.
           </p>
 
+          <h2>Site Analytics</h2>
+          <p>
+            Gallformers uses privacy-protecting analytics to understand site usage and improve the experience. You can
+            view real-time site statistics at our public <.link href="/analytics">Analytics page</.link>. Learn more about our approach in our <.link href="/privacy">Privacy Policy</.link>.
+          </p>
+
           <%!-- Version Info --%>
           <div class="mt-12 text-center text-sm text-gray-500">
             App: {@app_version} | API: {@api_version}
