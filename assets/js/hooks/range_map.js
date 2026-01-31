@@ -25,10 +25,11 @@ const projection = geoConicEqualArea()
 
 const path = geoPath(projection)
 
-// Color scheme - V1 style: only show positive range, no excluded regions
+// Color scheme
 const COLORS = {
-  inRange: '#228B22',      // ForestGreen
-  default: '#FFFFFF',      // White
+  inRange: '#228B22',      // ForestGreen (gall & host)
+  excluded: '#FCA5A5',     // Light red (host only, excluded from range)
+  default: '#FFFFFF',      // White (neither gall nor host)
   stroke: '#333333',       // Dark gray stroke
   hoverStroke: '#000000'   // Black stroke on hover
 }
@@ -80,8 +81,11 @@ const RangeMap = {
   },
 
   getFill(code) {
-    // V1 behavior: only show positive range (green), excluded regions are not highlighted
+    // On editable maps (admin), show excluded regions in red
+    if (this.editable && this.excludedRange.has(code)) return COLORS.excluded
+    // Show in-range regions in green
     if (this.inRange.has(code) && !this.excludedRange.has(code)) return COLORS.inRange
+    // Everything else (not in range or excluded on public pages) is white
     return COLORS.default
   },
 
