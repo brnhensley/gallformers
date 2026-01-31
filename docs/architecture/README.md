@@ -2,6 +2,8 @@
 
 This directory contains C4 model architecture diagrams for Gallformers V2.
 
+**Quick Start**: See [QUICKSTART.md](QUICKSTART.md) for viewing and editing instructions.
+
 ## C4 Model
 
 The [C4 model](https://c4model.com/) by Simon Brown provides a hierarchical way to visualize software architecture at different levels of detail:
@@ -11,20 +13,47 @@ The [C4 model](https://c4model.com/) by Simon Brown provides a hierarchical way 
 3. **Component (C3)** - Shows the major components within a container (Phoenix contexts)
 4. **Code (C4)** - Shows implementation details (not included - too detailed)
 
-## Diagrams
+## Viewing Diagrams
 
-- [C1: System Context](c1-system-context.md) - Gallformers and its external dependencies
-- [C2: Containers](c2-containers.md) - Runtime components on Fly.io
-- [C3: Components](c3-components.md) - Phoenix contexts and their relationships
+The architecture is defined in [`workspace.dsl`](workspace.dsl) using Structurizr DSL. This single file generates all C4 diagrams plus a deployment view.
 
-## Viewing the Diagrams
+**Quick start:**
 
-These diagrams use Mermaid syntax and will render automatically on GitHub. To view them locally:
+```bash
+cd docs/architecture
+./view.sh
+# Open http://localhost:8080
+```
 
-1. Use a Markdown preview with Mermaid support (VS Code, GitHub Desktop)
-2. Use the [Mermaid Live Editor](https://mermaid.live/)
-3. Install a browser extension like "Markdown Viewer" with Mermaid support
+**To export static images:**
 
-## Updating
+```bash
+# Install Structurizr CLI
+brew install structurizr-cli
 
-When the architecture changes significantly, update the relevant diagram(s). The diagrams are version-controlled, so you can see how the architecture evolved over time.
+# Export all diagrams to PNG
+cd docs/architecture
+structurizr-cli export -workspace workspace.dsl -format png
+
+# Or SVG for better quality
+structurizr-cli export -workspace workspace.dsl -format svg
+```
+
+## What's Included
+
+The workspace defines four diagrams:
+
+1. **System Context (C1)** - Gallformers and its external dependencies (Auth0, S3, users)
+2. **Containers (C2)** - Runtime components (Phoenix app, database, GenServers, Litestream)
+3. **Components (C3)** - Phoenix contexts and their relationships
+4. **Deployment** - Production infrastructure on Fly.io and AWS
+
+## Updating the Architecture
+
+When the architecture changes:
+
+1. **Update the DSL**: Edit `workspace.dsl` (single source of truth)
+2. **Regenerate exports** (optional): Run Structurizr CLI to export new images
+3. **Update Mermaid** (optional): Sync changes to `.md` files if needed for GitHub preview
+
+The DSL is version-controlled, so you can see how the architecture evolved over time.
