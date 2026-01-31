@@ -22,6 +22,7 @@ Visit [localhost:4000](http://localhost:4000) in your browser.
 - **Elixir 1.19+** and **OTP 28+**
 - **Node.js 20+** (for asset compilation)
 - **SQLite** (bundled via ecto_sqlite3)
+- **libvips** (for image processing - resizing uploaded images)
 - **ChromeDriver** (for E2E tests only)
 
 ### Installing Elixir
@@ -39,6 +40,16 @@ asdf plugin add elixir
 asdf plugin add erlang
 asdf install erlang 28.0
 asdf install elixir 1.19.0-otp-28
+```
+
+### Installing libvips (for image processing)
+
+```bash
+# macOS
+brew install libvips
+
+# Ubuntu/Debian
+sudo apt-get install libvips libvips-dev
 ```
 
 ### Installing ChromeDriver (for E2E tests)

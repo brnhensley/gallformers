@@ -12,6 +12,8 @@ defmodule GallformersWeb.Admin.ImagesLive do
 
   use GallformersWeb, :live_view
 
+  require Logger
+
   alias Gallformers.Images
   alias Gallformers.Licenses
   alias Gallformers.Sources
@@ -194,7 +196,6 @@ defmodule GallformersWeb.Admin.ImagesLive do
                 <div
                   id="sortable-images"
                   phx-hook="SortableImages"
-                  phx-update="ignore"
                   class="flex flex-wrap gap-6"
                 >
                   <div
@@ -338,6 +339,7 @@ defmodule GallformersWeb.Admin.ImagesLive do
                       <td class="px-3 py-2">
                         <img
                           src={Image.sized_url(image.path, :small)}
+                          onerror={"this.onerror=null; this.src='#{Image.sized_url(image.path, :original)}'"}
                           alt={image.caption || "Species image"}
                           class="w-20 h-20 object-cover rounded"
                         />
@@ -561,6 +563,7 @@ defmodule GallformersWeb.Admin.ImagesLive do
               <div class="flex-shrink-0">
                 <img
                   src={Image.sized_url(@editing_image.path, :medium)}
+                  onerror={"this.onerror=null; this.src='#{Image.sized_url(@editing_image.path, :original)}'"}
                   alt="Image being edited"
                   class="w-[200px] rounded border border-gray-200"
                 />
@@ -792,6 +795,7 @@ defmodule GallformersWeb.Admin.ImagesLive do
             <div class="flex justify-center mb-4">
               <img
                 src={Image.sized_url(@delete_image.path, :medium)}
+                onerror={"this.onerror=null; this.src='#{Image.sized_url(@delete_image.path, :original)}'"}
                 alt="Image to delete"
                 class="max-w-xs rounded"
               />
@@ -850,6 +854,7 @@ defmodule GallformersWeb.Admin.ImagesLive do
                 <img
                   :if={source_image}
                   src={Image.sized_url(source_image.path, :small)}
+                  onerror={"this.onerror=null; this.src='#{Image.sized_url(source_image.path, :original)}'"}
                   alt="Source image"
                   class="w-16 h-16 object-cover rounded"
                 />
@@ -1048,7 +1053,11 @@ defmodule GallformersWeb.Admin.ImagesLive do
               content_type: file["type"]
             }
 
-          {:error, _reason} ->
+          {:error, reason} ->
+            Logger.error(
+              "Failed to generate presigned URL for #{file["name"]}: #{inspect(reason)}"
+            )
+
             nil
         end
       end)
@@ -1077,9 +1086,23 @@ defmodule GallformersWeb.Admin.ImagesLive do
 
       # Generate size variants in the background
       Gallformers.Async.run(fn ->
-        # Wait for CDN to propagate
-        Process.sleep(5000)
-        Images.generate_size_variants(path)
+        try do
+          # Wait for CDN to propagate
+          Process.sleep(5000)
+
+          case Images.generate_size_variants(path) do
+            :ok ->
+              Logger.info("Successfully generated size variants for #{path}")
+
+            {:error, reason} ->
+              Logger.error("Failed to generate size variants for #{path}: #{inspect(reason)}")
+          end
+        rescue
+          e ->
+            Logger.error(
+              "Exception generating size variants for #{path}: #{Exception.format(:error, e, __STACKTRACE__)}"
+            )
+        end
       end)
     end)
 

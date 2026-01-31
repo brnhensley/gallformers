@@ -12,6 +12,12 @@ const SortableImages = {
     this.dropTarget = null
 
     this.setupListeners()
+    this.makeDraggable()
+  },
+
+  updated() {
+    // Re-initialize draggable attributes when LiveView updates the DOM
+    this.makeDraggable()
   },
 
   setupListeners() {
@@ -19,7 +25,9 @@ const SortableImages = {
     this.container.addEventListener("dragstart", (e) => this.handleDragStart(e))
     this.container.addEventListener("dragover", (e) => this.handleDragOver(e))
     this.container.addEventListener("dragend", (e) => this.handleDragEnd(e))
+  },
 
+  makeDraggable() {
     // Make all image items draggable
     this.container.querySelectorAll("[data-image-id]").forEach(item => {
       item.setAttribute("draggable", "true")

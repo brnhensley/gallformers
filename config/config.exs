@@ -70,7 +70,7 @@ config :hammer,
 # Configure ex_aws for S3 image uploads
 # Credentials are set in runtime.exs from environment variables
 config :ex_aws,
-  region: "us-east-2",
+  region: "us-east-1",
   json_codec: Jason
 
 config :ex_aws, :hackney_opts,
@@ -79,7 +79,7 @@ config :ex_aws, :hackney_opts,
 
 # Image storage configuration
 config :gallformers, :images,
-  bucket: "gallformers",
+  bucket: "gallformers-images-us-east-1",
   cdn_url: "https://dhz6u1p7t6okk.cloudfront.net",
   # Presigned URL expiry (5 minutes)
   presign_expiry: 300

@@ -5,7 +5,8 @@
 FROM hexpm/elixir:1.17.3-erlang-27.1.2-alpine-3.20.3 AS builder
 
 # Install build dependencies (including nodejs/npm for asset dependencies)
-RUN apk add --no-cache build-base git nodejs npm
+# vips-dev is needed to compile the vix NIF for image processing
+RUN apk add --no-cache build-base git nodejs npm vips-dev
 
 WORKDIR /app
 
@@ -57,7 +58,8 @@ RUN mix release
 FROM alpine:3.20 AS runtime
 
 # Runtime dependencies + aws-cli for database reset workflow
-RUN apk add --no-cache libstdc++ openssl ncurses-libs sqlite su-exec aws-cli
+# vips is needed for image processing (resizing variants)
+RUN apk add --no-cache libstdc++ openssl ncurses-libs sqlite su-exec aws-cli vips
 
 # Install Litestream for continuous SQLite replication
 ADD https://github.com/benbjohnson/litestream/releases/download/v0.3.13/litestream-v0.3.13-linux-amd64.tar.gz /tmp/litestream.tar.gz

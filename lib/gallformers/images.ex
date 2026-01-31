@@ -344,6 +344,7 @@ defmodule Gallformers.Images do
         :ok
 
       {:error, reason} ->
+        Logger.error("Failed to generate size variants for #{original_path}: #{inspect(reason)}")
         {:error, reason}
     end
   end
@@ -412,10 +413,16 @@ defmodule Gallformers.Images do
 
     with {:ok, img} <- ImageLib.open(image_data),
          {:ok, resized} <- ImageLib.thumbnail(img, target_width),
-         {:ok, output_data} <- ImageLib.write(resized, :memory, suffix: ".#{format}") do
-      upload_to_s3(new_path, output_data, content_type)
+         {:ok, output_data} <- ImageLib.write(resized, :memory, suffix: ".#{format}"),
+         {:ok, _response} <- upload_to_s3(new_path, output_data, content_type) do
+      {:ok, new_path}
     else
-      {:error, reason} -> {:error, {:resize_failed, reason}}
+      {:error, reason} ->
+        Logger.error(
+          "Failed to process #{size_name} variant for #{original_path}: #{inspect(reason)}"
+        )
+
+        {:error, {:resize_failed, reason}}
     end
   end
 
@@ -428,8 +435,8 @@ defmodule Gallformers.Images do
 
   defp upload_to_s3(path, data, content_type) do
     ExAws.S3.put_object(bucket(), path, data,
-      content_type: content_type,
-      acl: :public_read
+      content_type: content_type
+      # Note: No ACL needed - bucket has public read policy
     )
     |> ExAws.request()
   end

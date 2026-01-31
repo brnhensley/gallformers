@@ -449,6 +449,8 @@ defmodule GallformersWeb.Admin.ArticleLive.Form do
            })}
 
         {:error, reason} ->
+          Logger.error("Failed to generate presigned URL for article image: #{inspect(reason)}")
+
           {:noreply,
            push_event(socket, "article_upload_error", %{
              message: "Failed to get upload URL: #{inspect(reason)}"
