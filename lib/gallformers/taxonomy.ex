@@ -104,6 +104,19 @@ defmodule Gallformers.Taxonomy do
   end
 
   @doc """
+  Gets all genera with a given name across all families.
+  Returns a list of genera (can be empty, one, or multiple).
+  """
+  @spec get_genera_by_name(String.t()) :: [Taxonomy.t()]
+  def get_genera_by_name(name) do
+    from(t in Taxonomy,
+      where: t.name == ^name and t.type == "genus",
+      order_by: t.id
+    )
+    |> Repo.all()
+  end
+
+  @doc """
   Gets the parent taxonomy for a given taxonomy ID.
   """
   @spec get_parent(integer()) :: Taxonomy.t() | nil
@@ -155,7 +168,9 @@ defmodule Gallformers.Taxonomy do
   Unlike `get_taxonomy_from_species_name/1`, this function always returns
   a result (never nil) to support species creation workflows:
 
-  - If genus exists: returns full taxonomy with `genus_is_new: false`
+  - If genus exists in one family: returns full taxonomy with `genus_is_new: false`
+  - If genus exists in MULTIPLE families: returns info with `requires_disambiguation: true`
+    and a list of all matching families under `possible_families`
   - If genus is NEW: returns extracted genus name with `genus_is_new: true`
     and empty family fields (user must select a family)
 
@@ -168,6 +183,10 @@ defmodule Gallformers.Taxonomy do
       iex> lookup_taxonomy_for_new_species("Newgenus species")
       %{genus: "Newgenus", genus_id: nil, genus_is_new: true,
         section: nil, section_id: nil, family: nil, family_id: nil}
+
+      iex> lookup_taxonomy_for_new_species("Quercus rubra")
+      %{genus: "Quercus", requires_disambiguation: true,
+        possible_families: [%{family: "Fagaceae", family_id: 1, genus_id: 10}, ...]}
   """
   @spec lookup_taxonomy_for_new_species(String.t()) :: map() | nil
   def lookup_taxonomy_for_new_species(name) when is_binary(name) do
@@ -176,8 +195,10 @@ defmodule Gallformers.Taxonomy do
         nil
 
       genus_name ->
-        case get_taxonomy_by_name(genus_name, "genus") do
-          nil ->
+        genera = get_genera_by_name(genus_name)
+
+        case genera do
+          [] ->
             # Genus doesn't exist - this is a new genus
             %{
               genus: genus_name,
@@ -189,10 +210,31 @@ defmodule Gallformers.Taxonomy do
               family_id: nil
             }
 
-          genus ->
-            # Genus exists - get its family
-            result = build_taxonomy_from_genus(genus)
+          [single_genus] ->
+            # Genus exists in exactly one family
+            result = build_taxonomy_from_genus(single_genus)
             Map.put(result, :genus_is_new, false)
+
+          multiple_genera ->
+            # Genus exists in multiple families - requires disambiguation
+            possible_families =
+              Enum.map(multiple_genera, fn genus ->
+                taxonomy = build_taxonomy_from_genus(genus)
+
+                %{
+                  genus_id: genus.id,
+                  section: taxonomy.section,
+                  section_id: taxonomy.section_id,
+                  family: taxonomy.family,
+                  family_id: taxonomy.family_id
+                }
+              end)
+
+            %{
+              genus: genus_name,
+              requires_disambiguation: true,
+              possible_families: possible_families
+            }
         end
     end
   end
@@ -888,6 +930,34 @@ defmodule Gallformers.Taxonomy do
   end
 
   @doc """
+  Returns plant families for use in host creation forms.
+  Plant families have description = "Plant".
+  """
+  @spec list_plant_families_for_select() :: [{String.t(), integer()}]
+  def list_plant_families_for_select do
+    from(t in Taxonomy,
+      where: t.type == "family" and t.description == "Plant",
+      order_by: t.name,
+      select: {t.name, t.id}
+    )
+    |> Repo.all()
+  end
+
+  @doc """
+  Returns non-plant families for use in gall creation forms.
+  Non-plant families have description != "Plant".
+  """
+  @spec list_gall_families_for_select() :: [{String.t(), integer()}]
+  def list_gall_families_for_select do
+    from(t in Taxonomy,
+      where: t.type == "family" and t.description != "Plant",
+      order_by: t.name,
+      select: {t.name, t.id}
+    )
+    |> Repo.all()
+  end
+
+  @doc """
   Returns sections for a given family, for use in select dropdowns.
 
   Sections are children of genera, not families directly. This function
@@ -906,6 +976,22 @@ defmodule Gallformers.Taxonomy do
   end
 
   def list_sections_for_family(_), do: []
+
+  @doc """
+  Returns sections for a given genus, for use in select dropdowns.
+  Sections are subdivisions within a specific genus.
+  """
+  @spec list_sections_for_genus(integer()) :: [{String.t(), integer()}]
+  def list_sections_for_genus(genus_id) when is_integer(genus_id) do
+    from(t in Taxonomy,
+      where: t.type == "section" and t.parent_id == ^genus_id,
+      order_by: t.name,
+      select: {t.name, t.id}
+    )
+    |> Repo.all()
+  end
+
+  def list_sections_for_genus(_), do: []
 
   @doc """
   Returns all sections for use in select dropdowns.

@@ -21,7 +21,7 @@ defmodule GallformersWeb.Admin.HostLive.Form do
     current_user = session["current_user"]
     abundances = Species.list_abundances()
     all_places = Places.list_places()
-    families = Taxonomy.list_families_for_select()
+    families = Taxonomy.list_plant_families_for_select()
 
     socket =
       socket
@@ -69,6 +69,9 @@ defmodule GallformersWeb.Admin.HostLive.Form do
     # Genus confirmation modal state
     |> assign(:show_genus_confirm, false)
     |> assign(:pending_genus_info, nil)
+    # Genus disambiguation modal state
+    |> assign(:show_genus_disambiguation, false)
+    |> assign(:possible_families, [])
     # Typeahead search state
     |> assign(:host_search_query, "")
     |> assign(:host_search_results, [])
@@ -102,9 +105,10 @@ defmodule GallformersWeb.Admin.HostLive.Form do
     places = Hosts.get_places_for_host(host_id)
     taxonomy = Taxonomy.get_taxonomy_for_species(host_id)
 
-    # Load sections for the host's family
+    # Load sections for the host's genus (if genus exists)
+    genus_id = taxonomy && taxonomy.genus_id
     family_id = taxonomy && taxonomy.family_id
-    sections_for_family = load_sections_for_family(family_id)
+    sections_for_family = if genus_id, do: Taxonomy.list_sections_for_genus(genus_id), else: []
 
     socket
     |> assign(:page_title, "Edit Host - #{host.name}")
@@ -129,14 +133,14 @@ defmodule GallformersWeb.Admin.HostLive.Form do
     # Genus confirmation modal state
     |> assign(:show_genus_confirm, false)
     |> assign(:pending_genus_info, nil)
+    # Genus disambiguation modal state
+    |> assign(:show_genus_disambiguation, false)
+    |> assign(:possible_families, [])
     # Typeahead state (cleared in edit mode)
     |> assign(:host_search_query, "")
     |> assign(:host_search_results, [])
     |> reset_dirty()
   end
-
-  defp load_sections_for_family(nil), do: []
-  defp load_sections_for_family(family_id), do: Taxonomy.list_sections_for_family(family_id)
 
   # Updates the genus's section if it changed
   defp maybe_update_section(socket) do
@@ -258,6 +262,43 @@ defmodule GallformersWeb.Admin.HostLive.Form do
   def handle_event("select_section", %{"section_id" => section_id}, socket) do
     section_id = if section_id == "", do: nil, else: String.to_integer(section_id)
     {:noreply, socket |> assign(:selected_section_id, section_id) |> mark_dirty()}
+  end
+
+  @impl true
+  def handle_event("select_family_from_disambiguation", %{"family_id" => family_id_str}, socket) do
+    family_id = String.to_integer(family_id_str)
+    possible_families = socket.assigns.possible_families
+
+    # Find the selected family from the possible families list
+    selected = Enum.find(possible_families, &(&1.family_id == family_id))
+
+    if selected do
+      # Load sections for this specific genus
+      sections_for_family = Taxonomy.list_sections_for_genus(selected.genus_id)
+
+      # Update taxonomy with the selected family info
+      taxonomy = %{
+        genus: socket.assigns.taxonomy.genus,
+        genus_id: selected.genus_id,
+        genus_is_new: false,
+        section: selected.section,
+        section_id: selected.section_id,
+        family: selected.family,
+        family_id: selected.family_id
+      }
+
+      {:noreply,
+       socket
+       |> assign(:taxonomy, taxonomy)
+       |> assign(:selected_family_id, family_id)
+       |> assign(:selected_section_id, selected.section_id)
+       |> assign(:sections_for_family, sections_for_family)
+       |> assign(:possible_families, [])
+       |> assign(:show_genus_disambiguation, false)
+       |> mark_dirty()}
+    else
+      {:noreply, put_flash(socket, :error, "Family not found")}
+    end
   end
 
   # Alias events
@@ -506,14 +547,20 @@ defmodule GallformersWeb.Admin.HostLive.Form do
     changeset = Hosts.change_host(host)
     # Look up taxonomy from the genus name - this always returns a result
     # with genus_is_new: true/false to indicate if genus needs to be created
-    taxonomy = Taxonomy.lookup_taxonomy_for_new_species(name)
-    genus_is_new = taxonomy && taxonomy.genus_is_new
-    # If genus exists, family/section is already known; if new, user must select
-    selected_family_id = taxonomy && taxonomy.family_id
-    selected_section_id = taxonomy && taxonomy.section_id
+    raw_taxonomy = Taxonomy.lookup_taxonomy_for_new_species(name)
 
-    # Load sections if we have a family
-    sections_for_family = load_sections_for_family(selected_family_id)
+    # Handle genus disambiguation: filter to plant families only
+    {taxonomy, genus_is_new, selected_family_id, selected_section_id, possible_families} =
+      resolve_taxonomy_for_host(raw_taxonomy, socket.assigns.families)
+
+    # Load sections only for existing genus
+    # Sections are specific to a genus, so new genera have no sections
+    sections_for_family =
+      if !genus_is_new && taxonomy && taxonomy.genus_id do
+        Taxonomy.list_sections_for_genus(taxonomy.genus_id)
+      else
+        []
+      end
 
     socket
     |> assign(:mode, :new)
@@ -529,18 +576,75 @@ defmodule GallformersWeb.Admin.HostLive.Form do
     |> assign(:selected_family_id, selected_family_id)
     |> assign(:selected_section_id, selected_section_id)
     |> assign(:sections_for_family, sections_for_family)
+    |> assign(:possible_families, possible_families)
     |> assign(:new_alias_name, "")
     |> assign(:new_alias_type, "common")
     # Rename modal state
     |> assign(:show_rename_modal, false)
     |> assign(:rename_value, "")
     |> assign(:add_alias_on_rename, false)
+    # Genus disambiguation modal state
+    |> assign(:show_genus_disambiguation, false)
     # Clear search state
     |> assign(:host_search_query, "")
     |> assign(:host_search_results, [])
     # Mark form dirty since user entered a name (enables save button)
     |> reset_dirty()
     |> mark_dirty()
+  end
+
+  # Resolve taxonomy for hosts: filter to plant families only
+  defp resolve_taxonomy_for_host(nil, _families), do: {nil, false, nil, nil, []}
+
+  defp resolve_taxonomy_for_host(taxonomy, families) do
+    plant_family_ids = MapSet.new(families, fn {_name, id} -> id end)
+
+    cond do
+      # Genus is new - user must select a plant family
+      Map.get(taxonomy, :genus_is_new) ->
+        {taxonomy, true, nil, nil, []}
+
+      # Genus exists in multiple families - filter to plant families
+      Map.get(taxonomy, :requires_disambiguation) ->
+        plant_families =
+          Enum.filter(taxonomy.possible_families, fn family ->
+            MapSet.member?(plant_family_ids, family.family_id)
+          end)
+
+        case plant_families do
+          [] ->
+            # No plant families found - treat as new genus
+            {%{genus: taxonomy.genus, genus_id: nil, genus_is_new: true}, true, nil, nil, []}
+
+          [single] ->
+            # Only one plant family - auto-select it
+            resolved = %{
+              genus: taxonomy.genus,
+              genus_id: single.genus_id,
+              genus_is_new: false,
+              section: single.section,
+              section_id: single.section_id,
+              family: single.family,
+              family_id: single.family_id
+            }
+
+            {resolved, false, single.family_id, single.section_id, []}
+
+          multiple ->
+            # Multiple plant families - needs disambiguation
+            {taxonomy, false, nil, nil, multiple}
+        end
+
+      # Genus exists in exactly one family - check if it's a plant family
+      true ->
+        if MapSet.member?(plant_family_ids, taxonomy.family_id) do
+          # It's a plant family - use it
+          {taxonomy, false, taxonomy.family_id, taxonomy.section_id, []}
+        else
+          # It's NOT a plant family - treat as new genus
+          {%{genus: taxonomy.genus, genus_id: nil, genus_is_new: true}, true, nil, nil, []}
+        end
+    end
   end
 
   defp save_host(socket, :new, params) do
@@ -977,6 +1081,46 @@ defmodule GallformersWeb.Admin.HostLive.Form do
         add_alias_checked={@add_alias_on_rename}
         entity_type="Host"
       />
+
+      <%!-- Genus disambiguation modal --%>
+      <.modal
+        :if={@possible_families != [] && @taxonomy}
+        id="genus-disambiguation-modal"
+        show
+        on_cancel={JS.push("clear_host")}
+      >
+        <:header>Select Family for Genus "{Map.get(@taxonomy, :genus, "")}"</:header>
+        <:body>
+          <p class="text-gray-700 mb-4">
+            The genus <strong>{Map.get(@taxonomy, :genus, "")}</strong>
+            exists in multiple plant families. Please select which family this host belongs to:
+          </p>
+          <div class="space-y-2">
+            <%= for family <- @possible_families do %>
+              <button
+                type="button"
+                phx-click="select_family_from_disambiguation"
+                phx-value-family_id={family.family_id}
+                class="block w-full text-left px-4 py-3 border border-gray-300 rounded-md hover:bg-gray-50 hover:border-gf-maroon transition-colors"
+              >
+                <div class="font-medium text-gray-900">{family.family}</div>
+                <%= if family.section do %>
+                  <div class="text-sm text-gray-500">Section: {family.section}</div>
+                <% end %>
+              </button>
+            <% end %>
+          </div>
+        </:body>
+        <:footer>
+          <button
+            type="button"
+            phx-click="clear_host"
+            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+          >
+            Cancel
+          </button>
+        </:footer>
+      </.modal>
 
       <%!-- Genus confirmation modal --%>
       <.modal

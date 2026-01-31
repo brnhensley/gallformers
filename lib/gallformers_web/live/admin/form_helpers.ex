@@ -265,12 +265,13 @@ defmodule GallformersWeb.Admin.FormHelpers do
         def prepare_params(params), do: params
 
         @doc """
-        Default after-create behavior. Override to customize.
+        Default after-create behavior. Navigate to edit page for the newly created entity.
+        Override to customize.
         """
-        def after_create(socket, _entity) do
+        def after_create(socket, entity) do
           socket
           |> Phoenix.LiveView.put_flash(:info, "#{entity_label()} created successfully")
-          |> Phoenix.LiveView.push_navigate(to: list_path())
+          |> Phoenix.LiveView.push_navigate(to: "#{list_path()}/#{entity.id}")
         end
 
         @doc """

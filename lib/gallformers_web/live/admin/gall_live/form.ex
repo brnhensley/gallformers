@@ -35,7 +35,7 @@ defmodule GallformersWeb.Admin.GallLive.Form do
     if connected?(socket), do: Species.subscribe()
 
     filter_options = Species.get_all_filter_options()
-    families = Gallformers.Taxonomy.list_families_for_select()
+    families = Gallformers.Taxonomy.list_gall_families_for_select()
 
     socket =
       socket
@@ -123,6 +123,9 @@ defmodule GallformersWeb.Admin.GallLive.Form do
     |> assign(:show_rename_modal, false)
     |> assign(:rename_value, "")
     |> assign(:add_alias_on_rename, false)
+    # Genus disambiguation modal state
+    |> assign(:show_genus_disambiguation, false)
+    |> assign(:possible_families, [])
     |> reset_dirty()
   end
 
@@ -132,10 +135,11 @@ defmodule GallformersWeb.Admin.GallLive.Form do
     changeset = Species.change_species(gall)
     # Look up taxonomy from the genus name - this always returns a result
     # with genus_is_new: true/false to indicate if genus needs to be created
-    taxonomy = Gallformers.Taxonomy.lookup_taxonomy_for_new_species(name)
-    genus_is_new = taxonomy && taxonomy.genus_is_new
-    # If genus exists, family is already known; if new, user must select
-    selected_family_id = taxonomy && taxonomy.family_id
+    raw_taxonomy = Gallformers.Taxonomy.lookup_taxonomy_for_new_species(name)
+
+    # Handle genus disambiguation: filter to non-plant families only
+    {taxonomy, genus_is_new, selected_family_id, possible_families} =
+      resolve_taxonomy_for_gall(raw_taxonomy, socket.assigns.families)
 
     socket
     |> assign(:mode, :new)
@@ -154,6 +158,7 @@ defmodule GallformersWeb.Admin.GallLive.Form do
     |> assign(:taxonomy, taxonomy)
     |> assign(:genus_is_new, genus_is_new)
     |> assign(:selected_family_id, selected_family_id)
+    |> assign(:possible_families, possible_families)
     |> assign(:filter_values, empty_filter_values())
     |> assign(:detachable, 0)
     |> assign(:undescribed, false)
@@ -167,12 +172,68 @@ defmodule GallformersWeb.Admin.GallLive.Form do
     |> assign(:show_rename_modal, false)
     |> assign(:rename_value, "")
     |> assign(:add_alias_on_rename, false)
+    # Genus disambiguation modal state
+    |> assign(:show_genus_disambiguation, false)
     # Clear search
     |> assign(:gall_search_query, "")
     |> assign(:gall_search_results, [])
     # Mark form dirty since user entered a name (enables save button)
     |> reset_dirty()
     |> mark_dirty()
+  end
+
+  # Resolve taxonomy for galls: filter to non-plant families only
+  defp resolve_taxonomy_for_gall(nil, _families), do: {nil, false, nil, []}
+
+  defp resolve_taxonomy_for_gall(taxonomy, families) do
+    gall_family_ids = MapSet.new(families, fn {_name, id} -> id end)
+
+    cond do
+      # Genus is new - user must select a gall family
+      Map.get(taxonomy, :genus_is_new) ->
+        {taxonomy, true, nil, []}
+
+      # Genus exists in multiple families - filter to non-plant families
+      Map.get(taxonomy, :requires_disambiguation) ->
+        gall_families =
+          Enum.filter(taxonomy.possible_families, fn family ->
+            MapSet.member?(gall_family_ids, family.family_id)
+          end)
+
+        case gall_families do
+          [] ->
+            # No gall families found - treat as new genus
+            {%{genus: taxonomy.genus, genus_id: nil, genus_is_new: true}, true, nil, []}
+
+          [single] ->
+            # Only one gall family - auto-select it
+            resolved = %{
+              genus: taxonomy.genus,
+              genus_id: single.genus_id,
+              genus_is_new: false,
+              section: single.section,
+              section_id: single.section_id,
+              family: single.family,
+              family_id: single.family_id
+            }
+
+            {resolved, false, single.family_id, []}
+
+          multiple ->
+            # Multiple gall families - needs disambiguation
+            {taxonomy, false, nil, multiple}
+        end
+
+      # Genus exists in exactly one family - check if it's a gall family
+      true ->
+        if MapSet.member?(gall_family_ids, taxonomy.family_id) do
+          # It's a gall family - use it
+          {taxonomy, false, taxonomy.family_id, []}
+        else
+          # It's NOT a gall family - treat as new genus
+          {%{genus: taxonomy.genus, genus_id: nil, genus_is_new: true}, true, nil, []}
+        end
+    end
   end
 
   # Initialize state for a new undescribed gall from the undescribed flow modal.
@@ -246,6 +307,9 @@ defmodule GallformersWeb.Admin.GallLive.Form do
     |> assign(:show_rename_modal, false)
     |> assign(:rename_value, "")
     |> assign(:add_alias_on_rename, false)
+    # Genus disambiguation modal state
+    |> assign(:show_genus_disambiguation, false)
+    |> assign(:possible_families, [])
     # Clear search
     |> assign(:gall_search_query, "")
     |> assign(:gall_search_results, [])
@@ -335,6 +399,9 @@ defmodule GallformersWeb.Admin.GallLive.Form do
           |> assign(:show_rename_modal, false)
           |> assign(:rename_value, species.name)
           |> assign(:add_alias_on_rename, false)
+          # Genus disambiguation modal state
+          |> assign(:show_genus_disambiguation, false)
+          |> assign(:possible_families, [])
           # Clear search
           |> assign(:gall_search_query, "")
           |> assign(:gall_search_results, [])
@@ -605,6 +672,38 @@ defmodule GallformersWeb.Admin.GallLive.Form do
   def handle_event("select_family", %{"family_id" => family_id}, socket) do
     family_id = if family_id == "", do: nil, else: String.to_integer(family_id)
     {:noreply, socket |> assign(:selected_family_id, family_id) |> mark_dirty()}
+  end
+
+  @impl true
+  def handle_event("select_family_from_disambiguation", %{"family_id" => family_id_str}, socket) do
+    family_id = String.to_integer(family_id_str)
+    possible_families = socket.assigns.possible_families
+
+    # Find the selected family from the possible families list
+    selected = Enum.find(possible_families, &(&1.family_id == family_id))
+
+    if selected do
+      # Update taxonomy with the selected family info
+      taxonomy = %{
+        genus: socket.assigns.taxonomy.genus,
+        genus_id: selected.genus_id,
+        genus_is_new: false,
+        section: selected.section,
+        section_id: selected.section_id,
+        family: selected.family,
+        family_id: selected.family_id
+      }
+
+      {:noreply,
+       socket
+       |> assign(:taxonomy, taxonomy)
+       |> assign(:selected_family_id, family_id)
+       |> assign(:possible_families, [])
+       |> assign(:show_genus_disambiguation, false)
+       |> mark_dirty()}
+    else
+      {:noreply, put_flash(socket, :error, "Family not found")}
+    end
   end
 
   @impl true
@@ -1436,6 +1535,46 @@ defmodule GallformersWeb.Admin.GallLive.Form do
           add_alias_checked={@add_alias_on_rename}
           entity_type="Gall"
         />
+
+        <%!-- Genus disambiguation modal --%>
+        <.modal
+          :if={@possible_families != [] && @taxonomy}
+          id="genus-disambiguation-modal"
+          show
+          on_cancel={JS.push("clear_gall")}
+        >
+          <:header>Select Family for Genus "{Map.get(@taxonomy, :genus, "")}"</:header>
+          <:body>
+            <p class="text-gray-700 mb-4">
+              The genus <strong>{Map.get(@taxonomy, :genus, "")}</strong>
+              exists in multiple gall-forming families. Please select which family this gall belongs to:
+            </p>
+            <div class="space-y-2">
+              <%= for family <- @possible_families do %>
+                <button
+                  type="button"
+                  phx-click="select_family_from_disambiguation"
+                  phx-value-family_id={family.family_id}
+                  class="block w-full text-left px-4 py-3 border border-gray-300 rounded-md hover:bg-gray-50 hover:border-gf-maroon transition-colors"
+                >
+                  <div class="font-medium text-gray-900">{family.family}</div>
+                  <%= if family.section do %>
+                    <div class="text-sm text-gray-500">Section: {family.section}</div>
+                  <% end %>
+                </button>
+              <% end %>
+            </div>
+          </:body>
+          <:footer>
+            <button
+              type="button"
+              phx-click="clear_gall"
+              class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+          </:footer>
+        </.modal>
       </div>
     </Layouts.admin>
     """
