@@ -5,14 +5,16 @@
 
 ## Executive Summary
 
-✅ **CloudFront + Phoenix LiveView WebSocket works!** The initial concern about CloudFront stripping WebSocket headers was unfounded. Chrome successfully established a WebSocket connection through CloudFront with `101 Switching Protocols`.
+✅ **CloudFront + Phoenix LiveView WebSocket works perfectly in all modern browsers!**
 
-The issues observed in other browsers were:
-1. **Safari**: Caching artifact (using stale HTML with fly.dev URLs)
-2. **Vivaldi**: 431 error due to forwarding too many headers
-3. **Longpoll fallback**: Missing CORS headers
+The initial concern about CloudFront stripping WebSocket headers was unfounded. After proper investigation, **all browsers (Chrome, Firefox, Safari, Orion, Vivaldi) successfully establish WebSocket connections** through CloudFront with `101 Switching Protocols`.
 
-All issues have been addressed with minimal configuration changes.
+**Issues discovered and resolved:**
+1. **Vivaldi**: 431 error due to forwarding too many headers → Fixed with header whitelist
+2. **Safari/Orion**: Phoenix sessionStorage cached previous WebSocket failure → Cleared sessionStorage
+3. **Longpoll CORS**: Phoenix's wildcard conflicted with credentials → Fixed with `origin_override = true`
+
+**Critical learning:** Phoenix LiveView caches WebSocket failures in sessionStorage. During testing/debugging, always check and clear sessionStorage if WebSocket isn't being attempted.
 
 ## What We Learned
 
@@ -64,15 +66,17 @@ According to [AWS documentation](https://docs.aws.amazon.com/AmazonCloudFront/la
 4. WebKit browsers (Safari, Orion) have known WebSocket issues → fall back to longpoll
 5. Longpoll with credentials requires specific origin, not `*` → CORS error
 
-### After Fixes
+### After Fixes (and clearing sessionStorage)
 
 | Browser | Transport | Status | Notes |
 |---------|-----------|--------|-------|
 | Chrome | WebSocket | ✅ Working | `101 Switching Protocols` |
 | Firefox | WebSocket | ✅ Working | WebSocket successful |
-| Safari | Longpoll | ✅ Working | Known WebKit WebSocket limitations, longpoll fallback works |
-| Orion | Longpoll | ✅ Working | WebKit-based, uses longpoll like Safari |
+| Safari | WebSocket | ✅ Working | Works after `sessionStorage.clear()` |
+| Orion | WebSocket | ✅ Working | Works after `sessionStorage.clear()` |
 | Vivaldi | WebSocket | ✅ Working | Header whitelist fixed 431 error |
+
+**All browsers successfully use WebSocket through CloudFront.**
 
 ## Changes Made
 
@@ -169,6 +173,36 @@ resource "aws_cloudfront_response_headers_policy" "cors" {
 - CORS errors eliminated
 - Specific origins (not `*`) satisfy browser security requirements
 
+## Troubleshooting: WebSocket Not Attempting
+
+**Symptom:** Browser shows no WebSocket connection attempt, goes straight to longpoll.
+
+**Check sessionStorage:**
+```javascript
+// In browser console
+sessionStorage.getItem('phx:fallback:qe')
+```
+
+If this returns `"true"`, Phoenix LiveView has cached a previous WebSocket failure.
+
+**Solution:**
+```javascript
+sessionStorage.clear()
+location.reload()
+```
+
+**Why this happens:**
+- During development/testing, WebSocket may fail due to incorrect DNS, CORS, or configuration
+- Phoenix LiveView remembers this failure to avoid repeated failed connection attempts
+- Subsequent page loads skip WebSocket and use longpoll instead
+- Clearing sessionStorage resets this, allowing WebSocket to be attempted again
+
+**When to suspect this:**
+- WebSocket works in some browsers but not others (inconsistent sessionStorage state)
+- No WebSocket request visible in Network tab at all
+- `window.liveSocket` exists but no WS activity
+- Recently changed DNS, hosts file, or proxy configuration
+
 ## Testing Plan
 
 ### 1. Deploy Changes
@@ -252,38 +286,48 @@ WebSocket URLs are generated from the incoming request's host, so they work corr
    - Change `PHX_HOST` to `gallformers.org`
    - Redeploy Phoenix app
 
-## WebKit Browser Behavior
+## The Safari/Orion "WebSocket Doesn't Work" Mystery
 
-**Discovery:** Safari and Orion (both WebKit-based) do not attempt WebSocket connections through CloudFront, instead falling back immediately to longpoll.
+**Initial observation:** Safari and Orion showed no WebSocket attempts in DevTools, going straight to longpoll which then failed with CORS errors.
 
 **Investigation findings:**
-- Chrome (Blink) and Firefox (Gecko): WebSocket works perfectly
-- Safari and Orion (WebKit): No WebSocket attempt visible in DevTools
-- JavaScript loads successfully in all browsers
-- No console errors in Safari
-- Phoenix LiveView JavaScript initializes correctly
+- Chrome/Firefox: WebSocket worked immediately
+- Safari/Orion: No WebSocket attempt visible, went straight to longpoll
+- JavaScript loaded successfully in all browsers
+- No console errors
+- Phoenix LiveView initialized correctly
+- Test: `new WebSocket('wss://echo.websocket.org')` worked in Safari ✅
+- LiveView object existed: `window.liveSocket` showed full initialization ✅
 
-**Root cause:** WebKit browsers have known limitations/quirks with WebSocket connections, especially through CDNs. This is a documented issue, not specific to our configuration.
+**The smoking gun:**
+```javascript
+sessionStorage: Storage {phx:fallback:qe: "true", ...}
+```
 
-**Solution:** Phoenix LiveView's longpoll fallback is designed for exactly this scenario. With the CORS fix (`origin_override = true`), Safari/Orion work via longpoll with no functional differences for users.
+**Root cause:** Phoenix LiveView's **smart fallback mechanism**, not browser limitations!
 
-**Performance impact:**
-- WebSocket: Persistent bidirectional connection (Chrome, Firefox)
-- Longpoll: HTTP polling with slightly higher latency (Safari, Orion)
-- Both provide the same LiveView functionality
-- Users won't notice the difference in normal usage
+When WebSocket fails once (e.g., during testing with incorrect DNS, CORS issues, etc.), Phoenix stores a fallback flag in `sessionStorage`. On subsequent page loads, Phoenix skips WebSocket entirely and uses longpoll to avoid repeated failures.
 
-**This is expected and acceptable** - LiveView's multi-transport design handles browser differences gracefully.
+**Solution:**
+```javascript
+sessionStorage.clear()
+location.reload()
+```
+
+After clearing sessionStorage, Safari and Orion successfully established WebSocket connections with `101 Switching Protocols` status - **proving WebSocket works perfectly in all browsers through CloudFront**.
+
+**Key learning:** Always check `sessionStorage` when debugging Phoenix LiveView connection issues. The browser isn't broken - LiveView is remembering a previous failure.
 
 ## Key Takeaways
 
-1. **CloudFront supports WebSocket natively** - no hacks needed
-2. **Forward only the headers you need** - not all headers (prevents 431 errors)
+1. **CloudFront supports WebSocket natively** - no hacks needed, works in all modern browsers
+2. **Forward only the headers you need** - not all headers (prevents 431 errors in some browsers)
 3. **CloudFront automatically preserves WebSocket upgrade headers** when it sees `Sec-WebSocket-Key`
 4. **Phoenix is smart about hosts** - uses incoming request host for WebSocket URLs
-5. **CORS `origin_override = true` is critical** - Phoenix's wildcard conflicts with credentials
-6. **WebKit browsers use longpoll** - expected behavior due to known WebKit WebSocket limitations
-7. **Multi-transport design works** - LiveView gracefully handles different browsers
+5. **CORS `origin_override = true` is essential** - Phoenix's wildcard (`*`) conflicts with credentials
+6. **Check sessionStorage when debugging LiveView** - Phoenix caches WebSocket failures to avoid repeated attempts
+7. **Don't assume browser limitations** - investigate thoroughly before blaming the browser
+8. **The longpoll fallback works** - our CORS fix ensures it's available if WebSocket ever fails
 
 ## References
 
