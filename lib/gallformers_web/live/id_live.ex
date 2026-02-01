@@ -297,7 +297,8 @@ defmodule GallformersWeb.IDLive do
   def handle_event("search_genus", %{"value" => query}, socket) do
     results =
       if String.length(query) >= 2 do
-        Taxonomy.search_genera_and_sections(query, 10)
+        # Only show plant genera/sections for host plant filter
+        Taxonomy.search_genera_and_sections(query, 10, taxoncode: "plant")
       else
         []
       end

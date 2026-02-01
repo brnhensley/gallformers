@@ -304,5 +304,74 @@ defmodule Gallformers.TaxonomyTest do
 
       assert length(results_all) >= length(results)
     end
+
+    test "search_genera_and_sections filters by taxoncode when provided" do
+      # Create a family
+      {:ok, family} =
+        Taxonomy.create_taxonomy(%{
+          name: "TestTaxoncodeFamily",
+          type: "family",
+          description: "Test family"
+        })
+
+      # Create two genera
+      {:ok, plant_genus} =
+        Taxonomy.create_taxonomy(%{
+          name: "Plantgenus",
+          type: "genus",
+          description: "Plant genus",
+          parent_id: family.id
+        })
+
+      {:ok, gall_genus} =
+        Taxonomy.create_taxonomy(%{
+          name: "Gallgenus",
+          type: "genus",
+          description: "Gall genus",
+          parent_id: family.id
+        })
+
+      # Create plant species linked to plant genus
+      {:ok, plant_species} =
+        Repo.insert(%Species{
+          name: "Plantgenus alba",
+          taxoncode: "plant",
+          datacomplete: false
+        })
+
+      Taxonomy.link_species_to_taxonomy(plant_species.id, plant_genus.id)
+
+      # Create gall species linked to gall genus
+      {:ok, gall_species} =
+        Repo.insert(%Species{
+          name: "Gallgenus nigra",
+          taxoncode: "gall",
+          datacomplete: false
+        })
+
+      Taxonomy.link_species_to_taxonomy(gall_species.id, gall_genus.id)
+
+      # Search for plant genus with taxoncode: "plant" - should find it
+      results_plant = Taxonomy.search_genera_and_sections("plant", 100, taxoncode: "plant")
+      plant_names = Enum.map(results_plant, & &1.name)
+      assert "Plantgenus" in plant_names
+
+      # Search for plant genus with taxoncode: "gall" - should NOT find it
+      results_plant_as_gall =
+        Taxonomy.search_genera_and_sections("plant", 100, taxoncode: "gall")
+
+      plant_as_gall_names = Enum.map(results_plant_as_gall, & &1.name)
+      refute "Plantgenus" in plant_as_gall_names
+
+      # Search for gall genus with taxoncode: "gall" - should find it
+      results_gall = Taxonomy.search_genera_and_sections("gall", 100, taxoncode: "gall")
+      gall_names = Enum.map(results_gall, & &1.name)
+      assert "Gallgenus" in gall_names
+
+      # Search for gall genus with taxoncode: "plant" - should NOT find it
+      results_gall_as_plant = Taxonomy.search_genera_and_sections("gall", 100, taxoncode: "plant")
+      gall_as_plant_names = Enum.map(results_gall_as_plant, & &1.name)
+      refute "Gallgenus" in gall_as_plant_names
+    end
   end
 end

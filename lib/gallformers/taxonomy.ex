@@ -578,6 +578,7 @@ defmodule Gallformers.Taxonomy do
   def search_genera_and_sections(query, limit \\ 20, opts \\ []) when is_binary(query) do
     search_pattern = "#{String.downcase(query)}%"
     include_empty_unknown = Keyword.get(opts, :include_empty_unknown, false)
+    taxoncode = Keyword.get(opts, :taxoncode)
 
     base_query =
       from(t in Taxonomy,
@@ -592,6 +593,21 @@ defmodule Gallformers.Taxonomy do
           description: t.description
         }
       )
+
+    # Filter by taxoncode if specified
+    base_query =
+      if taxoncode do
+        from(t in base_query,
+          join: st in "speciestaxonomy",
+          on: st.taxonomy_id == t.id,
+          join: s in Gallformers.Species.Species,
+          on: st.species_id == s.id,
+          where: s.taxoncode == ^taxoncode,
+          distinct: true
+        )
+      else
+        base_query
+      end
 
     query =
       if include_empty_unknown do
