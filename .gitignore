@@ -13,6 +13,9 @@ cspell.json
 # Claude Code settings
 .claude/settings.local.json
 
+# Git worktrees
+.worktrees/
+
 # Generated tiles for maps
 services/tileserver-gl/boundaries.mbtiles
 
