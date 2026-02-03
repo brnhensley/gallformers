@@ -1064,6 +1064,12 @@ defmodule GallformersWeb.Admin.HostLive.Form do
               <.form_actions form_dirty={@form_dirty} mode={@mode} />
             </div>
           </.form>
+
+          <.record_metadata
+            :if={@mode == :edit}
+            inserted_at={@host.inserted_at}
+            updated_at={@host.updated_at}
+          />
         </fieldset>
 
         <%!-- Placeholder when no host selected --%>

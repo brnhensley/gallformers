@@ -257,6 +257,8 @@ defmodule GallformersWeb.SourceLive do
                 <p class="text-gray-500 italic">No species connected to this source.</p>
               <% end %>
             </div>
+
+            <.record_metadata inserted_at={@source.inserted_at} updated_at={@source.updated_at} />
           <% else %>
             <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
               Source not found

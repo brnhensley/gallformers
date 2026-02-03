@@ -638,6 +638,8 @@ defmodule GallformersWeb.HostLive do
           <% end %>
 
           <.see_also name={@host.name} type={:host} />
+
+          <.record_metadata inserted_at={@host.inserted_at} updated_at={@host.updated_at} />
         <% else %>
           <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
             Host not found

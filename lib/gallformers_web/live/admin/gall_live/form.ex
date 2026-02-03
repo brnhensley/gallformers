@@ -1517,6 +1517,12 @@ defmodule GallformersWeb.Admin.GallLive.Form do
                 <.form_actions form_dirty={@form_dirty} mode={@mode} />
               </div>
             </.form>
+
+            <.record_metadata
+              :if={@mode == :edit}
+              inserted_at={@gall.inserted_at}
+              updated_at={@gall.updated_at}
+            />
           </fieldset>
 
           <%!-- Placeholder when no gall selected --%>

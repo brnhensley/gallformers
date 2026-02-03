@@ -76,7 +76,9 @@ defmodule Gallformers.Hosts do
         taxoncode: s.taxoncode,
         datacomplete: s.datacomplete,
         abundance_id: s.abundance_id,
-        abundance_name: a.abundance
+        abundance_name: a.abundance,
+        inserted_at: s.inserted_at,
+        updated_at: s.updated_at
       }
     )
     |> Repo.one()

@@ -181,7 +181,9 @@ defmodule Gallformers.Species do
           abundance_id: s.abundance_id,
           abundance_name: a.abundance,
           detachable: gt.detachable,
-          undescribed: gt.undescribed
+          undescribed: gt.undescribed,
+          inserted_at: s.inserted_at,
+          updated_at: s.updated_at
         }
 
     Repo.one(query)

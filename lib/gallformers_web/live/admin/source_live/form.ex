@@ -237,6 +237,12 @@ defmodule GallformersWeb.Admin.SourceLive.Form do
           </div>
         </.form>
 
+        <.record_metadata
+          :if={@mode == :edit}
+          inserted_at={@source.inserted_at}
+          updated_at={@source.updated_at}
+        />
+
         <.discard_confirm_modal show={@show_discard_confirm} />
       </Layouts.admin_edit_layout>
     </Layouts.admin>

@@ -789,6 +789,51 @@ defmodule GallformersWeb.CoreComponents do
   end
 
   @doc """
+  Displays record metadata (created/updated timestamps) at the bottom of detail pages.
+
+  ## Examples
+
+      <.record_metadata inserted_at={@record.inserted_at} updated_at={@record.updated_at} />
+  """
+  attr :inserted_at, :any, default: nil, doc: "Creation timestamp (NaiveDateTime)"
+  attr :updated_at, :any, default: nil, doc: "Last update timestamp (NaiveDateTime)"
+  attr :class, :string, default: nil, doc: "Additional CSS classes"
+
+  def record_metadata(assigns) do
+    ~H"""
+    <div
+      :if={@inserted_at || @updated_at}
+      class={[
+        "mt-8 pt-4 border-t border-gray-200 text-sm text-gray-600",
+        @class
+      ]}
+    >
+      <span :if={@inserted_at}>
+        Created {format_timestamp(@inserted_at)}
+      </span>
+      <span :if={@inserted_at && @updated_at} class="mx-2">•</span>
+      <span :if={@updated_at}>
+        Last updated {format_timestamp(@updated_at)}
+      </span>
+    </div>
+    """
+  end
+
+  # Formats a DateTime or NaiveDateTime as "Feb 1, 2026 3:45 PM UTC"
+  defp format_timestamp(nil), do: ""
+
+  defp format_timestamp(%DateTime{} = dt) do
+    # Shift to UTC if not already
+    dt_utc = DateTime.shift_zone!(dt, "Etc/UTC")
+    Calendar.strftime(dt_utc, "%b %-d, %Y %-I:%M %p UTC")
+  end
+
+  defp format_timestamp(%NaiveDateTime{} = dt) do
+    # NaiveDateTime has no timezone, assume UTC
+    Calendar.strftime(dt, "%b %-d, %Y %-I:%M %p UTC")
+  end
+
+  @doc """
   Translates an error message using gettext.
   """
   def translate_error({msg, opts}) do

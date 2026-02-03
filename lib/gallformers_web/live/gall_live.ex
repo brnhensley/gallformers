@@ -620,6 +620,8 @@ defmodule GallformersWeb.GallLive do
           <% end %>
 
           <.see_also name={@gall.name} type={:gall} undescribed={@gall.undescribed} />
+
+          <.record_metadata inserted_at={@gall.inserted_at} updated_at={@gall.updated_at} />
         <% else %>
           <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
             Gall not found
