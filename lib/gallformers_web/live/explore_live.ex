@@ -7,13 +7,18 @@ defmodule GallformersWeb.ExploreLive do
   - Undescribed: Undescribed gall species
   - Hosts: Host plant species organized by Family → Genus → Species
 
-  Uses an expandable tree UI for navigation.
+  Uses an expandable tree UI for navigation with smart expand on search.
   """
   use GallformersWeb, :live_view
 
   alias Gallformers.Explore
+  alias GallformersWeb.TreeComponents
 
   @tabs ~w(galls undescribed hosts)
+
+  # Smart expand thresholds
+  @max_families_to_auto_expand 3
+  @max_children_per_node 5
 
   @impl true
   def mount(_params, _session, socket) do
@@ -38,7 +43,10 @@ defmodule GallformersWeb.ExploreLive do
        hosts_tree: hosts_tree,
        galls_expanded: MapSet.new(),
        undescribed_expanded: MapSet.new(),
-       hosts_expanded: MapSet.new()
+       hosts_expanded: MapSet.new(),
+       galls_filtered: galls_tree,
+       undescribed_filtered: undescribed_tree,
+       hosts_filtered: hosts_tree
      )}
   end
 
@@ -60,8 +68,8 @@ defmodule GallformersWeb.ExploreLive do
   end
 
   @impl true
-  def handle_event("toggle_node", %{"key" => key, "tab" => tab}, socket) do
-    expanded_key = expanded_key_for_tab(tab)
+  def handle_event("toggle_node", %{"key" => key}, socket) do
+    expanded_key = expanded_key_for_tab(socket.assigns.active_tab)
     current_expanded = Map.get(socket.assigns, expanded_key, MapSet.new())
 
     new_expanded =
@@ -75,8 +83,9 @@ defmodule GallformersWeb.ExploreLive do
   end
 
   @impl true
-  def handle_event("expand_all", %{"tab" => tab}, socket) do
-    tree = tree_for_tab(socket.assigns, tab)
+  def handle_event("expand_all", _params, socket) do
+    tab = socket.assigns.active_tab
+    tree = filtered_tree_for_tab(socket.assigns, tab)
     all_keys = collect_branch_keys(tree)
     expanded_key = expanded_key_for_tab(tab)
 
@@ -84,32 +93,62 @@ defmodule GallformersWeb.ExploreLive do
   end
 
   @impl true
-  def handle_event("collapse_all", %{"tab" => tab}, socket) do
-    expanded_key = expanded_key_for_tab(tab)
+  def handle_event("collapse_all", _params, socket) do
+    expanded_key = expanded_key_for_tab(socket.assigns.active_tab)
     {:noreply, assign(socket, [{expanded_key, MapSet.new()}])}
   end
 
   @impl true
   def handle_event("search", %{"query" => query}, socket) do
-    # When searching, auto-expand matching branches
-    if String.trim(query) != "" do
-      tree = tree_for_tab(socket.assigns, socket.assigns.active_tab)
-      matching_keys = collect_matching_branch_keys(tree, query)
-      expanded_key = expanded_key_for_tab(socket.assigns.active_tab)
-      socket = assign(socket, :search_query, query)
-      {:noreply, assign(socket, [{expanded_key, MapSet.new(matching_keys)}])}
-    else
-      {:noreply, assign(socket, search_query: query)}
-    end
+    tab = socket.assigns.active_tab
+    tree = tree_for_tab(socket.assigns, tab)
+    filtered = filter_tree(tree, query)
+
+    # Smart expand logic with two thresholds
+    new_expanded =
+      if String.trim(query) != "" do
+        matching_families = count_families_with_matches(filtered)
+
+        if matching_families <= @max_families_to_auto_expand do
+          # Auto-expand, but respect per-node limit
+          filtered
+          |> collect_branch_keys_with_limit(@max_children_per_node)
+          |> MapSet.new()
+        else
+          # Too many families match - keep current expansion
+          Map.get(socket.assigns, expanded_key_for_tab(tab), MapSet.new())
+        end
+      else
+        # Empty search - keep current expansion
+        Map.get(socket.assigns, expanded_key_for_tab(tab), MapSet.new())
+      end
+
+    {:noreply,
+     socket
+     |> assign(:search_query, query)
+     |> assign(filtered_key_for_tab(tab), filtered)
+     |> assign(expanded_key_for_tab(tab), new_expanded)}
   end
 
   defp expanded_key_for_tab("galls"), do: :galls_expanded
   defp expanded_key_for_tab("undescribed"), do: :undescribed_expanded
   defp expanded_key_for_tab("hosts"), do: :hosts_expanded
 
+  defp filtered_key_for_tab("galls"), do: :galls_filtered
+  defp filtered_key_for_tab("undescribed"), do: :undescribed_filtered
+  defp filtered_key_for_tab("hosts"), do: :hosts_filtered
+
   defp tree_for_tab(assigns, "galls"), do: assigns.galls_tree
   defp tree_for_tab(assigns, "undescribed"), do: assigns.undescribed_tree
   defp tree_for_tab(assigns, "hosts"), do: assigns.hosts_tree
+
+  defp filtered_tree_for_tab(assigns, "galls"), do: assigns.galls_filtered
+  defp filtered_tree_for_tab(assigns, "undescribed"), do: assigns.undescribed_filtered
+  defp filtered_tree_for_tab(assigns, "hosts"), do: assigns.hosts_filtered
+
+  defp expanded_for_tab(assigns, "galls"), do: assigns.galls_expanded
+  defp expanded_for_tab(assigns, "undescribed"), do: assigns.undescribed_expanded
+  defp expanded_for_tab(assigns, "hosts"), do: assigns.hosts_expanded
 
   defp collect_branch_keys(nodes) do
     Enum.flat_map(nodes, fn node ->
@@ -121,29 +160,26 @@ defmodule GallformersWeb.ExploreLive do
     end)
   end
 
-  defp collect_matching_branch_keys(nodes, query) do
-    query_lower = String.downcase(query)
-
-    nodes
-    |> Enum.flat_map(&collect_node_keys(&1, query, query_lower))
-    |> Enum.filter(&(&1 != :match))
+  # Collects branch keys but only if the node has <= max_children children
+  defp collect_branch_keys_with_limit(nodes, max_children) do
+    Enum.flat_map(nodes, &collect_node_keys_with_limit(&1, max_children))
   end
 
-  defp collect_node_keys(node, query, query_lower) do
-    if branch_node?(node) do
-      collect_branch_matching_keys(node, query, query_lower)
+  defp collect_node_keys_with_limit(%{nodes: children} = node, max_children)
+       when is_list(children) and children != [] do
+    child_keys = collect_branch_keys_with_limit(children, max_children)
+
+    if length(children) <= max_children do
+      [node.key | child_keys]
     else
-      if label_matches?(node.label, query_lower), do: [:match], else: []
+      child_keys
     end
   end
 
-  defp collect_branch_matching_keys(node, query, query_lower) do
-    child_keys = collect_matching_branch_keys(node.nodes, query)
+  defp collect_node_keys_with_limit(_node, _max_children), do: []
 
-    if child_keys != [] or label_matches?(node.label, query_lower),
-      do: [node.key | child_keys],
-      else: []
-  end
+  # Counts how many families (top-level nodes) have matches in the filtered tree
+  defp count_families_with_matches(nodes), do: length(nodes)
 
   defp filter_tree(nodes, ""), do: nodes
 
@@ -235,157 +271,21 @@ defmodule GallformersWeb.ExploreLive do
           </nav>
         </div>
 
-        <%!-- Search and controls --%>
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
-          <div class="flex-1 max-w-md">
-            <form phx-change="search" phx-submit="search" id="explore-search-form">
-              <.search_input
-                id="explore-search"
-                name="query"
-                value={@search_query}
-                placeholder="Filter by name..."
-                phx-debounce="300"
-              />
-            </form>
-          </div>
-          <div class="flex gap-2">
-            <button
-              phx-click="expand_all"
-              phx-value-tab={@active_tab}
-              class="text-sm hover:underline"
-            >
-              Expand All
-            </button>
-            <span class="text-gray-300">|</span>
-            <button
-              phx-click="collapse_all"
-              phx-value-tab={@active_tab}
-              class="text-sm hover:underline"
-            >
-              Collapse All
-            </button>
-          </div>
-        </div>
-
-        <%!-- Tree content --%>
-        <div class="bg-white rounded-lg border border-gray-200 p-4">
-          <%= case @active_tab do %>
-            <% "galls" -> %>
-              <% filtered = filter_tree(@galls_tree, @search_query) %>
-              <%= if filtered == [] do %>
-                <p class="text-gray-500 italic">
-                  {if @search_query != "",
-                    do: "No matching gall species found.",
-                    else: "No gall species found."}
-                </p>
-              <% else %>
-                <.tree_menu
-                  nodes={filtered}
-                  expanded={@galls_expanded}
-                  tab="galls"
-                  level={0}
-                />
-              <% end %>
-            <% "undescribed" -> %>
-              <% filtered = filter_tree(@undescribed_tree, @search_query) %>
-              <%= if filtered == [] do %>
-                <p class="text-gray-500 italic">
-                  {if @search_query != "",
-                    do: "No matching undescribed gall species found.",
-                    else: "No undescribed gall species found."}
-                </p>
-              <% else %>
-                <.tree_menu
-                  nodes={filtered}
-                  expanded={@undescribed_expanded}
-                  tab="undescribed"
-                  level={0}
-                />
-              <% end %>
-            <% "hosts" -> %>
-              <% filtered = filter_tree(@hosts_tree, @search_query) %>
-              <%= if filtered == [] do %>
-                <p class="text-gray-500 italic">
-                  {if @search_query != "",
-                    do: "No matching host species found.",
-                    else: "No host species found."}
-                </p>
-              <% else %>
-                <.tree_menu
-                  nodes={filtered}
-                  expanded={@hosts_expanded}
-                  tab="hosts"
-                  level={0}
-                />
-              <% end %>
-          <% end %>
-        </div>
+        <%!-- Tree browser --%>
+        <TreeComponents.tree_browser
+          id={"explore-#{@active_tab}"}
+          nodes={filtered_tree_for_tab(assigns, @active_tab)}
+          expanded={expanded_for_tab(assigns, @active_tab)}
+          search_query={@search_query}
+          show_search={true}
+          show_controls={true}
+          on_toggle="toggle_node"
+          on_expand_all="expand_all"
+          on_collapse_all="collapse_all"
+          on_search="search"
+        />
       </div>
     </Layouts.app>
-    """
-  end
-
-  attr :nodes, :list, required: true
-  attr :expanded, :any, required: true
-  attr :tab, :string, required: true
-  attr :level, :integer, required: true
-
-  defp tree_menu(assigns) do
-    ~H"""
-    <ul class={["list-none", if(@level > 0, do: "ml-5", else: "")]}>
-      <li :for={node <- @nodes} class="py-1">
-        <%= if Map.has_key?(node, :nodes) and node.nodes != [] do %>
-          <%!-- Branch node (family or genus) --%>
-          <div class="flex items-center gap-1">
-            <button
-              phx-click="toggle_node"
-              phx-value-key={node.key}
-              phx-value-tab={@tab}
-              class="flex items-center gap-1 text-left hover:text-gf-maroon focus:outline-none focus:text-gf-maroon"
-            >
-              <span class={[
-                "inline-block w-4 h-4 transition-transform",
-                if(MapSet.member?(@expanded, node.key), do: "rotate-90", else: "")
-              ]}>
-                <.icon name="ph-caret-right" class="w-4 h-4" />
-              </span>
-              <span class={[
-                "font-medium",
-                if(String.starts_with?(node.key, "f-"), do: "text-gf-maroon", else: "")
-              ]}>
-                {node.label}
-              </span>
-              <span class="text-xs text-gray-400 ml-1">
-                ({length(node.nodes)})
-              </span>
-            </button>
-            <.link
-              :if={node[:url]}
-              href={node.url}
-              class="text-gray-400 hover:text-gf-maroon"
-              title={"View #{node.label} details"}
-            >
-              <.icon name="ph-arrow-square-out" class="w-4 h-4" />
-            </.link>
-          </div>
-          <.tree_menu
-            :if={MapSet.member?(@expanded, node.key)}
-            nodes={node.nodes}
-            expanded={@expanded}
-            tab={@tab}
-            level={@level + 1}
-          />
-        <% else %>
-          <%!-- Leaf node (species) --%>
-          <.link
-            href={node.url}
-            class="flex items-center gap-1 ml-5 hover:underline"
-          >
-            <em>{node.label}</em>
-          </.link>
-        <% end %>
-      </li>
-    </ul>
     """
   end
 end

@@ -7,6 +7,10 @@ defmodule GallformersWeb.FamilyLive do
   use GallformersWeb, :live_view
 
   alias Gallformers.Taxonomy
+  alias GallformersWeb.TreeComponents
+
+  # Smart expand thresholds (same as Explore page)
+  @max_children_per_node 5
 
   @impl true
   def mount(%{"id" => id}, _session, socket) do
@@ -75,7 +79,9 @@ defmodule GallformersWeb.FamilyLive do
              page_noindex: false,
              family: family,
              tree_data: tree_data,
+             filtered_tree: tree_data,
              expanded_keys: MapSet.new(),
+             search_query: "",
              error: nil
            )}
         end
@@ -94,11 +100,17 @@ defmodule GallformersWeb.FamilyLive do
         end
 
       %{
-        id: genus.id,
-        name: genus.name,
-        description: genus.description,
-        type: :genus,
-        children: species
+        key: "g-#{genus.id}",
+        label: format_label(genus.name, genus.description),
+        url: "/genus/#{genus.id}",
+        nodes:
+          Enum.map(species, fn s ->
+            %{
+              key: "s-#{s.id}",
+              label: s.name,
+              url: s.url
+            }
+          end)
       }
     end)
   end
@@ -111,20 +123,118 @@ defmodule GallformersWeb.FamilyLive do
     end)
   end
 
+  defp format_label(name, nil), do: name
+  defp format_label(name, ""), do: name
+  defp format_label(name, description), do: "#{name} (#{description})"
+
   @impl true
-  def handle_event("toggle_genus", %{"id" => id}, socket) do
-    genus_id = String.to_integer(id)
+  def handle_event("toggle_node", %{"key" => key}, socket) do
     expanded_keys = socket.assigns.expanded_keys
 
     new_expanded =
-      if MapSet.member?(expanded_keys, genus_id) do
-        MapSet.delete(expanded_keys, genus_id)
+      if MapSet.member?(expanded_keys, key) do
+        MapSet.delete(expanded_keys, key)
       else
-        MapSet.put(expanded_keys, genus_id)
+        MapSet.put(expanded_keys, key)
       end
 
     {:noreply, assign(socket, expanded_keys: new_expanded)}
   end
+
+  @impl true
+  def handle_event("expand_all", _params, socket) do
+    all_keys = collect_branch_keys(socket.assigns.filtered_tree)
+    {:noreply, assign(socket, expanded_keys: MapSet.new(all_keys))}
+  end
+
+  @impl true
+  def handle_event("collapse_all", _params, socket) do
+    {:noreply, assign(socket, expanded_keys: MapSet.new())}
+  end
+
+  @impl true
+  def handle_event("search", %{"query" => query}, socket) do
+    filtered = filter_tree(socket.assigns.tree_data, query)
+
+    # Smart expand logic with two thresholds
+    new_expanded =
+      if String.trim(query) != "" do
+        # For family page, we're always at 1 "family" (the genera list)
+        # So we use the per-node threshold
+        filtered
+        |> collect_branch_keys_with_limit(@max_children_per_node)
+        |> MapSet.new()
+      else
+        # Empty search - keep current expansion
+        socket.assigns.expanded_keys
+      end
+
+    {:noreply,
+     socket
+     |> assign(:search_query, query)
+     |> assign(:filtered_tree, filtered)
+     |> assign(:expanded_keys, new_expanded)}
+  end
+
+  defp collect_branch_keys(nodes) do
+    Enum.flat_map(nodes, fn node ->
+      if Map.has_key?(node, :nodes) and node.nodes != [] do
+        [node.key | collect_branch_keys(node.nodes)]
+      else
+        []
+      end
+    end)
+  end
+
+  defp collect_branch_keys_with_limit(nodes, max_children) do
+    Enum.flat_map(nodes, &collect_node_keys_with_limit(&1, max_children))
+  end
+
+  defp collect_node_keys_with_limit(%{nodes: children} = node, max_children)
+       when is_list(children) and children != [] do
+    child_keys = collect_branch_keys_with_limit(children, max_children)
+
+    if length(children) <= max_children do
+      [node.key | child_keys]
+    else
+      child_keys
+    end
+  end
+
+  defp collect_node_keys_with_limit(_node, _max_children), do: []
+
+  defp filter_tree(nodes, ""), do: nodes
+
+  defp filter_tree(nodes, query) do
+    query_lower = String.downcase(query)
+
+    nodes
+    |> Enum.map(&filter_node(&1, query, query_lower))
+    |> Enum.reject(&is_nil/1)
+  end
+
+  defp filter_node(node, query, query_lower) do
+    if branch_node?(node) do
+      filter_branch_node(node, query, query_lower)
+    else
+      if label_matches?(node.label, query_lower), do: node, else: nil
+    end
+  end
+
+  defp filter_branch_node(node, query, query_lower) do
+    filtered_children = filter_tree(node.nodes, query)
+
+    if filtered_children != [] or label_matches?(node.label, query_lower) do
+      %{node | nodes: filtered_children}
+    else
+      nil
+    end
+  end
+
+  defp branch_node?(node), do: Map.has_key?(node, :nodes) and node.nodes != []
+
+  defp label_matches?(label, query_lower),
+    do: String.contains?(String.downcase(label), query_lower)
 
   @impl true
   def render(assigns) do
@@ -136,75 +246,44 @@ defmodule GallformersWeb.FamilyLive do
         <% else %>
           <%= if @family do %>
             <%!-- Header --%>
-            <div class="bg-white rounded border border-gray-200 shadow-sm">
-              <div class="px-4 py-3 border-b border-gray-200">
-                <div class="flex items-center justify-between">
-                  <div class="flex items-center gap-2">
-                    <h1 class="text-2xl font-bold text-gf-maroon">
-                      {@family.name}
-                      <span :if={@family.description} class="text-lg font-normal text-gray-600">
-                        - {@family.description}
-                      </span>
-                    </h1>
-                    <.link
-                      :if={@current_user}
-                      href={~p"/admin/taxonomy/#{@family.id}"}
-                      class="text-gray-400 hover:text-gf-maroon"
-                      title="Edit in admin"
-                    >
-                      <.icon name="ph-pencil-simple" class="h-5 w-5" />
-                    </.link>
-                  </div>
-                </div>
-              </div>
-              <div class="p-4">
-                <%= if length(@tree_data) > 0 do %>
-                  <div class="space-y-2">
-                    <div :for={genus <- @tree_data} class="border rounded">
-                      <button
-                        phx-click="toggle_genus"
-                        phx-value-id={genus.id}
-                        class="w-full px-3 py-2 text-left bg-gray-50 hover:bg-gray-100 flex justify-between items-center"
-                      >
-                        <span>
-                          <em class="font-medium">{genus.name}</em>
-                          <span :if={genus.description} class="text-gray-600">
-                            &nbsp;- {genus.description}
-                          </span>
-                          <span class="text-sm text-gray-500 ml-2">
-                            ({length(genus.children)} species)
-                          </span>
-                        </span>
-                        <svg
-                          class={"w-5 h-5 text-gray-500 transition-transform #{if MapSet.member?(@expanded_keys, genus.id), do: "rotate-180"}"}
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="2"
-                            d="M19 9l-7 7-7-7"
-                          />
-                        </svg>
-                      </button>
-                      <div :if={MapSet.member?(@expanded_keys, genus.id)} class="border-t bg-white">
-                        <ul class="divide-y">
-                          <li :for={species <- genus.children} class="px-6 py-2 hover:bg-gray-50">
-                            <.link href={species.url} class="hover:underline">
-                              <em>{species.name}</em>
-                            </.link>
-                          </li>
-                        </ul>
-                      </div>
-                    </div>
-                  </div>
-                <% else %>
-                  <p class="text-gray-500 italic">No genera or species found for this family.</p>
-                <% end %>
+            <div class="mb-6">
+              <div class="flex items-center gap-2">
+                <h1 class="text-2xl font-bold text-gf-maroon">
+                  {@family.name}
+                  <span :if={@family.description} class="text-lg font-normal text-gray-600">
+                    - {@family.description}
+                  </span>
+                </h1>
+                <.link
+                  :if={@current_user}
+                  href={~p"/admin/taxonomy/#{@family.id}"}
+                  class="text-gray-400 hover:text-gf-maroon"
+                  title="Edit in admin"
+                >
+                  <.icon name="ph-pencil-simple" class="h-5 w-5" />
+                </.link>
               </div>
             </div>
+
+            <%!-- Tree browser --%>
+            <%= if length(@tree_data) > 0 do %>
+              <TreeComponents.tree_browser
+                id="family-tree"
+                nodes={@filtered_tree}
+                expanded={@expanded_keys}
+                search_query={@search_query}
+                show_search={true}
+                show_controls={true}
+                on_toggle="toggle_node"
+                on_expand_all="expand_all"
+                on_collapse_all="collapse_all"
+                on_search="search"
+              />
+            <% else %>
+              <div class="bg-white rounded-lg border border-gray-200 p-4">
+                <p class="text-gray-500 italic">No genera or species found for this family.</p>
+              </div>
+            <% end %>
           <% else %>
             <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
               Family not found
