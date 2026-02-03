@@ -6,6 +6,7 @@ defmodule GallformersWeb.Admin.SectionLive.Form do
   from sections, and the section's parent genus is derived from the species.
   """
   use GallformersWeb, :live_view
+  use GallformersWeb.Admin.FormHelpers
 
   alias Gallformers.Taxonomy
   alias Gallformers.Taxonomy.Taxonomy, as: TaxonomySchema
@@ -18,6 +19,7 @@ defmodule GallformersWeb.Admin.SectionLive.Form do
       socket
       |> assign(:current_user, current_user)
       |> assign(:page_title, "Section")
+      |> init_form_state()
       |> assign(:section, nil)
       |> assign(:form, nil)
       |> assign(:species, [])
@@ -42,6 +44,7 @@ defmodule GallformersWeb.Admin.SectionLive.Form do
     |> assign(:form, to_form(changeset))
     |> assign(:species, [])
     |> assign(:mode, :new)
+    |> reset_dirty()
   end
 
   defp apply_action(socket, :edit, %{"id" => id}) do
@@ -55,6 +58,7 @@ defmodule GallformersWeb.Admin.SectionLive.Form do
     |> assign(:form, to_form(changeset))
     |> assign(:species, species)
     |> assign(:mode, :edit)
+    |> reset_dirty()
   end
 
   @impl true
@@ -64,7 +68,7 @@ defmodule GallformersWeb.Admin.SectionLive.Form do
       |> Taxonomy.change_taxonomy(params)
       |> Map.put(:action, :validate)
 
-    {:noreply, assign(socket, :form, to_form(changeset))}
+    {:noreply, socket |> assign(:form, to_form(changeset)) |> mark_dirty()}
   end
 
   @impl true
@@ -112,6 +116,7 @@ defmodule GallformersWeb.Admin.SectionLive.Form do
           socket
           |> assign(:species, new_species)
           |> assign(:search_results, Enum.reject(socket.assigns.search_results, &(&1.id == id)))
+          |> mark_dirty()
         end
 
       {:noreply, socket}
@@ -124,7 +129,7 @@ defmodule GallformersWeb.Admin.SectionLive.Form do
   def handle_event("remove_species", %{"id" => id_str}, socket) do
     id = String.to_integer(id_str)
     new_species = Enum.reject(socket.assigns.species, &(&1.id == id))
-    {:noreply, assign(socket, :species, new_species)}
+    {:noreply, socket |> assign(:species, new_species) |> mark_dirty()}
   end
 
   @impl true
@@ -147,6 +152,16 @@ defmodule GallformersWeb.Admin.SectionLive.Form do
       {:error, _} ->
         {:noreply, put_flash(socket, :error, "Failed to delete section")}
     end
+  end
+
+  @impl true
+  def handle_event(event, params, socket)
+      when event in ~w(request_cancel cancel_discard confirm_discard) do
+    handle_form_event(event, params, socket)
+  end
+
+  def close_form(socket) do
+    push_navigate(socket, to: ~p"/admin/section")
   end
 
   defp save_section(socket, :new, params) do
@@ -343,9 +358,13 @@ defmodule GallformersWeb.Admin.SectionLive.Form do
               </button>
             </div>
             <div class="flex gap-2">
-              <.link navigate={~p"/admin/section"} class="gf-btn gf-btn-secondary">
+              <button
+                type="button"
+                phx-click="request_cancel"
+                class="gf-btn gf-btn-secondary"
+              >
                 Cancel
-              </.link>
+              </button>
               <button type="submit" class="gf-btn gf-btn-primary">
                 {if @mode == :new, do: "Create Section", else: "Save Changes"}
               </button>
@@ -353,6 +372,8 @@ defmodule GallformersWeb.Admin.SectionLive.Form do
           </div>
         </.form>
       </Layouts.admin_edit_layout>
+
+      <.discard_confirm_modal show={@show_discard_confirm} />
     </Layouts.admin>
     """
   end
