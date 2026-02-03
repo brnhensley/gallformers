@@ -14,7 +14,6 @@ defmodule GallformersWeb.Admin.DashboardLive do
     socket =
       socket
       |> assign(:current_user, current_user)
-      |> assign(:page_title, "Admin Dashboard")
       |> assign_stats()
 
     {:ok, socket}
@@ -23,7 +22,7 @@ defmodule GallformersWeb.Admin.DashboardLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.admin flash={@flash} current_user={@current_user} page_title="Admin Dashboard">
+    <Layouts.admin flash={@flash} current_user={@current_user}>
       <%!-- Stats Grid --%>
       <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <.stat_card title="Galls" value={@stats.gall_count} icon="gf-gall" href="/admin/galls" />

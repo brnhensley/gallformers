@@ -54,6 +54,7 @@ defmodule GallformersWeb.Layouts do
   Named `site_header` to avoid conflict with CoreComponents.header/1.
   """
   attr :current_user, :map, default: nil, doc: "the currently logged in user, if any"
+  attr :hide_admin_link, :boolean, default: false, doc: "whether to hide the admin link"
 
   def site_header(assigns) do
     nav_links = [
@@ -92,7 +93,7 @@ defmodule GallformersWeb.Layouts do
           <div class="hidden md:flex md:items-center gap-1">
             <%!-- Admin link (when logged in) --%>
             <a
-              :if={@current_user}
+              :if={@current_user && !@hide_admin_link}
               href="/admin"
               class="px-2 text-lg font-medium hover:underline"
             >
@@ -190,7 +191,7 @@ defmodule GallformersWeb.Layouts do
           <div class="space-y-1 px-2 pb-3 pt-2">
             <%!-- Mobile Admin link (when logged in) --%>
             <a
-              :if={@current_user}
+              :if={@current_user && !@hide_admin_link}
               href="/admin"
               class="block rounded-md px-3 py-2 text-lg font-medium hover:bg-white/50"
             >
@@ -486,171 +487,72 @@ defmodule GallformersWeb.Layouts do
       |> assign(:is_superadmin, is_superadmin)
 
     ~H"""
-    <div class="flex min-h-screen">
-      <%!-- Admin Sidebar --%>
-      <aside class="hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 bg-slate-700">
-        <%!-- Logo/Brand --%>
-        <div class="flex items-center h-20 px-3 bg-gf-sky-blue">
-          <a href="/" class="flex items-center">
-            <img
-              src="/branding/Wide Logo Versions/gallformers_logo_wide_color.png"
-              alt="Gallformers"
-              class="h-[70px]"
-            />
-          </a>
-        </div>
+    <div class="flex min-h-screen flex-col">
+      <.site_header current_user={@current_user} hide_admin_link={true} />
 
-        <%!-- Navigation --%>
-        <nav class="flex-1 px-2 py-4 space-y-2 overflow-y-auto">
-          <a
-            :for={link <- @admin_nav_links}
-            href={link.href}
-            class="flex items-center px-3 py-3 text-xl font-semibold text-white rounded-md hover:bg-slate-600 group"
-          >
-            <.icon name={link.icon} class="mr-3 h-6 w-6 text-white" />
-            {link.label}
-          </a>
-
-          <%!-- Super Admin section - only shown to superadmins --%>
-          <div :if={@is_superadmin} class="mt-6 pt-4 border-t border-gray-500">
-            <p class="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
-              Super Admin
-            </p>
-            <a
-              :for={link <- @superadmin_nav_links}
-              href={link.href}
-              class="flex items-center px-3 py-3 text-xl font-semibold text-white rounded-md hover:bg-slate-600 group"
-            >
-              <.icon name={link.icon} class="mr-3 h-6 w-6 text-white" />
-              {link.label}
-            </a>
-          </div>
-
-          <%!-- User section --%>
-          <div class="mt-6 pt-4 border-t border-gray-500">
-            <a
-              href="/admin/profile"
-              class="flex items-center px-3 py-3 text-xl font-semibold text-white rounded-md hover:bg-slate-600 group"
-            >
-              <.icon name="ph-user-circle" class="mr-3 h-6 w-6 text-white" /> My Profile
-            </a>
-          </div>
-        </nav>
-      </aside>
-
-      <%!-- Mobile header --%>
-      <div class="lg:hidden fixed top-0 left-0 right-0 z-40 bg-slate-700">
-        <div class="flex items-center justify-between h-14 px-4">
-          <a href="/" class="flex items-center">
-            <img
-              src="/branding/Wide Logo Versions/gallformers_logo_wide_color.png"
-              alt="Gallformers"
-              class="h-8"
-            />
-          </a>
-          <button
-            type="button"
-            phx-click={toggle_admin_menu()}
-            class="p-2 text-white hover:bg-white/10 rounded-md"
-          >
-            <.icon name="ph-list" class="h-6 w-6" />
-          </button>
-        </div>
-      </div>
-
-      <%!-- Mobile sidebar --%>
-      <div id="admin-mobile-menu" class="lg:hidden hidden fixed inset-0 z-50">
-        <div class="fixed inset-0 bg-black/50" phx-click={toggle_admin_menu()}></div>
-        <aside class="fixed inset-y-0 left-0 w-64 bg-slate-700">
-          <div class="flex items-center justify-between h-14 px-4 border-b border-white/20">
-            <a href="/" class="flex items-center">
-              <img
-                src="/branding/Wide Logo Versions/gallformers_logo_wide_color.png"
-                alt="Gallformers"
-                class="h-8"
-              />
-            </a>
-            <button
-              type="button"
-              phx-click={toggle_admin_menu()}
-              class="p-2 text-white hover:bg-white/10 rounded-md"
-            >
-              <.icon name="ph-x" class="h-6 w-6" />
-            </button>
-          </div>
-
-          <nav class="px-2 py-4 space-y-2">
+      <main class="flex-1 pb-32">
+        <%!-- Admin navigation links - always in same position --%>
+        <div class="bg-white border-b border-gray-200 px-6 sm:px-10 lg:px-16 py-3">
+          <div class="flex flex-wrap gap-4 items-center">
             <a
               :for={link <- @admin_nav_links}
               href={link.href}
-              class="flex items-center px-3 py-3 text-xl font-semibold text-white rounded-md hover:bg-slate-600"
+              class="flex items-center gap-2 text-lg font-medium text-gf-maroon hover:text-gf-autumn"
             >
-              <.icon name={link.icon} class="mr-3 h-6 w-6 text-white" />
+              <.icon name={link.icon} class="h-5 w-5" />
               {link.label}
             </a>
 
-            <%!-- Super Admin section - only shown to superadmins --%>
-            <div :if={@is_superadmin} class="mt-6 pt-4 border-t border-gray-500">
-              <p class="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
-                Super Admin
-              </p>
-              <a
-                :for={link <- @superadmin_nav_links}
-                href={link.href}
-                class="flex items-center px-3 py-3 text-xl font-semibold text-white rounded-md hover:bg-slate-600"
-              >
-                <.icon name={link.icon} class="mr-3 h-6 w-6 text-white" />
-                {link.label}
-              </a>
-            </div>
+            <%!-- Super Admin links --%>
+            <a
+              :for={link <- @superadmin_nav_links}
+              :if={@is_superadmin}
+              href={link.href}
+              class="flex items-center gap-2 text-lg font-medium text-gf-maroon hover:text-gf-autumn"
+            >
+              <.icon name={link.icon} class="h-5 w-5" />
+              {link.label}
+            </a>
 
-            <%!-- User section --%>
-            <div class="mt-6 pt-4 border-t border-gray-500">
-              <a
-                href="/admin/profile"
-                class="flex items-center px-3 py-3 text-xl font-semibold text-white rounded-md hover:bg-slate-600"
-              >
-                <.icon name="ph-user-circle" class="mr-3 h-6 w-6 text-white" /> My Profile
-              </a>
-            </div>
-          </nav>
-        </aside>
-      </div>
+            <%!-- My Profile link --%>
+            <a
+              href="/admin/profile"
+              class="flex items-center gap-2 text-lg font-medium text-gf-maroon hover:text-gf-autumn ml-auto"
+            >
+              <.icon name="ph-user-circle" class="h-5 w-5" /> My Profile
+            </a>
+          </div>
+        </div>
 
-      <%!-- Main content area --%>
-      <div class="flex-1 lg:pl-64">
-        <main class="pt-14 lg:pt-0 pb-16">
-          <%!-- Page header --%>
-          <div
-            :if={@page_title}
-            class="flex items-center h-20 px-4 sm:px-6 lg:px-8 bg-gf-sky-blue border-l border-slate-400/50"
-          >
-            <span class="text-2xl font-bold text-gf-maroon">{@page_title}</span>
+        <%!-- Small page title with view public page link --%>
+        <div
+          :if={@page_title}
+          class="bg-gray-50 border-b border-gray-200 px-6 sm:px-10 lg:px-16 py-2"
+        >
+          <div class="flex items-center justify-between">
+            <h1 class="text-lg font-semibold text-gf-maroon">{@page_title}</h1>
             <a
               :if={@public_url}
               href={@public_url}
               title="View public page"
-              class="ml-3 text-gf-maroon hover:text-gf-autumn transition-colors"
+              class="text-gf-maroon hover:text-gf-autumn transition-colors"
             >
-              <.icon name="ph-eye" class="h-6 w-6" />
+              <.icon name="ph-eye" class="h-5 w-5" />
             </a>
           </div>
+        </div>
 
-          <%!-- Page content --%>
-          <div class="px-4 py-6 sm:px-6 lg:px-8">
-            {render_slot(@inner_block)}
-          </div>
-        </main>
-      </div>
+        <%!-- Page content --%>
+        <div class="px-6 sm:px-10 lg:px-16 py-8">
+          {render_slot(@inner_block)}
+        </div>
+      </main>
+
+      <.site_footer current_user={@current_user} />
     </div>
 
-    <.site_footer current_user={@current_user} />
     <.flash_group flash={@flash} />
     """
-  end
-
-  defp toggle_admin_menu do
-    JS.toggle(to: "#admin-mobile-menu")
   end
 
   @doc """
