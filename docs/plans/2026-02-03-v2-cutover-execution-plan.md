@@ -93,50 +93,17 @@ scp user@157.245.243.86:/mnt/gallformers_data/prisma/gallformers.sqlite \
 ### Step 3: Clean up orphaned records
 ```bash
 cp ~/cutover-working/gallformers-v1-raw.sqlite ~/cutover-working/gallformers-v1-clean.sqlite
-sqlite3 ~/cutover-working/gallformers-v1-clean.sqlite < cleanup-orphans.sql
+sqlite3 ~/cutover-working/gallformers-v1-clean.sqlite < /Users/jeff/dev/gallformers/priv/repo/cleanup_orphaned_records.sql
 ```
 
-**cleanup-orphans.sql:**
-```sql
--- Delete orphaned gall records (218 records)
-DELETE FROM gall WHERE id NOT IN (
-  SELECT DISTINCT gall_id FROM speciestaxon WHERE gall_id IS NOT NULL
-);
+**Script location:** `priv/repo/cleanup_orphaned_records.sql`
 
--- Delete orphaned aliases (8,820 records)
-DELETE FROM alias WHERE id NOT IN (
-  SELECT DISTINCT alias_id FROM speciesalias WHERE alias_id IS NOT NULL
-  UNION
-  SELECT DISTINCT alias_id FROM hostalias WHERE alias_id IS NOT NULL
-);
+**What it cleans up:**
+- 218 orphaned gall records (5.6% of total)
+- 8,820 orphaned alias records (72.1% of total)
+- 1,162 orphaned filter associations (gallcolor, gallshape, galltexture, etc.)
 
--- Delete orphaned filter associations (1,162 records)
-DELETE FROM gallcolor WHERE gall_id NOT IN (SELECT id FROM gall);
-DELETE FROM gallshape WHERE gall_id NOT IN (SELECT id FROM gall);
-DELETE FROM galltexture WHERE gall_id NOT IN (SELECT id FROM gall);
-DELETE FROM gallalignment WHERE gall_id NOT IN (SELECT id FROM gall);
-DELETE FROM gallwalls WHERE gall_id NOT IN (SELECT id FROM gall);
-DELETE FROM gallcells WHERE gall_id NOT IN (SELECT id FROM gall);
-DELETE FROM galllocation WHERE gall_id NOT IN (SELECT id FROM gall);
-DELETE FROM gallform WHERE gall_id NOT IN (SELECT id FROM gall);
-DELETE FROM gallseason WHERE gall_id NOT IN (SELECT id FROM gall);
-```
-
-**Verify cleanup:**
-```bash
-sqlite3 ~/cutover-working/gallformers-v1-clean.sqlite <<EOF
-SELECT COUNT(*) as orphaned_galls FROM gall
-WHERE id NOT IN (SELECT DISTINCT gall_id FROM speciestaxon WHERE gall_id IS NOT NULL);
-
-SELECT COUNT(*) as orphaned_aliases FROM alias
-WHERE id NOT IN (
-  SELECT DISTINCT alias_id FROM speciesalias
-  UNION
-  SELECT DISTINCT alias_id FROM hostalias
-);
-EOF
-# Both should return 0
-```
+**Verification:** The script includes verification queries that run automatically and show remaining orphan counts (all should be 0).
 
 ### Step 4: Run V1→V2 migration
 ```bash
