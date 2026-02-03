@@ -37,6 +37,7 @@ const COLORS = {
 const RangeMap = {
   mounted() {
     this.features = []
+    this.lakeFeatures = []
     this.inRange = new Set(JSON.parse(this.el.dataset.inRange || '[]'))
     this.excludedRange = new Set(JSON.parse(this.el.dataset.excludedRange || '[]'))
     this.editable = this.el.dataset.editable === 'true'
@@ -73,6 +74,14 @@ const RangeMap = {
       const res = await fetch('/data/usa-can-topo.json')
       const topology = await res.json()
       this.features = feature(topology, topology.objects.ne_10m_admin_1_states_provinces).features
+
+      // Load Great Lakes if available
+      if (topology.objects.ne_10m_lakes) {
+        this.lakeFeatures = feature(topology, topology.objects.ne_10m_lakes).features
+      } else {
+        this.lakeFeatures = []
+      }
+
       this.render()
     } catch (err) {
       console.error('Failed to load map topology:', err)
@@ -161,18 +170,18 @@ const RangeMap = {
     svg.setAttribute('role', 'img')
     svg.setAttribute('aria-label', 'Geographic range map showing US and Canadian states/provinces')
 
-    // Background
+    // Background (ocean)
     const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
     bg.setAttribute('width', '800')
     bg.setAttribute('height', '600')
-    bg.setAttribute('fill', '#f0f0f0')
+    bg.setAttribute('fill', '#ADD8E6')  // Light blue to match lakes
     svg.appendChild(bg)
 
     // Group for paths (will be transformed in modal)
     const g = document.createElementNS('http://www.w3.org/2000/svg', 'g')
     g.setAttribute('class', 'map-paths')
 
-    // Render each feature
+    // Render each state/province feature first
     this.features.forEach(feature => {
       const pathEl = document.createElementNS('http://www.w3.org/2000/svg', 'path')
       const code = feature.properties.postal
@@ -205,6 +214,19 @@ const RangeMap = {
 
       g.appendChild(pathEl)
     })
+
+    // Render Great Lakes on TOP of states so they're visible
+    if (this.lakeFeatures && this.lakeFeatures.length > 0) {
+      this.lakeFeatures.forEach(lake => {
+        const pathEl = document.createElementNS('http://www.w3.org/2000/svg', 'path')
+        pathEl.setAttribute('d', path(lake))
+        pathEl.setAttribute('fill', '#ADD8E6')  // Light blue for water
+        pathEl.setAttribute('stroke', '#4682B4')  // Steel blue outline
+        pathEl.setAttribute('stroke-width', forModal ? '0.5' : '1')
+        pathEl.setAttribute('data-name', lake.properties.name || 'Lake')
+        g.appendChild(pathEl)
+      })
+    }
 
     svg.appendChild(g)
     return svg
