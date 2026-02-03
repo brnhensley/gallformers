@@ -1,7 +1,7 @@
 # Audit Trail and Cascade Delete Protection - Design Document
 
-**Date:** 2026-01-31
-**Status:** Design Complete - Ready for Implementation Planning
+**Date:** 2026-01-31 (Initial), 2026-02-01 (Comprehensive CASCADE Analysis)
+**Status:** Comprehensive CASCADE analysis complete - Design updated - Ready for schema refactor planning
 **Author:** Claude + Jeff
 
 ---
@@ -90,9 +90,11 @@ The Gallformers team has experienced **significant data loss trauma** from casca
 - Gall trait cascades (gallcolor, gallshape, etc.) are cleanup ✅
 - `image.species_id → species CASCADE` is intentional (with S3 cleanup) ✅
 
-**Only 2 cascades need fixing:**
+**Cascades requiring fixes (updated 2026-02-01):**
 1. `taxonomy.parent_id → taxonomy` - Change to RESTRICT (prevent deleting parent with children)
-2. `image.source_id → source` - Change to SET NULL (lose metadata, keep image)
+2. `image.source_id → source` - Change to RESTRICT (prevent deletion if images reference source) - **Updated from original SET NULL plan**
+3. `speciestaxonomy.taxonomy_id → taxonomy` - Change to RESTRICT (force handling species before taxonomy deletion)
+4. `taxonomy.type_id → taxontype` - Change to RESTRICT (prevent deletion of types in use)
 
 **Application validation provides safety:**
 - Shows dependencies before deletion (e.g., "This Genus has 25 Species")
@@ -136,25 +138,44 @@ CREATE INDEX idx_versions_action ON versions(action);
 
 ### Foreign Key Changes
 
-**Only 2 database changes needed:**
+**Updated analysis (2026-02-01) - 4 database changes needed:**
 
 **1. `taxonomy.parent_id → taxonomy`**
 ```sql
 -- Change from CASCADE to RESTRICT
--- Prevents: Delete Family → cascade delete child Genera
+-- Prevents: Delete Family → cascade delete child Genera → cascade delete all Species
+-- Critical protection against catastrophic data loss
 ```
 
 **2. `image.source_id → source`**
 ```sql
--- Change from CASCADE to SET NULL
--- Behavior: Delete source → image.source_id becomes NULL
--- Result: Images lose source metadata, show as "needs metadata" in editor
+-- Change from CASCADE to RESTRICT (updated from original SET NULL plan)
+-- Prevents: Delete source → cascade delete images
+-- Behavior: Blocks deletion; user must reassign images or delete them first
+```
+
+**3. `speciestaxonomy.taxonomy_id → taxonomy`**
+```sql
+-- Change from CASCADE to RESTRICT
+-- Prevents: Delete taxonomy → orphan species taxonomic classifications
+-- Forces: Explicit reassignment or deletion of species before taxonomy deletion
+```
+
+**4. `taxonomy.type_id → taxontype`**
+```sql
+-- Add RESTRICT constraint
+-- Prevents: Delete taxonomy type (e.g., "genus") while records of that type exist
+-- Safety: Fundamental classification data protected
 ```
 
 **All other cascades are correct and should remain:**
-- ✅ Join table cascades (cleanup relationships)
+- ✅ Join table cascades (cleanup relationships when either side deleted)
 - ✅ Gall trait cascades (cleanup characteristics)
 - ✅ `image.species_id → species CASCADE` (intentional, with S3 cleanup)
+- ✅ Alias cascades (two-level from owner, one-level from alias)
+- ✅ Lookup table SET NULL (abundance, detachable, walls, cells, form)
+
+**See Appendix B for complete cascade constraint analysis.**
 
 ---
 
@@ -385,18 +406,18 @@ defmodule Gallformers.Repo.Migrations.ProtectTaxonomyHierarchy do
 end
 ```
 
-**Migration 2: image.source_id SET NULL**
+**Migration 2: image.source_id RESTRICT**
 ```elixir
-defmodule Gallformers.Repo.Migrations.ImageSourceSetNull do
+defmodule Gallformers.Repo.Migrations.ImageSourceRestrict do
   use Ecto.Migration
 
   def up do
     execute "PRAGMA foreign_keys = OFF"
 
-    # Rebuild image with SET NULL on source_id
+    # Rebuild image with RESTRICT on source_id (updated from original SET NULL plan)
     create table(:image_new) do
       add :species_id, references(:species, on_delete: :cascade), null: false
-      add :source_id, references(:source, on_delete: :nilify_all)
+      add :source_id, references(:source, on_delete: :restrict)
       # ... other columns
     end
 
@@ -407,6 +428,68 @@ defmodule Gallformers.Repo.Migrations.ImageSourceSetNull do
     # Recreate indexes
     create index(:image, [:species_id])
     create index(:image, [:source_id])
+
+    execute "PRAGMA foreign_keys = ON"
+    execute "PRAGMA foreign_key_check"
+  end
+end
+```
+
+**Migration 3: speciestaxonomy.taxonomy_id RESTRICT**
+```elixir
+defmodule Gallformers.Repo.Migrations.SpeciesTaxonomyRestrict do
+  use Ecto.Migration
+
+  def up do
+    execute "PRAGMA foreign_keys = OFF"
+
+    # Rebuild speciestaxonomy with RESTRICT on taxonomy_id
+    create table(:speciestaxonomy_new) do
+      add :species_id, references(:species, on_delete: :cascade), null: false
+      add :taxonomy_id, references(:taxonomy, on_delete: :restrict), null: false
+      # ... other columns
+    end
+
+    execute "INSERT INTO speciestaxonomy_new SELECT * FROM speciestaxonomy"
+    execute "DROP TABLE speciestaxonomy"
+    execute "ALTER TABLE speciestaxonomy_new RENAME TO speciestaxonomy"
+
+    # Recreate indexes
+    create index(:speciestaxonomy, [:species_id])
+    create index(:speciestaxonomy, [:taxonomy_id])
+    create unique_index(:speciestaxonomy, [:species_id, :taxonomy_id])
+
+    execute "PRAGMA foreign_keys = ON"
+    execute "PRAGMA foreign_key_check"
+  end
+end
+```
+
+**Migration 4: taxonomy.type_id RESTRICT**
+```elixir
+defmodule Gallformers.Repo.Migrations.TaxonomyTypeRestrict do
+  use Ecto.Migration
+
+  def up do
+    execute "PRAGMA foreign_keys = OFF"
+
+    # Rebuild taxonomy with RESTRICT on type_id
+    create table(:taxonomy_new) do
+      add :name, :string, null: false
+      add :description, :string, default: ""
+      add :type_id, references(:taxontype, on_delete: :restrict), null: false
+      add :parent_id, references(:taxonomy_new, on_delete: :restrict)
+      # ... other columns
+    end
+
+    execute "INSERT INTO taxonomy_new SELECT * FROM taxonomy"
+    execute "DROP TABLE taxonomy"
+    execute "ALTER TABLE taxonomy_new RENAME TO taxonomy"
+
+    # Recreate indexes
+    create index(:taxonomy, [:parent_id])
+    create index(:taxonomy, [:type_id])
+    create unique_index(:taxonomy, [:name, :type_id])
 
     execute "PRAGMA foreign_keys = ON"
     execute "PRAGMA foreign_key_check"
@@ -578,34 +661,182 @@ end
 
 ---
 
-## Appendix: CASCADE Constraint Analysis
+## Appendix A: Domain Model Context
 
-**Total CASCADE constraints:** 39 out of 43 foreign keys (91%)
+### Critical Understanding: Species, Galls, and Hosts
 
-### Changes Required (2 constraints)
+**Domain model:**
+- `species` table = Base entity for ALL organisms (both gall-forming species AND host plants)
+- `gall` table = Additional properties for gall-forming species (linked via `gallspecies` 1:1)
+- `host` table = **Misnamed** - actually represents the `gallhost` relationship (which gall affects which host plant)
+- Both galls and hosts are entries in the `species` table
 
-1. **`taxonomy.parent_id → taxonomy`** - Change to RESTRICT
-   - Problem: Delete parent → cascade delete children
-   - Fix: Require explicit handling of child taxa
+**UI reality:**
+- Users delete **galls** (species with gall properties) from the UI
+- Users delete **hosts** (species that are plants) from the UI
+- Users NEVER delete "species" directly - it only happens as a cascade from gall/host deletion
 
-2. **`image.source_id → source`** - Change to SET NULL
-   - Problem: Delete source → delete images
-   - Fix: Orphan source metadata, keep images
+**Deletion flow:**
+```
+User deletes GALL →
+  1. Delete gall record (extra properties)
+  2. CASCADE delete gallspecies association (1:1 link)
+  3. CASCADE delete species record (gall and species are tightly bound)
+  4. CASCADE delete speciestaxonomy, speciessource, speciesplace, image (from species cascade)
+  5. CASCADE delete host relationships (gall↔host)
+```
 
-### Correct Behavior (Keep CASCADE)
+**Verified schema facts:**
+- `gallspecies` is currently many-to-many but behaves as 1:1 (verified via query: all relationships are 1:1)
+- **Schema refactor consideration:** Should be a simple FK `gall.species_id → species`
 
-**Join tables (relationship cleanup):**
-- `speciestaxonomy` (species ↔ taxonomy)
-- `gallspecies` (gall ↔ species)
-- `speciessource` (species ↔ source)
-- `speciesplace` (species ↔ place)
-- `host` (gall species ↔ host species)
-- `aliasspecies`, `taxonomyalias`, etc.
+---
 
-**Gall trait mappings (characteristic cleanup):**
-- `gallcolor`, `gallshape`, `galltexture`, etc. (9 tables)
-- Deleting gall → removes trait associations ✅
-- Deleting trait → never happens (fixed lookup data)
+## Appendix B: Complete CASCADE Constraint Analysis
 
-**Intentional data cascades:**
-- `image.species_id → species CASCADE` - Images belong to species, includes S3 cleanup
+**Date analyzed:** 2026-02-01
+**Status:** Comprehensive review completed for schema refactor planning
+
+### Summary of Changes Required
+
+| Foreign Key | Current | Required | Rationale |
+|-------------|---------|----------|-----------|
+| `taxonomy.parent_id → taxonomy` | CASCADE | **RESTRICT** | Prevent catastrophic deletion (Family → Genera → Species) |
+| `image.source_id → source` | CASCADE | **RESTRICT** | Prevent image loss when source deleted (updated from original SET NULL plan) |
+| `speciestaxonomy.taxonomy_id → taxonomy` | CASCADE | **RESTRICT** | Force explicit handling of species before taxonomy deletion |
+| `taxonomy.type_id → taxontype` | ??? | **RESTRICT** | Prevent deletion of taxonomy types in use |
+| `placeplace.parent_id → place` | ??? | **CASCADE** | Geographic hierarchy can cascade delete |
+
+All other constraints remain CASCADE or SET NULL as designed.
+
+---
+
+### Detailed Constraint Decisions
+
+#### SPECIES Relationships
+
+**Domain context:** Species are deleted indirectly (via gall or host deletion), never directly from UI.
+
+| Foreign Key | Direction | Decision | Rationale |
+|-------------|-----------|----------|-----------|
+| `image.species_id → species` | Species deleted | **CASCADE** | Images belong to species; includes S3 cleanup. Intentional data loss. |
+| `speciestaxonomy.species_id → species` | Species deleted | **CASCADE** | Cleanup join table. Species no longer exists, associations meaningless. |
+| `speciestaxonomy.taxonomy_id → taxonomy` | Taxonomy deleted | **RESTRICT** ⚠️ | **CHANGED:** Prevent taxonomy deletion if species are using it. Forces explicit handling. |
+| `speciessource.species_id → species` | Species deleted | **CASCADE** | Cleanup join table. |
+| `speciessource.source_id → source` | Source deleted | **CASCADE** | Cleanup join table only. Species remain (just lose source association). |
+| `speciesplace.species_id → species` | Species deleted | **CASCADE** | Cleanup join table. |
+| `speciesplace.place_id → place` | Place deleted | **CASCADE** | Cleanup join table only. Species remain. |
+| `gallspecies.species_id → species` | Species deleted | **CASCADE** | Cleanup join table (gall ↔ species link). |
+| `host.species_id → species` | Gall species deleted | **CASCADE** | Cleanup gall↔host relationships when gall is deleted. |
+| `host.host_species_id → species` | Host plant deleted | **CASCADE** | Cleanup gall↔host relationships when host plant is deleted. |
+| `aliasspecies.species_id → species` | Species deleted | **CASCADE** (two-level) | Cascade delete join table + alias records. Alias is meaningless without species. |
+| `aliasspecies.alias_id → alias` | Alias deleted (SQL) | **CASCADE** (one-level) | Cleanup join table only. Species remain. |
+| `species.abundance_id → abundance` | Abundance deleted (migration) | **SET NULL** | Species lose abundance classification but remain. Lookup table change. |
+
+#### GALL Relationships
+
+**Domain context:** Galls are deleted from UI. Deleting gall cascades to delete its species (tightly bound).
+
+| Foreign Key | Direction | Decision | Rationale |
+|-------------|-----------|----------|-----------|
+| `gall.detachable_id → detachable` | Detachable deleted (migration) | **SET NULL** | Gall loses detachability classification. Lookup table change. |
+| `gall.walls_id → walls` | Walls deleted (migration) | **SET NULL** | Gall loses walls classification. Lookup table change. |
+| `gall.cells_id → cells` | Cells deleted (migration) | **SET NULL** | Gall loses cells classification. Lookup table change. |
+| `gall.form_id → form` | Form deleted (migration) | **SET NULL** | Gall loses form classification. Lookup table change. |
+| `gallcolor.gall_id → gall` | Gall deleted | **CASCADE** | Cleanup trait association. |
+| `gallcolor.color_id → color` | Color deleted (migration) | **CASCADE** | Cleanup associations. Fixed lookup data (migration-only changes). |
+| `gallshape.gall_id → gall` | Gall deleted | **CASCADE** | Cleanup trait association. |
+| `gallshape.shape_id → shape` | Shape deleted (migration) | **CASCADE** | Cleanup associations. Fixed lookup data. |
+| `galltexture.gall_id → gall` | Gall deleted | **CASCADE** | Cleanup trait association. |
+| `galltexture.texture_id → texture` | Texture deleted (migration) | **CASCADE** | Cleanup associations. Fixed lookup data. |
+| `gallalign.gall_id → gall` | Gall deleted | **CASCADE** | Cleanup trait association. |
+| `gallalign.alignment_id → alignment` | Alignment deleted (migration) | **CASCADE** | Cleanup associations. Fixed lookup data. |
+| `gallloc.gall_id → gall` | Gall deleted | **CASCADE** | Cleanup trait association. |
+| `gallloc.location_id → location` | Location deleted (migration) | **CASCADE** | Cleanup associations. Fixed lookup data. |
+| `gallseason.gall_id → gall` | Gall deleted | **CASCADE** | Cleanup trait association. |
+| `gallseason.season_id → season` | Season deleted (migration) | **CASCADE** | Cleanup associations. Fixed lookup data. |
+| `gallwalls.gall_id → gall` | Gall deleted | **CASCADE** | Cleanup trait association. |
+| `gallcells.gall_id → gall` | Gall deleted | **CASCADE** | Cleanup trait association. |
+| `gallform.gall_id → gall` | Gall deleted | **CASCADE** | Cleanup trait association. |
+
+**Pattern:** All gall trait join tables CASCADE on both sides. Traits are fixed lookup data (migration-only).
+
+#### TAXONOMY Relationships
+
+**Domain context:** Taxonomy forms a parent-child hierarchy (Kingdom → Phylum → ... → Genus → Species).
+
+| Foreign Key | Direction | Decision | Rationale |
+|-------------|-----------|----------|-----------|
+| `taxonomy.parent_id → taxonomy` | Parent deleted | **RESTRICT** ⚠️ | **CRITICAL FIX:** Prevent catastrophic cascade (e.g., delete Family → all Genera → all Species). |
+| `speciestaxonomy.taxonomy_id → taxonomy` | Taxonomy deleted | **RESTRICT** ⚠️ | **CHANGED:** Force handling of species before taxonomy deletion. Prevents orphaning species. |
+| `taxonomyalias.taxonomy_id → taxonomy` | Taxonomy deleted | **CASCADE** (two-level) | Cascade delete join table + alias records. Alias meaningless without taxonomy. |
+| `taxonomyalias.alias_id → alias` | Alias deleted (SQL) | **CASCADE** (one-level) | Cleanup join table only. Taxonomy remains. |
+| `taxonomy.type_id → taxontype` | Taxontype deleted (migration) | **RESTRICT** ⚠️ | **NEW:** Prevent deletion of taxonomy types (family, genus, etc.) if in use. |
+
+#### SOURCE Relationships
+
+| Foreign Key | Direction | Decision | Rationale |
+|-------------|-----------|----------|-----------|
+| `image.source_id → source` | Source deleted | **RESTRICT** ⚠️ | **CHANGED FROM PLAN:** Prevent source deletion if images reference it. Forces explicit handling. Original plan was SET NULL. |
+| `speciessource.source_id → source` | Source deleted | **CASCADE** | Cleanup join table only. Species remain (just lose source association). |
+
+#### IMAGE Relationships
+
+| Foreign Key | Direction | Decision | Rationale |
+|-------------|-----------|----------|-----------|
+| `image.species_id → species` | Species deleted | **CASCADE** | Images belong to species. Includes S3 cleanup. Intentional data loss. |
+| `image.source_id → source` | Source deleted | **RESTRICT** ⚠️ | Prevent image loss. Must handle images before deleting source. |
+
+#### PLACE Relationships
+
+| Foreign Key | Direction | Decision | Rationale |
+|-------------|-----------|----------|-----------|
+| `speciesplace.place_id → place` | Place deleted | **CASCADE** | Cleanup join table only. Species remain. |
+| `placeplace.parent_id → place` | Parent place deleted | **CASCADE** | Geographic hierarchy (State → County → City). OK to cascade delete children. |
+
+#### ALIAS Relationships
+
+**Pattern:** Aliases have asymmetric cascades (two-level from owner, one-level from alias).
+
+| Foreign Key | Direction | Decision | Rationale |
+|-------------|-----------|----------|-----------|
+| `aliasspecies.species_id → species` | Species deleted | **CASCADE** (two-level) | Delete join table → delete alias. Alias meaningless without species. |
+| `aliasspecies.alias_id → alias` | Alias deleted (SQL) | **CASCADE** (one-level) | Delete join table only. Species remains. |
+| `taxonomyalias.taxonomy_id → taxonomy` | Taxonomy deleted | **CASCADE** (two-level) | Delete join table → delete alias. Alias meaningless without taxonomy. |
+| `taxonomyalias.alias_id → alias` | Alias deleted (SQL) | **CASCADE** (one-level) | Delete join table only. Taxonomy remains. |
+
+---
+
+### Open Investigation Items
+
+**Discovered during analysis:**
+
+1. **`taxonomytaxonomy` table** - May be legacy artifact unused since `taxonomy.parent_id` exists. Needs investigation.
+   - If unused: Consider dropping in schema refactor
+   - If used: Document purpose and cascade behavior
+
+2. **`gallspecies` 1:1 behavior** - Currently many-to-many table but verified to only have 1:1 relationships.
+   - **Schema refactor opportunity:** Replace with `gall.species_id → species` FK
+   - Would simplify schema and deletion logic
+
+---
+
+### Key Decisions Different from Original Plan
+
+| Original Plan | Actual Decision | Rationale |
+|---------------|-----------------|-----------|
+| `image.source_id → source`: SET NULL | **RESTRICT** | Stronger protection. Force explicit image handling before source deletion. |
+| Only 2 cascades need fixing | **3+ cascades need fixing** | Added `speciestaxonomy.taxonomy_id`, `taxonomy.type_id`, and reconsidered join table behavior. |
+
+---
+
+### Schema Refactor Considerations
+
+**Issues identified for future schema work:**
+
+1. **`host` table misnamed** → Should be `gallhost` (represents relationship, not host entity)
+2. **`gallspecies` unnecessary join table** → Could be simple FK `gall.species_id → species`
+3. **`taxonomytaxonomy` potentially unused** → Investigate and possibly remove
+4. **Asymmetric alias cascades are confusing** → Consider alternative design where aliases are owned by species/taxonomy with FK
+
+**This cascade analysis is foundational for schema refactor planning.**
