@@ -505,7 +505,7 @@ defmodule GallformersWeb.Admin.ImagesLive do
               phx-hook="ImageUpload"
               phx-update="ignore"
               data-species-id={@selected_species.id}
-              data-max-files="4"
+              data-max-files="20"
               data-accepted-types="image/jpeg,image/png,image/jpg"
             >
               <%!-- Dropzone --%>
@@ -518,7 +518,7 @@ defmodule GallformersWeb.Admin.ImagesLive do
                   Drag and drop images here, or click to select
                 </p>
                 <p class="mt-1 text-xs text-gray-500">
-                  Max 4 files. JPG or PNG only.
+                  Max 20 files. JPG or PNG only.
                 </p>
                 <input
                   data-file-input
