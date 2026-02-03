@@ -57,13 +57,20 @@ defmodule GallformersWeb.GenusLive do
 
   defp assign_genus_data(socket, genus, genus_id) do
     family = if genus.parent_id, do: Taxonomy.get_taxonomy(genus.parent_id), else: nil
-    species_ids = Taxonomy.get_species_ids_for_genus(genus_id)
-
-    species =
-      if species_ids == [], do: [], else: Gallformers.Species.list_species_by_ids(species_ids)
+    species = Taxonomy.get_enriched_species_for_genus(genus_id)
 
     # Don't index empty Unknown genera (placeholder genera with no species)
     is_empty_unknown = genus.name == "Unknown" && species == []
+
+    # Determine column header based on species type in this genus
+    count_header =
+      case species do
+        [first | _] ->
+          if first.taxoncode == "gall", do: "Number of Hosts", else: "Number of Galls"
+
+        [] ->
+          "Count"
+      end
 
     assign(socket,
       page_title: "Genus #{genus.name}",
@@ -76,16 +83,76 @@ defmodule GallformersWeb.GenusLive do
       genus: genus,
       family: family,
       species: species,
+      search_query: "",
+      sort_by: :name,
+      sort_dir: :asc,
+      filtered_species: species,
+      total_species_count: length(species),
+      count_header: count_header,
       error: nil
     )
   end
 
   defp format_with_description(name, description) do
-    if description do
+    if description && String.trim(description) != "" do
       "#{name} (#{description})"
     else
       name
     end
+  end
+
+  @impl true
+  def handle_event("search", %{"query" => query}, socket) do
+    {:noreply,
+     socket
+     |> assign(:search_query, query)
+     |> filter_species()}
+  end
+
+  @impl true
+  def handle_event("sort", %{"column" => column}, socket)
+      when column in ["name", "common_name", "count"] do
+    column_atom = String.to_atom(column)
+
+    {new_sort_by, new_sort_dir} =
+      if socket.assigns.sort_by == column_atom do
+        new_dir = if socket.assigns.sort_dir == :asc, do: :desc, else: :asc
+        {column_atom, new_dir}
+      else
+        {column_atom, :asc}
+      end
+
+    {:noreply, assign(socket, sort_by: new_sort_by, sort_dir: new_sort_dir)}
+  end
+
+  defp filter_species(socket) do
+    query = String.downcase(socket.assigns.search_query)
+
+    filtered =
+      if query == "" do
+        socket.assigns.species
+      else
+        Enum.filter(socket.assigns.species, fn s ->
+          String.contains?(String.downcase(s.name), query) ||
+            (s.common_name && String.contains?(String.downcase(s.common_name), query))
+        end)
+      end
+
+    assign(socket, :filtered_species, filtered)
+  end
+
+  defp sorted_species(species, sort_by, sort_dir) do
+    sorted =
+      Enum.sort_by(species, fn s ->
+        case sort_by do
+          :name -> String.downcase(s.name || "")
+          :common_name -> String.downcase(s.common_name || "zzz")
+          :count -> s.count
+          _ -> String.downcase(s.name || "")
+        end
+      end)
+
+    if sort_dir == :desc, do: Enum.reverse(sorted), else: sorted
   end
 
   @impl true
@@ -129,31 +196,81 @@ defmodule GallformersWeb.GenusLive do
 
             <%!-- Species list --%>
             <div class="mt-6">
-              <%= if length(@species) > 0 do %>
+              <%= if @total_species_count > 0 do %>
                 <h2 class="text-lg font-semibold text-gray-800 mb-3">
-                  Species ({length(@species)})
+                  Species ({@total_species_count})
                 </h2>
-                <div class="bg-white rounded border border-gray-200 overflow-hidden">
-                  <table class="gf-table">
-                    <thead>
-                      <tr>
-                        <th>Species Name</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr :for={species <- @species}>
-                        <td>
-                          <.link
-                            href={"#{if species.taxoncode == "gall", do: "/gall", else: "/host"}/#{species.id}"}
-                            class="hover:underline"
-                          >
-                            <em>{species.name}</em>
-                          </.link>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
+
+                <%!-- Search box --%>
+                <div class="mb-4 max-w-md">
+                  <form phx-change="search" phx-submit="search" id="genus-search-form">
+                    <.search_input
+                      id="genus-search"
+                      name="query"
+                      value={@search_query}
+                      placeholder="Filter by species or common name..."
+                      phx-debounce="300"
+                    />
+                  </form>
                 </div>
+
+                <%= if Enum.empty?(@filtered_species) do %>
+                  <div class="bg-gray-50 rounded-lg p-8 text-center text-gray-600">
+                    <p>No species found matching "{@search_query}"</p>
+                  </div>
+                <% else %>
+                  <div class="bg-white rounded border border-gray-200 overflow-hidden">
+                    <table class="gf-table">
+                      <thead>
+                        <tr>
+                          <th class="sortable" phx-click="sort" phx-value-column="name">
+                            Species Name
+                            <span :if={@sort_by == :name} class="ml-1">
+                              {if @sort_dir == :asc, do: "↑", else: "↓"}
+                            </span>
+                          </th>
+                          <th class="sortable" phx-click="sort" phx-value-column="common_name">
+                            Common Name
+                            <span :if={@sort_by == :common_name} class="ml-1">
+                              {if @sort_dir == :asc, do: "↑", else: "↓"}
+                            </span>
+                          </th>
+                          <th class="sortable" phx-click="sort" phx-value-column="count">
+                            {@count_header}
+                            <span :if={@sort_by == :count} class="ml-1">
+                              {if @sort_dir == :asc, do: "↑", else: "↓"}
+                            </span>
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr :for={species <- sorted_species(@filtered_species, @sort_by, @sort_dir)}>
+                          <td>
+                            <.link
+                              href={"#{if species.taxoncode == "gall", do: "/gall", else: "/host"}/#{species.id}"}
+                              class="hover:underline"
+                            >
+                              <em>{species.name}</em>
+                            </.link>
+                          </td>
+                          <td>{species.common_name}</td>
+                          <td class="text-gray-600">
+                            {species.count}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <%!-- Filter status message --%>
+                  <div class="mt-4 text-sm text-gray-500">
+                    <%= if @search_query != "" do %>
+                      Filtering {length(@filtered_species)} of {@total_species_count} species
+                    <% else %>
+                      Showing {length(@filtered_species)} species
+                    <% end %>
+                  </div>
+                <% end %>
               <% else %>
                 <p class="text-gray-500 italic">No species found for this genus.</p>
               <% end %>
