@@ -6,10 +6,14 @@ defmodule GallformersWeb.ArticlesLive do
   """
   use GallformersWeb, :live_view
 
+  alias Gallformers.Accounts
   alias Gallformers.Articles
 
   @impl true
   def mount(_params, _session, socket) do
+    current_user = socket.assigns.current_user
+    is_admin = Accounts.admin?(current_user)
+
     # Only show tags from published articles on the public index
     tags = Articles.list_tags(published_only: true)
 
@@ -23,7 +27,8 @@ defmodule GallformersWeb.ArticlesLive do
        page_json_ld: nil,
        tags: tags,
        selected_tag: nil,
-       articles: []
+       articles: [],
+       is_admin: is_admin
      )}
   end
 
@@ -171,33 +176,45 @@ defmodule GallformersWeb.ArticlesLive do
           </div>
         <% else %>
           <div class="space-y-6">
-            <.link
+            <article
               :for={article <- @articles}
-              navigate={~p"/articles/#{article.slug}"}
-              class="block group"
+              class="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow"
             >
-              <article class="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
-                <h2 class="text-xl font-semibold text-gf-maroon group-hover:underline mb-2">
-                  {article.title}
-                </h2>
-                <div class="text-sm text-gray-500 mb-3">
-                  <span>By {article.author}</span>
-                  <span class="mx-2">•</span>
-                  <span>{format_date(display_date(article))}</span>
-                </div>
-                <div :if={article.tags != []} class="flex flex-wrap gap-2 mb-3">
-                  <span
-                    :for={tag <- article.tags}
-                    class="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded"
+              <h2 class="text-xl font-semibold mb-2">
+                <span class="inline-flex items-center gap-1">
+                  <.link
+                    navigate={~p"/articles/#{article.slug}"}
+                    class="text-gf-maroon hover:underline"
                   >
-                    {tag}
-                  </span>
-                </div>
-                <p class="text-gray-600">
-                  {article_preview(article)}
-                </p>
-              </article>
-            </.link>
+                    {article.title}
+                  </.link>
+                  <.link
+                    :if={@is_admin}
+                    navigate={~p"/admin/articles/#{article.id}"}
+                    class="text-gray-400 hover:text-gf-maroon"
+                    title="Edit"
+                  >
+                    <.icon name="ph-pencil-simple" class="size-4" />
+                  </.link>
+                </span>
+              </h2>
+              <div class="text-sm text-gray-500 mb-3">
+                <span>By {article.author}</span>
+                <span class="mx-2">•</span>
+                <span>{format_date(display_date(article))}</span>
+              </div>
+              <div :if={article.tags != []} class="flex flex-wrap gap-2 mb-3">
+                <span
+                  :for={tag <- article.tags}
+                  class="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded"
+                >
+                  {tag}
+                </span>
+              </div>
+              <p class="text-gray-600">
+                {article_preview(article)}
+              </p>
+            </article>
           </div>
 
           <div class="mt-6 text-sm text-gray-500">

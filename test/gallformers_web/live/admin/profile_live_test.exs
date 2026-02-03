@@ -193,10 +193,12 @@ defmodule GallformersWeb.Admin.ProfileLiveTest do
   end
 
   describe "Profile page - user without profile" do
-    test "shows error message when profile not found", %{conn: conn} do
+    test "creates profile automatically when not found", %{conn: conn} do
       # Create Auth0User for a user that doesn't have a database profile
+      auth0_id = "auth0|nonexistent-#{System.unique_integer([:positive])}"
+
       auth0_user = %Auth0User{
-        id: "auth0|nonexistent-#{System.unique_integer([:positive])}",
+        id: auth0_id,
         email: "noprofile@test.com",
         name: "No Profile User",
         nickname: "noprofile",
@@ -211,8 +213,14 @@ defmodule GallformersWeb.Admin.ProfileLiveTest do
 
       {:ok, _view, html} = live(conn, ~p"/admin/profile")
 
-      # Should show error about profile not found
-      assert html =~ "Profile not found" or html =~ "Unable to load"
+      # Should show success message about profile creation
+      assert html =~ "Profile created successfully"
+
+      # Verify profile was actually created in database
+      user = Accounts.get_user_by_auth0_id(auth0_id)
+      assert user != nil
+      assert user.nickname == "noprofile"
+      assert user.display_name == "No Profile User"
     end
   end
 

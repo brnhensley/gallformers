@@ -136,21 +136,6 @@ defmodule GallformersWeb.DataDisplayComponents do
 
       <%!-- Action buttons --%>
       <div class="mt-2 flex justify-center gap-1">
-        <div class="relative group">
-          <button
-            type="button"
-            class="px-2 py-1 text-sm border border-gray-300 rounded bg-white hover:bg-gray-50"
-            aria-label={gettext("Copyright info")}
-          >
-            ©
-          </button>
-          <div
-            class="absolute z-50 hidden group-hover:block bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 text-xs bg-gray-900 text-white rounded whitespace-nowrap"
-            role="tooltip"
-          >
-            <span data-license-tooltip>{get_img_field(@first_image, :license) || "No license"}</span>
-          </div>
-        </div>
         <button
           type="button"
           data-open-info
@@ -212,6 +197,7 @@ defmodule GallformersWeb.DataDisplayComponents do
               <div>
                 <strong>{gettext("License:")}</strong>{" "}
                 <a
+                  :if={get_img_field(@first_image, :licenselink) != ""}
                   data-info-license
                   href={get_img_field(@first_image, :licenselink)}
                   target="_blank"
@@ -220,6 +206,15 @@ defmodule GallformersWeb.DataDisplayComponents do
                 >
                   {get_img_field(@first_image, :license)}
                 </a>
+                <span
+                  :if={
+                    get_img_field(@first_image, :licenselink) == "" &&
+                      get_img_field(@first_image, :license) != ""
+                  }
+                  data-info-license
+                >
+                  {get_img_field(@first_image, :license)}
+                </span>
               </div>
               <div>
                 <strong>{gettext("Attribution:")}</strong>{" "}
@@ -281,8 +276,9 @@ defmodule GallformersWeb.DataDisplayComponents do
             </a>
             {" "}by{" "}
             <span data-lightbox-creator>{get_img_field(@first_image, :creator)}</span>
-            {" © "}
+            <span :if={get_img_field(@first_image, :license) != ""}>{" © "}</span>
             <a
+              :if={get_img_field(@first_image, :licenselink) != ""}
               data-lightbox-license-link
               href={get_img_field(@first_image, :licenselink)}
               target="_blank"
@@ -291,6 +287,15 @@ defmodule GallformersWeb.DataDisplayComponents do
             >
               <span data-lightbox-license>{get_img_field(@first_image, :license)}</span>
             </a>
+            <span
+              :if={
+                get_img_field(@first_image, :licenselink) == "" &&
+                  get_img_field(@first_image, :license) != ""
+              }
+              data-lightbox-license
+            >
+              {get_img_field(@first_image, :license)}
+            </span>
           </div>
 
           <div :if={@image_count > 1} class="mt-4 flex items-center gap-6">

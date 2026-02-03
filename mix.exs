@@ -98,7 +98,11 @@ defmodule Gallformers.MixProject do
       "ecto.setup": ["ecto.create", "ecto.migrate", "run priv/repo/seeds.exs"],
       "ecto.reset": ["ecto.drop", "ecto.setup"],
       test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
-      "test.check_exclusions": ["ecto.create --quiet", "ecto.migrate --quiet", "test.check_exclusions_run"],
+      "test.check_exclusions": [
+        "ecto.create --quiet",
+        "ecto.migrate --quiet",
+        "test.check_exclusions_run"
+      ],
       "test.check_exclusions_run": &check_test_exclusions/1,
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
       "assets.build": ["compile", "tailwind gallformers", "esbuild gallformers"],
@@ -149,7 +153,11 @@ defmodule Gallformers.MixProject do
   # Expected output: "726 tests, 0 failures" (705 unit + 21 E2E)
   # If you see "X excluded" where X > 0, there are hidden exclusions to investigate
   defp check_test_exclusions(_args) do
-    IO.puts("\n" <> IO.ANSI.yellow() <> "==> Checking for unexpected test exclusions..." <> IO.ANSI.reset())
+    IO.puts(
+      "\n" <>
+        IO.ANSI.yellow() <> "==> Checking for unexpected test exclusions..." <> IO.ANSI.reset()
+    )
+
     IO.puts("==> Running ALL tests (including E2E) to detect hidden exclusions\n")
 
     # Set env to start Wallaby for E2E tests

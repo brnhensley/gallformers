@@ -40,12 +40,23 @@ defmodule GallformersWeb.Admin.ProfileLive do
 
     case Accounts.get_user_by_auth0_id(auth0_user.id) do
       nil ->
-        # This shouldn't happen - login flow creates user records
-        # But handle gracefully by showing an error
-        socket
-        |> put_flash(:error, "Profile not found. Please log out and log back in.")
-        |> assign(:user, nil)
-        |> assign(:form, nil)
+        # Profile doesn't exist - create it now using Auth0 data from session
+        case Accounts.sync_user_from_auth0(auth0_user) do
+          {:ok, user} ->
+            changeset = User.update_changeset(user, %{})
+
+            socket
+            |> put_flash(:info, "Profile created successfully. Welcome!")
+            |> assign(:user, user)
+            |> assign(:form, to_form(changeset))
+            |> assign(:inat_username, extract_inat_username(user.inaturalist_url))
+
+          {:error, _changeset} ->
+            socket
+            |> put_flash(:error, "Unable to create your profile. Please contact support.")
+            |> assign(:user, nil)
+            |> assign(:form, nil)
+        end
 
       %User{} = user ->
         changeset = User.update_changeset(user, %{})
@@ -255,7 +266,7 @@ defmodule GallformersWeb.Admin.ProfileLive do
         <% else %>
           <div class="p-4 bg-red-50 border border-red-200 rounded">
             <p class="text-red-700">
-              Unable to load your profile. Please try logging out and logging back in.
+              Unable to create or load your profile. Please contact support if this problem persists.
             </p>
           </div>
         <% end %>

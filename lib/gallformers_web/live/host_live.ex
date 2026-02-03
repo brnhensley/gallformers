@@ -618,7 +618,7 @@ defmodule GallformersWeb.HostLive do
                 </button>
                 <p :if={source.license} class="mt-1 text-sm text-gray-500">
                   License:
-                  <%= if source.licenselink do %>
+                  <%= if source.licenselink && source.licenselink != "" do %>
                     <.link
                       href={source.licenselink}
                       target="_blank"

@@ -83,6 +83,7 @@ defmodule GallformersWeb.ArticleLive do
        rendered_content: rendered_content,
        related_articles: related_articles,
        is_draft_preview: not article.is_published and is_admin,
+       is_admin: is_admin,
        error: nil
      )}
   end
@@ -203,7 +204,19 @@ defmodule GallformersWeb.ArticleLive do
 
           <%!-- Article header --%>
           <header class="mb-8">
-            <h1 class="text-3xl font-bold text-gf-maroon mb-4">{@article.title}</h1>
+            <h1 class="text-3xl font-bold text-gf-maroon mb-4">
+              <span class="inline-flex items-center gap-3">
+                {@article.title}
+                <.link
+                  :if={@is_admin}
+                  navigate={~p"/admin/articles/#{@article.id}"}
+                  class="text-gray-400 hover:text-gf-maroon"
+                  title="Edit in admin"
+                >
+                  <.icon name="ph-pencil-simple" class="h-5 w-5" />
+                </.link>
+              </span>
+            </h1>
             <div class="flex flex-wrap items-center gap-4 text-gray-600">
               <span>By {@article.author}</span>
               <span>•</span>
