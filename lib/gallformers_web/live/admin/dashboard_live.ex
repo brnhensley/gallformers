@@ -47,9 +47,6 @@ defmodule GallformersWeb.Admin.DashboardLive do
               class="hover:underline"
             >Discord</a>.
           </p>
-          <p class="text-lg text-red-600 font-bold">
-            Note: Admin functionality is being migrated from v1. Some features may not yet be available.
-          </p>
         </div>
       </div>
 
