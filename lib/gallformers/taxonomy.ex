@@ -1169,6 +1169,64 @@ defmodule Gallformers.Taxonomy do
   end
 
   @doc """
+  Gets enriched species list for a genus with common names and counts.
+
+  Returns list of maps with:
+  - id, name, taxoncode (from species)
+  - common_name (first common alias, or nil)
+  - count (number of hosts for galls, number of galls for hosts)
+  """
+  @spec get_enriched_species_for_genus(integer()) :: [map()]
+  def get_enriched_species_for_genus(genus_id) do
+    species_ids = get_species_ids_for_genus(genus_id)
+
+    if species_ids == [] do
+      []
+    else
+      species = Gallformers.Species.list_species_by_ids(species_ids)
+      enrich_species_with_common_names_and_counts(species)
+    end
+  end
+
+  @doc """
+  Gets enriched species list for a section with common names and gall counts.
+
+  Returns list of maps with the same structure as get_enriched_species_for_genus/1.
+  """
+  @spec get_enriched_species_for_section(integer()) :: [map()]
+  def get_enriched_species_for_section(section_id) do
+    species = get_species_for_section(section_id)
+    enrich_species_with_common_names_and_counts(species)
+  end
+
+  # Enriches a list of species with common names and host/gall counts.
+  defp enrich_species_with_common_names_and_counts(species_list) do
+    Enum.map(species_list, fn species ->
+      # Get common name (first common alias)
+      aliases = Gallformers.Species.get_aliases_for_species(species.id)
+
+      common_name =
+        aliases
+        |> Enum.find(fn a -> a.type == "common" end)
+        |> case do
+          nil -> nil
+          alias_record -> alias_record.name
+        end
+
+      # Get count based on type
+      count =
+        case species.taxoncode do
+          "gall" -> length(Gallformers.Hosts.get_hosts_for_gall(species.id))
+          _ -> length(Gallformers.Hosts.get_galls_for_host(species.id))
+        end
+
+      species
+      |> Map.put(:common_name, common_name)
+      |> Map.put(:count, count)
+    end)
+  end
+
+  @doc """
   Lists all sections with their parent genus and species count.
   """
   @spec list_sections_with_details() :: [map()]
