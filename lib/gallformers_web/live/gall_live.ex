@@ -11,6 +11,7 @@ defmodule GallformersWeb.GallLive do
   alias GallformersWeb.SEO
 
   @aliases_page_size 10
+  @sources_initial_limit 8
 
   @detachable_values %{
     "unknown" => "",
@@ -119,6 +120,7 @@ defmodule GallformersWeb.GallLive do
            aliases_page_size: @aliases_page_size,
            selected_source: nil,
            modal_font_size: :base,
+           sources_expanded: false,
            error: nil
          )}
     end
@@ -230,6 +232,11 @@ defmodule GallformersWeb.GallLive do
     {:noreply, assign(socket, modal_font_size: new_size)}
   end
 
+  @impl true
+  def handle_event("expand_sources", _params, socket) do
+    {:noreply, assign(socket, sources_expanded: true)}
+  end
+
   defp paginated_aliases(aliases, current_page, page_size) do
     aliases
     |> Enum.drop((current_page - 1) * page_size)
@@ -244,6 +251,34 @@ defmodule GallformersWeb.GallLive do
   defp prose_size_class(:base), do: "prose-base"
   defp prose_size_class(:lg), do: "prose-lg"
   defp prose_size_class(:xl), do: "prose-xl"
+
+  defp visible_sources(sources, expanded?)
+       when expanded? or length(sources) <= @sources_initial_limit do
+    sources
+  end
+
+  defp visible_sources(sources, _expanded?) do
+    # Always include Gallformers Notes (id 58) if it exists
+    gallformers_notes = Enum.find(sources, &(&1.id == @gallformers_notes_source_id))
+
+    case gallformers_notes do
+      nil ->
+        Enum.take(sources, @sources_initial_limit)
+
+      _ ->
+        other_sources = Enum.reject(sources, &(&1.id == @gallformers_notes_source_id))
+        # Take 7 other sources + Gallformers Notes = 8 total
+        limited_sources = Enum.take(other_sources, @sources_initial_limit - 1)
+        # Maintain original order by sorting by position in original list
+        Enum.sort_by([gallformers_notes | limited_sources], fn s ->
+          Enum.find_index(sources, &(&1.id == s.id))
+        end)
+    end
+  end
+
+  defp show_expand_button?(sources, expanded?) do
+    !expanded? and length(sources) > @sources_initial_limit
+  end
 
   @impl true
   def render(assigns) do
@@ -505,7 +540,7 @@ defmodule GallformersWeb.GallLive do
             <h3 class="font-semibold mb-2">Further Information ({length(@sources)})</h3>
             <div class="space-y-2">
               <div
-                :for={source <- @sources}
+                :for={source <- visible_sources(@sources, @sources_expanded)}
                 class={"p-3 rounded border bg-white #{if source.id == 58, do: "border-blue-200 border-l-4 border-l-blue-400", else: "border-gray-200"}"}
               >
                 <div>
@@ -570,6 +605,15 @@ defmodule GallformersWeb.GallLive do
                   <% end %>
                 </p>
               </div>
+            </div>
+            <div :if={show_expand_button?(@sources, @sources_expanded)} class="mt-4 text-center">
+              <button
+                type="button"
+                phx-click="expand_sources"
+                class="px-4 py-2 bg-white border border-gray-300 rounded hover:bg-gray-50 text-gray-700"
+              >
+                Show all {length(@sources)} sources
+              </button>
             </div>
           <% else %>
             <p class="italic">No further information available for this species.</p>
