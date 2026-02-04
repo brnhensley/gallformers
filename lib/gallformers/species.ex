@@ -13,7 +13,7 @@ defmodule Gallformers.Species do
   require Logger
 
   @doc """
-  Returns a random gall that has a default image.
+  Returns a random gall with its first image (lowest sort_order).
 
   Used on the home page to show a featured gall. Returns a map with:
     - id: species ID
@@ -27,14 +27,21 @@ defmodule Gallformers.Species do
   """
   @spec random_gall() :: map() | nil
   def random_gall do
+    # Subquery to find the minimum sort_order for each species
+    min_sort_query =
+      from i in Image,
+        group_by: i.species_id,
+        select: %{species_id: i.species_id, min_sort: min(i.sort_order)}
+
     query =
       from s in Species,
         join: gt in GallTraits,
         on: gt.species_id == s.id,
+        join: ms in subquery(min_sort_query),
+        on: ms.species_id == s.id,
         join: i in Image,
-        on: i.species_id == s.id,
+        on: i.species_id == s.id and i.sort_order == ms.min_sort,
         where: s.taxoncode == "gall",
-        where: i.sort_order == 1,
         order_by: fragment("RANDOM()"),
         limit: 1,
         select: %{
