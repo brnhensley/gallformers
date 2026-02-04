@@ -36,3 +36,4 @@ tsconfig.tsbuildinfo
 !.yarn/sdks
 !.yarn/versions
 .pnp.*
+gallformers-v1-clean.sqlite
