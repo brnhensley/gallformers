@@ -39,6 +39,120 @@ If you're unsure about scope, ASK. Examples:
 - "I found 3 places this bug could originate - should I investigate all of them?"
 - "This fix touches the database - should I also check the related API endpoints?"
 
+## Fly.io Operations - CRITICAL RULES
+
+**CONTEXT**: These rules exist because of a production incident (docs/investigations/20260203-production-database-recovery.md) where an agent caused significant downtime by violating these principles.
+
+### STOP MEANS STOP
+
+- If user says "STOP", "STOP RUNNING THINGS", or similar: **IMMEDIATELY cease all tool execution**
+- Do not run ANY commands until user gives new explicit direction
+- Do not try to "help" by running one more thing
+- Do not rationalize that "this command is safe"
+- **This is not negotiable**
+
+### Fly.io Infrastructure Operations
+
+**NEVER destroy machines:**
+- Destroying machines causes volume attachment issues
+- When `fly deploy` runs with no machine, it may create a NEW empty volume instead of using the existing one
+- This leads to crash loops with no database until retries are exhausted
+- Use machine stop/update/restart instead
+
+**NEVER use `fly machine run` to create app machines:**
+- Manual machine creation bypasses fly.toml configuration
+- Results in wrong memory (256MB instead of 512MB), missing health checks, wrong process group
+- **Always use `fly deploy`** which applies fly.toml config correctly
+
+**Always check machine state first:**
+- Run `fly machine list` before any SSH/SFTP operations
+- Cannot SSH/SFTP to a stopped machine
+- Verify state matches what you expect before proceeding
+
+**The "sleep infinity" pattern for database operations:**
+This is the correct way to perform file operations on a running machine:
+
+1. Stop machine (if running)
+2. Update machine command: `fly machine update --command "sleep infinity"`
+3. Start machine (now runs `sleep infinity` instead of app - releases DB lock)
+4. Perform file operations (backup, upload, verify)
+5. Clear command override: `fly machine update --command ""`
+6. Restart machine (reverts to Dockerfile CMD with fly.toml config)
+
+**Why this works:**
+- Machine starts successfully (sleep infinity never fails)
+- App is not running, so DB lock is released
+- Machine keeps all its configuration (memory, health checks, etc.)
+- Clearing command override reverts to original Dockerfile CMD
+- No machine destruction/recreation needed
+
+### SQLite on Fly.io
+
+**WAL mode requires 3 files:**
+- `.sqlite` - main database
+- `.sqlite-shm` - shared memory file
+- `.sqlite-wal` - write-ahead log
+
+Uploading only the `.sqlite` file will result in database corruption.
+
+**Creating a clean single-file copy:**
+```elixir
+# VACUUM + WAL checkpoint consolidates everything into .sqlite
+sqlite3 db.sqlite "PRAGMA wal_checkpoint(TRUNCATE); VACUUM;"
+# Now you can upload just the .sqlite file
+```
+
+**Backup strategy:**
+- Use `mv` not `cp` for backups (SFTP cannot overwrite existing files)
+- `mv /data/gallformers.sqlite /data/gallformers-TIMESTAMP.sqlite.bak`
+- Now you can upload to `/data/gallformers.sqlite`
+
+### Before ANY Fly.io operation:
+
+1. **State verification** - What's the current state? (machine status, volume status)
+2. **Clear plan** - What are we trying to achieve? What's the algorithm?
+3. **User approval** - Especially for machine stop/start/update/destroy operations
+4. **Execute ONE step at a time** - Do not run multiple commands in parallel
+5. **Verify success** - Check the result before proceeding to next step
+6. **If anything unexpected happens** - STOP and report to user
+
+**Example of correct approach:**
+```
+User: "Update the production database"
+
+Agent: "I need to update the production database. Here's my plan:
+1. Validate local DB (integrity + species count)
+2. Stop production machine
+3. Update to sleep infinity mode
+4. Start machine (releases DB lock)
+5. Backup existing DB (mv to timestamped file)
+6. Upload new DB
+7. Verify remote DB
+8. Clear Litestream backups
+9. Restart normally
+
+Should I proceed?"
+
+User: "Yes"
+
+Agent: [Executes step 1, reports result]
+Agent: [Executes step 2, reports result]
+... etc
+```
+
+**Example of WRONG approach:**
+```
+User: "Update the production database"
+
+Agent: [Immediately starts running commands]
+Agent: [Tries SFTP to stopped machine - fails]
+Agent: [Creates temp machine with fly machine run - wrong config]
+Agent: [Uploads only .sqlite file - missing WAL/SHM]
+Agent: [Database corrupted]
+User: "STOP!!!"
+Agent: [Keeps running commands anyway]
+```
+
 # Gallformers Project Overview
 
 **Note**: This project uses [bd (beads)](https://github.com/steveyegge/beads) for issue tracking. Use `bd` commands instead of markdown TODOs. See AGENTS.md for workflow details.
@@ -476,6 +590,31 @@ fly secrets list
 fly secrets set SECRET_KEY_BASE=xxx
 fly secrets set AUTH0_CLIENT_ID=xxx AUTH0_CLIENT_SECRET=xxx AUTH0_DOMAIN=xxx
 ```
+
+### Database Update
+
+**IMPORTANT**: Use the Mix task, not manual operations. See "Fly.io Operations - CRITICAL RULES" above.
+
+To update the production database (e.g., V1→V2 cutover):
+
+```bash
+mix gallformers.update_prod_db path/to/gallformers.sqlite
+```
+
+This task:
+1. Validates local database (integrity + species count ≥ 5000)
+2. Creates clean single-file copy (VACUUM + WAL checkpoint)
+3. Stops production machine
+4. Updates to sleep mode (releases DB lock)
+5. Backs up existing database (timestamped, can rollback)
+6. Uploads new database
+7. Verifies remote database
+8. Clears Litestream backups (forces fresh generation)
+9. Restarts app normally
+
+**Prerequisites**: flyctl, sqlite3, jq, aws CLI
+
+**See**: `lib/mix/tasks/gallformers/update_prod_db.ex` for implementation
 
 ## Beads Workflow
 
