@@ -608,7 +608,11 @@ defmodule Mix.Tasks.Gallformers.UpdateProdDb do
 
   ## Error Recovery
 
-  defp handle_error_recovery(%{machine_id: machine_id, backup_file: backup_file, can_rollback: true}) do
+  defp handle_error_recovery(%{
+         machine_id: machine_id,
+         backup_file: backup_file,
+         can_rollback: true
+       }) do
     if backup_file do
       if Mix.Shell.IO.yes?("Attempt rollback?") do
         attempt_rollback(machine_id, backup_file)
