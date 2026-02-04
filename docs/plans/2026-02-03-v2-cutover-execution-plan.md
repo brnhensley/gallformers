@@ -78,6 +78,7 @@
 - Deploy to DO droplet
 - Verify editing is blocked on live site
 - This prevents data loss during cutover
+[x] DONE at 735AM ET Feb 4
 
 ---
 
@@ -96,6 +97,7 @@ ls -lh gallformers*.sqlite  # Verify backup exists
 scp user@157.245.243.86:/mnt/gallformers_data/prisma/gallformers.sqlite \
   ~/cutover-working/gallformers-v1-raw.sqlite
 ```
+[x] DONE at 745AM ET Feb 4
 
 ### Step 3: Clean up orphaned records
 ```bash
@@ -106,23 +108,25 @@ sqlite3 ~/cutover-working/gallformers-v1-clean.sqlite < /Users/jeff/dev/gallform
 **Script location:** `priv/repo/cleanup_orphaned_records.sql`
 
 **What it cleans up:**
-- 218 orphaned gall records (5.6% of total)
-- 8,820 orphaned alias records (72.1% of total)
-- 1,162 orphaned filter associations (gallcolor, gallshape, galltexture, etc.)
+- Orphaned galls (no valid gallspecies link):|217
+- Orphaned aliases:|8824
 
 **Verification:** The script includes verification queries that run automatically and show remaining orphan counts (all should be 0).
+[x] DONE at 846AM ET Feb 4
 
 ### Step 4: Run V1→V2 migration
 ```bash
 cp ~/cutover-working/gallformers-v1-clean.sqlite ~/cutover-working/gallformers-v2.sqlite
 sqlite3 ~/cutover-working/gallformers-v2.sqlite < /Users/jeff/dev/gallformers/priv/repo/migrate_v1_to_v2.sql
 ```
+[x] DONE at 848AM ET Feb 4
 
 ### Step 5: Compact and sync WAL
 ```bash
 sqlite3 ~/cutover-working/gallformers-v2.sqlite "VACUUM;"
 sqlite3 ~/cutover-working/gallformers-v2.sqlite "PRAGMA wal_checkpoint(TRUNCATE);"
 ```
+[x] DONE at 848AM ET Feb 4
 
 ### Step 6: Verify and checksum
 ```bash
@@ -133,10 +137,15 @@ DATABASE_PATH=~/cutover-working/gallformers-v2.sqlite iex -S mix phx.server
 # Check file size
 ls -lh ~/cutover-working/gallformers-v2.sqlite
 
+It is 14M
+
 # Final checksum
 shasum -a 256 ~/cutover-working/gallformers-v2.sqlite > ~/cutover-working/checksum.txt
 cat ~/cutover-working/checksum.txt
 ```
+
+`8c4e2e3fee507cb44a11b250419498d50526dd9240fe3e866cdd2b1925d0115c  /Users/jeff/cutover-working/gallformers-v2.sqlite`
+[x] DONE at 850AM ET Feb 4
 
 ---
 
@@ -183,17 +192,156 @@ mix gallformers.update_prod_db ~/cutover-working/gallformers-v2.sqlite
 - Machine left in sleep mode for investigation
 - Clear error messages
 
+**COMPLETED:**
+[x] DONE at 905AM ET Feb 4
+```
+➜  gallformers git:(main) ✗ mix gallformers.update_prod_db ~/cutover-working/gallformers-v2.sqlite
+Checking prerequisites...
+✓ All prerequisites met
+
+=== Step 1: Local Validation & Preparation ===
+Checking source database integrity...
+✓ Source integrity check passed
+Checking species count...
+Species count: 5793
+✓ Species count validated
+
+Creating clean copy (VACUUM + WAL checkpoint)...
+✓ Clean database created
+Verifying clean copy...
+✓ Clean copy verified
+File size: 14.29 MB
+SHA-256: 44427754dba0887f46a997216d9b8be41ed01ed6b57c8c71f5bb94370ca35b0f
+
+WARNING: This will replace the production database on Fly.io
+App: gallformers
+Species count: 5793
+File size: 14.29 MB
+
+The existing database will be backed up with a timestamp.
+If anything fails, you can rollback to the backup.
+
+Type 'REPLACE' to continue:  REPLACE
+
+=== Step 2: Get Machine Info ===
+Machine ID: 7847515a205e68
+Machine state: started
+
+=== Step 3: Stop Machine ===
+Stopping machine...
+✓ Machine stopped
+
+=== Step 4: Update Machine to Sleep Mode ===
+Updating machine command to 'sleep infinity'...
+✓ Machine updated to sleep mode
+
+=== Step 5: Start Sleeping Machine ===
+Starting machine (will run 'sleep infinity', not the app)...
+Waiting for machine to start...
+✓ Machine started (DB lock released)
+
+=== Step 6: Backup Existing Database ===
+Backup filename: /data/gallformers-20260204-140256.sqlite.bak
+No existing database found (fresh install)
+
+=== Step 7: Upload New Database ===
+Uploading database (14.29 MB)...
+✓ Database uploaded
+
+=== Step 8: Verify Remote Database ===
+Checking integrity on remote...
+Connecting to fdaa:d:c2ca:a7b:60e:f1fb:2cb5:2...
+✓ Remote integrity check passed
+Connecting to fdaa:d:c2ca:a7b:60e:f1fb:2cb5:2...
+Remote species count: 5793
+✓ Remote species count matches
+
+=== Step 9: Clear Litestream Backups ===
+Clearing Litestream backups from S3 (forces fresh generation)...
+✓ Litestream backups cleared
+
+=== Step 10: Restore Normal Operation ===
+Clearing command override (reverts to Dockerfile CMD)...
+  Waiting for 7847515a205e68 to become healthy (started, 0/1)
+  Waiting for 7847515a205e68 to become healthy (started, 0/1)
+  Waiting for 7847515a205e68 to become healthy (started, 0/1)
+  Waiting for 7847515a205e68 to become healthy (started, 0/1)
+  Waiting for 7847515a205e68 to become healthy (started, 0/1)
+  Waiting for 7847515a205e68 to become healthy (started, 1/1)
+  Waiting for 7847515a205e68 to become healthy (started, 1/1)
+✓ Command override cleared
+Restarting machine...
+  Waiting for 7847515a205e68 to become healthy (started, 0/1)
+  Waiting for 7847515a205e68 to become healthy (started, 0/1)
+  Waiting for 7847515a205e68 to become healthy (started, 0/1)
+  Waiting for 7847515a205e68 to become healthy (started, 0/1)
+  Waiting for 7847515a205e68 to become healthy (started, 0/1)
+  Waiting for 7847515a205e68 to become healthy (started, 0/1)
+  Waiting for 7847515a205e68 to become healthy (started, 1/1)
+Waiting for machine to start...
+Checking machine status...
+App
+  Name     = gallformers
+  Owner    = personal
+  Hostname = gallformers.fly.dev
+  Image    = gallformers:deployment-01KGK3RYGFDM2DYKWYW38428JJ
+
+Machines
+PROCESS	ID            	VERSION	REGION	STATE  	ROLE	CHECKS            	LAST UPDATED
+app    	7847515a205e68	91     	iad   	started	    	1 total, 1 passing	2026-02-04T14:03:25Z
+
+
+
+Checking health endpoint...
+✓ Health check passed
+
+=== Database Update Complete ===
+
+Summary:
+  Species count: 5793
+  File size: 14.29 MB
+  SHA-256: 44427754dba0887f46a997216d9b8be41ed01ed6b57c8c71f5bb94370ca35b0f
+
+Next steps:
+  1. Verify site: https://gallformers.fly.dev/
+  2. Check logs: fly logs -a gallformers
+```
+
 **After the task completes:**
 
 ```bash
 # Verify V2 via Fly.io URL
 curl -i https://gallformers.fly.dev/health
 # Should return 200
+[x] DONE at 905AM ET Feb 4
 
 # Run smoke tests
 mix smoke_test https://gallformers.fly.dev
 ```
+[x] DONE at 905AM ET Feb 4
+```
+➜  gallformers git:(main) ✗ mix smoke_test https://gallformers.fly.dev
+Running smoke tests against https://gallformers.fly.dev
 
+✓ Health check (/health)
+✓ API stats (/api/v2/stats)
+✓ Discover gall ID (/api/v2/galls) → found ID 4153
+✓ Discover host ID (/api/v2/hosts) → found ID 2241
+✓ Discover genus ID (/api/v2/families) → found ID 507
+✓ Home page (/)
+✓ Gall page (/gall/4153)
+✓ Host page (/host/2241)
+✓ Genus page (/genus/507)
+✓ Search API (/api/v2/search?q=weldi)
+✓ Search UI (/globalsearch?q=weldi)
+✓ Static CSS (/assets/css/app-b70450bb1260ce0f35e138f2fe92b73c.css?vsn=d)
+✓ Static JS (/assets/js/app-cc61c76223b57e2478ffe1796ff695b0.js?vsn=d)
+✓ Image gallery (/gall/4153)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+14 checks, 14 passed, 0 failed
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
 **⚠️ If smoke tests fail, STOP - do not proceed to DNS cutover.**
 
 **See:** `lib/mix/tasks/gallformers/update_prod_db.ex` for implementation details
@@ -206,63 +354,404 @@ mix smoke_test https://gallformers.fly.dev
 ```bash
 # Verify V2 is healthy on Fly.io
 curl -i https://gallformers.fly.dev/health
+```
+[x] DONE at 907AM ET Feb 4
 
-# Verify CloudFront distribution is accessible
-curl -i https://dfd18lb16qtjl.cloudfront.net/health
+```
+➜  gallformers git:(main) ✗ curl -i https://gallformers.fly.dev/health
+HTTP/2 200
+date: Wed, 04 Feb 2026 14:06:51 GMT
+content-length: 2
+vary: accept-encoding
+cache-control: max-age=0, private, must-revalidate
+x-request-id: GJEQQ97IqssGtvYAAAth
+content-type: text/plain; charset=utf-8
+server: Fly/c3040578e (2026-01-27)
+via: 2 fly.io
+fly-request-id: 01KGMFMD9REBG32CY2EWEPDRHG-iad
 
-# Both should return 200 OK
+ok%
 ```
 
-### Step 1: Update DNS at DigitalOcean
+```bash
+# Verify CloudFront distribution is accessible
+curl -i https://dfd18lb16qtjl.cloudfront.net/health
+```
+[x] DONE at 907AM ET Feb 4
+```
+➜  gallformers git:(main) ✗ curl -i https://dfd18lb16qtjl.cloudfront.net/health
+HTTP/2 200
+content-type: text/plain; charset=utf-8
+content-length: 2
+date: Wed, 04 Feb 2026 14:07:17 GMT
+vary: accept-encoding
+cache-control: max-age=0, private, must-revalidate
+x-request-id: GJEQSeaLJZ0i7CsAAAuB
+server: Fly/c3040578e (2026-01-27)
+via: 1.1 fly.io, 1.1 fly.io, 1.1 54a56da0fe0bae919389c7d572d4720e.cloudfront.net (CloudFront)
+fly-request-id: 01KGMFN6JWG4B4MNTD2KNGD55B-ewr
+x-cache: Miss from cloudfront
+x-amz-cf-pop: JFK50-P6
+x-amz-cf-id: fc0o_ubECTSqOkFKL1iBoUXz6U7-ObWsaZCWlH0ip4C19k-_5fWZRA==
+vary: Origin
+
+ok%
+```
+### Both should return 200 OK
+
+# DNS Cutover
+
+## Background & Rationale
+
+**The Problem:** DigitalOcean DNS does NOT support ALIAS/ANAME records (confirmed via DO documentation and community forums, Feb 2026). We cannot point apex domains (gallformers.org, gallformers.com) directly to CloudFront via CNAME because:
+1. DNS standards prohibit CNAME records at the zone apex (conflicts with SOA/NS records)
+2. ALIAS records are a workaround that DO doesn't support
+3. Using hardcoded CloudFront IPs is unreliable (they can change)
+
+**The Solution:** Keep apex A records pointing to DO droplet, configure nginx to 301 redirect apex → www. The www records will CNAME to CloudFront.
+
+**Why This Works:**
+- The 301 redirect is a browser-level redirect - the browser makes a NEW DNS lookup for the www domain
+- After DNS change, www resolves to CloudFront, so the redirect sends users to V2
+- Apex A records never change, so rollback is simple (just revert www CNAME + disable redirect)
+
+**Traffic flow after cutover:**
+```
+User visits gallformers.org (apex)
+  → DNS resolves to DO droplet (A record, unchanged)
+  → Nginx returns 301 redirect to www.gallformers.org
+  → Browser makes NEW request to www.gallformers.org
+  → DNS resolves to CloudFront (CNAME, changed)
+  → CloudFront → Fly.io → V2 app responds
+
+User visits www.gallformers.org
+  → DNS resolves to CloudFront (CNAME)
+  → CloudFront → Fly.io → V2 app responds
+```
+
+**Critical:** Configure nginx redirect BEFORE changing any DNS records. This ensures:
+1. No downtime - www still works through V1 during transition
+2. When DNS propagates, the redirect target is already pointing to CloudFront
+3. Safe intermediate state to verify before proceeding
+
+---
+
+## DO Droplet Nginx Configuration
+
+### Discovery: Current nginx setup
+
+The V1 Next.js app runs on the DO droplet with this architecture:
+- Next.js server on localhost:3000
+- Nginx reverse proxy on ports 80/443
+- Let's Encrypt SSL certificates via Certbot
+
+**Config location:** `/etc/nginx/conf.d/nginx.conf` (NOT in sites-enabled)
+
+**Original config before changes:**
+```nginx
+server {
+    root /var/www/html;
+    index index.html index.htm index.nginx-debian.html;
+    server_name gallformers.org www.gallformers.org gallformers.com www.gallformers.com;
+
+    location / {
+        if (-f $document_root/maintenance.html) {
+            return 503;
+        }
+        proxy_set_header   X-Forwarded-For $remote_addr;
+        proxy_set_header   Host $http_host;
+        proxy_pass http://localhost:3000;
+    }
+
+    error_page 503 @maintenance;
+    location @maintenance {
+        rewrite ^(.*)$ /maintenance.html break;
+    }
+
+    location ~ /.well-known/acme-challenge {
+        allow all;
+        root /var/www/html;
+    }
+
+    listen [::]:443 ssl ipv6only=on;
+    listen 443 ssl;
+    ssl_certificate /etc/letsencrypt/live/gallformers.org/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/gallformers.org/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+}
+
+server {
+    if ($host = www.gallformers.org) { return 301 https://$host$request_uri; }
+    if ($host = www.gallformers.com) { return 301 https://$host$request_uri; }
+    if ($host = gallformers.com) { return 301 https://$host$request_uri; }
+    if ($host = gallformers.org) { return 301 https://$host$request_uri; }
+
+    listen 80;
+    listen [::]:80;
+    server_name gallformers.org www.gallformers.org gallformers.com www.gallformers.com;
+    return 404;
+}
+```
+
+**Problem with original:** Single server block handles all 4 domains identically (all proxy to Next.js). We need apex domains to redirect to www instead.
+
+---
+
+### Step 1: Configure nginx redirect on DO droplet
+
+SSH into the droplet:
+```bash
+ssh jeff@157.245.243.86
+```
+
+**1a. Backup current config:**
+```bash
+sudo cp /etc/nginx/conf.d/nginx.conf /etc/nginx/conf.d/nginx.conf.bak
+```
+[x] DONE at 920AM ET Feb 4
+
+**1b. Replace with new config:**
+```bash
+sudo tee /etc/nginx/conf.d/nginx.conf << 'EOF'
+# Apex domains - redirect to www (this is what handles traffic after DNS cutover)
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    server_name gallformers.org gallformers.com;
+
+    ssl_certificate /etc/letsencrypt/live/gallformers.org/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/gallformers.org/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+    # Redirect apex to www (preserves path and query string)
+    return 301 https://www.$host$request_uri;
+}
+
+# WWW domains - proxy to Next.js (handles traffic until DNS propagates)
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    server_name www.gallformers.org www.gallformers.com;
+
+    ssl_certificate /etc/letsencrypt/live/gallformers.org/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/gallformers.org/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+    root /var/www/html;
+    index index.html index.htm index.nginx-debian.html;
+
+    location / {
+        if (-f $document_root/maintenance.html) {
+            return 503;
+        }
+
+        proxy_set_header   X-Forwarded-For $remote_addr;
+        proxy_set_header   Host $http_host;
+        proxy_pass http://localhost:3000;
+    }
+
+    error_page 503 @maintenance;
+    location @maintenance {
+        rewrite ^(.*)$ /maintenance.html break;
+    }
+
+    location ~ /.well-known/acme-challenge {
+        allow all;
+        root /var/www/html;
+    }
+}
+
+# HTTP to HTTPS redirect for all domains
+server {
+    listen 80;
+    listen [::]:80;
+    server_name gallformers.org www.gallformers.org gallformers.com www.gallformers.com;
+
+    return 301 https://$host$request_uri;
+}
+EOF
+```
+[x] DONE at 930AM ET Feb 4
+
+**What this config does:**
+- **Apex server block (443):** gallformers.org and gallformers.com return 301 redirect to `https://www.$host$request_uri`
+- **WWW server block (443):** www.gallformers.org and www.gallformers.com proxy to Next.js (V1) - this continues working until DNS propagates
+- **HTTP server block (80):** All domains redirect HTTP → HTTPS
+
+**1c. Test and reload:**
+```bash
+sudo nginx -t && sudo systemctl reload nginx
+```
+[x] DONE at 931AM ET Feb 4
+
+**Verification:**
+- [X] `nginx -t` shows "syntax is ok" and "test is successful"
+- [X] `systemctl reload nginx` completes without errors
+
+---
+
+### Step 2: Test redirect locally on DO droplet
+
+**Important:** At this point, DNS hasn't changed. Both apex and www still resolve to DO droplet. We're testing that:
+1. Apex domains now redirect to www
+2. WWW domains still serve V1 (no downtime)
+
+```bash
+# Test apex HTTPS redirect
+curl -I https://gallformers.org
+# Expected: HTTP/2 301, Location: https://www.gallformers.org/
+
+curl -I https://gallformers.com
+# Expected: HTTP/2 301, Location: https://www.gallformers.com/
+
+# Test www still serves V1
+curl -I https://www.gallformers.org
+# Expected: HTTP/2 200 (served by Next.js)
+
+curl -I https://www.gallformers.com
+# Expected: HTTP/2 200 (served by Next.js)
+
+# Test full redirect chain works (follow redirects)
+curl -IL https://gallformers.org 2>&1 | head -20
+# Expected: 301 → www → 200
+```
+
+[x] DONE at 937AM ET Feb 4
+**Verification:**
+- [X] `https://gallformers.org` returns 301 with `Location: https://www.gallformers.org/`
+- [X] `https://gallformers.com` returns 301 with `Location: https://www.gallformers.com/`
+- [X] `https://www.gallformers.org` returns 200 (V1 still working)
+- [X] `https://www.gallformers.com` returns 200 (V1 still working)
+
+### Step 3: Update www DNS records at DigitalOcean
 
 Log into DigitalOcean → Networking → Domains
 
 **For gallformers.org:**
-- Update A record `@` → Point to CloudFront (see note below)
-- Update CNAME record `www` → `dfd18lb16qtjl.cloudfront.net`
+- Delete the A record for `www.gallformers.org`
+- Create CNAME record: `www` → `dfd18lb16qtjl.cloudfront.net`
+[x] DONE at 941AM ET Feb 4
 
 **For gallformers.com:**
-- Update A record `@` → Point to CloudFront (see note below)
-- Update CNAME record `www` → `dfd18lb16qtjl.cloudfront.net`
+- Delete the A record for `www.gallformers.com`
+- Create CNAME record: `www` → `dfd18lb16qtjl.cloudfront.net`
+[x] DONE at 941AM ET Feb 4
 
-**Note on apex domains:** DigitalOcean may not support ALIAS records. Options:
-- If DO supports ALIAS: use `dfd18lb16qtjl.cloudfront.net`
-- If not: redirect apex to www (301), or resolve CloudFront IPs and use A records (less ideal - IPs can change)
+**DO NOT change the apex (@) A records** - they stay pointing to `157.245.243.86`
 
-**Save changes. Record timestamp.**
+### Step 4: Monitor DNS propagation
 
-### Step 2: Monitor DNS propagation
 ```bash
-# Check DNS resolution (may take 1-5 minutes with 300s TTL)
-dig gallformers.org +short
+# Check www DNS (should show CloudFront domain, may take 1-5 min with 300s TTL)
 dig www.gallformers.org +short
-dig gallformers.com +short
 dig www.gallformers.com +short
+# Expected: dfd18lb16qtjl.cloudfront.net (or CloudFront IPs)
 
-# All should eventually resolve to CloudFront domain or IPs
+# Verify apex still points to DO droplet
+dig gallformers.org +short
+dig gallformers.com +short
+# Expected: 157.245.243.86
 ```
+[x] DONE at 944AM ET Feb 4
 
-### Step 3: Verify CloudFront traffic
+**Verification:**
+- [x] `www.gallformers.org` resolves to CloudFront
+- [x] `www.gallformers.com` resolves to CloudFront
+- [x] `gallformers.org` still resolves to `157.245.243.86`
+- [x] `gallformers.com` still resolves to `157.245.243.86`
+
+### Step 5: Verify www works through CloudFront
+
 ```bash
-# Check for CloudFront headers
-curl -sI https://gallformers.org | grep -i "x-cache\|via"
+# Check for CloudFront headers on www
+curl -sI https://www.gallformers.org | grep -i "x-cache\|via\|server"
 
-# Should see CloudFront indicators:
-# x-cache: Hit from cloudfront (or Miss from cloudfront)
+# Should see:
+# x-cache: Miss from cloudfront (or Hit from cloudfront)
 # via: 1.1 xxxxx.cloudfront.net (CloudFront)
+# server: Fly/...
 ```
+[x] DONE at 943AM ET Feb 4
 
-### Step 4: Run smoke tests against production domains
+**Verification:**
+- [x] `www.gallformers.org` returns 200 with CloudFront headers
+- [x] `www.gallformers.com` returns 200 with CloudFront headers
+
+### Step 6: Verify apex redirect works end-to-end
+
 ```bash
-mix smoke_test https://gallformers.org
-mix smoke_test https://www.gallformers.org
-mix smoke_test https://gallformers.com
-mix smoke_test https://www.gallformers.com
+# Test apex redirects to www (follow redirects to verify full chain)
+curl -IL https://gallformers.org 2>&1 | head -20
 
-# All should pass
+# Should show:
+# 1. 301 redirect from gallformers.org to www.gallformers.org
+# 2. 200 OK from www.gallformers.org with CloudFront headers
+```
+[x] DONE at 943AM ET Feb 4
+
+**Verification:**
+- [x] `gallformers.org` returns 301 → `www.gallformers.org`
+- [x] `gallformers.com` returns 301 → `www.gallformers.com`
+- [x] Following the redirect gives 200 with CloudFront headers
+
+### Step 7: Run smoke tests against all domains
+
+```bash
+mix smoke_test https://www.gallformers.org
+mix smoke_test https://www.gallformers.com
+mix smoke_test https://gallformers.org
+mix smoke_test https://gallformers.com
+
+# All should pass (apex tests will follow redirects)
+```
+[x] DONE at 944AM ET Feb 4
+
+**Verification:**
+- [x] All 4 smoke tests pass (14/14 each)
+
+**✅ DNS Cutover complete. End timestamp: 944AM ET Feb 4**
+
+**Note:** The DO droplet must remain running to handle apex redirects. Future cleanup task: migrate DNS to Cloudflare (supports CNAME flattening) to eliminate DO dependency.
+
+---
+
+## Litestream Fix (Post-Cutover Issue)
+
+**Issue discovered at ~9:48 AM:** Litestream was logging errors every second:
+```
+level=ERROR msg="sync error" db=/data/gallformers.sqlite error="checkpoint: mode=PASSIVE err=database disk image is malformed"
 ```
 
-**✅ Cutover complete. Record end timestamp and downtime duration.**
+**Root cause:** When we uploaded the new VACUUMed database, Litestream's internal state directory (`.gallformers.sqlite-litestream`) from the old database was incompatible. Additionally, the WAL file created after restart was corrupted.
+
+**Impact:** App was serving requests fine (200s), but backups weren't working.
+
+**Verification:** Checked logs - no POST/PUT/DELETE requests since cutover, so no user data at risk.
+
+**Fix applied at ~10:04 AM:**
+```bash
+# SSH into machine
+fly ssh console -a gallformers
+
+# Delete corrupted WAL and SHM files
+rm /data/gallformers.sqlite-wal /data/gallformers.sqlite-shm
+
+# Delete Litestream state directory
+rm -rf /data/.gallformers.sqlite-litestream
+
+# Exit and restart machine
+exit
+fly machine restart 7847515a205e68 -a gallformers
+```
+
+**Result:** Litestream now working correctly:
+```
+level=INFO msg="write wal segment" ... replica=s3
+level=INFO msg="wal segment written" ... elapsed=40.115007ms
+```
 
 ---
 
@@ -281,6 +770,7 @@ mix smoke_test https://www.gallformers.com
 # All tests must pass before continuing
 # If any fail, investigate immediately
 ```
+[x] DONE at 944AM ET Feb 4 - All 4 domains passing (14/14 each)
 
 **2. Monitor Fly.io logs**
 ```bash
@@ -292,6 +782,7 @@ fly logs -a gallformers
 # - LiveView connections working
 # - Normal traffic patterns
 ```
+[x] DONE at 1005AM ET Feb 4 - Logs clean after Litestream fix
 
 **3. Check Fly.io metrics dashboard**
 ```bash
@@ -303,6 +794,7 @@ fly dashboard -a gallformers
 # - Request rate (traffic flowing)
 # - Response times (should be fast)
 ```
+[x] DONE at 1005AM ET Feb 4 - Machine healthy, 1/1 checks passing
 
 **4. Manual functional testing**
 - Browse to https://gallformers.org
@@ -311,7 +803,7 @@ fly dashboard -a gallformers
 - Browse to a gall page, host page, species page
 - Verify images load from CloudFront
 - Test admin login via Auth0
-- Verify admin can view (but not edit - disabled in V1 deploy)
+- Verify admin can edit (editing is enabled on V2)
 
 ### 30-minute checkpoint
 
@@ -373,43 +865,60 @@ curl -sI https://gallformers.org/ | grep -i "x-cache"
 
 ### Quick rollback (if critical issues in V2)
 
+**Note:** With the apex-redirect approach, rollback is simpler because apex A records never changed - they still point to DO droplet.
+
 **Step 1: Stop V2 app (optional but recommended)**
 ```bash
 fly scale count 0 --app gallformers
 # Prevents new data creation during rollback
 ```
 
-**Step 2: Revert DNS at DigitalOcean**
+**Step 2: Disable apex redirect on DO droplet**
+
+SSH into the droplet and remove/disable the redirect server block:
+```bash
+ssh jeff@157.245.243.86
+sudo nano /etc/nginx/sites-enabled/default  # or wherever the redirect was added
+# Comment out or remove the apex redirect server block
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+**Step 3: Revert www DNS at DigitalOcean**
 
 Log into DigitalOcean → Networking → Domains
 
 **For gallformers.org:**
-- Change A record `@` → `157.245.243.86`
-- Change CNAME record `www` → `157.245.243.86` (or remove CNAME, use A record)
+- Delete the CNAME record for `www`
+- Create A record: `www` → `157.245.243.86`
 
 **For gallformers.com:**
-- Change A record `@` → `157.245.243.86`
-- Change CNAME record `www` → `157.245.243.86`
+- Delete the CNAME record for `www`
+- Create A record: `www` → `157.245.243.86`
+
+**Note:** Apex (@) A records don't need to change - they already point to DO.
 
 **Save changes.**
 
-**Step 3: Wait for DNS propagation**
+**Step 4: Wait for DNS propagation**
 ```bash
 # Check DNS (5-15 minutes with 300s TTL)
-dig gallformers.org +short
-# Should return 157.245.243.86
+dig www.gallformers.org +short
+dig www.gallformers.com +short
+# Both should return 157.245.243.86
 ```
 
-**Step 4: Verify V1 is serving traffic**
+**Step 5: Verify V1 is serving traffic**
 ```bash
 curl -i https://gallformers.org
-# Should return 200 OK from V1 (DO droplet)
+curl -i https://www.gallformers.org
+# Both should return 200 OK from V1 (DO droplet)
 
 # Verify a few pages work
 curl -i https://gallformers.org/galls/1
 ```
 
-**Step 5: Re-enable editing on V1 (if needed)**
+**Step 6: Re-enable editing on V1 (if needed)**
 ```bash
 # Redeploy V1 without edit-disable
 # Or manually revert the edit-disable code
@@ -434,26 +943,18 @@ fly ssh console -a gallformers -C "sqlite3 /data/gallformers.sqlite .dump" > v2-
 
 **1. Update status page**
 - Close the maintenance announcement issue: `gh issue close 7 --repo jeffdc/gallformers-status`
-- Remove announcement banner from `.upptimerc.yml`:
-  ```bash
-  cd /tmp
-  git clone git@github.com:jeffdc/gallformers-status.git
-  cd gallformers-status
-  # Edit .upptimerc.yml - delete the announcementBar section (lines ~36-40)
-  git add .upptimerc.yml
-  git commit -m "Remove maintenance announcement banner"
-  git push origin master
-  ```
+- Remove announcement banner from `.upptimerc.yml`
 - Verify status page shows "All systems operational" (after Upptime rebuilds in ~5 min)
+[x] DONE at 1010AM ET Feb 4
 
 **2. Re-enable editing on V2**
-- Revert the edit-disable change
-- Deploy updated V2 code
-- Verify admin can create/edit/delete records
+- Editing was already enabled on V2
+[x] N/A - editing already enabled
 
 **3. Post communication**
 - Discord announcement: "V2 cutover complete, site running on new infrastructure"
 - Thank users for patience
+[x] DONE at 1015AM ET Feb 4
 
 ### T+24 hours (Wednesday, February 5)
 

@@ -33,6 +33,7 @@ end
 # Auth0 configuration
 # In development, these can be set in .env or config/dev.secret.exs
 # In production, these must be set as environment variables
+# Note: callback_url is set in prod.exs (compile-time) because Ueberauth.init runs at compile time
 if auth0_domain = System.get_env("AUTH0_DOMAIN") do
   config :ueberauth, Ueberauth.Strategy.Auth0.OAuth,
     domain: auth0_domain,

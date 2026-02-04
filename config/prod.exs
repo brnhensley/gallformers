@@ -22,5 +22,12 @@ config :swoosh, local: false
 # Do not print debug messages in production
 config :logger, level: :info
 
+# Ueberauth callback URL must be set at compile time (Ueberauth.init runs at compile time)
+# This overrides the default behavior of using the request's host
+config :ueberauth, Ueberauth,
+  providers: [
+    auth0: {Ueberauth.Strategy.Auth0, [callback_url: "https://www.gallformers.org/auth/auth0/callback"]}
+  ]
+
 # Runtime production configuration, including reading
 # of environment variables, is done on config/runtime.exs.
