@@ -397,7 +397,7 @@ defmodule Gallformers.Images do
       end)
 
     # Delete all variants - pass keys directly as strings
-    case ExAws.S3.delete_multiple_objects(bucket(), keys) |> ExAws.request() do
+    case ExAws.S3.delete_multiple_objects(bucket(), keys) |> Gallformers.S3.request() do
       {:ok, _} -> :ok
       {:error, reason} -> {:error, reason}
     end
@@ -438,7 +438,7 @@ defmodule Gallformers.Images do
       content_type: content_type
       # Note: No ACL needed - bucket has public read policy
     )
-    |> ExAws.request()
+    |> Gallformers.S3.request()
   end
 
   @doc """
@@ -553,7 +553,7 @@ defmodule Gallformers.Images do
   # Lists images in a specific articles subfolder on S3.
   @spec list_article_images_with_prefix(String.t()) :: [map()]
   defp list_article_images_with_prefix(prefix) do
-    case ExAws.S3.list_objects(bucket(), prefix: prefix) |> ExAws.request() do
+    case ExAws.S3.list_objects(bucket(), prefix: prefix) |> Gallformers.S3.request() do
       {:ok, %{body: body}} ->
         # contents may be missing, nil, or a list depending on S3 response
         contents = Map.get(body, :contents) || []
@@ -610,7 +610,7 @@ defmodule Gallformers.Images do
   def delete_article_image(path) when is_binary(path) do
     Logger.info("Attempting to delete article image: #{path} from bucket: #{bucket()}")
 
-    case ExAws.S3.delete_object(bucket(), path) |> ExAws.request() do
+    case ExAws.S3.delete_object(bucket(), path) |> Gallformers.S3.request() do
       {:ok, _} ->
         Logger.info("Successfully deleted article image: #{path}")
         :ok
@@ -646,7 +646,7 @@ defmodule Gallformers.Images do
       [prefix: prefix]
       |> maybe_add_continuation_token(continuation_token)
 
-    case ExAws.S3.list_objects_v2(bucket(), opts) |> ExAws.request() do
+    case ExAws.S3.list_objects_v2(bucket(), opts) |> Gallformers.S3.request() do
       {:ok, %{body: body}} ->
         contents = body[:contents] || []
         # Filter to only original images (not size variants)

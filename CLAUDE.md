@@ -259,6 +259,26 @@ mix test path/to/test.exs:42  # Run specific test at line 42
 
 Tests use Ecto's SQL Sandbox for isolation - each test runs in a transaction that's rolled back.
 
+### S3 Isolation in Tests
+
+**CRITICAL**: Tests must NEVER make real AWS/S3 calls. This is enforced by:
+
+1. **Config flag**: `config :gallformers, s3_enabled: false` in `config/test.exs`
+2. **Wrapper module**: All S3 operations go through `Gallformers.S3.request/1` instead of `ExAws.request/1`
+
+When adding new S3 operations, always use the wrapper:
+
+```elixir
+# WRONG - will fail in CI (no AWS credentials)
+ExAws.S3.put_object(bucket, path, data) |> ExAws.request()
+
+# CORRECT - respects s3_enabled config
+ExAws.S3.put_object(bucket, path, data) |> Gallformers.S3.request()
+```
+
+The wrapper returns `{:ok, %{body: %{contents: []}}}` in test mode, which satisfies both
+list operations (need `body.contents`) and mutate operations (just check `{:ok, _}`).
+
 ### E2E Tests (Browser-based)
 
 E2E tests use [Wallaby](https://github.com/elixir-wallaby/wallaby) with Chrome. They're **excluded
