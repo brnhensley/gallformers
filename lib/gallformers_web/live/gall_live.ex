@@ -165,12 +165,21 @@ defmodule GallformersWeb.GallLive do
   defp get_detachable_display(value), do: Map.get(@detachable_values, value, "")
   defp format_fields(fields), do: Enum.map_join(fields, ", ", & &1.field)
 
-  # Extract the gallformers code from the species name by removing the genus and any trailing parenthetical
+  # Extract the gallformers code from the species name by removing the genus and any trailing parenthetical.
+  # For "Unknown" genera (e.g., "Unknown (Cynipidae)"), the species name uses a different format
+  # like "Unknown-cynipidae ..." so we strip the "Unknown-family" or "Unknown" prefix instead.
   defp get_gallformers_code(species_name, genus_name) when is_binary(genus_name) do
-    species_name
-    |> String.replace(genus_name, "")
-    |> String.trim()
-    |> String.replace(~r/ \([^)]+\)$/, "")
+    if String.starts_with?(genus_name, "Unknown") do
+      # Strip "Unknown-family " or "Unknown " prefix from species name
+      species_name
+      |> String.replace(~r/^Unknown(?:-[a-z]+)?\s+/, "")
+      |> String.replace(~r/ \([^)]+\)$/, "")
+    else
+      species_name
+      |> String.replace(genus_name, "")
+      |> String.trim()
+      |> String.replace(~r/ \([^)]+\)$/, "")
+    end
   end
 
   defp get_gallformers_code(species_name, _), do: species_name
