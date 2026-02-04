@@ -788,4 +788,443 @@ defmodule Gallformers.TaxonomyTest do
       refute "Gallgenus" in gall_as_plant_names
     end
   end
+
+  describe "delete_taxonomy_cascade/1" do
+    alias Gallformers.Hosts.Host
+    alias Gallformers.Species.GallTraits
+    alias Gallformers.Species.Image
+
+    test "deletes family and all descendants in transaction" do
+      # Create Family → Genus → Species with various associations
+      {:ok, family} =
+        Taxonomy.create_taxonomy(%{
+          name: "CascadeTestFamily",
+          type: "family",
+          description: "Test family"
+        })
+
+      {:ok, genus} =
+        Taxonomy.create_taxonomy(%{
+          name: "CascadeTestGenus",
+          type: "genus",
+          parent_id: family.id
+        })
+
+      {:ok, section} =
+        Taxonomy.create_taxonomy(%{
+          name: "CascadeTestSection",
+          type: "section",
+          parent_id: genus.id
+        })
+
+      # Create species under genus
+      {:ok, species1} =
+        Repo.insert(%Species{
+          name: "CascadeTestGenus sp1",
+          taxoncode: "gall",
+          datacomplete: false
+        })
+
+      Taxonomy.link_species_to_taxonomy(species1.id, genus.id)
+
+      # Create species under section
+      {:ok, species2} =
+        Repo.insert(%Species{
+          name: "CascadeTestGenus sp2",
+          taxoncode: "gall",
+          datacomplete: false
+        })
+
+      Taxonomy.link_species_to_taxonomy(species2.id, section.id)
+
+      # Execute cascade delete
+      assert {:ok, impact} = Taxonomy.delete_taxonomy_cascade(family)
+
+      # Verify impact struct
+      assert impact.taxonomy.id == family.id
+      # 2 genera: CascadeTestGenus + auto-created Unknown
+      assert impact.genera_count == 2
+      assert impact.sections_count == 1
+      assert impact.species_count == 2
+
+      # Verify everything is deleted
+      refute Repo.get(Taxonomy.Taxonomy, family.id)
+      refute Repo.get(Taxonomy.Taxonomy, genus.id)
+      refute Repo.get(Taxonomy.Taxonomy, section.id)
+      refute Repo.get(Species, species1.id)
+      refute Repo.get(Species, species2.id)
+    end
+
+    test "deletes genus and all descendants in transaction" do
+      # Create Family → Genus → Section → Species
+      {:ok, family} =
+        Taxonomy.create_taxonomy(%{
+          name: "GenusDeleteFamily",
+          type: "family",
+          description: "Plant"
+        })
+
+      {:ok, genus} =
+        Taxonomy.create_taxonomy(%{
+          name: "GenusDeleteGenus",
+          type: "genus",
+          parent_id: family.id
+        })
+
+      {:ok, section} =
+        Taxonomy.create_taxonomy(%{
+          name: "GenusDeleteSection",
+          type: "section",
+          parent_id: genus.id
+        })
+
+      # Species under genus
+      {:ok, species1} =
+        Repo.insert(%Species{
+          name: "GenusDeleteGenus sp1",
+          taxoncode: "plant",
+          datacomplete: false
+        })
+
+      Taxonomy.link_species_to_taxonomy(species1.id, genus.id)
+
+      # Species under section
+      {:ok, species2} =
+        Repo.insert(%Species{
+          name: "GenusDeleteGenus sp2",
+          taxoncode: "plant",
+          datacomplete: false
+        })
+
+      Taxonomy.link_species_to_taxonomy(species2.id, section.id)
+
+      # Delete genus (should delete section and species but NOT family)
+      assert {:ok, impact} = Taxonomy.delete_taxonomy_cascade(genus)
+
+      assert impact.taxonomy.id == genus.id
+      assert impact.genera_count == 0
+      assert impact.sections_count == 1
+      assert impact.species_count == 2
+
+      # Genus, section, species deleted
+      refute Repo.get(Taxonomy.Taxonomy, genus.id)
+      refute Repo.get(Taxonomy.Taxonomy, section.id)
+      refute Repo.get(Species, species1.id)
+      refute Repo.get(Species, species2.id)
+
+      # Family still exists
+      assert Repo.get(Taxonomy.Taxonomy, family.id)
+    end
+
+    test "section delete has no cascade (simple delete)" do
+      {:ok, family} =
+        Taxonomy.create_taxonomy(%{
+          name: "SectionDeleteFamily",
+          type: "family",
+          description: "Plant"
+        })
+
+      {:ok, genus} =
+        Taxonomy.create_taxonomy(%{
+          name: "SectionDeleteGenus",
+          type: "genus",
+          parent_id: family.id
+        })
+
+      {:ok, section} =
+        Taxonomy.create_taxonomy(%{
+          name: "SectionDeleteSection",
+          type: "section",
+          parent_id: genus.id
+        })
+
+      # Delete section - simple delete, returns {:ok, taxonomy}
+      assert {:ok, deleted} = Taxonomy.delete_taxonomy_cascade(section)
+      assert deleted.id == section.id
+
+      # Section deleted, family and genus remain
+      refute Repo.get(Taxonomy.Taxonomy, section.id)
+      assert Repo.get(Taxonomy.Taxonomy, family.id)
+      assert Repo.get(Taxonomy.Taxonomy, genus.id)
+    end
+
+    test "deletes species with gall_traits" do
+      # Create family → genus → species with gall_traits
+      {:ok, family} =
+        Taxonomy.create_taxonomy(%{
+          name: "GallTraitsDeleteFamily",
+          type: "family",
+          description: "Wasp"
+        })
+
+      {:ok, genus} =
+        Taxonomy.create_taxonomy(%{
+          name: "GallTraitsDeleteGenus",
+          type: "genus",
+          parent_id: family.id
+        })
+
+      {:ok, species} =
+        Repo.insert(%Species{
+          name: "GallTraitsDeleteGenus sp1",
+          taxoncode: "gall",
+          datacomplete: false
+        })
+
+      Taxonomy.link_species_to_taxonomy(species.id, genus.id)
+
+      # Add gall_traits
+      {:ok, gall_traits} =
+        Repo.insert(%GallTraits{
+          species_id: species.id,
+          undescribed: false
+        })
+
+      # Delete genus (cascades to species with gall_traits)
+      assert {:ok, _impact} = Taxonomy.delete_taxonomy_cascade(genus)
+
+      refute Repo.get(Species, species.id)
+      # GallTraits uses species_id as primary key
+      refute Repo.get(GallTraits, gall_traits.species_id)
+    end
+
+    test "deletes species with host associations" do
+      # Create family → genus → gall species → host association
+      {:ok, family} =
+        Taxonomy.create_taxonomy(%{
+          name: "HostAssocDeleteFamily",
+          type: "family",
+          description: "Wasp"
+        })
+
+      {:ok, genus} =
+        Taxonomy.create_taxonomy(%{
+          name: "HostAssocDeleteGenus",
+          type: "genus",
+          parent_id: family.id
+        })
+
+      # Create a gall species
+      {:ok, gall_species} =
+        Repo.insert(%Species{
+          name: "HostAssocDeleteGenus gall1",
+          taxoncode: "gall",
+          datacomplete: false
+        })
+
+      Taxonomy.link_species_to_taxonomy(gall_species.id, genus.id)
+
+      # Create a host species (under a different family)
+      {:ok, plant_family} =
+        Taxonomy.create_taxonomy(%{
+          name: "HostAssocPlantFamily",
+          type: "family",
+          description: "Plant"
+        })
+
+      {:ok, plant_genus} =
+        Taxonomy.create_taxonomy(%{
+          name: "HostAssocPlantGenus",
+          type: "genus",
+          parent_id: plant_family.id
+        })
+
+      {:ok, host_species} =
+        Repo.insert(%Species{
+          name: "HostAssocPlantGenus host1",
+          taxoncode: "plant",
+          datacomplete: false
+        })
+
+      Taxonomy.link_species_to_taxonomy(host_species.id, plant_genus.id)
+
+      # Create host association
+      {:ok, host_assoc} =
+        Repo.insert(%Host{
+          gall_species_id: gall_species.id,
+          host_species_id: host_species.id
+        })
+
+      # Delete gall family (cascades to gall species, which cascades to host association)
+      assert {:ok, _impact} = Taxonomy.delete_taxonomy_cascade(family)
+
+      # Gall and association deleted
+      refute Repo.get(Species, gall_species.id)
+      refute Repo.get(Host, host_assoc.id)
+
+      # Host plant still exists
+      assert Repo.get(Species, host_species.id)
+    end
+
+    test "deletes species with images" do
+      # Create family → genus → species with image
+      {:ok, family} =
+        Taxonomy.create_taxonomy(%{
+          name: "ImageDeleteFamily",
+          type: "family",
+          description: "Midge"
+        })
+
+      {:ok, genus} =
+        Taxonomy.create_taxonomy(%{
+          name: "ImageDeleteGenus",
+          type: "genus",
+          parent_id: family.id
+        })
+
+      {:ok, species} =
+        Repo.insert(%Species{
+          name: "ImageDeleteGenus sp1",
+          taxoncode: "gall",
+          datacomplete: false
+        })
+
+      Taxonomy.link_species_to_taxonomy(species.id, genus.id)
+
+      # Add an image (without actual S3 file - we're testing DB cascade)
+      {:ok, image} =
+        Repo.insert(%Image{
+          species_id: species.id,
+          path: "images/original/test-image.jpg",
+          sort_order: 1
+        })
+
+      # Delete genus
+      assert {:ok, _impact} = Taxonomy.delete_taxonomy_cascade(genus)
+
+      refute Repo.get(Species, species.id)
+      refute Repo.get(Image, image.id)
+    end
+
+    test "deletes species with aliases" do
+      # Create family → genus → species with alias
+      {:ok, family} =
+        Taxonomy.create_taxonomy(%{
+          name: "AliasDeleteFamily",
+          type: "family",
+          description: "Fly"
+        })
+
+      {:ok, genus} =
+        Taxonomy.create_taxonomy(%{
+          name: "AliasDeleteGenus",
+          type: "genus",
+          parent_id: family.id
+        })
+
+      {:ok, species} =
+        Repo.insert(%Species{
+          name: "AliasDeleteGenus sp1",
+          taxoncode: "gall",
+          datacomplete: false
+        })
+
+      Taxonomy.link_species_to_taxonomy(species.id, genus.id)
+
+      # Add an alias
+      {:ok, alias_record} =
+        Repo.insert(%Alias{
+          name: "Old name",
+          type: "scientific",
+          description: "Former name"
+        })
+
+      Repo.insert_all("alias_species", [%{alias_id: alias_record.id, species_id: species.id}])
+
+      # Delete genus
+      assert {:ok, _impact} = Taxonomy.delete_taxonomy_cascade(genus)
+
+      refute Repo.get(Species, species.id)
+
+      # The alias_species join table is cascade deleted (species no longer associated)
+      alias_count =
+        Repo.one(
+          from(als in "alias_species",
+            where: als.species_id == ^species.id,
+            select: count()
+          )
+        )
+
+      assert alias_count == 0
+    end
+
+    test "empty family with no children deletes successfully" do
+      {:ok, family} =
+        Taxonomy.create_taxonomy(%{
+          name: "EmptyCascadeFamily",
+          type: "family",
+          description: "Plant"
+        })
+
+      # Plant families don't auto-create Unknown genus
+      assert {:ok, impact} = Taxonomy.delete_taxonomy_cascade(family)
+
+      assert impact.genera_count == 0
+      assert impact.sections_count == 0
+      assert impact.species_count == 0
+
+      refute Repo.get(Taxonomy.Taxonomy, family.id)
+    end
+
+    test "empty genus with no children deletes successfully" do
+      {:ok, family} =
+        Taxonomy.create_taxonomy(%{
+          name: "EmptyGenusFamily",
+          type: "family",
+          description: "Plant"
+        })
+
+      {:ok, genus} =
+        Taxonomy.create_taxonomy(%{
+          name: "EmptyCascadeGenus",
+          type: "genus",
+          parent_id: family.id
+        })
+
+      assert {:ok, impact} = Taxonomy.delete_taxonomy_cascade(genus)
+
+      assert impact.sections_count == 0
+      assert impact.species_count == 0
+
+      refute Repo.get(Taxonomy.Taxonomy, genus.id)
+      # Family remains
+      assert Repo.get(Taxonomy.Taxonomy, family.id)
+    end
+
+    test "returns impact struct on success" do
+      {:ok, family} =
+        Taxonomy.create_taxonomy(%{
+          name: "ImpactReturnFamily",
+          type: "family",
+          description: "Test"
+        })
+
+      {:ok, genus} =
+        Taxonomy.create_taxonomy(%{
+          name: "ImpactReturnGenus",
+          type: "genus",
+          parent_id: family.id
+        })
+
+      {:ok, species} =
+        Repo.insert(%Species{
+          name: "ImpactReturnGenus sp1",
+          taxoncode: "gall",
+          datacomplete: false
+        })
+
+      Taxonomy.link_species_to_taxonomy(species.id, genus.id)
+
+      {:ok, impact} = Taxonomy.delete_taxonomy_cascade(family)
+
+      # Verify impact struct has all expected fields
+      assert is_map(impact)
+      assert Map.has_key?(impact, :taxonomy)
+      assert Map.has_key?(impact, :genera)
+      assert Map.has_key?(impact, :genera_count)
+      assert Map.has_key?(impact, :sections)
+      assert Map.has_key?(impact, :sections_count)
+      assert Map.has_key?(impact, :species_count)
+    end
+  end
 end

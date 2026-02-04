@@ -991,4 +991,183 @@ defmodule GallformersWeb.FormComponents do
     <% end %>
     """
   end
+
+  @doc """
+  Renders a cascade delete confirmation modal.
+
+  Shows the impact of deleting an entity with cascading relationships:
+  - Summary of what will be deleted (counts)
+  - Expandable details showing specific items
+  - Type-to-confirm input for safety
+  - Red/warning styling to indicate destructive action
+
+  ## Events
+
+  The modal sends these events to the parent LiveView:
+  - `confirm_cascade_delete` with `%{"confirmation" => value}` on submit
+  - `cancel_cascade_delete` when cancelled
+
+  ## Example
+
+      <.cascade_delete_modal
+        show={@show_delete_modal}
+        impact={@deletion_impact}
+        confirmation_value={@delete_confirmation}
+      />
+
+  Where `@deletion_impact` has the structure:
+      %{
+        taxonomy: %{name: "Cynipidae", type: "family"},
+        genera: [%{name: "Andricus"}, ...],
+        genera_count: 5,
+        sections: [%{name: "Lobatae"}, ...],
+        sections_count: 2,
+        species_count: 150,
+        has_impact: true
+      }
+  """
+  attr :show, :boolean, required: true, doc: "whether to show the modal"
+  attr :impact, :map, required: true, doc: "deletion impact data from get_deletion_impact/1"
+  attr :confirmation_value, :string, default: "", doc: "current value in the confirmation input"
+
+  def cascade_delete_modal(assigns) do
+    ~H"""
+    <%= if @show and @impact do %>
+      <div
+        id="cascade-delete-modal"
+        class="fixed inset-0 z-50 overflow-y-auto"
+        phx-window-keydown="cancel_cascade_delete"
+        phx-key="Escape"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="cascade-delete-title"
+      >
+        <div class="flex min-h-full items-center justify-center p-4">
+          <%!-- Backdrop --%>
+          <div
+            class="fixed inset-0 bg-black/50 transition-opacity"
+            phx-click="cancel_cascade_delete"
+            aria-hidden="true"
+          >
+          </div>
+
+          <%!-- Modal --%>
+          <div class="relative bg-white rounded-lg shadow-xl w-full max-w-lg">
+            <%!-- Header --%>
+            <div class="px-6 py-4 border-b border-red-200 bg-red-50 rounded-t-lg flex items-center justify-between">
+              <h3 id="cascade-delete-title" class="text-xl font-semibold text-red-800">
+                <.icon name="ph-warning" class="h-5 w-5 inline mr-1" />
+                Delete {@impact.taxonomy.name}?
+              </h3>
+              <button
+                type="button"
+                phx-click="cancel_cascade_delete"
+                class="text-red-400 hover:text-red-600"
+                aria-label="Close"
+              >
+                <.icon name="ph-x" class="h-6 w-6" />
+              </button>
+            </div>
+
+            <%!-- Body --%>
+            <div class="p-6 space-y-4">
+              <p class="text-red-700 font-medium">
+                To delete this {@impact.taxonomy.type}, all dependent data will be permanently deleted.
+              </p>
+
+              <%!-- Impact Summary --%>
+              <div :if={@impact.has_impact} class="bg-red-50 border border-red-200 rounded-lg p-4">
+                <p class="font-medium text-red-800 mb-2">This will delete:</p>
+                <ul class="list-disc list-inside space-y-1 text-red-700">
+                  <li :if={@impact.genera_count > 0}>
+                    <strong>{@impact.genera_count}</strong> genera
+                  </li>
+                  <li :if={@impact.sections_count > 0}>
+                    <strong>{@impact.sections_count}</strong> sections
+                  </li>
+                  <li :if={@impact.species_count > 0}>
+                    <strong>{@impact.species_count}</strong> species
+                  </li>
+                  <li :if={@impact.species_count > 0} class="text-sm text-red-600 mt-1">
+                    Plus all related data: images, aliases, sources, host associations
+                  </li>
+                </ul>
+              </div>
+
+              <div
+                :if={not @impact.has_impact}
+                class="bg-gray-50 border border-gray-200 rounded-lg p-4"
+              >
+                <p class="text-gray-700">
+                  This {@impact.taxonomy.type} has no dependent data and can be safely deleted.
+                </p>
+              </div>
+
+              <%!-- Expandable Details --%>
+              <details :if={@impact.genera_count > 0 or @impact.sections_count > 0} class="group">
+                <summary class="cursor-pointer text-blue-600 hover:text-blue-800 font-medium">
+                  <.icon
+                    name="ph-caret-right"
+                    class="h-4 w-4 inline group-open:rotate-90 transition-transform"
+                  /> Show details
+                </summary>
+                <div class="mt-3 pl-4 text-sm space-y-3 border-l-2 border-gray-200">
+                  <div :if={@impact.genera_count > 0}>
+                    <p class="font-medium text-gray-700">Genera:</p>
+                    <ul class="list-disc list-inside text-gray-600 max-h-32 overflow-y-auto">
+                      <li :for={genus <- @impact.genera}>{genus.name}</li>
+                    </ul>
+                  </div>
+                  <div :if={@impact.sections_count > 0}>
+                    <p class="font-medium text-gray-700">Sections:</p>
+                    <ul class="list-disc list-inside text-gray-600 max-h-32 overflow-y-auto">
+                      <li :for={section <- @impact.sections}>{section.name}</li>
+                    </ul>
+                  </div>
+                </div>
+              </details>
+
+              <%!-- Type to Confirm --%>
+              <form phx-submit="confirm_cascade_delete" class="mt-4 space-y-3">
+                <div>
+                  <label for="delete-confirmation" class="block text-sm text-gray-700 mb-1">
+                    Type <strong class="text-red-700">{@impact.taxonomy.name}</strong> to confirm:
+                  </label>
+                  <input
+                    type="text"
+                    id="delete-confirmation"
+                    name="confirmation"
+                    value={@confirmation_value}
+                    phx-keyup="update_delete_confirmation"
+                    autocomplete="off"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-red-500 focus:border-red-500"
+                    autofocus
+                  />
+                </div>
+
+                <%!-- Footer Actions --%>
+                <div class="flex justify-end gap-3 pt-4 border-t border-gray-200">
+                  <button
+                    type="button"
+                    phx-click="cancel_cascade_delete"
+                    class="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    class="px-4 py-2 bg-red-600 text-white font-medium rounded hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={@confirmation_value != @impact.taxonomy.name}
+                  >
+                    <.icon name="ph-trash" class="h-4 w-4 inline mr-1" /> Delete Forever
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    <% end %>
+    """
+  end
 end

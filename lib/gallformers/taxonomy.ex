@@ -8,6 +8,7 @@ defmodule Gallformers.Taxonomy do
   import Ecto.Query
   alias Gallformers.Repo
   alias Gallformers.Species.Alias
+  alias Gallformers.Species.GallTraits
   alias Gallformers.Species.Species
   alias Gallformers.Taxonomy.Taxonomy
 
@@ -1013,6 +1014,140 @@ defmodule Gallformers.Taxonomy do
       species_count: 0,
       has_impact: false
     }
+  end
+
+  # =====================================================================
+  # Cascade Delete
+  # =====================================================================
+
+  @doc """
+  Deletes taxonomy and all dependent data in a single transaction.
+
+  For family: Deletes leaves first (species → sections → genera → family).
+  For genus: Deletes species → sections → genus.
+
+  Returns {:ok, impact} or {:error, reason}.
+
+  Note: Species deletion includes S3 image cleanup via `Gallformers.Images`.
+  """
+  @spec delete_taxonomy_cascade(Taxonomy.t()) ::
+          {:ok, map()} | {:error, Ecto.Changeset.t() | term()}
+  def delete_taxonomy_cascade(%Taxonomy{id: id, type: "family"} = taxonomy) do
+    genera = list_child_genera(id)
+    genera_ids = Enum.map(genera, & &1.id)
+
+    sections = list_sections_for_family_tree(id)
+    section_ids = Enum.map(sections, & &1.id)
+
+    # All taxonomy IDs that could have species linked (genera + sections)
+    all_taxonomy_ids = genera_ids ++ section_ids
+    species_count = count_species_for_taxonomies(all_taxonomy_ids)
+
+    Repo.transaction(fn ->
+      # 1. Delete all species linked to this family tree
+      #    (includes S3 cleanup, gall_traits, FTS, cascades to images, aliases, hosts, etc.)
+      delete_species_for_cascade(all_taxonomy_ids)
+
+      # 2. Delete sections (now safe - no species references)
+      Enum.each(sections, &Repo.delete!/1)
+
+      # 3. Delete genera (now safe - no species or section references)
+      Enum.each(genera, &Repo.delete!/1)
+
+      # 4. Delete the family itself
+      Repo.delete!(taxonomy)
+
+      # Return impact summary
+      %{
+        taxonomy: taxonomy,
+        genera: genera,
+        genera_count: length(genera),
+        sections: sections,
+        sections_count: length(sections),
+        species_count: species_count
+      }
+    end)
+    |> broadcast(:taxonomy_deleted)
+  end
+
+  def delete_taxonomy_cascade(%Taxonomy{id: id, type: "genus"} = taxonomy) do
+    sections = list_child_sections(id)
+    section_ids = Enum.map(sections, & &1.id)
+
+    # Species linked to this genus or its sections
+    all_taxonomy_ids = [id | section_ids]
+    species_count = count_species_for_taxonomies(all_taxonomy_ids)
+
+    Repo.transaction(fn ->
+      # 1. Delete all species linked to this genus or its sections
+      delete_species_for_cascade(all_taxonomy_ids)
+
+      # 2. Delete sections (now safe - no species references)
+      Enum.each(sections, &Repo.delete!/1)
+
+      # 3. Delete the genus itself
+      Repo.delete!(taxonomy)
+
+      # Return impact summary
+      %{
+        taxonomy: taxonomy,
+        genera: [],
+        genera_count: 0,
+        sections: sections,
+        sections_count: length(sections),
+        species_count: species_count
+      }
+    end)
+    |> broadcast(:taxonomy_deleted)
+  end
+
+  def delete_taxonomy_cascade(%Taxonomy{} = taxonomy) do
+    # Section or other types - simple delete, no cascade needed
+    Repo.delete(taxonomy)
+    |> broadcast(:taxonomy_deleted)
+  end
+
+  # Deletes all species linked to the given taxonomy IDs.
+  # Handles S3 cleanup, gall_traits, FTS, and all cascades.
+  defp delete_species_for_cascade([]), do: :ok
+
+  defp delete_species_for_cascade(taxonomy_ids) do
+    species_ids = get_species_ids_for_taxonomies(taxonomy_ids)
+
+    for species_id <- species_ids do
+      # S3 cleanup (before DB records are cascade deleted)
+      Gallformers.Images.delete_images_from_s3_for_species(species_id)
+
+      # Delete gall_traits (cascades to filter associations)
+      from(gt in GallTraits, where: gt.species_id == ^species_id)
+      |> Repo.delete_all()
+
+      # Delete from FTS index
+      Gallformers.Species.delete_species_fts(species_id)
+    end
+
+    # Bulk delete all species (cascades to images, hosts, aliases, etc.)
+    if species_ids != [] do
+      from(s in Species, where: s.id in ^species_ids)
+      |> Repo.delete_all()
+    end
+
+    :ok
+  end
+
+  @doc """
+  Gets species IDs linked to any of the given taxonomy IDs.
+  """
+  @spec get_species_ids_for_taxonomies([integer()]) :: [integer()]
+  def get_species_ids_for_taxonomies([]), do: []
+
+  def get_species_ids_for_taxonomies(taxonomy_ids) do
+    from(st in "species_taxonomy",
+      where: st.taxonomy_id in ^taxonomy_ids,
+      select: st.species_id,
+      distinct: true
+    )
+    |> Repo.all()
   end
 
   @doc """
