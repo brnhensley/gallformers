@@ -260,7 +260,7 @@ defmodule Mix.Tasks.Gallformers.UpdateProdDb do
     Mix.Shell.IO.info("\nThe existing database will be backed up with a timestamp.")
     Mix.Shell.IO.info("If anything fails, you can rollback to the backup.\n")
 
-    if Mix.Shell.IO.prompt("Type 'REPLACE' to continue: ") == "REPLACE" do
+    if Mix.Shell.IO.prompt("Type 'REPLACE' to continue: ") |> String.trim() == "REPLACE" do
       Mix.Shell.IO.info("")
       :ok
     else
@@ -334,6 +334,7 @@ defmodule Mix.Tasks.Gallformers.UpdateProdDb do
       @app_name,
       "--command",
       "sleep infinity",
+      "--skip-start",
       "--yes"
     ]
 
@@ -429,12 +430,11 @@ defmodule Mix.Tasks.Gallformers.UpdateProdDb do
 
     Mix.Shell.IO.info("Uploading database (#{file_size})...")
 
-    # Use SFTP to upload
-    sftp_commands = "put #{clean_db_path} #{@db_path}"
+    # Use SFTP to upload via shell pipe
+    shell_cmd =
+      "echo 'put #{clean_db_path} #{@db_path}' | fly sftp shell --app #{@app_name} --machine #{machine_id}"
 
-    sftp_cmd = ["sftp", "shell", "--app", @app_name, "--machine", machine_id]
-
-    case System.cmd("fly", sftp_cmd, input: sftp_commands, stderr_to_stdout: true) do
+    case System.shell(shell_cmd, stderr_to_stdout: true) do
       {_output, 0} ->
         Mix.Shell.IO.info("#{@green}✓ Database uploaded#{@reset}\n")
         :ok

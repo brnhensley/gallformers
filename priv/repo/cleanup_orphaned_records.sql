@@ -2,105 +2,82 @@
 -- Purpose: Remove orphaned records before V1→V2 migration
 -- Date: 2026-02-04
 --
--- Expected cleanup counts (as of 2026-01-23):
--- - 218 orphaned gall records (5.6% of total)
--- - 8,820 orphaned alias records (72.1% of total)
--- - 1,162 orphaned filter associations
---
--- Run this against gallformers-v1-clean.sqlite before migration
--- Usage: sqlite3 gallformers-v1-clean.sqlite < cleanup_orphaned_records.sql
+-- Run this against a V1 database before migration
+-- Usage: sqlite3 gallformers.sqlite < cleanup_orphaned_records.sql
+
+-- Report counts before cleanup
+SELECT '=== Records to be deleted ===' as status;
+
+-- True orphans: gall records not linked to any gall-type species via gallspecies
+SELECT 'Orphaned galls (no valid gallspecies link):' as record_type, COUNT(*) as count
+FROM gall g
+WHERE g.id NOT IN (
+  SELECT gs.gall_id
+  FROM gallspecies gs
+  JOIN species s ON gs.species_id = s.id
+  WHERE s.taxoncode = 'gall'
+);
+
+SELECT 'Orphaned aliases:' as record_type, COUNT(*) as count
+FROM alias WHERE id NOT IN (SELECT DISTINCT alias_id FROM aliasspecies UNION SELECT DISTINCT alias_id FROM taxonomyalias);
+
+SELECT 'Orphaned gallcolor:' as record_type, COUNT(*) as count FROM gallcolor WHERE gall_id NOT IN (SELECT id FROM gall);
+SELECT 'Orphaned gallshape:' as record_type, COUNT(*) as count FROM gallshape WHERE gall_id NOT IN (SELECT id FROM gall);
+SELECT 'Orphaned galltexture:' as record_type, COUNT(*) as count FROM galltexture WHERE gall_id NOT IN (SELECT id FROM gall);
+SELECT 'Orphaned gallalignment:' as record_type, COUNT(*) as count FROM gallalignment WHERE gall_id NOT IN (SELECT id FROM gall);
+SELECT 'Orphaned gallwalls:' as record_type, COUNT(*) as count FROM gallwalls WHERE gall_id NOT IN (SELECT id FROM gall);
+SELECT 'Orphaned gallcells:' as record_type, COUNT(*) as count FROM gallcells WHERE gall_id NOT IN (SELECT id FROM gall);
+SELECT 'Orphaned galllocation:' as record_type, COUNT(*) as count FROM galllocation WHERE gall_id NOT IN (SELECT id FROM gall);
+SELECT 'Orphaned gallform:' as record_type, COUNT(*) as count FROM gallform WHERE gall_id NOT IN (SELECT id FROM gall);
+SELECT 'Orphaned gallseason:' as record_type, COUNT(*) as count FROM gallseason WHERE gall_id NOT IN (SELECT id FROM gall);
+
+SELECT '=== Performing cleanup ===' as status;
 
 BEGIN TRANSACTION;
 
--- Delete orphaned gall records
--- These are galls that have no speciestaxon relationship
+-- Delete orphaned gall records (not linked to any gall-type species via gallspecies)
 DELETE FROM gall
 WHERE id NOT IN (
-  SELECT DISTINCT gall_id
-  FROM speciestaxon
-  WHERE gall_id IS NOT NULL
+  SELECT gs.gall_id
+  FROM gallspecies gs
+  JOIN species s ON gs.species_id = s.id
+  WHERE s.taxoncode = 'gall'
 );
+SELECT 'Deleted orphaned galls:' as action, changes() as count;
 
--- Delete orphaned alias records
--- These are aliases that have no species or host relationship
+-- Delete orphaned alias records (aliases not linked to species or taxonomy)
 DELETE FROM alias
-WHERE id NOT IN (
-  SELECT DISTINCT alias_id FROM speciesalias WHERE alias_id IS NOT NULL
-  UNION
-  SELECT DISTINCT alias_id FROM hostalias WHERE alias_id IS NOT NULL
-);
+WHERE id NOT IN (SELECT DISTINCT alias_id FROM aliasspecies UNION SELECT DISTINCT alias_id FROM taxonomyalias);
+SELECT 'Deleted aliases:' as action, changes() as count;
 
--- Delete orphaned gall filter associations
--- These reference galls that no longer exist
+-- Delete orphaned gall filter associations (reference galls that no longer exist)
+DELETE FROM gallcolor WHERE gall_id NOT IN (SELECT id FROM gall);
+SELECT 'Deleted gallcolor:' as action, changes() as count;
 
-DELETE FROM gallcolor
-WHERE gall_id NOT IN (SELECT id FROM gall);
+DELETE FROM gallshape WHERE gall_id NOT IN (SELECT id FROM gall);
+SELECT 'Deleted gallshape:' as action, changes() as count;
 
-DELETE FROM gallshape
-WHERE gall_id NOT IN (SELECT id FROM gall);
+DELETE FROM galltexture WHERE gall_id NOT IN (SELECT id FROM gall);
+SELECT 'Deleted galltexture:' as action, changes() as count;
 
-DELETE FROM galltexture
-WHERE gall_id NOT IN (SELECT id FROM gall);
+DELETE FROM gallalignment WHERE gall_id NOT IN (SELECT id FROM gall);
+SELECT 'Deleted gallalignment:' as action, changes() as count;
 
-DELETE FROM gallalignment
-WHERE gall_id NOT IN (SELECT id FROM gall);
+DELETE FROM gallwalls WHERE gall_id NOT IN (SELECT id FROM gall);
+SELECT 'Deleted gallwalls:' as action, changes() as count;
 
-DELETE FROM gallwalls
-WHERE gall_id NOT IN (SELECT id FROM gall);
+DELETE FROM gallcells WHERE gall_id NOT IN (SELECT id FROM gall);
+SELECT 'Deleted gallcells:' as action, changes() as count;
 
-DELETE FROM gallcells
-WHERE gall_id NOT IN (SELECT id FROM gall);
+DELETE FROM galllocation WHERE gall_id NOT IN (SELECT id FROM gall);
+SELECT 'Deleted galllocation:' as action, changes() as count;
 
-DELETE FROM galllocation
-WHERE gall_id NOT IN (SELECT id FROM gall);
+DELETE FROM gallform WHERE gall_id NOT IN (SELECT id FROM gall);
+SELECT 'Deleted gallform:' as action, changes() as count;
 
-DELETE FROM gallform
-WHERE gall_id NOT IN (SELECT id FROM gall);
-
-DELETE FROM gallseason
-WHERE gall_id NOT IN (SELECT id FROM gall);
+DELETE FROM gallseason WHERE gall_id NOT IN (SELECT id FROM gall);
+SELECT 'Deleted gallseason:' as action, changes() as count;
 
 COMMIT;
 
--- Verification queries
--- Run these to confirm cleanup was successful
-SELECT 'Orphaned galls remaining:' as check_type, COUNT(*) as count
-FROM gall
-WHERE id NOT IN (
-  SELECT DISTINCT gall_id FROM speciestaxon WHERE gall_id IS NOT NULL
-);
-
-SELECT 'Orphaned aliases remaining:' as check_type, COUNT(*) as count
-FROM alias
-WHERE id NOT IN (
-  SELECT DISTINCT alias_id FROM speciesalias
-  UNION
-  SELECT DISTINCT alias_id FROM hostalias
-);
-
-SELECT 'Orphaned gallcolor remaining:' as check_type, COUNT(*) as count
-FROM gallcolor WHERE gall_id NOT IN (SELECT id FROM gall);
-
-SELECT 'Orphaned gallshape remaining:' as check_type, COUNT(*) as count
-FROM gallshape WHERE gall_id NOT IN (SELECT id FROM gall);
-
-SELECT 'Orphaned galltexture remaining:' as check_type, COUNT(*) as count
-FROM galltexture WHERE gall_id NOT IN (SELECT id FROM gall);
-
-SELECT 'Orphaned gallalignment remaining:' as check_type, COUNT(*) as count
-FROM gallalignment WHERE gall_id NOT IN (SELECT id FROM gall);
-
-SELECT 'Orphaned gallwalls remaining:' as check_type, COUNT(*) as count
-FROM gallwalls WHERE gall_id NOT IN (SELECT id FROM gall);
-
-SELECT 'Orphaned gallcells remaining:' as check_type, COUNT(*) as count
-FROM gallcells WHERE gall_id NOT IN (SELECT id FROM gall);
-
-SELECT 'Orphaned galllocation remaining:' as check_type, COUNT(*) as count
-FROM galllocation WHERE gall_id NOT IN (SELECT id FROM gall);
-
-SELECT 'Orphaned gallform remaining:' as check_type, COUNT(*) as count
-FROM gallform WHERE gall_id NOT IN (SELECT id FROM gall);
-
-SELECT 'Orphaned gallseason remaining:' as check_type, COUNT(*) as count
-FROM gallseason WHERE gall_id NOT IN (SELECT id FROM gall);
+SELECT '=== Cleanup complete ===' as status;
