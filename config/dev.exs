@@ -9,7 +9,9 @@ config :gallformers, Gallformers.Repo,
   database: System.get_env("DATABASE_PATH", Path.expand("../priv/gallformers.sqlite", __DIR__)),
   pool_size: 5,
   stacktrace: true,
-  show_sensitive_data_on_connection_error: true
+  show_sensitive_data_on_connection_error: true,
+  # Match test.exs settings for SQLite consistency
+  busy_timeout: 5000
 
 # For development, we disable any cache and enable
 # debugging and code reloading.

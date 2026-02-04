@@ -5,6 +5,7 @@ defmodule Gallformers.Taxonomy do
   Provides functions for working with taxonomic classifications.
   """
 
+  require Logger
   import Ecto.Query
   alias Gallformers.Repo
   alias Gallformers.Species.Alias
@@ -1033,6 +1034,8 @@ defmodule Gallformers.Taxonomy do
   @spec delete_taxonomy_cascade(Taxonomy.t()) ::
           {:ok, map()} | {:error, Ecto.Changeset.t() | term()}
   def delete_taxonomy_cascade(%Taxonomy{id: id, type: "family"} = taxonomy) do
+    Logger.info("Cascade delete starting for family #{taxonomy.name} (id=#{id})")
+
     genera = list_child_genera(id)
     genera_ids = Enum.map(genera, & &1.id)
 
@@ -1043,34 +1046,43 @@ defmodule Gallformers.Taxonomy do
     all_taxonomy_ids = genera_ids ++ section_ids
     species_count = count_species_for_taxonomies(all_taxonomy_ids)
 
-    Repo.transaction(fn ->
-      # 1. Delete all species linked to this family tree
-      #    (includes S3 cleanup, gall_traits, FTS, cascades to images, aliases, hosts, etc.)
-      delete_species_for_cascade(all_taxonomy_ids)
+    Logger.info(
+      "Family #{taxonomy.name}: deleting #{length(genera)} genera, #{length(sections)} sections, #{species_count} species"
+    )
 
-      # 2. Delete sections (now safe - no species references)
-      Enum.each(sections, &Repo.delete!/1)
+    result =
+      Repo.transaction(fn ->
+        # 1. Delete all species linked to this family tree
+        #    (includes S3 cleanup, gall_traits, FTS, cascades to images, aliases, hosts, etc.)
+        delete_species_for_cascade(all_taxonomy_ids)
 
-      # 3. Delete genera (now safe - no species or section references)
-      Enum.each(genera, &Repo.delete!/1)
+        # 2. Delete sections (now safe - no species references)
+        Enum.each(sections, &Repo.delete!/1)
 
-      # 4. Delete the family itself
-      Repo.delete!(taxonomy)
+        # 3. Delete genera (now safe - no species or section references)
+        Enum.each(genera, &Repo.delete!/1)
 
-      # Return impact summary
-      %{
-        taxonomy: taxonomy,
-        genera: genera,
-        genera_count: length(genera),
-        sections: sections,
-        sections_count: length(sections),
-        species_count: species_count
-      }
-    end)
-    |> broadcast(:taxonomy_deleted)
+        # 4. Delete the family itself
+        Repo.delete!(taxonomy)
+
+        # Return impact summary
+        %{
+          taxonomy: taxonomy,
+          genera: genera,
+          genera_count: length(genera),
+          sections: sections,
+          sections_count: length(sections),
+          species_count: species_count
+        }
+      end)
+
+    log_cascade_result(result, taxonomy)
+    broadcast(result, :taxonomy_deleted)
   end
 
   def delete_taxonomy_cascade(%Taxonomy{id: id, type: "genus"} = taxonomy) do
+    Logger.info("Cascade delete starting for genus #{taxonomy.name} (id=#{id})")
+
     sections = list_child_sections(id)
     section_ids = Enum.map(sections, & &1.id)
 
@@ -1078,33 +1090,43 @@ defmodule Gallformers.Taxonomy do
     all_taxonomy_ids = [id | section_ids]
     species_count = count_species_for_taxonomies(all_taxonomy_ids)
 
-    Repo.transaction(fn ->
-      # 1. Delete all species linked to this genus or its sections
-      delete_species_for_cascade(all_taxonomy_ids)
+    Logger.info(
+      "Genus #{taxonomy.name}: deleting #{length(sections)} sections, #{species_count} species"
+    )
 
-      # 2. Delete sections (now safe - no species references)
-      Enum.each(sections, &Repo.delete!/1)
+    result =
+      Repo.transaction(fn ->
+        # 1. Delete all species linked to this genus or its sections
+        delete_species_for_cascade(all_taxonomy_ids)
 
-      # 3. Delete the genus itself
-      Repo.delete!(taxonomy)
+        # 2. Delete sections (now safe - no species references)
+        Enum.each(sections, &Repo.delete!/1)
 
-      # Return impact summary
-      %{
-        taxonomy: taxonomy,
-        genera: [],
-        genera_count: 0,
-        sections: sections,
-        sections_count: length(sections),
-        species_count: species_count
-      }
-    end)
-    |> broadcast(:taxonomy_deleted)
+        # 3. Delete the genus itself
+        Repo.delete!(taxonomy)
+
+        # Return impact summary
+        %{
+          taxonomy: taxonomy,
+          genera: [],
+          genera_count: 0,
+          sections: sections,
+          sections_count: length(sections),
+          species_count: species_count
+        }
+      end)
+
+    log_cascade_result(result, taxonomy)
+    broadcast(result, :taxonomy_deleted)
   end
 
   def delete_taxonomy_cascade(%Taxonomy{} = taxonomy) do
     # Section or other types - simple delete, no cascade needed
-    Repo.delete(taxonomy)
-    |> broadcast(:taxonomy_deleted)
+    Logger.info("Simple delete for #{taxonomy.type} #{taxonomy.name} (id=#{taxonomy.id})")
+
+    result = Repo.delete(taxonomy)
+    log_cascade_result(result, taxonomy)
+    broadcast(result, :taxonomy_deleted)
   end
 
   # Deletes all species linked to the given taxonomy IDs.
@@ -1707,6 +1729,18 @@ defmodule Gallformers.Taxonomy do
   @spec subscribe() :: :ok | {:error, term()}
   def subscribe do
     Phoenix.PubSub.subscribe(Gallformers.PubSub, "taxonomy")
+  end
+
+  defp log_cascade_result({:ok, _}, taxonomy) do
+    Logger.info(
+      "Cascade delete SUCCEEDED for #{taxonomy.type} #{taxonomy.name} (id=#{taxonomy.id})"
+    )
+  end
+
+  defp log_cascade_result({:error, reason}, taxonomy) do
+    Logger.error(
+      "Cascade delete FAILED for #{taxonomy.type} #{taxonomy.name} (id=#{taxonomy.id}): #{inspect(reason)}"
+    )
   end
 
   defp broadcast({:ok, taxonomy}, event) do
