@@ -34,6 +34,9 @@ defmodule Mix.Tasks.Gallformers.UpdateProdDb do
 
   @requirements ["app.config"]
 
+  # Dialyzer has trouble tracing Mix task invocations, so ignore warnings for this file
+  @dialyzer [:no_unused, :no_return, :no_match]
+
   # Configuration
   @app_name "gallformers"
   @db_path "/data/gallformers.sqlite"
@@ -141,12 +144,18 @@ defmodule Mix.Tasks.Gallformers.UpdateProdDb do
   defp validate_local_db(path) do
     Mix.Shell.IO.info("#{@blue}=== Step 1: Local Validation & Preparation ===#{@reset}")
 
-    # Check integrity
+    with :ok <- check_local_integrity(path) do
+      check_local_species_count(path)
+    end
+  end
+
+  defp check_local_integrity(path) do
     Mix.Shell.IO.info("Checking source database integrity...")
 
     case run_sqlite(path, "PRAGMA integrity_check;") do
       {:ok, "ok\n"} ->
         Mix.Shell.IO.info("#{@green}✓ Source integrity check passed#{@reset}")
+        :ok
 
       {:ok, result} ->
         {:error, "Source database failed integrity check: #{result}"}
@@ -154,29 +163,25 @@ defmodule Mix.Tasks.Gallformers.UpdateProdDb do
       {:error, reason} ->
         {:error, "Failed to check integrity: #{reason}"}
     end
-    |> case do
-      :ok ->
-        # Check species count
-        Mix.Shell.IO.info("Checking species count...")
+  end
 
-        case run_sqlite(path, "SELECT COUNT(*) FROM species;") do
-          {:ok, count_str} ->
-            count = String.trim(count_str) |> String.to_integer()
-            Mix.Shell.IO.info("Species count: #{count}")
+  defp check_local_species_count(path) do
+    Mix.Shell.IO.info("Checking species count...")
 
-            if count >= @min_species_count do
-              Mix.Shell.IO.info("#{@green}✓ Species count validated#{@reset}\n")
-              {:ok, count}
-            else
-              {:error, "Species count (#{count}) is below minimum (#{@min_species_count})"}
-            end
+    case run_sqlite(path, "SELECT COUNT(*) FROM species;") do
+      {:ok, count_str} ->
+        count = String.trim(count_str) |> String.to_integer()
+        Mix.Shell.IO.info("Species count: #{count}")
 
-          {:error, reason} ->
-            {:error, "Failed to count species: #{reason}"}
+        if count >= @min_species_count do
+          Mix.Shell.IO.info("#{@green}✓ Species count validated#{@reset}\n")
+          {:ok, count}
+        else
+          {:error, "Species count (#{count}) is below minimum (#{@min_species_count})"}
         end
 
-      error ->
-        error
+      {:error, reason} ->
+        {:error, "Failed to count species: #{reason}"}
     end
   end
 
@@ -445,7 +450,14 @@ defmodule Mix.Tasks.Gallformers.UpdateProdDb do
   defp verify_remote_db(machine_id, expected_species_count, backup_file) do
     Mix.Shell.IO.info("#{@blue}=== Step 8: Verify Remote Database ===#{@reset}")
 
-    # Check integrity
+    context = %{machine_id: machine_id, backup_file: backup_file, can_rollback: true}
+
+    with :ok <- check_remote_integrity(machine_id, context) do
+      check_remote_species_count(machine_id, expected_species_count, context)
+    end
+  end
+
+  defp check_remote_integrity(machine_id, context) do
     Mix.Shell.IO.info("Checking integrity on remote...")
 
     integrity_cmd = [
@@ -462,41 +474,41 @@ defmodule Mix.Tasks.Gallformers.UpdateProdDb do
     case System.cmd("fly", integrity_cmd) do
       {"ok\n", 0} ->
         Mix.Shell.IO.info("#{@green}✓ Remote integrity check passed#{@reset}")
-
-        # Check species count
-        count_cmd = [
-          "ssh",
-          "console",
-          "-a",
-          @app_name,
-          "--machine",
-          machine_id,
-          "-C",
-          "sqlite3 #{@db_path} 'SELECT COUNT(*) FROM species;'"
-        ]
-
-        case System.cmd("fly", count_cmd) do
-          {count_str, 0} ->
-            remote_count = String.trim(count_str) |> String.to_integer()
-            Mix.Shell.IO.info("Remote species count: #{remote_count}")
-
-            if remote_count == expected_species_count do
-              Mix.Shell.IO.info("#{@green}✓ Remote species count matches#{@reset}\n")
-              :ok
-            else
-              {:error,
-               "Species count mismatch! Local: #{expected_species_count}, Remote: #{remote_count}",
-               %{machine_id: machine_id, backup_file: backup_file, can_rollback: true}}
-            end
-
-          {error, _} ->
-            {:error, "Failed to count species on remote: #{error}",
-             %{machine_id: machine_id, backup_file: backup_file, can_rollback: true}}
-        end
+        :ok
 
       {result, _} ->
-        {:error, "Remote database failed integrity check: #{result}",
-         %{machine_id: machine_id, backup_file: backup_file, can_rollback: true}}
+        {:error, "Remote database failed integrity check: #{result}", context}
+    end
+  end
+
+  defp check_remote_species_count(machine_id, expected_species_count, context) do
+    count_cmd = [
+      "ssh",
+      "console",
+      "-a",
+      @app_name,
+      "--machine",
+      machine_id,
+      "-C",
+      "sqlite3 #{@db_path} 'SELECT COUNT(*) FROM species;'"
+    ]
+
+    case System.cmd("fly", count_cmd) do
+      {count_str, 0} ->
+        remote_count = String.trim(count_str) |> String.to_integer()
+        Mix.Shell.IO.info("Remote species count: #{remote_count}")
+
+        if remote_count == expected_species_count do
+          Mix.Shell.IO.info("#{@green}✓ Remote species count matches#{@reset}\n")
+          :ok
+        else
+          {:error,
+           "Species count mismatch! Local: #{expected_species_count}, Remote: #{remote_count}",
+           context}
+        end
+
+      {error, _} ->
+        {:error, "Failed to count species on remote: #{error}", context}
     end
   end
 
@@ -527,6 +539,12 @@ defmodule Mix.Tasks.Gallformers.UpdateProdDb do
   defp restore_normal_operation(machine_id) do
     Mix.Shell.IO.info("#{@blue}=== Step 10: Restore Normal Operation ===#{@reset}")
 
+    with :ok <- clear_command_override(machine_id) do
+      restart_and_verify(machine_id)
+    end
+  end
+
+  defp clear_command_override(machine_id) do
     Mix.Shell.IO.info("Clearing command override (reverts to Dockerfile CMD)...")
 
     update_cmd = [
@@ -543,37 +561,45 @@ defmodule Mix.Tasks.Gallformers.UpdateProdDb do
     case System.cmd("fly", update_cmd) do
       {_, 0} ->
         Mix.Shell.IO.info("#{@green}✓ Command override cleared#{@reset}")
-        Mix.Shell.IO.info("Restarting machine...")
-
-        case System.cmd("fly", ["machine", "restart", machine_id, "-a", @app_name]) do
-          {_, 0} ->
-            Mix.Shell.IO.info("Waiting for machine to start...")
-            Process.sleep(10_000)
-
-            # Check status
-            Mix.Shell.IO.info("Checking machine status...")
-            System.cmd("fly", ["status", "-a", @app_name]) |> elem(0) |> Mix.Shell.IO.info()
-
-            # Check health endpoint
-            Mix.Shell.IO.info("\nChecking health endpoint...")
-
-            case System.cmd("curl", ["-f", "-s", "https://gallformers.fly.dev/health"]) do
-              {_, 0} ->
-                Mix.Shell.IO.info("#{@green}✓ Health check passed#{@reset}\n")
-                :ok
-
-              _ ->
-                Mix.Shell.IO.info("#{@yellow}Warning: Health check failed or timed out#{@reset}")
-                Mix.Shell.IO.info("Check logs: fly logs -a #{@app_name}\n")
-                :ok
-            end
-
-          {error, _} ->
-            {:error, "Failed to restart machine: #{error}"}
-        end
+        :ok
 
       {error, _} ->
         {:error, "Failed to update machine command: #{error}"}
+    end
+  end
+
+  defp restart_and_verify(machine_id) do
+    Mix.Shell.IO.info("Restarting machine...")
+
+    case System.cmd("fly", ["machine", "restart", machine_id, "-a", @app_name]) do
+      {_, 0} ->
+        Mix.Shell.IO.info("Waiting for machine to start...")
+        Process.sleep(10_000)
+
+        # Check status
+        Mix.Shell.IO.info("Checking machine status...")
+        System.cmd("fly", ["status", "-a", @app_name]) |> elem(0) |> Mix.Shell.IO.info()
+
+        # Check health endpoint
+        verify_health_endpoint()
+
+      {error, _} ->
+        {:error, "Failed to restart machine: #{error}"}
+    end
+  end
+
+  defp verify_health_endpoint do
+    Mix.Shell.IO.info("\nChecking health endpoint...")
+
+    case System.cmd("curl", ["-f", "-s", "https://gallformers.fly.dev/health"]) do
+      {_, 0} ->
+        Mix.Shell.IO.info("#{@green}✓ Health check passed#{@reset}\n")
+        :ok
+
+      _ ->
+        Mix.Shell.IO.info("#{@yellow}Warning: Health check failed or timed out#{@reset}")
+        Mix.Shell.IO.info("Check logs: fly logs -a #{@app_name}\n")
+        :ok
     end
   end
 
