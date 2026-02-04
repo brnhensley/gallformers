@@ -320,6 +320,25 @@ defmodule Gallformers.TaxonomyTest do
       assert unknown_genus.description == "Placeholder genus for undescribed species"
     end
 
+    test "creating a plant family does NOT auto-create an Unknown genus" do
+      {:ok, family} =
+        Taxonomy.create_taxonomy(%{
+          name: "TestPlantFamily",
+          type: "family",
+          description: "Plant"
+        })
+
+      # Verify Unknown genus was NOT created for plant family
+      unknown_genus =
+        Repo.one(
+          from(t in Taxonomy.Taxonomy,
+            where: t.name == "Unknown" and t.type == "genus" and t.parent_id == ^family.id
+          )
+        )
+
+      assert unknown_genus == nil
+    end
+
     test "find_or_create_unknown_genus reuses existing Unknown genus" do
       {:ok, family} =
         Taxonomy.create_taxonomy(%{

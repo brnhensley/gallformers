@@ -792,8 +792,9 @@ defmodule Gallformers.Taxonomy do
   @doc """
   Creates a taxonomy entry.
 
-  When creating a family, automatically creates an "Unknown" genus placeholder
-  for undescribed species.
+  When creating a non-plant family, automatically creates an "Unknown" genus placeholder
+  for undescribed species. Plant families (description = "Plant") do not get Unknown genera
+  as we don't track undescribed plant species.
   """
   @spec create_taxonomy(map()) :: {:ok, Taxonomy.t()} | {:error, Ecto.Changeset.t()}
   def create_taxonomy(attrs \\ %{}) do
@@ -813,8 +814,7 @@ defmodule Gallformers.Taxonomy do
     Repo.transaction(fn ->
       case %Taxonomy{} |> Taxonomy.changeset(attrs) |> Repo.insert() do
         {:ok, family} ->
-          # Auto-create Unknown genus for the new family
-          {:ok, _unknown_genus} = find_or_create_unknown_genus(family.id)
+          maybe_create_unknown_genus(family, attrs)
           family
 
         {:error, changeset} ->
@@ -824,6 +824,16 @@ defmodule Gallformers.Taxonomy do
     |> case do
       {:ok, family} -> broadcast({:ok, family}, :taxonomy_created)
       {:error, changeset} -> {:error, changeset}
+    end
+  end
+
+  defp maybe_create_unknown_genus(family, attrs) do
+    # Auto-create Unknown genus for non-plant families only
+    # Plant families don't need Unknown genera as we don't track undescribed plants
+    description = attrs["description"] || attrs[:description]
+
+    if description != "Plant" do
+      {:ok, _unknown_genus} = find_or_create_unknown_genus(family.id)
     end
   end
 

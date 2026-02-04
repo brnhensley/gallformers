@@ -273,6 +273,7 @@ SELECT
   datetime('now')
 FROM taxonomy f
 WHERE f.type = 'family'
+  AND f.description != 'Plant'
   AND NOT EXISTS (
     SELECT 1 FROM taxonomy g
     WHERE g.type = 'genus'

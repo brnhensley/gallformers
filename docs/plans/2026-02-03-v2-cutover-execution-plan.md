@@ -64,10 +64,13 @@
 **4. Finalize database upload solution**
 - Custom Fly.io approach must be tested and ready
 - Document the exact commands/steps for tomorrow
+[x] DONE at 1950PM ET Feb 3
+
 
 **5. Update gallformers-status page (gallformers-c53r)**
 - Post scheduled maintenance notice
 - "Scheduled maintenance February 4, 10 AM-12 PM Eastern"
+[x] DONE at 2005PM ET Feb 3
 
 ### T-0 (Tomorrow morning, before 10 AM start)
 
