@@ -948,6 +948,125 @@ defmodule Gallformers.Taxonomy do
     |> broadcast(:taxonomy_deleted)
   end
 
+  # =====================================================================
+  # Deletion Impact Assessment
+  # =====================================================================
+
+  @doc """
+  Gathers all data that would be deleted if this taxonomy is deleted.
+  Returns counts and lists for UI display.
+
+  For family: returns all child genera, sections (via genera), and species count.
+  For genus: returns all child sections and species count.
+  For section/other: returns has_impact: false (no cascade concern).
+  """
+  @spec get_deletion_impact(Taxonomy.t()) :: map()
+  def get_deletion_impact(%Taxonomy{id: id, type: "family"} = taxonomy) do
+    genera = list_child_genera(id)
+    genera_ids = Enum.map(genera, & &1.id)
+
+    sections = list_sections_for_family_tree(id)
+    section_ids = Enum.map(sections, & &1.id)
+
+    # Species linked to this family's genera or sections
+    all_taxonomy_ids = genera_ids ++ section_ids
+    species_count = count_species_for_taxonomies(all_taxonomy_ids)
+
+    %{
+      taxonomy: taxonomy,
+      genera: genera,
+      genera_count: length(genera),
+      sections: sections,
+      sections_count: length(sections),
+      species_count: species_count,
+      has_impact: genera != [] or sections != [] or species_count > 0
+    }
+  end
+
+  def get_deletion_impact(%Taxonomy{id: id, type: "genus"} = taxonomy) do
+    sections = list_child_sections(id)
+    section_ids = Enum.map(sections, & &1.id)
+
+    # Species linked to this genus or its sections
+    all_taxonomy_ids = [id | section_ids]
+    species_count = count_species_for_taxonomies(all_taxonomy_ids)
+
+    %{
+      taxonomy: taxonomy,
+      genera: [],
+      genera_count: 0,
+      sections: sections,
+      sections_count: length(sections),
+      species_count: species_count,
+      has_impact: sections != [] or species_count > 0
+    }
+  end
+
+  def get_deletion_impact(%Taxonomy{} = taxonomy) do
+    # Section or other types - no cascade concern
+    %{
+      taxonomy: taxonomy,
+      genera: [],
+      genera_count: 0,
+      sections: [],
+      sections_count: 0,
+      species_count: 0,
+      has_impact: false
+    }
+  end
+
+  @doc """
+  Lists all genera that are direct children of a family.
+  """
+  @spec list_child_genera(integer()) :: [Taxonomy.t()]
+  def list_child_genera(family_id) do
+    from(t in Taxonomy,
+      where: t.parent_id == ^family_id and t.type == "genus",
+      order_by: t.name
+    )
+    |> Repo.all()
+  end
+
+  @doc """
+  Lists all sections that are direct children of a genus.
+  """
+  @spec list_child_sections(integer()) :: [Taxonomy.t()]
+  def list_child_sections(genus_id) do
+    from(t in Taxonomy,
+      where: t.parent_id == ^genus_id and t.type == "section",
+      order_by: t.name
+    )
+    |> Repo.all()
+  end
+
+  @doc """
+  Lists all sections under a family tree (sections whose parent genus is a child of this family).
+  """
+  @spec list_sections_for_family_tree(integer()) :: [Taxonomy.t()]
+  def list_sections_for_family_tree(family_id) do
+    from(s in Taxonomy,
+      join: g in Taxonomy,
+      on: s.parent_id == g.id,
+      where: s.type == "section" and g.type == "genus" and g.parent_id == ^family_id,
+      order_by: s.name
+    )
+    |> Repo.all()
+  end
+
+  @doc """
+  Counts species linked to any of the given taxonomy IDs.
+  """
+  @spec count_species_for_taxonomies([integer()]) :: non_neg_integer()
+  def count_species_for_taxonomies([]), do: 0
+
+  def count_species_for_taxonomies(taxonomy_ids) do
+    from(st in "species_taxonomy",
+      where: st.taxonomy_id in ^taxonomy_ids,
+      select: count(st.species_id, :distinct)
+    )
+    |> Repo.one()
+  end
+
   @doc """
   Finds or creates an "Unknown" genus under the given family.
 

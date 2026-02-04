@@ -536,6 +536,188 @@ defmodule Gallformers.TaxonomyTest do
 
       assert {:error, :no_genera_selected} = Taxonomy.move_genera([], family.id, family.id)
     end
+  end
+
+  describe "get_deletion_impact/1" do
+    test "family shows genera, sections, and species counts" do
+      # Create Family → Genus1, Genus2, Genus1 → Section
+      {:ok, family} =
+        Taxonomy.create_taxonomy(%{
+          name: "ImpactTestFamily",
+          type: "family",
+          description: "Test family"
+        })
+
+      {:ok, genus1} =
+        Taxonomy.create_taxonomy(%{
+          name: "ImpactGenus1",
+          type: "genus",
+          parent_id: family.id
+        })
+
+      {:ok, genus2} =
+        Taxonomy.create_taxonomy(%{
+          name: "ImpactGenus2",
+          type: "genus",
+          parent_id: family.id
+        })
+
+      {:ok, section} =
+        Taxonomy.create_taxonomy(%{
+          name: "ImpactSection",
+          type: "section",
+          parent_id: genus1.id
+        })
+
+      # Create species under genus1 (2), genus2 (1), and section (1)
+      {:ok, species1} =
+        Repo.insert(%Species{name: "ImpactGenus1 sp1", taxoncode: "gall", datacomplete: false})
+
+      {:ok, species2} =
+        Repo.insert(%Species{name: "ImpactGenus1 sp2", taxoncode: "gall", datacomplete: false})
+
+      {:ok, species3} =
+        Repo.insert(%Species{name: "ImpactGenus2 sp1", taxoncode: "gall", datacomplete: false})
+
+      {:ok, species4} =
+        Repo.insert(%Species{
+          name: "ImpactGenus1 sectioned",
+          taxoncode: "gall",
+          datacomplete: false
+        })
+
+      Taxonomy.link_species_to_taxonomy(species1.id, genus1.id)
+      Taxonomy.link_species_to_taxonomy(species2.id, genus1.id)
+      Taxonomy.link_species_to_taxonomy(species3.id, genus2.id)
+      Taxonomy.link_species_to_taxonomy(species4.id, section.id)
+
+      impact = Taxonomy.get_deletion_impact(family)
+
+      # 3 genera: ImpactGenus1, ImpactGenus2, and auto-created Unknown
+      assert impact.genera_count == 3
+      assert impact.sections_count == 1
+      assert impact.species_count == 4
+      assert impact.has_impact == true
+      assert impact.taxonomy.id == family.id
+    end
+
+    test "genus shows sections and species counts" do
+      {:ok, family} =
+        Taxonomy.create_taxonomy(%{
+          name: "GenusImpactFamily",
+          type: "family",
+          description: "Plant"
+        })
+
+      {:ok, genus} =
+        Taxonomy.create_taxonomy(%{
+          name: "GenusImpactGenus",
+          type: "genus",
+          parent_id: family.id
+        })
+
+      {:ok, section} =
+        Taxonomy.create_taxonomy(%{
+          name: "GenusImpactSection",
+          type: "section",
+          parent_id: genus.id
+        })
+
+      # Create species under genus (1) and section (1)
+      {:ok, species1} =
+        Repo.insert(%Species{
+          name: "GenusImpactGenus sp1",
+          taxoncode: "plant",
+          datacomplete: false
+        })
+
+      {:ok, species2} =
+        Repo.insert(%Species{
+          name: "GenusImpactGenus sectioned",
+          taxoncode: "plant",
+          datacomplete: false
+        })
+
+      Taxonomy.link_species_to_taxonomy(species1.id, genus.id)
+      Taxonomy.link_species_to_taxonomy(species2.id, section.id)
+
+      impact = Taxonomy.get_deletion_impact(genus)
+
+      assert impact.genera_count == 0
+      assert impact.sections_count == 1
+      assert impact.species_count == 2
+      assert impact.has_impact == true
+    end
+
+    test "section has no cascade impact" do
+      {:ok, family} =
+        Taxonomy.create_taxonomy(%{
+          name: "SectionImpactFamily",
+          type: "family",
+          description: "Plant"
+        })
+
+      {:ok, genus} =
+        Taxonomy.create_taxonomy(%{
+          name: "SectionImpactGenus",
+          type: "genus",
+          parent_id: family.id
+        })
+
+      {:ok, section} =
+        Taxonomy.create_taxonomy(%{
+          name: "SectionImpactSection",
+          type: "section",
+          parent_id: genus.id
+        })
+
+      impact = Taxonomy.get_deletion_impact(section)
+
+      assert impact.genera_count == 0
+      assert impact.sections_count == 0
+      assert impact.species_count == 0
+      assert impact.has_impact == false
+    end
+
+    test "family with no children has has_impact false" do
+      {:ok, family} =
+        Taxonomy.create_taxonomy(%{
+          name: "EmptyImpactFamily",
+          type: "family",
+          description: "Plant"
+        })
+
+      impact = Taxonomy.get_deletion_impact(family)
+
+      # Plant families don't auto-create Unknown genus
+      assert impact.genera_count == 0
+      assert impact.sections_count == 0
+      assert impact.species_count == 0
+      assert impact.has_impact == false
+    end
+
+    test "genus with no children or species has has_impact false" do
+      {:ok, family} =
+        Taxonomy.create_taxonomy(%{
+          name: "EmptyGenusFamily",
+          type: "family",
+          description: "Plant"
+        })
+
+      {:ok, genus} =
+        Taxonomy.create_taxonomy(%{
+          name: "EmptyGenusGenus",
+          type: "genus",
+          parent_id: family.id
+        })
+
+      impact = Taxonomy.get_deletion_impact(genus)
+
+      assert impact.genera_count == 0
+      assert impact.sections_count == 0
+      assert impact.species_count == 0
+      assert impact.has_impact == false
+    end
 
     test "search_genera_and_sections filters by taxoncode when provided" do
       # Create a family
