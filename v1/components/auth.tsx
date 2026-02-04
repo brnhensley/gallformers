@@ -1,31 +1,41 @@
 import { signIn, useSession } from 'next-auth/react';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Alert } from 'react-bootstrap';
 
 export const superAdmins = ['jeff', 'adamjameskranz'];
 
-const READONLY_MODE = process.env.NEXT_PUBLIC_READONLY_MODE === 'true';
-
 const Auth = ({ superAdmin, children }: { superAdmin?: boolean; children: JSX.Element }): JSX.Element => {
     const { data: session, status } = useSession();
+    const [readonlyMode, setReadonlyMode] = useState<boolean | null>(null);
 
-    if (READONLY_MODE) {
+    useEffect(() => {
+        fetch('/api/config')
+            .then((res) => res.json())
+            .then((data: { readonlyMode: boolean }) => setReadonlyMode(data.readonlyMode))
+            .catch(() => setReadonlyMode(false));
+    }, []);
+
+    // Still loading config
+    if (readonlyMode === null) {
+        return <p className="m-3 p-3">Hold tight. Working on vetting you...</p>;
+    }
+
+    if (readonlyMode) {
         return (
             <div className="m-3 p-3">
                 <Alert variant="warning">
                     <Alert.Heading>Admin Temporarily Disabled</Alert.Heading>
                     <p>
-                        Gallformers V2 is launching soon! To ensure a smooth migration, we&apos;ve temporarily paused data edits
-                        from <strong>Wednesday, February 4th at 10am</strong> through{' '}
-                        <strong>Friday, February 6th at 10am</strong> (Eastern Time).
+                        Gallformers V2 is launching soon! To ensure a smooth migration, I have temporarily paused data edits from{' '}
+                        <strong>Wednesday, February 4th at 8 am ET</strong> through no later than{' '}
+                        <strong>Friday, February 6th at 10 am ET</strong>. It is very likely that it will take a lot less time
+                        than this, but I am building a buffer in case I run into any isses.
                     </p>
                     <p>The main site remains fully available for browsing—only admin functions are paused.</p>
+                    <p>After the freeze, V2 will be live with a brand new admin interface and other improvements!</p>
                     <hr />
-                    <p className="mb-0">
-                        After the freeze, V2 will be live at{' '}
-                        <Alert.Link href="https://gallformers.org">gallformers.org</Alert.Link> with a brand new admin interface.
-                        Thanks for your patience!
-                    </p>
+                    <p>Thanks for your patience,</p>
+                    <p>Jeff</p>
                 </Alert>
             </div>
         );
