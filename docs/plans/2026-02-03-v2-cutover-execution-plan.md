@@ -40,10 +40,13 @@
   - gallformers.com A record
   - www.gallformers.com CNAME
 - Allows fast rollback if needed
+[x] DONE at 1900 ET Feb 3
 
 **2. Document current DNS configuration**
 - Screenshot all DNS records at DigitalOcean
+[x] DONE at 1905PM ET Feb 3
 - Record DO droplet IP: 157.245.243.86
+[x] DONE at 1906PM ET Feb 3
 - Save for rollback reference
 
 **3. Update Auth0 (gallformers-59gg)**
@@ -56,6 +59,7 @@
 - Add V2 logout URLs (same domains, check Phoenix auth config for exact path)
 - **Keep all V1 URLs** - don't remove until V1 shutdown
 - Test auth on gallformers.fly.dev
+[x] DONE at 1946PM ET Feb 3
 
 **4. Finalize database upload solution**
 - Custom Fly.io approach must be tested and ready
@@ -135,57 +139,61 @@ cat ~/cutover-working/checksum.txt
 
 ## Section 3: Upload Database to Fly.io (10:30-10:45 AM)
 
-### Step 1: Upload using custom solution
-```bash
-# Your custom Fly.io database replacement approach
-# [Document exact commands here once finalized]
+**Use the automated Mix task** - it handles all the complexity safely.
 
-# Upload gallformers-v2.sqlite to /data/gallformers.sqlite on Fly.io
+### Single command upload & verification
+
+```bash
+cd ~/dev/gallformers
+mix gallformers.update_prod_db ~/cutover-working/gallformers-v2.sqlite
 ```
 
-### Step 2: Verify upload integrity
+**What this task does:**
+1. ✓ Re-validates local database (integrity + species count ≥ 5000)
+2. ✓ Creates clean single-file copy (VACUUM + WAL checkpoint)
+3. ✓ Asks for confirmation (type 'REPLACE' to continue)
+4. ✓ Stops production machine
+5. ✓ Updates machine to sleep mode (releases DB lock)
+6. ✓ Starts sleeping machine (DB file no longer in use)
+7. ✓ Backs up existing database (timestamped: `/data/gallformers-YYYYMMDD-HHMMSS.sqlite.bak`)
+8. ✓ Uploads new database via SFTP
+9. ✓ Verifies remote database (integrity + species count match)
+10. ✓ Clears Litestream backups (forces fresh generation)
+11. ✓ Restarts machine normally (reverts to app command)
+12. ✓ Checks health endpoint
+
+**Prerequisites:**
+- flyctl CLI (authenticated)
+- aws CLI (configured)
+- sqlite3
+- jq
+
+**Expected duration:** ~5-10 minutes
+
+**On success:**
+- Shows species count, file size, SHA-256 checksum
+- Backup location for rollback if needed
+- Health check confirmation
+
+**On failure:**
+- Task offers automatic rollback (restores backup)
+- Machine left in sleep mode for investigation
+- Clear error messages
+
+**After the task completes:**
+
 ```bash
-# Get checksum from Fly.io
-fly ssh console -a gallformers -C "sha256sum /data/gallformers.sqlite"
-
-# Compare to local checksum
-cat ~/cutover-working/checksum.txt
-
-# Both checksums MUST match exactly
-```
-
-### Step 3: Verify file permissions
-```bash
-fly ssh console -a gallformers -C "ls -lh /data/gallformers.sqlite"
-# Should show proper ownership and permissions (644 or similar)
-```
-
-### Step 4: Restart Fly.io app
-```bash
-fly apps restart gallformers
-```
-
-### Step 5: Wait for health check
-```bash
-# Watch logs during startup
-fly logs -a gallformers
-
-# Wait for health check to pass (~30 seconds)
-fly status -a gallformers
-# Should show "started" and health checks passing
-```
-
-### Step 6: Verify V2 via Fly.io URL
-```bash
-# Health endpoint
+# Verify V2 via Fly.io URL
 curl -i https://gallformers.fly.dev/health
 # Should return 200
 
-# Run smoke tests against Fly.io URL
+# Run smoke tests
 mix smoke_test https://gallformers.fly.dev
 ```
 
-**⚠️ If any verification fails, STOP - do not proceed to DNS cutover.**
+**⚠️ If smoke tests fail, STOP - do not proceed to DNS cutover.**
+
+**See:** `lib/mix/tasks/gallformers/update_prod_db.ex` for implementation details
 
 ---
 
