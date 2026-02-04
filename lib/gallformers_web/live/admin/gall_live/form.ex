@@ -847,19 +847,15 @@ defmodule GallformersWeb.Admin.GallLive.Form do
 
   @impl true
   def handle_event("delete", _params, socket) do
-    if Gallformers.Accounts.superadmin?(socket.assigns.current_user) do
-      case Species.delete_species(socket.assigns.gall) do
-        {:ok, _} ->
-          {:noreply,
-           socket
-           |> put_flash(:info, "Gall deleted successfully")
-           |> init_empty_gall_state()}
+    case Species.delete_species(socket.assigns.gall) do
+      {:ok, _} ->
+        {:noreply,
+         socket
+         |> put_flash(:info, "Gall deleted successfully")
+         |> init_empty_gall_state()}
 
-        {:error, _changeset} ->
-          {:noreply, put_flash(socket, :error, "Failed to delete gall")}
-      end
-    else
-      {:noreply, put_flash(socket, :error, "Only super admins can delete galls")}
+      {:error, _changeset} ->
+        {:noreply, put_flash(socket, :error, "Failed to delete gall")}
     end
   end
 
@@ -953,7 +949,7 @@ defmodule GallformersWeb.Admin.GallLive.Form do
         case Species.create_species(params) do
           {:ok, species} ->
             # Create gall-specific record
-            {:ok, gall} = Species.create_gall_for_species(species.id)
+            {:ok, _gall} = Species.create_gall_for_species(species.id)
 
             # Handle taxonomy: create genus if new, or link to existing
             Gallformers.Taxonomy.link_species_taxonomy(
@@ -974,10 +970,10 @@ defmodule GallformersWeb.Admin.GallLive.Form do
             end
 
             # Add filter values
-            save_filter_changes(gall.id, empty_filter_values(), filter_values)
+            save_filter_changes(species.id, empty_filter_values(), filter_values)
 
             # Save gall properties
-            Species.update_gall_properties(gall.id, %{
+            Species.update_gall_properties(species.id, %{
               detachable: socket.assigns.detachable,
               undescribed: socket.assigns.undescribed
             })
@@ -1505,7 +1501,7 @@ defmodule GallformersWeb.Admin.GallLive.Form do
               <div class="flex justify-between pt-3 border-t border-gray-200">
                 <div>
                   <button
-                    :if={@mode == :edit && Gallformers.Accounts.superadmin?(@current_user)}
+                    :if={@mode == :edit}
                     type="button"
                     phx-click="delete"
                     data-confirm="Are you sure? This will delete the gall and all its associations."
