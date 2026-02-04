@@ -430,8 +430,18 @@ fly ssh console -a gallformers -C "sqlite3 /data/gallformers.sqlite .dump" > v2-
 **Immediate:**
 
 **1. Update status page**
-- Post "Maintenance complete, all systems operational"
-- Update monitoring endpoints to point to V2
+- Close the maintenance announcement issue: `gh issue close 7 --repo jeffdc/gallformers-status`
+- Remove announcement banner from `.upptimerc.yml`:
+  ```bash
+  cd /tmp
+  git clone git@github.com:jeffdc/gallformers-status.git
+  cd gallformers-status
+  # Edit .upptimerc.yml - delete the announcementBar section (lines ~36-40)
+  git add .upptimerc.yml
+  git commit -m "Remove maintenance announcement banner"
+  git push origin master
+  ```
+- Verify status page shows "All systems operational" (after Upptime rebuilds in ~5 min)
 
 **2. Re-enable editing on V2**
 - Revert the edit-disable change
