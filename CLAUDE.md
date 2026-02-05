@@ -660,9 +660,14 @@ fly auth login
 ```bash
 fly deploy              # Deploy to production
 fly status              # Check deployment status
-fly logs                # View application logs
+fly logs                # View application logs (STREAMS - see note below)
 fly ssh console         # SSH into running machine
 ```
+
+**Note on `fly logs`**: This command streams logs continuously and never terminates. Do NOT run it in the background or pipe to `tail`. To check recent errors, either:
+- Run interactively and Ctrl+C after seeing what you need
+- Use `fly logs 2>&1 | timeout 5 cat` to get a 5-second snapshot
+- Check the request logger files via SFTP (see Request Logging section)
 
 ### Configuration
 

@@ -54,7 +54,7 @@ defmodule Gallformers.Places do
   """
   def get_parent_place(place_id) do
     from(p in "place",
-      join: pp in "placeplace",
+      join: pp in "place_hierarchy",
       on: pp.parent_id == p.id,
       where: pp.place_id == ^place_id,
       select: %{
