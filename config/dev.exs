@@ -92,3 +92,6 @@ config :phoenix_live_view,
 
 # Disable swoosh api client as it is only required for production adapters.
 config :swoosh, :api_client, false
+
+# Request logger writes to priv/logs in development (gitignored)
+config :gallformers, :request_log_dir, Path.expand("../priv/logs", __DIR__)
