@@ -6,6 +6,19 @@ defmodule Gallformers.Species do
   """
 
   import Ecto.Query
+
+  alias Gallformers.FilterFields.{
+    Alignment,
+    Cells,
+    Color,
+    Form,
+    PlantPart,
+    Season,
+    Shape,
+    Texture,
+    Walls
+  }
+
   alias Gallformers.Hosts.Host
   alias Gallformers.Repo
   alias Gallformers.Search.Ranking
@@ -313,6 +326,33 @@ defmodule Gallformers.Species do
       }
     )
     |> Repo.all()
+  end
+
+  @doc """
+  Gets aliases for multiple species in a single query (batch version).
+
+  Returns a map of species_id => [%{id, name, type, description}].
+  """
+  @spec get_aliases_for_species_batch([integer()]) :: %{integer() => [map()]}
+  def get_aliases_for_species_batch([]), do: %{}
+
+  def get_aliases_for_species_batch(species_ids) do
+    from(a in Alias,
+      join: als in "alias_species",
+      on: als.alias_id == a.id,
+      where: als.species_id in ^species_ids,
+      select: %{
+        species_id: als.species_id,
+        id: a.id,
+        name: a.name,
+        type: a.type,
+        description: a.description
+      }
+    )
+    |> Repo.all()
+    |> Enum.group_by(& &1.species_id, fn row ->
+      %{id: row.id, name: row.name, type: row.type, description: row.description}
+    end)
   end
 
   @doc """
@@ -1052,6 +1092,64 @@ defmodule Gallformers.Species do
       select: %{id: s.id, field: field(s, ^field)}
     )
     |> Repo.all()
+  end
+
+  @doc """
+  Gets filter values for multiple gall species in bulk (batch version).
+
+  Returns a map of species_id => %{colors: [...], shapes: [...], ...}.
+  Runs 9 queries total instead of 9 per species.
+  """
+  @spec get_gall_filter_values_batch([integer()]) :: %{integer() => map()}
+  def get_gall_filter_values_batch([]), do: %{}
+
+  def get_gall_filter_values_batch(species_ids) do
+    # Fetch all filter values in 9 bulk queries
+    colors = get_filter_values_batch(species_ids, "gall_color", :color_id, Color, :color)
+    walls = get_filter_values_batch(species_ids, "gall_walls", :walls_id, Walls, :walls)
+    cells = get_filter_values_batch(species_ids, "gall_cells", :cells_id, Cells, :cells)
+    shapes = get_filter_values_batch(species_ids, "gall_shape", :shape_id, Shape, :shape)
+
+    textures =
+      get_filter_values_batch(species_ids, "gall_texture", :texture_id, Texture, :texture)
+
+    alignments =
+      get_filter_values_batch(species_ids, "gall_alignment", :alignment_id, Alignment, :alignment)
+
+    plant_parts =
+      get_filter_values_batch(species_ids, "gall_plant_part", :plant_part_id, PlantPart, :part)
+
+    forms = get_filter_values_batch(species_ids, "gall_form", :form_id, Form, :form)
+    seasons = get_filter_values_batch(species_ids, "gall_season", :season_id, Season, :season)
+
+    # Combine into per-species maps
+    species_ids
+    |> Enum.map(fn id ->
+      {id,
+       %{
+         colors: Map.get(colors, id, []),
+         walls: Map.get(walls, id, []),
+         cells: Map.get(cells, id, []),
+         shapes: Map.get(shapes, id, []),
+         textures: Map.get(textures, id, []),
+         alignments: Map.get(alignments, id, []),
+         plant_parts: Map.get(plant_parts, id, []),
+         forms: Map.get(forms, id, []),
+         seasons: Map.get(seasons, id, [])
+       }}
+    end)
+    |> Enum.into(%{})
+  end
+
+  defp get_filter_values_batch(species_ids, join_table, fk_col, schema, field) do
+    from(j in join_table,
+      join: s in ^schema,
+      on: field(j, ^fk_col) == s.id,
+      where: j.species_id in ^species_ids,
+      select: {j.species_id, field(s, ^field)}
+    )
+    |> Repo.all()
+    |> Enum.group_by(fn {species_id, _val} -> species_id end, fn {_id, val} -> val end)
   end
 
   @doc """

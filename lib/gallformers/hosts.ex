@@ -122,6 +122,31 @@ defmodule Gallformers.Hosts do
   end
 
   @doc """
+  Gets hosts for multiple gall species in a single query (batch version).
+
+  Returns a map of gall_species_id => [%{host_species_id, host_name}].
+  """
+  @spec get_hosts_for_galls([integer()]) :: %{integer() => [map()]}
+  def get_hosts_for_galls([]), do: %{}
+
+  def get_hosts_for_galls(gall_species_ids) do
+    from(h in Host,
+      join: s in Species,
+      on: h.host_species_id == s.id,
+      where: h.gall_species_id in ^gall_species_ids,
+      select: %{
+        gall_species_id: h.gall_species_id,
+        host_species_id: s.id,
+        host_name: s.name
+      }
+    )
+    |> Repo.all()
+    |> Enum.group_by(& &1.gall_species_id, fn row ->
+      %{host_species_id: row.host_species_id, host_name: row.host_name}
+    end)
+  end
+
+  @doc """
   Gets all galls for a host species.
 
   Returns a list of maps with gall info.
@@ -142,6 +167,43 @@ defmodule Gallformers.Hosts do
       }
     )
     |> Repo.all()
+  end
+
+  @doc """
+  Gets galls for multiple host species in a single query (batch version).
+
+  Returns a map of host_species_id => count of galls.
+  This is optimized for counting - returns counts rather than full gall records.
+  """
+  @spec get_gall_counts_for_hosts([integer()]) :: %{integer() => integer()}
+  def get_gall_counts_for_hosts([]), do: %{}
+
+  def get_gall_counts_for_hosts(host_species_ids) do
+    from(h in Host,
+      where: h.host_species_id in ^host_species_ids,
+      group_by: h.host_species_id,
+      select: {h.host_species_id, count(h.id)}
+    )
+    |> Repo.all()
+    |> Enum.into(%{})
+  end
+
+  @doc """
+  Gets host counts for multiple gall species in a single query (batch version).
+
+  Returns a map of gall_species_id => count of hosts.
+  """
+  @spec get_host_counts_for_galls([integer()]) :: %{integer() => integer()}
+  def get_host_counts_for_galls([]), do: %{}
+
+  def get_host_counts_for_galls(gall_species_ids) do
+    from(h in Host,
+      where: h.gall_species_id in ^gall_species_ids,
+      group_by: h.gall_species_id,
+      select: {h.gall_species_id, count(h.id)}
+    )
+    |> Repo.all()
+    |> Enum.into(%{})
   end
 
   @doc """
@@ -196,6 +258,28 @@ defmodule Gallformers.Hosts do
       select: p.code
     )
     |> Repo.all()
+  end
+
+  @doc """
+  Gets place codes for multiple gall species in a single query (batch version).
+
+  Returns a map of gall_species_id => [place_codes].
+  """
+  @spec get_places_for_galls([integer()]) :: %{integer() => [String.t()]}
+  def get_places_for_galls([]), do: %{}
+
+  def get_places_for_galls(gall_species_ids) do
+    from(p in "place",
+      join: hr in "host_range",
+      on: hr.place_id == p.id,
+      join: h in Host,
+      on: h.host_species_id == hr.species_id,
+      where: h.gall_species_id in ^gall_species_ids,
+      distinct: true,
+      select: {h.gall_species_id, p.code}
+    )
+    |> Repo.all()
+    |> Enum.group_by(fn {gall_id, _code} -> gall_id end, fn {_gall_id, code} -> code end)
   end
 
   @doc """

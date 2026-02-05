@@ -327,7 +327,7 @@ defmodule GallformersWeb.API.GallController do
   end
 
   defp get_galls_for_id_tool do
-    # Get all galls with basic info
+    # Get all galls with basic info (1 query)
     galls =
       from(s in SpeciesSchema,
         join: gt in GallTraits,
@@ -344,19 +344,26 @@ defmodule GallformersWeb.API.GallController do
       )
       |> Repo.all()
 
-    # Get default images for all gall species
+    gall_ids = Enum.map(galls, & &1.id)
+
+    # Batch fetch all related data (~14 queries total instead of ~14,645)
     image_map =
       Species.get_default_gall_images()
       |> Enum.into(%{}, fn %{species_id: id, path: path} -> {id, path} end)
 
+    filter_map = Species.get_gall_filter_values_batch(gall_ids)
+    hosts_map = Hosts.get_hosts_for_galls(gall_ids)
+    places_map = Hosts.get_places_for_galls(gall_ids)
+    taxonomy_map = Taxonomy.get_taxonomy_for_species_batch(gall_ids)
+
     base_url = Image.base_url()
 
-    # Build the full response for each gall
+    # Build the full response for each gall (no additional queries)
     Enum.map(galls, fn gall ->
-      filter_fields = build_gall_filter_strings_for_api(gall.id)
-      hosts = Hosts.get_hosts_for_gall(gall.id)
-      places = Hosts.get_places_for_gall(gall.id)
-      taxonomy = Taxonomy.get_taxonomy_for_species(gall.id)
+      filter_fields = Map.get(filter_map, gall.id, %{})
+      hosts = Map.get(hosts_map, gall.id, [])
+      places = Map.get(places_map, gall.id, [])
+      taxonomy = Map.get(taxonomy_map, gall.id)
 
       image_url =
         case Map.get(image_map, gall.id) do
@@ -369,15 +376,15 @@ defmodule GallformersWeb.API.GallController do
         name: gall.name,
         undescribed: gall.undescribed,
         detachable: detachable_to_string(gall.detachable),
-        alignments: filter_fields.alignments,
-        cells: filter_fields.cells,
-        colors: filter_fields.colors,
-        forms: filter_fields.forms,
-        plant_parts: filter_fields.plant_parts,
-        seasons: filter_fields.seasons,
-        shapes: filter_fields.shapes,
-        textures: filter_fields.textures,
-        walls: filter_fields.walls,
+        alignments: Map.get(filter_fields, :alignments, []),
+        cells: Map.get(filter_fields, :cells, []),
+        colors: Map.get(filter_fields, :colors, []),
+        forms: Map.get(filter_fields, :forms, []),
+        plant_parts: Map.get(filter_fields, :plant_parts, []),
+        seasons: Map.get(filter_fields, :seasons, []),
+        shapes: Map.get(filter_fields, :shapes, []),
+        textures: Map.get(filter_fields, :textures, []),
+        walls: Map.get(filter_fields, :walls, []),
         places: places,
         family: (taxonomy && taxonomy.family) || "",
         genus: (taxonomy && taxonomy.genus) || "",
@@ -385,22 +392,6 @@ defmodule GallformersWeb.API.GallController do
         imageUrl: image_url
       }
     end)
-  end
-
-  defp build_gall_filter_strings_for_api(gall_id) do
-    filter_values = Species.get_gall_filter_values(gall_id)
-
-    %{
-      colors: Enum.map(filter_values.colors, & &1.field),
-      shapes: Enum.map(filter_values.shapes, & &1.field),
-      textures: Enum.map(filter_values.textures, & &1.field),
-      plant_parts: Enum.map(filter_values.plant_parts, & &1.field),
-      alignments: Enum.map(filter_values.alignments, & &1.field),
-      walls: Enum.map(filter_values.walls, & &1.field),
-      cells: Enum.map(filter_values.cells, & &1.field),
-      seasons: Enum.map(filter_values.seasons, & &1.field),
-      forms: Enum.map(filter_values.forms, & &1.field)
-    }
   end
 
   # Handle integers (legacy V1 data)

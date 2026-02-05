@@ -137,6 +137,23 @@ defmodule Gallformers.Taxonomy do
   end
 
   @doc """
+  Gets multiple taxonomies by IDs in a single query (batch version).
+
+  Returns a map of id => %{id, name, type, description}.
+  """
+  @spec get_taxonomies_batch([integer()]) :: %{integer() => map()}
+  def get_taxonomies_batch([]), do: %{}
+
+  def get_taxonomies_batch(ids) do
+    from(t in Taxonomy,
+      where: t.id in ^ids,
+      select: {t.id, %{id: t.id, name: t.name, type: t.type, description: t.description}}
+    )
+    |> Repo.all()
+    |> Enum.into(%{})
+  end
+
+  @doc """
   Gets a taxonomy by name and type.
   """
   @spec get_taxonomy_by_name(String.t(), String.t()) :: Taxonomy.t() | nil
@@ -568,6 +585,29 @@ defmodule Gallformers.Taxonomy do
   end
 
   @doc """
+  Gets taxonomy (genus/family) for multiple species in a single query (batch version).
+
+  Returns a map of species_id => %{genus: name, family: name}.
+  This is a simplified version that only fetches genus and family names,
+  suitable for API responses where the full taxonomy details aren't needed.
+  """
+  @spec get_taxonomy_for_species_batch([integer()]) :: %{integer() => map()}
+  def get_taxonomy_for_species_batch([]), do: %{}
+
+  def get_taxonomy_for_species_batch(species_ids) do
+    from(st in "species_taxonomy",
+      join: g in Taxonomy,
+      on: st.taxonomy_id == g.id and g.type == "genus",
+      left_join: family in Taxonomy,
+      on: g.parent_id == family.id,
+      where: st.species_id in ^species_ids,
+      select: {st.species_id, %{genus: g.name, family: family.name}}
+    )
+    |> Repo.all()
+    |> Enum.into(%{})
+  end
+
+  @doc """
   Gets species IDs associated with a genus.
   """
   @spec get_species_ids_for_genus(integer()) :: [integer()]
@@ -577,6 +617,23 @@ defmodule Gallformers.Taxonomy do
       select: st.species_id
     )
     |> Repo.all()
+  end
+
+  @doc """
+  Gets species IDs for multiple genera in a single query (batch version).
+
+  Returns a map of genus_id => [species_ids].
+  """
+  @spec get_species_ids_for_genera([integer()]) :: %{integer() => [integer()]}
+  def get_species_ids_for_genera([]), do: %{}
+
+  def get_species_ids_for_genera(genus_ids) do
+    from(st in "species_taxonomy",
+      where: st.taxonomy_id in ^genus_ids,
+      select: {st.taxonomy_id, st.species_id}
+    )
+    |> Repo.all()
+    |> Enum.group_by(fn {genus_id, _} -> genus_id end, fn {_, species_id} -> species_id end)
   end
 
   @doc """
@@ -881,18 +938,28 @@ defmodule Gallformers.Taxonomy do
   # For each species:
   # 1. Creates a "scientific synonym" alias with the old species name
   # 2. Updates the species name by replacing the old genus with the new genus
+  #
+  # Note: Partially optimized - batch fetches species but still creates synonyms
+  # individually due to the alias+join table insertion pattern.
   defp sync_species_names_on_genus_rename(genus_id, old_genus_name, new_genus_name) do
-    species_ids = get_species_ids_for_genus(genus_id)
+    # Batch fetch all species for this genus (1 query instead of N)
+    species_list =
+      from(s in Species,
+        join: st in "species_taxonomy",
+        on: st.species_id == s.id,
+        where: st.taxonomy_id == ^genus_id,
+        select: s
+      )
+      |> Repo.all()
 
-    for species_id <- species_ids do
-      species = Repo.get!(Species, species_id)
+    for species <- species_list do
       old_species_name = species.name
 
       # Create the new name by replacing the genus portion
       new_species_name = replace_genus_in_name(old_species_name, old_genus_name, new_genus_name)
 
       # Create synonym alias with the old name
-      create_rename_synonym(species_id, old_species_name)
+      create_rename_synonym(species.id, old_species_name)
 
       # Update the species name
       species
@@ -1486,10 +1553,25 @@ defmodule Gallformers.Taxonomy do
   end
 
   # Enriches a list of species with common names and host/gall counts.
+  # Uses batch queries to avoid N+1 (was 2 queries per species, now 3 queries total).
   defp enrich_species_with_common_names_and_counts(species_list) do
+    species_ids = Enum.map(species_list, & &1.id)
+
+    # Batch fetch all aliases (1 query)
+    aliases_map = Gallformers.Species.get_aliases_for_species_batch(species_ids)
+
+    # Separate galls from hosts for counting
+    {galls, hosts} = Enum.split_with(species_list, fn s -> s.taxoncode == "gall" end)
+    gall_ids = Enum.map(galls, & &1.id)
+    host_ids = Enum.map(hosts, & &1.id)
+
+    # Batch fetch counts (2 queries)
+    host_counts = Gallformers.Hosts.get_host_counts_for_galls(gall_ids)
+    gall_counts = Gallformers.Hosts.get_gall_counts_for_hosts(host_ids)
+
     Enum.map(species_list, fn species ->
-      # Get common name (first common alias)
-      aliases = Gallformers.Species.get_aliases_for_species(species.id)
+      # Get common name from pre-fetched aliases
+      aliases = Map.get(aliases_map, species.id, [])
 
       common_name =
         aliases
@@ -1499,11 +1581,11 @@ defmodule Gallformers.Taxonomy do
           alias_record -> alias_record.name
         end
 
-      # Get count based on type
+      # Get count from pre-fetched counts
       count =
         case species.taxoncode do
-          "gall" -> length(Gallformers.Hosts.get_hosts_for_gall(species.id))
-          _ -> length(Gallformers.Hosts.get_galls_for_host(species.id))
+          "gall" -> Map.get(host_counts, species.id, 0)
+          _ -> Map.get(gall_counts, species.id, 0)
         end
 
       species
