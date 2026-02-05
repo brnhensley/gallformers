@@ -708,6 +708,50 @@ This task:
 
 **See**: `lib/mix/tasks/gallformers/update_prod_db.ex` for implementation
 
+## Request Logging
+
+The app logs all HTTP requests to JSON Lines files for incident investigation.
+
+**Location:**
+- **Production**: `/data/logs/requests-YYYY-MM-DD.log` (persistent volume)
+- **Development**: `priv/logs/requests-YYYY-MM-DD.log` (gitignored)
+
+**Log format** (one JSON object per line):
+```json
+{"ts":"2026-02-05T14:32:01Z","method":"GET","path":"/species/123","query":"tab=hosts","status":200,"duration_ms":45,"ip":"1.2.3.4","ua":"Mozilla/5.0..."}
+```
+
+**Retention**: Logs older than 30 days are automatically deleted.
+
+**Retrieving logs from production:**
+```bash
+fly ssh sftp get /data/logs/requests-2026-02-05.log
+```
+
+**Analyzing logs locally:**
+```bash
+# All 500 errors
+cat requests-2026-02-05.log | jq -c 'select(.status >= 500)'
+
+# Slowest requests
+cat requests-2026-02-05.log | jq -s 'sort_by(.duration_ms) | reverse | .[0:10]'
+
+# Requests to a specific path
+cat requests-2026-02-05.log | jq -c 'select(.path | startswith("/api/gall"))'
+
+# Requests from a specific IP
+cat requests-2026-02-05.log | jq -c 'select(.ip == "1.2.3.4")'
+
+# Error rate by path
+cat requests-2026-02-05.log | jq -s 'group_by(.path) | map({path: .[0].path, total: length, errors: [.[] | select(.status >= 400)] | length})'
+```
+
+**Configuration:**
+- `config :gallformers, :request_log_dir` - Override log directory
+- `config :gallformers, :request_logger_enabled` - Disable logging (set `false` in test.exs)
+
+**Implementation**: `lib/gallformers/request_logger.ex` - Attaches to Phoenix telemetry events.
+
 ## Beads Workflow
 
 This project uses **Beads** for issue tracking. See the session startup hook for commands.
