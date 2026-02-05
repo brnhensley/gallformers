@@ -808,7 +808,7 @@ defmodule Gallformers.Taxonomy do
       on: st.taxonomy_id == g.id,
       join: s in Gallformers.Species.Species,
       on: st.species_id == s.id,
-      join: h in Gallformers.Hosts.Host,
+      join: h in Gallformers.GallHosts.GallHost,
       on: h.gall_species_id == s.id,
       where: s.taxoncode == "gall" and f.type == "family" and h.host_species_id == ^host_id,
       group_by: [f.id, f.name],

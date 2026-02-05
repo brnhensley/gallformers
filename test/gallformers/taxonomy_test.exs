@@ -790,9 +790,9 @@ defmodule Gallformers.TaxonomyTest do
   end
 
   describe "delete_taxonomy_cascade/1" do
-    alias Gallformers.Hosts.Host
+    alias Gallformers.GallHosts.GallHost
+    alias Gallformers.Images.Image
     alias Gallformers.Species.GallTraits
-    alias Gallformers.Species.Image
 
     test "deletes family and all descendants in transaction" do
       # Create Family → Genus → Species with various associations
@@ -1040,7 +1040,7 @@ defmodule Gallformers.TaxonomyTest do
 
       # Create host association
       {:ok, host_assoc} =
-        Repo.insert(%Host{
+        Repo.insert(%GallHost{
           gall_species_id: gall_species.id,
           host_species_id: host_species.id
         })
@@ -1050,7 +1050,7 @@ defmodule Gallformers.TaxonomyTest do
 
       # Gall and association deleted
       refute Repo.get(Species, gall_species.id)
-      refute Repo.get(Host, host_assoc.id)
+      refute Repo.get(GallHost, host_assoc.id)
 
       # Host plant still exists
       assert Repo.get(Species, host_species.id)

@@ -20,10 +20,11 @@ defmodule Gallformers.IDTool do
     Walls
   }
 
-  alias Gallformers.Hosts.Host
+  alias Gallformers.GallHosts.GallHost
+  alias Gallformers.Images.Image
   alias Gallformers.Repo
   alias Gallformers.Species
-  alias Gallformers.Species.{GallTraits, Image}
+  alias Gallformers.Species.GallTraits
   alias Gallformers.Species.Species, as: SpeciesSchema
   alias Gallformers.Taxonomy.Taxonomy
 
@@ -179,7 +180,7 @@ defmodule Gallformers.IDTool do
     if Enum.empty?(gall_ids) do
       []
     else
-      from(h in Host,
+      from(h in GallHost,
         join: host_species in Species,
         on: h.host_species_id == host_species.id,
         where: h.gall_species_id in ^gall_ids,
@@ -263,7 +264,7 @@ defmodule Gallformers.IDTool do
 
   defp apply_host_filter(query, host_ids) do
     from [s, gt] in query,
-      join: h in Host,
+      join: h in GallHost,
       on: h.gall_species_id == s.id,
       where: h.host_species_id in ^host_ids
   end
@@ -416,7 +417,7 @@ defmodule Gallformers.IDTool do
   defp apply_place_filter(query, place_codes) do
     # Filter by places where host plants are found, excluding explicit gall exclusions
     from [s, gt] in query,
-      join: h in Host,
+      join: h in GallHost,
       on: h.gall_species_id == s.id,
       join: hr in "host_range",
       on: hr.species_id == h.host_species_id,
@@ -441,7 +442,7 @@ defmodule Gallformers.IDTool do
   # so we need to find galls that occur on hosts belonging to that taxonomy
   defp apply_genus_filter(query, genus_id) do
     from [s, gt] in query,
-      join: h in Host,
+      join: h in GallHost,
       on: h.gall_species_id == s.id,
       join: host_species in SpeciesSchema,
       on: h.host_species_id == host_species.id,

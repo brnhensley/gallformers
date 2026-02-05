@@ -19,10 +19,11 @@ defmodule Gallformers.Species do
     Walls
   }
 
-  alias Gallformers.Hosts.Host
+  alias Gallformers.GallHosts.GallHost
+  alias Gallformers.Images.Image
   alias Gallformers.Repo
   alias Gallformers.Search.Ranking
-  alias Gallformers.Species.{Abundance, Alias, GallTraits, Image, Species}
+  alias Gallformers.Species.{Abundance, Alias, GallTraits, Species}
   require Logger
 
   @doc """
@@ -929,11 +930,11 @@ defmodule Gallformers.Species do
   Associates a host with a gall species.
   """
   @spec add_host_to_species(integer(), integer()) ::
-          {:ok, Gallformers.Hosts.Host.t()} | {:error, Ecto.Changeset.t()}
+          {:ok, Gallformers.GallHosts.GallHost.t()} | {:error, Ecto.Changeset.t()}
   def add_host_to_species(gall_species_id, host_species_id) do
     attrs = %{gall_species_id: gall_species_id, host_species_id: host_species_id}
 
-    case %Host{} |> Host.changeset(attrs) |> Repo.insert() do
+    case %GallHost{} |> GallHost.changeset(attrs) |> Repo.insert() do
       {:ok, host_relation} ->
         broadcast({:ok, %{id: gall_species_id}}, :species_updated)
         {:ok, host_relation}
@@ -948,7 +949,7 @@ defmodule Gallformers.Species do
   """
   @spec remove_host_from_species(integer()) :: {:ok, map()} | {:error, :not_found}
   def remove_host_from_species(host_relation_id) do
-    case Repo.get(Host, host_relation_id) do
+    case Repo.get(GallHost, host_relation_id) do
       nil ->
         {:error, :not_found}
 

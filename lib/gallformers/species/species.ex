@@ -29,15 +29,15 @@ defmodule Gallformers.Species.Species do
 
     belongs_to :abundance, Gallformers.Species.Abundance
 
-    has_many :images, Gallformers.Species.Image
+    has_many :images, Gallformers.Images.Image
     has_one :gall_traits, Gallformers.Species.GallTraits, foreign_key: :species_id
     has_many :species_sources, Gallformers.Species.SpeciesSource
 
     # Host relationships - this species as a gall
-    has_many :host_relations, Gallformers.Hosts.Host, foreign_key: :gall_species_id
+    has_many :host_relations, Gallformers.GallHosts.GallHost, foreign_key: :gall_species_id
 
     # Host relationships - this species as a host plant
-    has_many :gall_relations, Gallformers.Hosts.Host, foreign_key: :host_species_id
+    has_many :gall_relations, Gallformers.GallHosts.GallHost, foreign_key: :host_species_id
 
     many_to_many :aliases, Gallformers.Species.Alias,
       join_through: "alias_species",
