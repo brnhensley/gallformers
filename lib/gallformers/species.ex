@@ -275,33 +275,25 @@ defmodule Gallformers.Species do
   """
   @spec get_default_gall_images() :: [map()]
   def get_default_gall_images do
-    # Get the first image (lowest sort_order) for each gall species
-    # Use a subquery to get the minimum sort_order per species
-    first_image_ids =
-      from(i in Image,
-        join: s in Species,
-        on: i.species_id == s.id,
-        where: s.taxoncode == "gall",
-        group_by: i.species_id,
-        select: %{
-          species_id: i.species_id,
-          min_sort_order: min(i.sort_order)
-        }
-      )
-      |> Repo.all()
-
-    # Get the actual image records for those sort_orders
-    Enum.flat_map(first_image_ids, fn %{species_id: species_id, min_sort_order: min_order} ->
-      from(i in Image,
-        where: i.species_id == ^species_id and i.sort_order == ^min_order,
-        select: %{
-          species_id: i.species_id,
-          path: i.path
-        },
-        limit: 1
-      )
-      |> Repo.all()
-    end)
+    # Get the first image (lowest sort_order) for each gall species in a single query.
+    # Uses a correlated subquery to find images where sort_order equals the minimum
+    # for that species. This avoids N+1 queries (was causing connection pool exhaustion).
+    from(i in Image,
+      join: s in Species,
+      on: i.species_id == s.id,
+      where: s.taxoncode == "gall",
+      where:
+        fragment(
+          "? = (SELECT MIN(i2.sort_order) FROM image i2 WHERE i2.species_id = ?)",
+          i.sort_order,
+          i.species_id
+        ),
+      select: %{
+        species_id: i.species_id,
+        path: i.path
+      }
+    )
+    |> Repo.all()
   end
 
   @doc """
