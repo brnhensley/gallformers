@@ -654,7 +654,7 @@ defmodule GallformersWeb.HostLive do
         id="source-detail-modal"
         show={true}
         on_cancel={JS.push("close_source_modal")}
-        style="max-width: 48rem;"
+        class="max-w-3xl"
       >
         <:header>
           <div class="flex items-center justify-between w-full pr-8">

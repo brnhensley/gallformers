@@ -823,7 +823,7 @@ defmodule GallformersWeb.Admin.ImagesLive do
           id="view-modal"
           show
           on_cancel={JS.push("cancel_view")}
-          style="max-width: 80rem;"
+          class="max-w-7xl"
         >
           <:header>{@selected_species.name}</:header>
           <:body>
