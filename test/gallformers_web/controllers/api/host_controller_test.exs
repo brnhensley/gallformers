@@ -4,7 +4,7 @@ defmodule GallformersWeb.API.HostControllerTest do
   """
   use GallformersWeb.ConnCase
 
-  alias Gallformers.Hosts
+  alias Gallformers.Species.Plants
 
   describe "GET /api/v2/hosts" do
     test "returns list of hosts", %{conn: conn} do
@@ -68,7 +68,7 @@ defmodule GallformersWeb.API.HostControllerTest do
 
   describe "GET /api/v2/hosts/:id" do
     test "returns host details for valid ID", %{conn: conn} do
-      hosts = Hosts.list_hosts()
+      hosts = Plants.list_hosts()
 
       if length(hosts) > 0 do
         host = hd(hosts)
@@ -97,7 +97,7 @@ defmodule GallformersWeb.API.HostControllerTest do
     end
 
     test "returns host with gall count", %{conn: conn} do
-      hosts = Hosts.list_hosts()
+      hosts = Plants.list_hosts()
 
       if length(hosts) > 0 do
         host = hd(hosts)

@@ -5,6 +5,8 @@ defmodule GallformersWeb.E2E.BrowseTest do
   """
   use GallformersWeb.E2ECase
 
+  alias Gallformers.Species.Plants
+
   @moduletag :e2e
   @moduletag :e2e_browse
 
@@ -36,7 +38,7 @@ defmodule GallformersWeb.E2E.BrowseTest do
   describe "host detail page" do
     test "loads for valid host ID", %{session: session} do
       # Get a valid host ID from the database
-      hosts = Gallformers.Hosts.list_hosts()
+      hosts = Plants.list_hosts()
 
       if length(hosts) > 0 do
         host = hd(hosts)
@@ -65,11 +67,11 @@ defmodule GallformersWeb.E2E.BrowseTest do
 
       gall_with_host =
         Enum.find(galls, fn g ->
-          length(Gallformers.Hosts.get_hosts_for_gall(g.id)) > 0
+          length(Gallformers.GallHosts.get_hosts_for_gall(g.id)) > 0
         end)
 
       if gall_with_host do
-        hosts = Gallformers.Hosts.get_hosts_for_gall(gall_with_host.id)
+        hosts = Gallformers.GallHosts.get_hosts_for_gall(gall_with_host.id)
         host = hd(hosts)
         # Note: get_hosts_for_gall returns maps with :host_name key, not :name
         host_name = host.host_name

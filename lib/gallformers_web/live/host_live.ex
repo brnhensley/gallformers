@@ -7,8 +7,9 @@ defmodule GallformersWeb.HostLive do
   """
   use GallformersWeb, :live_view
 
-  alias Gallformers.{Hosts, Markdown, Sources, Species, Taxonomy}
+  alias Gallformers.{GallHosts, Markdown, Ranges, Sources, Species, Taxonomy}
   alias Gallformers.Images.Image
+  alias Gallformers.Species.Plants
   alias GallformersWeb.SEO
 
   @page_size 10
@@ -39,7 +40,7 @@ defmodule GallformersWeb.HostLive do
   end
 
   defp load_host(socket, host_id) do
-    case Hosts.get_host(host_id) do
+    case Plants.get_host(host_id) do
       nil ->
         {:ok,
          assign(socket,
@@ -55,12 +56,12 @@ defmodule GallformersWeb.HostLive do
          )}
 
       host ->
-        galls = Hosts.get_galls_for_host(host_id) |> Enum.sort_by(& &1.name)
+        galls = GallHosts.get_galls_for_host(host_id) |> Enum.sort_by(& &1.name)
         images = Species.get_images_for_species(host_id) |> format_images()
         sources = Sources.get_sources_for_species(host_id)
         aliases = Species.get_aliases_for_species(host_id)
         taxonomy = get_taxonomy_info(host_id)
-        range = Hosts.get_places_for_host(host_id) |> MapSet.new()
+        range = Ranges.get_places_for_host(host_id) |> MapSet.new()
 
         # Check if Gallformers notes exist for this species
         gallformers_notes = Enum.find(sources, fn s -> s.id == @gallformers_notes_source_id end)

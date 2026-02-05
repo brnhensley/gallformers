@@ -709,7 +709,7 @@ defmodule Gallformers.Species do
 
     if species do
       aliases = get_aliases_for_species(id)
-      hosts = Gallformers.Hosts.get_hosts_for_gall(id)
+      hosts = Gallformers.GallHosts.get_hosts_for_gall(id)
       taxonomy = Gallformers.Taxonomy.get_taxonomy_for_species(id)
 
       %{

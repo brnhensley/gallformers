@@ -7,7 +7,8 @@ defmodule GallformersWeb.AboutLive do
   use GallformersWeb, :live_view
 
   import Ecto.Query
-  alias Gallformers.{Accounts, Hosts, Repo, Sources, Species, Version}
+  alias Gallformers.{Accounts, Repo, Sources, Species, Version}
+  alias Gallformers.Species.Plants
   alias Gallformers.Taxonomy.Taxonomy
 
   @impl true
@@ -40,7 +41,7 @@ defmodule GallformersWeb.AboutLive do
   defp get_site_stats do
     %{
       galls: Species.count_galls(),
-      hosts: Hosts.count_hosts(),
+      hosts: Plants.count_hosts(),
       sources: Sources.count_sources(),
       gall_families: count_families_for_taxoncode("gall"),
       gall_genera: count_genera_for_taxoncode("gall"),

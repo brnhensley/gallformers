@@ -10,7 +10,8 @@ defmodule GallformersWeb.HomeLive do
   """
   use GallformersWeb, :live_view
 
-  alias Gallformers.{Hosts, Images, Sources, Species}
+  alias Gallformers.{Images, Sources, Species}
+  alias Gallformers.Species.Plants
 
   @impl true
   def mount(_params, _session, socket) do
@@ -42,7 +43,7 @@ defmodule GallformersWeb.HomeLive do
   defp fetch_stats do
     %{
       galls: Species.count_galls(),
-      hosts: Hosts.count_hosts(),
+      hosts: Plants.count_hosts(),
       sources: Sources.count_sources(),
       images: Images.count_images()
     }
@@ -73,7 +74,7 @@ defmodule GallformersWeb.HomeLive do
   def handle_event("search_host", %{"value" => query}, socket) do
     results =
       if String.length(query) >= 2 do
-        Hosts.search_hosts(query, 8)
+        Plants.search_hosts(query, 8)
       else
         []
       end
@@ -83,7 +84,7 @@ defmodule GallformersWeb.HomeLive do
 
   @impl true
   def handle_event("select_host", %{"id" => id_str}, socket) do
-    host = Hosts.get_host(String.to_integer(id_str))
+    host = Plants.get_host(String.to_integer(id_str))
 
     # On home page, selecting a host immediately navigates to ID page
     {:noreply, push_navigate(socket, to: ~p"/id?h=#{host.name}")}

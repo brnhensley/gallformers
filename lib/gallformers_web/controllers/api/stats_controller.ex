@@ -8,7 +8,8 @@ defmodule GallformersWeb.API.StatsController do
   use GallformersWeb, :controller
   use OpenApiSpex.ControllerSpecs
 
-  alias Gallformers.{Glossaries, Hosts, Images, Sources, Species}
+  alias Gallformers.{Glossaries, Images, Sources, Species}
+  alias Gallformers.Species.Plants
   alias GallformersWeb.Schemas
 
   tags(["Stats"])
@@ -28,7 +29,7 @@ defmodule GallformersWeb.API.StatsController do
   def index(conn, _params) do
     stats = %{
       galls: Species.count_galls(),
-      hosts: Hosts.count_hosts(),
+      hosts: Plants.count_hosts(),
       sources: Sources.count_sources(),
       glossary: Glossaries.count_glossary(),
       undescribed_galls: Species.count_undescribed_galls(),

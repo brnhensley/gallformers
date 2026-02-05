@@ -37,7 +37,7 @@ defmodule GallformersWeb.GallLiveTest do
       # Find a gall that has hosts
       gall_with_host =
         Enum.find(galls, fn g ->
-          length(Gallformers.Hosts.get_hosts_for_gall(g.id)) > 0
+          length(Gallformers.GallHosts.get_hosts_for_gall(g.id)) > 0
         end)
 
       if gall_with_host do
@@ -164,7 +164,7 @@ defmodule GallformersWeb.GallLiveTest do
 
       gall_with_host =
         Enum.find(galls, fn g ->
-          length(Gallformers.Hosts.get_hosts_for_gall(g.id)) > 0
+          length(Gallformers.GallHosts.get_hosts_for_gall(g.id)) > 0
         end)
 
       if gall_with_host do

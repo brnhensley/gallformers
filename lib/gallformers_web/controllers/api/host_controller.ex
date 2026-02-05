@@ -6,7 +6,8 @@ defmodule GallformersWeb.API.HostController do
   use GallformersWeb, :controller
   use OpenApiSpex.ControllerSpecs
 
-  alias Gallformers.{Hosts, Search}
+  alias Gallformers.{GallHosts, Ranges, Search}
+  alias Gallformers.Species.Plants
   alias GallformersWeb.Schemas
 
   tags(["Hosts"])
@@ -39,12 +40,12 @@ defmodule GallformersWeb.API.HostController do
     {hosts, total} =
       case {query, limit} do
         {nil, nil} ->
-          all = Hosts.list_hosts()
+          all = Plants.list_hosts()
           {all, length(all)}
 
         {nil, limit} ->
-          total = Hosts.count_hosts()
-          paginated = Hosts.list_hosts_paginated(limit, offset)
+          total = Plants.count_hosts()
+          paginated = Plants.list_hosts_paginated(limit, offset)
           {paginated, total}
 
         {query, nil} ->
@@ -110,7 +111,7 @@ defmodule GallformersWeb.API.HostController do
   end
 
   defp fetch_host(id) do
-    case Hosts.get_host(id) do
+    case Plants.get_host(id) do
       nil -> {:error, :not_found}
       host -> {:ok, host}
     end
@@ -143,7 +144,7 @@ defmodule GallformersWeb.API.HostController do
   end
 
   defp host_to_simple_response(host) do
-    places = Hosts.get_places_for_host(host.id)
+    places = Ranges.get_places_for_host(host.id)
 
     %{
       id: host.id,
@@ -155,8 +156,8 @@ defmodule GallformersWeb.API.HostController do
   end
 
   defp host_to_full_response(host) do
-    places = Hosts.get_places_for_host(host.id)
-    galls = Hosts.get_galls_for_host(host.id)
+    places = Ranges.get_places_for_host(host.id)
+    galls = GallHosts.get_galls_for_host(host.id)
 
     %{
       id: host.id,

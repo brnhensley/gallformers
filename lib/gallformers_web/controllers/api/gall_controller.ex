@@ -8,7 +8,7 @@ defmodule GallformersWeb.API.GallController do
 
   import Ecto.Query
 
-  alias Gallformers.{Hosts, Repo, Search, Species, Taxonomy}
+  alias Gallformers.{GallHosts, Ranges, Repo, Search, Species, Taxonomy}
   alias Gallformers.Images.Image
   alias Gallformers.Species.GallTraits
   alias Gallformers.Species.Species, as: SpeciesSchema
@@ -289,10 +289,10 @@ defmodule GallformersWeb.API.GallController do
 
   defp gall_to_full_response(gall) do
     aliases = Species.get_aliases_for_species(gall.id)
-    hosts = Hosts.get_hosts_for_gall(gall.id)
+    hosts = GallHosts.get_hosts_for_gall(gall.id)
     filter_fields = Species.get_gall_filter_values(gall.id)
-    places = Hosts.get_places_for_gall(gall.id)
-    excluded_places = Hosts.get_excluded_places_for_gall(gall.id)
+    places = Ranges.get_places_for_gall(gall.id)
+    excluded_places = Ranges.get_excluded_places_for_gall(gall.id)
 
     %{
       id: gall.id,
@@ -353,8 +353,8 @@ defmodule GallformersWeb.API.GallController do
       |> Enum.into(%{}, fn %{species_id: id, path: path} -> {id, path} end)
 
     filter_map = Species.get_gall_filter_values_batch(gall_ids)
-    hosts_map = Hosts.get_hosts_for_galls(gall_ids)
-    places_map = Hosts.get_places_for_galls(gall_ids)
+    hosts_map = GallHosts.get_hosts_for_galls(gall_ids)
+    places_map = Ranges.get_places_for_galls(gall_ids)
     taxonomy_map = Taxonomy.get_taxonomy_for_species_batch(gall_ids)
 
     base_url = Image.base_url()

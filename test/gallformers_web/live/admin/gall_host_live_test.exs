@@ -13,8 +13,10 @@ defmodule GallformersWeb.Admin.GallHostLiveTest do
   import Phoenix.LiveViewTest
 
   alias Gallformers.Accounts.Auth0User
-  alias Gallformers.Hosts
+  alias Gallformers.GallHosts
+  alias Gallformers.Ranges
   alias Gallformers.Species
+  alias Gallformers.Species.Plants
 
   # Helper to set up admin session
   defp setup_admin_session(conn) do
@@ -37,7 +39,7 @@ defmodule GallformersWeb.Admin.GallHostLiveTest do
     galls = Species.list_galls()
 
     Enum.find(galls, fn g ->
-      length(Hosts.get_hosts_for_gall(g.id)) > 0
+      length(GallHosts.get_hosts_for_gall(g.id)) > 0
     end)
   end
 
@@ -46,13 +48,13 @@ defmodule GallformersWeb.Admin.GallHostLiveTest do
     galls = Species.list_galls()
 
     Enum.find(galls, fn g ->
-      length(Hosts.get_hosts_for_gall(g.id)) == 0
+      length(GallHosts.get_hosts_for_gall(g.id)) == 0
     end)
   end
 
   # Helper to find a host (plant) for testing
   defp find_host do
-    hosts = Hosts.list_hosts()
+    hosts = Plants.list_hosts()
     if length(hosts) > 0, do: hd(hosts), else: nil
   end
 
@@ -265,7 +267,7 @@ defmodule GallformersWeb.Admin.GallHostLiveTest do
       gall = find_gall_with_hosts()
 
       if gall do
-        hosts = Hosts.get_hosts_for_gall(gall.id)
+        hosts = GallHosts.get_hosts_for_gall(gall.id)
 
         if length(hosts) > 0 do
           existing_host = hd(hosts)
@@ -286,7 +288,7 @@ defmodule GallformersWeb.Admin.GallHostLiveTest do
       gall = find_gall_with_hosts()
 
       if gall do
-        hosts = Hosts.get_hosts_for_gall(gall.id)
+        hosts = GallHosts.get_hosts_for_gall(gall.id)
 
         if length(hosts) > 0 do
           host_to_remove = hd(hosts)
@@ -336,7 +338,7 @@ defmodule GallformersWeb.Admin.GallHostLiveTest do
       gall = find_gall_with_hosts()
 
       if gall do
-        host_places = Hosts.get_places_for_gall(gall.id)
+        host_places = Ranges.get_places_for_gall(gall.id)
 
         if length(host_places) > 0 do
           place_code = hd(host_places)

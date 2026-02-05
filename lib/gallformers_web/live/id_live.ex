@@ -7,7 +7,8 @@ defmodule GallformersWeb.IDLive do
   """
   use GallformersWeb, :live_view
 
-  alias Gallformers.{GallSummary, Hosts, IDTool, Places, Taxonomy}
+  alias Gallformers.{GallSummary, IDTool, Places, Taxonomy}
+  alias Gallformers.Species.Plants
 
   # URL parameter keys (short codes for compact URLs)
   @url_params %{
@@ -195,7 +196,7 @@ defmodule GallformersWeb.IDLive do
     case decode_url_param(params[@url_params.host]) do
       nil -> nil
       "" -> nil
-      name -> Hosts.get_host_by_name(name)
+      name -> Plants.get_host_by_name(name)
     end
   end
 
@@ -265,7 +266,7 @@ defmodule GallformersWeb.IDLive do
   def handle_event("search_host", %{"value" => query}, socket) do
     results =
       if String.length(query) >= 2 do
-        Hosts.search_hosts(query, 10)
+        Plants.search_hosts(query, 10)
       else
         []
       end
@@ -276,7 +277,7 @@ defmodule GallformersWeb.IDLive do
   @impl true
   def handle_event("select_host", %{"id" => id_str}, socket) do
     host_id = String.to_integer(id_str)
-    host = Hosts.get_host(host_id)
+    host = Plants.get_host(host_id)
 
     socket =
       socket

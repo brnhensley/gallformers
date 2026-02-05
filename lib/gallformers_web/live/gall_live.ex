@@ -7,7 +7,7 @@ defmodule GallformersWeb.GallLive do
   """
   use GallformersWeb, :live_view
 
-  alias Gallformers.{GallSummary, Hosts, Markdown, Sources, Species, Taxonomy}
+  alias Gallformers.{GallHosts, GallSummary, Markdown, Ranges, Sources, Species, Taxonomy}
   alias Gallformers.Images.Image
   alias GallformersWeb.SEO
 
@@ -63,13 +63,13 @@ defmodule GallformersWeb.GallLive do
          )}
 
       gall ->
-        hosts = Hosts.get_hosts_for_gall(gall_id) |> Enum.sort_by(& &1.host_name)
+        hosts = GallHosts.get_hosts_for_gall(gall_id) |> Enum.sort_by(& &1.host_name)
         images = Species.get_images_for_species(gall_id) |> format_images()
         sources = Sources.get_sources_for_species(gall_id)
         aliases = Species.get_aliases_for_species(gall_id)
         taxonomy = get_taxonomy_info(gall_id)
-        range = Hosts.get_places_for_gall(gall_id) |> MapSet.new()
-        excluded_range = Hosts.get_excluded_places_for_gall(gall_id) |> MapSet.new()
+        range = Ranges.get_places_for_gall(gall_id) |> MapSet.new()
+        excluded_range = Ranges.get_excluded_places_for_gall(gall_id) |> MapSet.new()
         gall_filters = Gallformers.Species.get_gall_filter_values(gall_id)
         related_galls = Species.get_related_galls(gall)
 

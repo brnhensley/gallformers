@@ -14,8 +14,8 @@ defmodule GallformersWeb.Admin.GallLive.FormTest do
   import Phoenix.LiveViewTest
 
   alias Gallformers.Accounts.Auth0User
-  alias Gallformers.Hosts
   alias Gallformers.Species
+  alias Gallformers.Species.Plants
 
   # Helper to set up admin session
   defp setup_admin_session(conn) do
@@ -43,7 +43,7 @@ defmodule GallformersWeb.Admin.GallLive.FormTest do
 
   # Helper to find any host for testing - fails explicitly if no data
   defp require_host do
-    case Hosts.list_hosts() do
+    case Plants.list_hosts() do
       [host | _] -> host
       [] -> flunk("No host found in test database - ensure test fixtures exist")
     end

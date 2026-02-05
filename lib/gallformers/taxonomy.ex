@@ -1566,8 +1566,8 @@ defmodule Gallformers.Taxonomy do
     host_ids = Enum.map(hosts, & &1.id)
 
     # Batch fetch counts (2 queries)
-    host_counts = Gallformers.Hosts.get_host_counts_for_galls(gall_ids)
-    gall_counts = Gallformers.Hosts.get_gall_counts_for_hosts(host_ids)
+    host_counts = Gallformers.GallHosts.get_host_counts_for_galls(gall_ids)
+    gall_counts = Gallformers.GallHosts.get_gall_counts_for_hosts(host_ids)
 
     Enum.map(species_list, fn species ->
       # Get common name from pre-fetched aliases
