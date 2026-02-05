@@ -170,7 +170,7 @@ Gallformers (gallformers.org) is a comprehensive online database and reference g
 ## Tech Stack
 
 - **Phoenix 1.8** with LiveView - Full-stack web framework
-- **Ecto** with ecto_sqlite3 - Database ORM
+- **Ecto** with ecto_sqlite3 - Database ORM (see "Ecto & Query Patterns" for usage guidelines)
 - **SQLite** - Database
 - **Tailwind CSS v4** - Styling
 - **Fly.io** - Production hosting
@@ -348,6 +348,7 @@ end
 
 - **Local dev**: `priv/gallformers.sqlite` (not committed)
 - **Production**: Fly.io volume at `/data/gallformers.sqlite`
+- **Query patterns**: See "Ecto & Query Patterns" section below
 
 ### Getting the Database
 
@@ -542,6 +543,77 @@ distinct: t.id
 
 # CORRECT - SQLite compatible (use group_by instead)
 group_by: [t.id, t.name]
+```
+
+## Ecto & Query Patterns
+
+**For refactoring or new DB code**: Load `prompts/ecto-refactor.md` for full guidance with mandatory checkpoints.
+
+### Core Principles
+
+1. **Use preloads, not manual joins** - Schema associations exist; use `Repo.preload/2`
+2. **Return structs, not maps** - Maps lose preloadability; transform at boundaries (controller/view)
+3. **No parallel single/batch functions** - If you need `get_x/1` AND `get_x_batch/1`, the design is wrong
+4. **Count your queries** - Know the query count before and after any change
+5. **Contexts own domains, not tables** - Gall-specific logic belongs in a Galls context, not Species
+
+### Schema Associations (USE THESE)
+
+**Species** (`lib/gallformers/species/species.ex`):
+```elixir
+has_many :images                    # Species.Image
+has_one :gall_traits                # Species.GallTraits
+has_many :host_relations            # Hosts.Host (this species as gall)
+has_many :gall_relations            # Hosts.Host (this species as host)
+many_to_many :aliases               # via alias_species
+many_to_many :taxonomies            # via species_taxonomy
+many_to_many :host_ranges           # via host_range (places)
+```
+
+**Taxonomy** (`lib/gallformers/taxonomy/taxonomy.ex`):
+```elixir
+belongs_to :parent                  # Self-referential
+has_many :children                  # Self-referential
+many_to_many :species               # via species_taxonomy
+```
+
+### Red Flags - STOP and Discuss
+
+| Pattern | Problem |
+|---------|---------|
+| `Enum.map(items, &get_X(&1.id))` | N+1 - must batch or preload |
+| `from(x in "table_name", ...)` | Missing schema - should use association |
+| Function returns map with `:id` | Loses preloadability |
+| `get_X/1` and `get_X_batch/1` both exist | Design smell - preloads should unify |
+| Manual join on junction table | Association likely exists |
+| 1000+ line context module | God context - needs splitting |
+
+### Known Issues (Technical Debt)
+
+- `Species` context is 1300+ lines - gall logic should extract to `Galls` context
+- `get_gall_filter_values/1` runs 9 queries - should consolidate
+- `GallController.gall_to_response/1` has N+1 on aliases
+- Many functions return maps instead of preloadable structs
+
+### Query Pattern Examples
+
+```elixir
+# WRONG: Manual assembly (4 queries)
+def get_host_for_edit(id) do
+  host = get_host(id)
+  taxonomy = Taxonomy.get_taxonomy_for_species(id)
+  places = get_places_for_host(id)
+  aliases = get_aliases_for_host(id)
+  Map.merge(host, %{taxonomy: taxonomy, places: places, aliases: aliases})
+end
+
+# RIGHT: Preload (1-2 queries)
+def get_host_for_edit(id) do
+  Species
+  |> where([s], s.id == ^id and s.taxoncode == "plant")
+  |> preload([:aliases, :host_ranges, taxonomies: :parent])
+  |> Repo.one()
+end
 ```
 
 ## PubSub / Real-time Updates

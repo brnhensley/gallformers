@@ -14,9 +14,9 @@ defmodule GallformersWeb.Admin.ImageAuditLive do
 
   alias Gallformers.Images
   alias Gallformers.Images.AuditCache
+  alias Gallformers.Images.Image
   alias Gallformers.Licenses
   alias Gallformers.Sources
-  alias Gallformers.Species.Image
 
   @per_page 50
 

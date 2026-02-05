@@ -8,6 +8,7 @@ defmodule GallformersWeb.GallLive do
   use GallformersWeb, :live_view
 
   alias Gallformers.{GallSummary, Hosts, Markdown, Sources, Species, Taxonomy}
+  alias Gallformers.Images.Image
   alias GallformersWeb.SEO
 
   @aliases_page_size 10
@@ -146,7 +147,7 @@ defmodule GallformersWeb.GallLive do
   end
 
   defp format_images(images) do
-    base_url = Species.Image.base_url()
+    base_url = Image.base_url()
 
     Enum.map(images, fn img ->
       # Replace "original" with size name in the path

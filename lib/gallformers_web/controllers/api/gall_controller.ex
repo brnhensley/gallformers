@@ -9,7 +9,8 @@ defmodule GallformersWeb.API.GallController do
   import Ecto.Query
 
   alias Gallformers.{Hosts, Repo, Search, Species, Taxonomy}
-  alias Gallformers.Species.{GallTraits, Image}
+  alias Gallformers.Images.Image
+  alias Gallformers.Species.GallTraits
   alias Gallformers.Species.Species, as: SpeciesSchema
   alias GallformersWeb.Schemas
 

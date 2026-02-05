@@ -5,7 +5,7 @@ defmodule Gallformers.ImagesTest do
   use Gallformers.DataCase, async: false
 
   alias Gallformers.Images
-  alias Gallformers.Species.Image
+  alias Gallformers.Images.Image
 
   describe "parse_species_id_from_path/1" do
     test "extracts species_id from valid gall path" do

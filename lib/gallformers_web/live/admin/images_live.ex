@@ -15,9 +15,9 @@ defmodule GallformersWeb.Admin.ImagesLive do
   require Logger
 
   alias Gallformers.Images
+  alias Gallformers.Images.Image
   alias Gallformers.Licenses
   alias Gallformers.Sources
-  alias Gallformers.Species.Image
 
   @impl true
   def mount(_params, session, socket) do
