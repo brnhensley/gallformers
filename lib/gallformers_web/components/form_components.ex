@@ -473,7 +473,7 @@ defmodule GallformersWeb.FormComponents do
             class={["gf-multi-select-dropdown", @is_md && "gf-multi-select-dropdown-md"]}
           >
             <button
-              :for={opt <- Enum.take(@available, 10)}
+              :for={opt <- @available}
               type="button"
               data-typeahead-option
               phx-click={@on_add}
