@@ -530,12 +530,7 @@ defmodule GallformersWeb.IDLive do
   def handle_event("clear_all", _params, socket) do
     socket =
       socket
-      |> assign(
-        filters: default_filters(),
-        selected_host: nil,
-        selected_genus: nil,
-        families: []
-      )
+      |> assign(filters: default_filters())
       |> push_filter_patch()
 
     {:noreply, socket}
@@ -837,13 +832,9 @@ defmodule GallformersWeb.IDLive do
             >
               {if @show_advanced, do: "Hide Advanced Filters", else: "Show Advanced Filters"}
             </button>
-            <button
-              type="button"
-              phx-click="clear_all"
-              class="text-sm text-red-600 hover:underline"
-            >
-              Clear All Filters
-            </button>
+            <.button type="button" phx-click="clear_all" variant="danger" size="sm">
+              Clear Filters
+            </.button>
           </div>
 
           <%!-- Advanced Filters (Collapsible) --%>

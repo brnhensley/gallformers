@@ -180,9 +180,9 @@ defmodule GallformersWeb.IDLiveTest do
       end
     end
 
-    test "clear_all event resets all filters", %{conn: conn, host: host} do
+    test "clear_all event resets filters but preserves host selection", %{conn: conn, host: host} do
       if host do
-        # Start with some filters
+        # Start with a host and some filters
         {:ok, view, _html} = live(conn, ~p"/id?h=#{URI.encode(host.name)}&de=integral&lo=1")
 
         # Click clear all
@@ -190,9 +190,10 @@ defmodule GallformersWeb.IDLiveTest do
         |> element("button[phx-click='clear_all']")
         |> render_click()
 
-        # Should redirect to clean URL
+        # Host should still be selected, but filters cleared
         html = render(view)
-        assert html =~ "Select a Host" or html =~ "Search hosts"
+        assert html =~ host.name
+        refute html =~ "de=integral"
       end
     end
   end
