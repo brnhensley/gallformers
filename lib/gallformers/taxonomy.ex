@@ -201,6 +201,23 @@ defmodule Gallformers.Taxonomy do
   end
 
   @doc """
+  Gets children for multiple parent taxonomy IDs in a single query.
+
+  Returns a map of parent_id => [children].
+  """
+  @spec get_children_for_parents([integer()]) :: %{integer() => [Taxonomy.t()]}
+  def get_children_for_parents([]), do: %{}
+
+  def get_children_for_parents(parent_ids) do
+    from(t in Taxonomy,
+      where: t.parent_id in ^parent_ids,
+      order_by: t.name
+    )
+    |> Repo.all()
+    |> Enum.group_by(& &1.parent_id)
+  end
+
+  @doc """
   Extracts the genus name from a species name (first word before space).
 
   ## Examples

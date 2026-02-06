@@ -84,12 +84,12 @@ defmodule Gallformers.Places do
   end
 
   @doc """
-  Returns all places ordered by name.
+  Returns all places ordered by type then name.
   """
   @spec list_all_places() :: [Place.t()]
   def list_all_places do
     from(p in Place,
-      order_by: p.name
+      order_by: [p.type, p.name]
     )
     |> Repo.all()
   end

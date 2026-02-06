@@ -93,6 +93,25 @@ defmodule Gallformers.Ranges do
     |> Repo.all()
   end
 
+  @doc """
+  Gets places for multiple hosts in a single query, grouped by host species ID.
+
+  Returns a map of species_id => [place_code].
+  """
+  @spec get_places_for_hosts([integer()]) :: %{integer() => [String.t()]}
+  def get_places_for_hosts([]), do: %{}
+
+  def get_places_for_hosts(host_species_ids) do
+    from(hr in HostRange,
+      join: p in "place",
+      on: hr.place_id == p.id,
+      where: hr.species_id in ^host_species_ids,
+      select: {hr.species_id, p.code}
+    )
+    |> Repo.all()
+    |> Enum.group_by(fn {id, _code} -> id end, fn {_id, code} -> code end)
+  end
+
   # ============================================
   # Host Range Management
   # ============================================
