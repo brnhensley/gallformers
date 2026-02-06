@@ -354,6 +354,13 @@ const Typeahead = {
     if (this.input && !this.input._typeaheadListener) {
       this.input._typeaheadListener = true
       this.input.addEventListener("keydown", this.inputHandler)
+      // Listen for paste/autofill via the input event (phx-keyup misses these)
+      this.input.addEventListener("input", () => {
+        const searchEvent = this.el.dataset.searchEvent
+        if (searchEvent) {
+          this.pushEvent(searchEvent, {value: this.input.value})
+        }
+      })
     }
 
     // Attach selected container listener if not already attached
@@ -457,11 +464,24 @@ const Typeahead = {
   }
 }
 
+// Generic hook that pushes an event on the DOM "input" event (catches paste, autofill, etc.)
+// Usage: <input phx-hook="InputEvent" data-event="update_rename_value" />
+const InputEvent = {
+  mounted() {
+    this.el.addEventListener("input", () => {
+      const event = this.el.dataset.event
+      if (event) {
+        this.pushEvent(event, {value: this.el.value})
+      }
+    })
+  }
+}
+
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {Tabs, ImageGallery, RangeMap, ImageUpload, SortableImages, AutoDismiss, Typeahead, ArticleImageUpload, CopyToClipboard, DailyChart},
+  hooks: {Tabs, ImageGallery, RangeMap, ImageUpload, SortableImages, AutoDismiss, Typeahead, ArticleImageUpload, CopyToClipboard, DailyChart, InputEvent},
 })
 
 // Show progress bar on live navigation and form submits

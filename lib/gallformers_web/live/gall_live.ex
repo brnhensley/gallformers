@@ -7,7 +7,7 @@ defmodule GallformersWeb.GallLive do
   """
   use GallformersWeb, :live_view
 
-  alias Gallformers.{GallHosts, Galls, Markdown, Ranges, Sources, Species, Taxonomy}
+  alias Gallformers.{GallHosts, Galls, Glossaries, Markdown, Ranges, Sources, Species, Taxonomy}
   alias Gallformers.Images.Image
   alias GallformersWeb.SEO
 
@@ -23,6 +23,9 @@ defmodule GallformersWeb.GallLive do
 
   # Gallformers Notes source ID (same as V1)
   @gallformers_notes_source_id 58
+
+  # Regex to extract generation qualifier from species names like "Callirhytis furva (agamic)"
+  @generation_re ~r/^(.+?)\s+\((agamic|sexgen|sexual)\)$/
 
   @impl true
   def mount(%{"id" => id}, _session, socket) do
@@ -86,6 +89,10 @@ defmodule GallformersWeb.GallLive do
         gall_filters = Galls.get_gall_filter_values(gall_id)
         related_galls = Galls.get_related_galls(gall)
 
+        # Parse generation qualifier (agamic/sexgen/sexual) and fetch glossary definition
+        {base_name, generation_term, glossary_word, generation_definition} =
+          parse_generation_term(gall.name)
+
         # Separate common names from scientific synonyms
         common_names = Enum.filter(aliases, &(&1.type == "common"))
         scientific_aliases = Enum.reject(aliases, &(&1.type == "common"))
@@ -119,6 +126,10 @@ defmodule GallformersWeb.GallLive do
            page_json_ld: json_ld,
            page_noindex: false,
            gall: Map.merge(gall, %{hosts: hosts, aliases: aliases}),
+           base_name: base_name,
+           generation_term: generation_term,
+           glossary_word: glossary_word,
+           generation_definition: generation_definition,
            gall_filters: gall_filters,
            images: images,
            sources: sources,
@@ -197,6 +208,21 @@ defmodule GallformersWeb.GallLive do
   end
 
   defp get_gallformers_code(species_name, _), do: species_name
+
+  # Parses generation qualifier from species name and fetches glossary definition.
+  # Returns {base_name, term, glossary_word, definition} or {full_name, nil, nil, nil}.
+  defp parse_generation_term(name) do
+    case Regex.run(@generation_re, name) do
+      [_full, base_name, term] ->
+        # "sexgen" and "sexual" both refer to the glossary entry "sexgen"
+        glossary_word = if term == "sexual", do: "sexgen", else: term
+        defs = Glossaries.get_definitions([glossary_word])
+        {base_name, term, glossary_word, Map.get(defs, glossary_word)}
+
+      _ ->
+        {name, nil, nil, nil}
+    end
+  end
 
   @impl true
   def handle_event("dismiss_notes_alert", _params, socket) do
@@ -315,7 +341,17 @@ defmodule GallformersWeb.GallLive do
             <div class="lg:col-span-2 space-y-2">
               <div class="flex items-start justify-between gap-4">
                 <div class="flex items-center gap-2">
-                  <h2 class="text-2xl font-bold"><em>{@gall.name}</em></h2>
+                  <h2 class="text-2xl font-bold">
+                    <em>
+                      {@base_name}
+                      <.glossary_tooltip
+                        :if={@generation_term}
+                        term={@generation_term}
+                        glossary_word={@glossary_word}
+                        definition={@generation_definition}
+                      />
+                    </em>
+                  </h2>
                   <.link
                     :if={@current_user}
                     href={~p"/admin/galls/#{@gall.id}"}
