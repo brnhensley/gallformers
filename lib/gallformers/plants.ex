@@ -1,4 +1,4 @@
-defmodule Gallformers.Species.Plants do
+defmodule Gallformers.Plants do
   @moduledoc """
   The Plants context.
 
@@ -16,8 +16,50 @@ defmodule Gallformers.Species.Plants do
   alias Gallformers.Repo
   alias Gallformers.Species.{Abundance, Species}
   alias Gallformers.Taxonomy
+  alias Gallformers.Taxonomy.TreeBuilder
 
   @topic "hosts"
+
+  # ============================================
+  # Explore Tree
+  # ============================================
+
+  @doc """
+  Returns a hierarchical tree of host species organized by Family → Genus → Species.
+
+  ## Options
+  - `:key_style` - `:short` for `f-123` format (default), `:long` for `family-123` format
+  """
+  @spec get_hosts_tree(keyword()) :: [map()]
+  def get_hosts_tree(opts \\ []) do
+    fetch_host_tree_data()
+    |> TreeBuilder.build_tree("/host/", opts)
+  end
+
+  defp fetch_host_tree_data do
+    from(f in Taxonomy.Taxonomy,
+      join: g in Taxonomy.Taxonomy,
+      on: g.parent_id == f.id and g.type == "genus",
+      join: st in "species_taxonomy",
+      on: st.taxonomy_id == g.id,
+      join: s in Species,
+      on: s.id == st.species_id,
+      where: f.type == "family" and f.description == "Plant" and s.taxoncode == "plant",
+      order_by: [f.name, g.name, s.name],
+      select: %{
+        family_id: f.id,
+        family_name: f.name,
+        family_description: f.description,
+        genus_id: g.id,
+        genus_name: g.name,
+        genus_description: g.description,
+        species_id: s.id,
+        species_name: s.name,
+        undescribed: false
+      }
+    )
+    |> Repo.all()
+  end
 
   # ============================================
   # Query Functions
@@ -199,6 +241,27 @@ defmodule Gallformers.Species.Plants do
     Enum.map(hosts, fn host ->
       Map.put(host, :aliases, Map.get(aliases_by_host, host.id, []))
     end)
+  end
+
+  @doc """
+  Searches host species by name for section assignment.
+  Returns hosts that match the query.
+  """
+  @spec search_hosts_for_section(String.t(), integer()) :: [map()]
+  def search_hosts_for_section(query, limit \\ 20) do
+    search_pattern = "%#{String.downcase(query)}%"
+
+    from(s in Species,
+      where: s.taxoncode == "plant",
+      where: fragment("lower(?) LIKE ?", s.name, ^search_pattern),
+      order_by: s.name,
+      limit: ^limit,
+      select: %{
+        id: s.id,
+        name: s.name
+      }
+    )
+    |> Repo.all()
   end
 
   @doc """

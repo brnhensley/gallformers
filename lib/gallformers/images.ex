@@ -3,18 +3,18 @@ defmodule Gallformers.Images do
   The Images context.
 
   Provides functions for managing species images including CRUD operations,
-  audit functions, and attribution checking. S3 operations are delegated
-  to `Gallformers.Images.Storage`.
+  audit functions, and attribution checking. S3 operations are in
+  `Gallformers.Storage`.
   """
 
   require Logger
 
   import Ecto.Query
   alias Gallformers.Images.Image, as: ImageSchema
-  alias Gallformers.Images.Storage
   alias Gallformers.Licenses
   alias Gallformers.Repo
   alias Gallformers.Species.Species
+  alias Gallformers.Storage
 
   # Accepted MIME types for upload
   @accepted_types ~w(image/jpeg image/png image/jpg)
@@ -24,77 +24,6 @@ defmodule Gallformers.Images do
   """
   @spec accepted_types() :: [String.t()]
   def accepted_types, do: @accepted_types
-
-  # =============================================================================
-  # Delegated Storage Functions
-  # =============================================================================
-
-  @doc """
-  Returns the CDN base URL for images.
-  """
-  defdelegate cdn_url(), to: Storage
-
-  @doc """
-  Returns the S3 bucket name.
-  """
-  defdelegate bucket(), to: Storage
-
-  @doc """
-  Generates the S3 path for an image.
-
-  Format: gall/{species_id}/{species_id}_{timestamp}_original.{ext}
-  """
-  defdelegate generate_path(species_id, extension), to: Storage
-
-  @doc """
-  Generates a presigned URL for uploading an image to S3.
-
-  Returns {:ok, presigned_url} or {:error, reason}.
-  """
-  defdelegate presigned_upload_url(path, content_type), to: Storage
-
-  @doc """
-  Generates image size variants and uploads them to S3.
-
-  This is called after the original image has been uploaded.
-  The function downloads the original, resizes it, and uploads
-  the variants asynchronously.
-  """
-  defdelegate generate_size_variants(original_path), to: Storage
-
-  @doc """
-  Generates the S3 path for an article image.
-
-  Format: articles/{article_id}/{timestamp}.{ext}
-
-  Uses article ID instead of slug since slugs can change but IDs are stable.
-  """
-  defdelegate generate_article_path(article_id, extension), to: Storage
-
-  @doc """
-  Returns the full CDN URL for an article image path.
-  """
-  defdelegate article_image_url(path), to: Storage
-
-  @doc """
-  Lists all images in the articles folder on S3.
-
-  Returns a list of maps with :path, :url, :name, :folder, and :article_id keys.
-  """
-  defdelegate list_article_images(), to: Storage
-
-  @doc """
-  Lists images for a specific article by ID.
-  """
-  defdelegate list_article_images_for_article(article_id), to: Storage
-
-  @doc """
-  Deletes an article image from S3.
-
-  Takes the full S3 path (e.g., "articles/123/1234567890.jpg").
-  Returns :ok on success or {:error, reason} on failure.
-  """
-  defdelegate delete_article_image(path), to: Storage
 
   # =============================================================================
   # Image CRUD Operations
@@ -285,45 +214,6 @@ defmodule Gallformers.Images do
   end
 
   @doc """
-  Sets an image as the default for its species.
-
-  The default image is the one with sort_order = 1.
-  This reorders all images for the species, moving the target to position 1.
-  """
-  @spec set_default(ImageSchema.t()) :: {:ok, ImageSchema.t()} | {:error, Ecto.Changeset.t()}
-  def set_default(%ImageSchema{} = image) do
-    Repo.transaction(fn ->
-      # Temporarily set target image to sort_order 0
-      from(i in ImageSchema, where: i.id == ^image.id)
-      |> Repo.update_all(set: [sort_order: 0])
-
-      # Get all images for this species, ordered by sort_order
-      # (target will be first since it's at 0)
-      images =
-        from(i in ImageSchema,
-          where: i.species_id == ^image.species_id,
-          order_by: [asc: i.sort_order, asc: i.id]
-        )
-        |> Repo.all()
-
-      # Renumber all images: target gets 1, others get 2, 3, 4...
-      images
-      |> Enum.with_index(1)
-      |> Enum.each(fn {img, index} ->
-        from(i in ImageSchema, where: i.id == ^img.id)
-        |> Repo.update_all(set: [sort_order: index])
-      end)
-
-      # Return the updated target image
-      Repo.get!(ImageSchema, image.id)
-    end)
-    |> case do
-      {:ok, updated} -> {:ok, updated}
-      {:error, reason} -> {:error, reason}
-    end
-  end
-
-  @doc """
   Reorders images for a species.
 
   Takes a list of image IDs in the desired order. Persists the sort_order
@@ -436,137 +326,6 @@ defmodule Gallformers.Images do
       limit: 20
     )
     |> Repo.all()
-  end
-
-  # =============================================================================
-  # Image Audit Functions
-  # =============================================================================
-
-  @doc """
-  Lists all image paths from S3 under the gall/ prefix.
-
-  Returns a list of S3 object maps with :key, :last_modified, and :size.
-  This can be slow for large buckets - consider using the AuditCache for cached results.
-  """
-  @spec list_all_s3_gall_paths() :: {:ok, [map()]} | {:error, term()}
-  def list_all_s3_gall_paths do
-    Storage.list_all_gall_paths()
-  end
-
-  @doc """
-  Parses the species ID from an S3 gall image path.
-
-  ## Examples
-
-      iex> parse_species_id_from_path("gall/123/123_1234567890_original.jpg")
-      {:ok, 123}
-
-      iex> parse_species_id_from_path("gall/abc/image.jpg")
-      {:error, :invalid_path}
-
-      iex> parse_species_id_from_path("articles/1/image.jpg")
-      {:error, :invalid_path}
-  """
-  @spec parse_species_id_from_path(String.t()) :: {:ok, integer()} | {:error, :invalid_path}
-  def parse_species_id_from_path(path) when is_binary(path) do
-    case String.split(path, "/") do
-      ["gall", species_id_str | _rest] ->
-        case Integer.parse(species_id_str) do
-          {id, ""} -> {:ok, id}
-          _ -> {:error, :invalid_path}
-        end
-
-      _ ->
-        {:error, :invalid_path}
-    end
-  end
-
-  @doc """
-  Finds orphan paths from a list of S3 paths.
-
-  An orphan is a path where either:
-  1. The species_id parsed from the path doesn't exist in the database
-  2. No image record exists with that exact path
-
-  Returns a list of orphan paths with metadata.
-  """
-  @spec find_orphan_paths([map()]) :: [map()]
-  def find_orphan_paths(s3_objects) when is_list(s3_objects) do
-    # Get all paths for batch DB query
-    paths = Enum.map(s3_objects, & &1.key)
-
-    # Query DB for existing image paths
-    existing_paths =
-      from(i in ImageSchema, where: i.path in ^paths, select: i.path)
-      |> Repo.all()
-      |> MapSet.new()
-
-    # Get all valid species IDs
-    valid_species_ids =
-      from(s in Species, select: s.id)
-      |> Repo.all()
-      |> MapSet.new()
-
-    # Filter to orphans
-    s3_objects
-    |> Enum.filter(&orphan?(&1.key, existing_paths, valid_species_ids))
-    |> Enum.map(fn obj ->
-      species_info = get_species_info(obj.key, valid_species_ids)
-      Map.merge(obj, species_info)
-    end)
-  end
-
-  defp get_species_info(path, valid_species_ids) do
-    case parse_species_id_from_path(path) do
-      {:ok, id} ->
-        %{species_id: id, species_exists: MapSet.member?(valid_species_ids, id)}
-
-      {:error, _} ->
-        %{species_id: nil, species_exists: false}
-    end
-  end
-
-  defp orphan?(path, existing_paths, valid_species_ids) do
-    # If path exists in DB, it's not an orphan
-    if MapSet.member?(existing_paths, path),
-      do: false,
-      else: check_species_orphan(path, valid_species_ids)
-  end
-
-  defp check_species_orphan(path, valid_species_ids) do
-    case parse_species_id_from_path(path) do
-      {:ok, species_id} -> !MapSet.member?(valid_species_ids, species_id)
-      {:error, _} -> true
-    end
-  end
-
-  @doc """
-  Deletes an orphan image from S3 (not in database).
-
-  Deletes all size variants (original, small, medium, large, xlarge).
-  This is for images that exist on S3 but have no database record.
-  """
-  @spec delete_s3_orphan(String.t()) :: :ok | {:error, term()}
-  def delete_s3_orphan(path) when is_binary(path) do
-    Logger.info("Deleting S3 orphan image: #{path}")
-    Storage.delete_image(path)
-  end
-
-  @doc """
-  Creates a database record for an orphan S3 image, assigning it to a species.
-
-  The path must already exist on S3. This creates the database record
-  to "adopt" the orphan image.
-  """
-  @spec create_image_from_orphan(String.t(), integer(), map()) ::
-          {:ok, ImageSchema.t()} | {:error, Ecto.Changeset.t()}
-  def create_image_from_orphan(path, species_id, attrs \\ %{}) do
-    attrs =
-      attrs
-      |> Map.put(:path, path)
-      |> Map.put(:species_id, species_id)
-
-    create_image(attrs)
   end
 
   # =============================================================================

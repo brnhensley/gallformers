@@ -11,6 +11,8 @@ defmodule GallformersWeb.Admin.GallLive.Form do
   use GallformersWeb, :live_view
   use GallformersWeb.Admin.FormHelpers
 
+  alias Gallformers.GallHosts
+  alias Gallformers.Galls
   alias Gallformers.Repo
   alias Gallformers.Species
   alias Gallformers.Species.Species, as: SpeciesSchema
@@ -34,7 +36,7 @@ defmodule GallformersWeb.Admin.GallLive.Form do
 
     if connected?(socket), do: Species.subscribe()
 
-    filter_options = Species.get_all_filter_options()
+    filter_options = Galls.get_all_filter_options()
     families = Gallformers.Taxonomy.list_gall_families_for_select()
 
     socket =
@@ -347,7 +349,7 @@ defmodule GallformersWeb.Admin.GallLive.Form do
   defp load_gall_for_edit(socket, species_id, opts \\ []) do
     redirect_on_error = Keyword.get(opts, :redirect_on_error, false)
 
-    case Species.get_gall_for_admin_edit(species_id) do
+    case Galls.get_gall_for_admin_edit(species_id) do
       nil ->
         handle_load_error(socket, "Gall not found", redirect_on_error)
 
@@ -949,7 +951,7 @@ defmodule GallformersWeb.Admin.GallLive.Form do
         case Species.create_species(params) do
           {:ok, species} ->
             # Create gall-specific record
-            {:ok, _gall} = Species.create_gall_for_species(species.id)
+            {:ok, _gall} = Galls.create_gall_traits(species.id)
 
             # Handle taxonomy: create genus if new, or link to existing
             Gallformers.Taxonomy.link_species_taxonomy(
@@ -961,7 +963,7 @@ defmodule GallformersWeb.Admin.GallLive.Form do
 
             # Add hosts
             for host <- hosts_to_add do
-              Species.add_host_to_species(species.id, host.host_species_id)
+              GallHosts.add_host_to_gall(species.id, host.host_species_id)
             end
 
             # Add aliases
@@ -973,7 +975,7 @@ defmodule GallformersWeb.Admin.GallLive.Form do
             save_filter_changes(species.id, empty_filter_values(), filter_values)
 
             # Save gall properties
-            Species.update_gall_properties(species.id, %{
+            Galls.update_gall_properties(species.id, %{
               detachable: socket.assigns.detachable,
               undescribed: socket.assigns.undescribed
             })
@@ -1032,7 +1034,7 @@ defmodule GallformersWeb.Admin.GallLive.Form do
         hosts = Gallformers.GallHosts.get_hosts_for_gall(species_id)
 
         filter_values =
-          if gall_id, do: Species.get_gall_filter_values(gall_id), else: empty_filter_values()
+          if gall_id, do: Galls.get_gall_filter_values(gall_id), else: empty_filter_values()
 
         # Stay on page, update state to reflect saved data
         {:noreply,
@@ -1060,7 +1062,7 @@ defmodule GallformersWeb.Admin.GallLive.Form do
   defp save_gall_specific_data(gall_id, assigns) do
     save_filter_changes(gall_id, assigns.original_filter_values, assigns.filter_values)
 
-    Species.update_gall_properties(gall_id, %{
+    Galls.update_gall_properties(gall_id, %{
       detachable: assigns.detachable,
       undescribed: assigns.undescribed
     })
@@ -1078,11 +1080,11 @@ defmodule GallformersWeb.Admin.GallLive.Form do
 
   defp save_host_changes(species_id, to_add, to_remove) do
     for relation_id <- to_remove do
-      Species.remove_host_from_species(relation_id)
+      GallHosts.remove_host_from_gall(relation_id)
     end
 
     for host <- to_add do
-      Species.add_host_to_species(species_id, host.host_species_id)
+      GallHosts.add_host_to_gall(species_id, host.host_species_id)
     end
   end
 
@@ -1109,13 +1111,13 @@ defmodule GallformersWeb.Admin.GallLive.Form do
       removed_ids = MapSet.difference(original_ids, current_ids)
 
       for filter_id <- removed_ids do
-        Species.remove_filter_field_from_gall(gall_id, filter_type, filter_id)
+        Galls.remove_filter_field_from_gall(gall_id, filter_type, filter_id)
       end
 
       added_ids = MapSet.difference(current_ids, original_ids)
 
       for filter_id <- added_ids do
-        Species.add_filter_field_to_gall(gall_id, filter_type, filter_id)
+        Galls.add_filter_field_to_gall(gall_id, filter_type, filter_id)
       end
     end
   end

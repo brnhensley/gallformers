@@ -4,7 +4,7 @@ defmodule GallformersWeb.Admin.HostLive.Index do
   """
   use GallformersWeb, :live_view
 
-  alias Gallformers.Species.Plants
+  alias Gallformers.Plants
 
   @impl true
   def mount(_params, session, socket) do

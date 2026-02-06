@@ -8,9 +8,9 @@ defmodule GallformersWeb.API.GallController do
 
   import Ecto.Query
 
-  alias Gallformers.{GallHosts, Ranges, Repo, Search, Species, Taxonomy}
+  alias Gallformers.{GallHosts, Galls, Ranges, Repo, Search, Species, Taxonomy}
+  alias Gallformers.Galls.GallTraits
   alias Gallformers.Images.Image
-  alias Gallformers.Species.GallTraits
   alias Gallformers.Species.Species, as: SpeciesSchema
   alias GallformersWeb.Schemas
 
@@ -41,12 +41,12 @@ defmodule GallformersWeb.API.GallController do
     {galls, total} =
       case {query, limit} do
         {nil, nil} ->
-          all = Species.list_galls()
+          all = Galls.list_galls()
           {Enum.map(all, &gall_to_response/1), length(all)}
 
         {nil, limit} ->
-          total = Species.count_galls()
-          paginated = Species.list_galls_paginated(limit, offset)
+          total = Galls.count_galls()
+          paginated = Galls.list_galls_paginated(limit, offset)
           {Enum.map(paginated, &gall_to_response/1), total}
 
         {query, nil} ->
@@ -91,7 +91,7 @@ defmodule GallformersWeb.API.GallController do
         |> json(%{error: "Invalid gall ID"})
 
       id ->
-        case Species.get_gall_by_id(id) do
+        case Galls.get_gall(id) do
           nil ->
             conn
             |> put_status(:not_found)
@@ -117,7 +117,7 @@ defmodule GallformersWeb.API.GallController do
   Returns a random gall with its image for the home page.
   """
   def random(conn, _params) do
-    case Species.random_gall() do
+    case Galls.random_gall() do
       nil ->
         conn
         |> put_status(:not_found)
@@ -241,7 +241,7 @@ defmodule GallformersWeb.API.GallController do
   end
 
   defp fetch_gall(id) do
-    case Species.get_gall_by_id(id) do
+    case Galls.get_gall(id) do
       nil -> {:error, :not_found}
       gall -> {:ok, gall}
     end
@@ -290,7 +290,7 @@ defmodule GallformersWeb.API.GallController do
   defp gall_to_full_response(gall) do
     aliases = Species.get_aliases_for_species(gall.id)
     hosts = GallHosts.get_hosts_for_gall(gall.id)
-    filter_fields = Species.get_gall_filter_values(gall.id)
+    filter_fields = Galls.get_gall_filter_values(gall.id)
     places = Ranges.get_places_for_gall(gall.id)
     excluded_places = Ranges.get_excluded_places_for_gall(gall.id)
 
@@ -349,10 +349,10 @@ defmodule GallformersWeb.API.GallController do
 
     # Batch fetch all related data (~14 queries total instead of ~14,645)
     image_map =
-      Species.get_default_gall_images()
+      Galls.get_default_gall_images()
       |> Enum.into(%{}, fn %{species_id: id, path: path} -> {id, path} end)
 
-    filter_map = Species.get_gall_filter_values_batch(gall_ids)
+    filter_map = Galls.get_gall_filter_values_batch(gall_ids)
     hosts_map = GallHosts.get_hosts_for_galls(gall_ids)
     places_map = Ranges.get_places_for_galls(gall_ids)
     taxonomy_map = Taxonomy.get_taxonomy_for_species_batch(gall_ids)

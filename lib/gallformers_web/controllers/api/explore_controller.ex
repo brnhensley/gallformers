@@ -8,7 +8,8 @@ defmodule GallformersWeb.API.ExploreController do
   use GallformersWeb, :controller
   use OpenApiSpex.ControllerSpecs
 
-  alias Gallformers.Explore
+  alias Gallformers.Galls
+  alias Gallformers.Plants
   alias GallformersWeb.Schemas
 
   tags(["Explore"])
@@ -30,9 +31,9 @@ defmodule GallformersWeb.API.ExploreController do
     opts = [key_style: :long]
 
     json(conn, %{
-      galls: Explore.get_galls_tree(opts),
-      undescribed: Explore.get_undescribed_tree(opts),
-      hosts: Explore.get_hosts_tree(opts)
+      galls: Galls.get_galls_tree(opts),
+      undescribed: Galls.get_undescribed_tree(opts),
+      hosts: Plants.get_hosts_tree(opts)
     })
   end
 end

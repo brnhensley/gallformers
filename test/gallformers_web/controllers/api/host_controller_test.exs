@@ -4,7 +4,7 @@ defmodule GallformersWeb.API.HostControllerTest do
   """
   use GallformersWeb.ConnCase
 
-  alias Gallformers.Species.Plants
+  alias Gallformers.Plants
 
   describe "GET /api/v2/hosts" do
     test "returns list of hosts", %{conn: conn} do

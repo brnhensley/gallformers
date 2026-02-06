@@ -8,7 +8,7 @@ defmodule GallformersWeb.API.FilterFieldController do
   use GallformersWeb, :controller
   use OpenApiSpex.ControllerSpecs
 
-  alias Gallformers.IDTool
+  alias Gallformers.Galls
   alias GallformersWeb.Schemas
 
   tags(["ID Tool"])
@@ -26,7 +26,7 @@ defmodule GallformersWeb.API.FilterFieldController do
   Returns all filter field options.
   """
   def index(conn, _params) do
-    options = IDTool.get_filter_options()
+    options = Galls.get_filter_options()
 
     json(conn, %{
       alignments: format_filter_field(options.alignments, :alignment),

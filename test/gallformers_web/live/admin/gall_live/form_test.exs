@@ -14,8 +14,8 @@ defmodule GallformersWeb.Admin.GallLive.FormTest do
   import Phoenix.LiveViewTest
 
   alias Gallformers.Accounts.Auth0User
-  alias Gallformers.Species
-  alias Gallformers.Species.Plants
+  alias Gallformers.Galls
+  alias Gallformers.Plants
 
   # Helper to set up admin session
   defp setup_admin_session(conn) do
@@ -35,7 +35,7 @@ defmodule GallformersWeb.Admin.GallLive.FormTest do
 
   # Helper to find any gall for testing - fails explicitly if no data
   defp require_gall do
-    case Species.list_galls() do
+    case Galls.list_galls() do
       [gall | _] -> gall
       [] -> flunk("No gall found in test database - ensure test fixtures exist")
     end

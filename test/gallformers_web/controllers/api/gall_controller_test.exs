@@ -4,6 +4,7 @@ defmodule GallformersWeb.API.GallControllerTest do
   """
   use GallformersWeb.ConnCase
 
+  alias Gallformers.Galls
   alias Gallformers.Species
 
   describe "GET /api/v2/galls" do
@@ -70,7 +71,7 @@ defmodule GallformersWeb.API.GallControllerTest do
 
   describe "GET /api/v2/galls/:id" do
     test "returns gall details for valid ID", %{conn: conn} do
-      galls = Species.list_galls()
+      galls = Galls.list_galls()
 
       if length(galls) > 0 do
         gall = hd(galls)
@@ -83,7 +84,7 @@ defmodule GallformersWeb.API.GallControllerTest do
     end
 
     test "returns full gall details with related data", %{conn: conn} do
-      galls = Species.list_galls()
+      galls = Galls.list_galls()
 
       if length(galls) > 0 do
         gall = hd(galls)
@@ -195,7 +196,7 @@ defmodule GallformersWeb.API.GallControllerTest do
 
   describe "GET /api/v2/galls/:id/images" do
     test "returns images for gall", %{conn: conn} do
-      galls = Species.list_galls()
+      galls = Galls.list_galls()
 
       if length(galls) > 0 do
         gall = hd(galls)
@@ -207,7 +208,7 @@ defmodule GallformersWeb.API.GallControllerTest do
     end
 
     test "images have expected fields", %{conn: conn} do
-      galls = Species.list_galls()
+      galls = Galls.list_galls()
 
       # Find a gall with images
       gall_with_images =
@@ -235,7 +236,7 @@ defmodule GallformersWeb.API.GallControllerTest do
 
   describe "GET /api/v2/galls/:id/related" do
     test "returns related galls", %{conn: conn} do
-      galls = Species.list_galls()
+      galls = Galls.list_galls()
 
       if length(galls) > 0 do
         gall = hd(galls)

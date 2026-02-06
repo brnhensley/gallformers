@@ -8,7 +8,7 @@ defmodule GallformersWeb.IDLiveTest do
   import Phoenix.LiveViewTest
 
   alias Gallformers.GallHosts
-  alias Gallformers.Species.Plants
+  alias Gallformers.Plants
 
   describe "ID Tool page rendering" do
     test "renders ID tool page", %{conn: conn} do

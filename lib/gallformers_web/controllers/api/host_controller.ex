@@ -7,7 +7,7 @@ defmodule GallformersWeb.API.HostController do
   use OpenApiSpex.ControllerSpecs
 
   alias Gallformers.{GallHosts, Ranges, Search}
-  alias Gallformers.Species.Plants
+  alias Gallformers.Plants
   alias GallformersWeb.Schemas
 
   tags(["Hosts"])

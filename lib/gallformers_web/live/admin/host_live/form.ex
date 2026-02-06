@@ -7,10 +7,10 @@ defmodule GallformersWeb.Admin.HostLive.Form do
   use GallformersWeb.Admin.FormHelpers
 
   alias Gallformers.Places
+  alias Gallformers.Plants
   alias Gallformers.Ranges
   alias Gallformers.Repo
   alias Gallformers.Species
-  alias Gallformers.Species.Plants
   alias Gallformers.Species.Species, as: SpeciesSchema
   alias Gallformers.Taxonomy
   alias GallformersWeb.Admin.DeferredChanges

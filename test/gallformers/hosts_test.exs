@@ -4,8 +4,8 @@ defmodule Gallformers.HostsTest do
   """
   use Gallformers.DataCase, async: false
 
-  alias Gallformers.{GallHosts, Ranges, Species, Taxonomy}
-  alias Gallformers.Species.Plants
+  alias Gallformers.{GallHosts, Galls, Ranges, Species, Taxonomy}
+  alias Gallformers.Plants
 
   describe "list_hosts/0" do
     test "returns hosts with expected fields" do
@@ -107,7 +107,7 @@ defmodule Gallformers.HostsTest do
     end
 
     test "returns hosts with expected fields" do
-      galls = Species.list_galls()
+      galls = Galls.list_galls()
 
       # Find a gall with hosts
       gall_with_host =
@@ -180,7 +180,7 @@ defmodule Gallformers.HostsTest do
     end
 
     test "returns list of place codes" do
-      galls = Species.list_galls()
+      galls = Galls.list_galls()
 
       if length(galls) > 0 do
         places = Ranges.get_places_for_gall(hd(galls).id)
@@ -191,7 +191,7 @@ defmodule Gallformers.HostsTest do
 
   describe "get_excluded_places_for_gall/1" do
     test "returns a list" do
-      galls = Species.list_galls()
+      galls = Galls.list_galls()
 
       if length(galls) > 0 do
         excluded = Ranges.get_excluded_places_for_gall(hd(galls).id)

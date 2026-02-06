@@ -5,7 +5,7 @@ defmodule GallformersWeb.E2E.BrowseTest do
   """
   use GallformersWeb.E2ECase
 
-  alias Gallformers.Species.Plants
+  alias Gallformers.Plants
 
   @moduletag :e2e
   @moduletag :e2e_browse
@@ -13,7 +13,7 @@ defmodule GallformersWeb.E2E.BrowseTest do
   describe "gall detail page" do
     test "loads for valid gall ID", %{session: session} do
       # Get a valid gall ID from the database
-      galls = Gallformers.Species.list_galls()
+      galls = Gallformers.Galls.list_galls()
 
       if length(galls) > 0 do
         gall = hd(galls)
@@ -63,7 +63,7 @@ defmodule GallformersWeb.E2E.BrowseTest do
   describe "navigation between gall and host" do
     test "can navigate from gall to host", %{session: session} do
       # Find a gall that has associated hosts
-      galls = Gallformers.Species.list_galls()
+      galls = Gallformers.Galls.list_galls()
 
       gall_with_host =
         Enum.find(galls, fn g ->

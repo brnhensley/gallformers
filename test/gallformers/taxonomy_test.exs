@@ -791,8 +791,8 @@ defmodule Gallformers.TaxonomyTest do
 
   describe "delete_taxonomy_cascade/1" do
     alias Gallformers.GallHosts.GallHost
+    alias Gallformers.Galls.GallTraits
     alias Gallformers.Images.Image
-    alias Gallformers.Species.GallTraits
 
     test "deletes family and all descendants in transaction" do
       # Create Family → Genus → Species with various associations

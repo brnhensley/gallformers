@@ -7,8 +7,8 @@ defmodule GallformersWeb.IDLive do
   """
   use GallformersWeb, :live_view
 
-  alias Gallformers.{GallSummary, IDTool, Places, Taxonomy}
-  alias Gallformers.Species.Plants
+  alias Gallformers.{Galls, Places, Taxonomy}
+  alias Gallformers.Plants
 
   # URL parameter keys (short codes for compact URLs)
   @url_params %{
@@ -56,7 +56,7 @@ defmodule GallformersWeb.IDLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    filter_options = IDTool.get_filter_options()
+    filter_options = Galls.get_filter_options()
     places = Places.list_places()
 
     # Add "leaf (anywhere)" virtual option to plant_parts, sorted alphabetically
@@ -624,7 +624,7 @@ defmodule GallformersWeb.IDLive do
 
   defp load_results(socket) do
     filter_params = build_filter_params(socket)
-    results = IDTool.filter_galls(filter_params)
+    results = Galls.filter_galls(filter_params)
 
     # Generate summaries for galls without images
     summaries = generate_summaries_for_imageless(results)
@@ -647,11 +647,11 @@ defmodule GallformersWeb.IDLive do
       %{}
     else
       # Fetch summary data and generate summaries
-      summary_data = IDTool.get_summary_data(gall_ids_without_images)
+      summary_data = Galls.get_summary_data(gall_ids_without_images)
 
       summary_data
       |> Enum.map(fn {gall_id, filters} ->
-        {gall_id, GallSummary.generate(filters, mode: :medium)}
+        {gall_id, Galls.Summary.generate(filters, mode: :medium)}
       end)
       |> Enum.into(%{})
     end
@@ -713,7 +713,7 @@ defmodule GallformersWeb.IDLive do
   # Expand plant part IDs, replacing "leaf_anywhere" marker with actual leaf plant part IDs
   defp expand_plant_part_ids(plant_part_ids) do
     if @leaf_anywhere_id in plant_part_ids do
-      leaf_ids = IDTool.leaf_plant_part_ids()
+      leaf_ids = Galls.leaf_plant_part_ids()
       other_ids = Enum.reject(plant_part_ids, &(&1 == @leaf_anywhere_id))
       Enum.uniq(leaf_ids ++ other_ids)
     else

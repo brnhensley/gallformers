@@ -9,7 +9,7 @@ defmodule GallformersWeb.HostLive do
 
   alias Gallformers.{GallHosts, Markdown, Ranges, Sources, Species, Taxonomy}
   alias Gallformers.Images.Image
-  alias Gallformers.Species.Plants
+  alias Gallformers.Plants
   alias GallformersWeb.SEO
 
   @page_size 10

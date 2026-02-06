@@ -14,7 +14,7 @@ defmodule GallformersWeb.Admin.HostLive.FormTest do
   import Phoenix.LiveViewTest
 
   alias Gallformers.Accounts.Auth0User
-  alias Gallformers.Species.Plants
+  alias Gallformers.Plants
 
   # Helper to set up admin session
   defp setup_admin_session(conn) do

@@ -18,6 +18,7 @@ defmodule GallformersWeb.Admin.ImagesLive do
   alias Gallformers.Images.Image
   alias Gallformers.Licenses
   alias Gallformers.Sources
+  alias Gallformers.Storage
 
   @impl true
   def mount(_params, session, socket) do
@@ -1044,9 +1045,9 @@ defmodule GallformersWeb.Admin.ImagesLive do
 
     urls =
       Enum.map(files, fn file ->
-        path = Images.generate_path(species_id, file["extension"])
+        path = Storage.generate_path(species_id, file["extension"])
 
-        case Images.presigned_upload_url(path, file["type"]) do
+        case Storage.presigned_upload_url(path, file["type"]) do
           {:ok, presigned_url} ->
             %{
               path: path,
@@ -1091,7 +1092,7 @@ defmodule GallformersWeb.Admin.ImagesLive do
           # Wait for CDN to propagate
           Process.sleep(5000)
 
-          case Images.generate_size_variants(path) do
+          case Storage.generate_size_variants(path) do
             :ok ->
               Logger.info("Successfully generated size variants for #{path}")
 

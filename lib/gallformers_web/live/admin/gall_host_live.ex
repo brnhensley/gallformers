@@ -301,12 +301,12 @@ defmodule GallformersWeb.Admin.GallHostLive do
         Repo.transaction(fn ->
           # Remove hosts
           for relation_id <- hosts_to_remove do
-            Species.remove_host_from_species(relation_id)
+            GallHosts.remove_host_from_gall(relation_id)
           end
 
           # Add hosts
           for host <- hosts_to_add do
-            Species.add_host_to_species(gall.id, host.host_species_id)
+            GallHosts.add_host_to_gall(gall.id, host.host_species_id)
           end
 
           # Set exclusions (replaces existing)

@@ -8,8 +8,6 @@ defmodule Gallformers.Taxonomy do
   require Logger
   import Ecto.Query
   alias Gallformers.Repo
-  alias Gallformers.Species.Alias
-  alias Gallformers.Species.GallTraits
   alias Gallformers.Species.Species
   alias Gallformers.Taxonomy.Taxonomy
 
@@ -917,14 +915,25 @@ defmodule Gallformers.Taxonomy do
     end
   end
 
-  # Updates a genus and syncs all linked species names, adding synonyms for old names.
+  # Updates a genus and syncs all linked species names via the Species context.
   defp update_genus_with_species_sync(%Taxonomy{} = taxonomy, attrs) do
     old_genus_name = taxonomy.name
     new_genus_name = attrs["name"] || attrs[:name]
 
     Repo.transaction(fn ->
-      # Update species names and create synonyms
-      sync_species_names_on_genus_rename(taxonomy.id, old_genus_name, new_genus_name)
+      # Delegate species rename to Species context
+      species_list =
+        from(s in Species,
+          join: st in "species_taxonomy",
+          on: st.species_id == s.id,
+          where: st.taxonomy_id == ^taxonomy.id,
+          select: s
+        )
+        |> Repo.all()
+
+      for species <- species_list do
+        Gallformers.Species.rename_for_genus_change(species, old_genus_name, new_genus_name)
+      end
 
       # Update the genus itself
       taxonomy
@@ -932,80 +941,6 @@ defmodule Gallformers.Taxonomy do
       |> Repo.update!()
     end)
     |> broadcast(:taxonomy_updated)
-  end
-
-  # Updates all species linked to a genus when the genus is renamed.
-  # For each species:
-  # 1. Creates a "scientific synonym" alias with the old species name
-  # 2. Updates the species name by replacing the old genus with the new genus
-  #
-  # Note: Partially optimized - batch fetches species but still creates synonyms
-  # individually due to the alias+join table insertion pattern.
-  defp sync_species_names_on_genus_rename(genus_id, old_genus_name, new_genus_name) do
-    # Batch fetch all species for this genus (1 query instead of N)
-    species_list =
-      from(s in Species,
-        join: st in "species_taxonomy",
-        on: st.species_id == s.id,
-        where: st.taxonomy_id == ^genus_id,
-        select: s
-      )
-      |> Repo.all()
-
-    for species <- species_list do
-      old_species_name = species.name
-
-      # Create the new name by replacing the genus portion
-      new_species_name = replace_genus_in_name(old_species_name, old_genus_name, new_genus_name)
-
-      # Create synonym alias with the old name
-      create_rename_synonym(species.id, old_species_name)
-
-      # Update the species name
-      species
-      |> Species.changeset(%{name: new_species_name})
-      |> Repo.update!()
-    end
-  end
-
-  # Replaces the genus portion (first word) of a species name.
-  # Example: replace_genus_in_name("Quercus alba", "Quercus", "Oakus") -> "Oakus alba"
-  defp replace_genus_in_name(species_name, old_genus, new_genus) do
-    case String.split(species_name, " ", parts: 2) do
-      [^old_genus, epithet] -> "#{new_genus} #{epithet}"
-      [^old_genus] -> new_genus
-      # If the species name doesn't start with the expected genus, just replace first word
-      [_other_genus, epithet] -> "#{new_genus} #{epithet}"
-      _ -> species_name
-    end
-  end
-
-  # Creates a scientific synonym alias for a species rename.
-  # Returns {:ok, alias} on success or {:error, changeset} on failure.
-  defp create_rename_synonym(species_id, old_name) do
-    require Logger
-
-    alias_changeset =
-      %Alias{}
-      |> Ecto.Changeset.cast(
-        %{name: old_name, type: "scientific", description: "Previous name"},
-        [:name, :type, :description]
-      )
-
-    case Repo.insert(alias_changeset) do
-      {:ok, new_alias} ->
-        Repo.insert_all("alias_species", [%{alias_id: new_alias.id, species_id: species_id}])
-        {:ok, new_alias}
-
-      {:error, changeset} = error ->
-        # Log the error but don't fail the transaction - we still want the genus rename to succeed
-        # even if synonym creation fails (e.g., due to duplicate name constraint)
-        Logger.warning(
-          "Failed to create rename synonym for species #{species_id} (#{old_name}): #{inspect(changeset.errors)}"
-        )
-
-        error
-    end
   end
 
   @doc """
@@ -1197,28 +1132,26 @@ defmodule Gallformers.Taxonomy do
   end
 
   # Deletes all species linked to the given taxonomy IDs.
-  # Handles S3 cleanup, gall_traits, FTS, and all cascades.
+  # Delegates to owning contexts (Galls/Plants) for full cleanup.
   defp delete_species_for_cascade([]), do: :ok
 
   defp delete_species_for_cascade(taxonomy_ids) do
-    species_ids = get_species_ids_for_taxonomies(taxonomy_ids)
+    # Load species with taxoncodes so we can route to the right context
+    species_list =
+      from(s in Species,
+        join: st in "species_taxonomy",
+        on: st.species_id == s.id,
+        where: st.taxonomy_id in ^taxonomy_ids,
+        distinct: true,
+        select: s
+      )
+      |> Repo.all()
 
-    for species_id <- species_ids do
-      # S3 cleanup (before DB records are cascade deleted)
-      Gallformers.Images.delete_images_from_s3_for_species(species_id)
-
-      # Delete gall_traits (cascades to filter associations)
-      from(gt in GallTraits, where: gt.species_id == ^species_id)
-      |> Repo.delete_all()
-
-      # Delete from FTS index
-      Gallformers.Species.delete_species_fts(species_id)
-    end
-
-    # Bulk delete all species (cascades to images, hosts, aliases, etc.)
-    if species_ids != [] do
-      from(s in Species, where: s.id in ^species_ids)
-      |> Repo.delete_all()
+    for species <- species_list do
+      case species.taxoncode do
+        "gall" -> Gallformers.Galls.delete_gall(species.id)
+        "plant" -> Gallformers.Plants.delete_host(species.id)
+      end
     end
 
     :ok
@@ -1522,79 +1455,6 @@ defmodule Gallformers.Taxonomy do
   end
 
   @doc """
-  Gets enriched species list for a genus with common names and counts.
-
-  Returns list of maps with:
-  - id, name, taxoncode (from species)
-  - common_name (first common alias, or nil)
-  - count (number of hosts for galls, number of galls for hosts)
-  """
-  @spec get_enriched_species_for_genus(integer()) :: [map()]
-  def get_enriched_species_for_genus(genus_id) do
-    species_ids = get_species_ids_for_genus(genus_id)
-
-    if species_ids == [] do
-      []
-    else
-      species = Gallformers.Species.list_species_by_ids(species_ids)
-      enrich_species_with_common_names_and_counts(species)
-    end
-  end
-
-  @doc """
-  Gets enriched species list for a section with common names and gall counts.
-
-  Returns list of maps with the same structure as get_enriched_species_for_genus/1.
-  """
-  @spec get_enriched_species_for_section(integer()) :: [map()]
-  def get_enriched_species_for_section(section_id) do
-    species = get_species_for_section(section_id)
-    enrich_species_with_common_names_and_counts(species)
-  end
-
-  # Enriches a list of species with common names and host/gall counts.
-  # Uses batch queries to avoid N+1 (was 2 queries per species, now 3 queries total).
-  defp enrich_species_with_common_names_and_counts(species_list) do
-    species_ids = Enum.map(species_list, & &1.id)
-
-    # Batch fetch all aliases (1 query)
-    aliases_map = Gallformers.Species.get_aliases_for_species_batch(species_ids)
-
-    # Separate galls from hosts for counting
-    {galls, hosts} = Enum.split_with(species_list, fn s -> s.taxoncode == "gall" end)
-    gall_ids = Enum.map(galls, & &1.id)
-    host_ids = Enum.map(hosts, & &1.id)
-
-    # Batch fetch counts (2 queries)
-    host_counts = Gallformers.GallHosts.get_host_counts_for_galls(gall_ids)
-    gall_counts = Gallformers.GallHosts.get_gall_counts_for_hosts(host_ids)
-
-    Enum.map(species_list, fn species ->
-      # Get common name from pre-fetched aliases
-      aliases = Map.get(aliases_map, species.id, [])
-
-      common_name =
-        aliases
-        |> Enum.find(fn a -> a.type == "common" end)
-        |> case do
-          nil -> nil
-          alias_record -> alias_record.name
-        end
-
-      # Get count from pre-fetched counts
-      count =
-        case species.taxoncode do
-          "gall" -> Map.get(host_counts, species.id, 0)
-          _ -> Map.get(gall_counts, species.id, 0)
-        end
-
-      species
-      |> Map.put(:common_name, common_name)
-      |> Map.put(:count, count)
-    end)
-  end
-
-  @doc """
   Lists all sections with their parent genus and species count.
   """
   @spec list_sections_with_details() :: [map()]
@@ -1704,27 +1564,6 @@ defmodule Gallformers.Taxonomy do
     end
 
     :ok
-  end
-
-  @doc """
-  Searches host species by name for section assignment.
-  Returns hosts that match the query.
-  """
-  @spec search_hosts_for_section(String.t(), integer()) :: [map()]
-  def search_hosts_for_section(query, limit \\ 20) do
-    search_pattern = "%#{String.downcase(query)}%"
-
-    from(s in Species,
-      where: s.taxoncode == "plant",
-      where: fragment("lower(?) LIKE ?", s.name, ^search_pattern),
-      order_by: s.name,
-      limit: ^limit,
-      select: %{
-        id: s.id,
-        name: s.name
-      }
-    )
-    |> Repo.all()
   end
 
   @doc """

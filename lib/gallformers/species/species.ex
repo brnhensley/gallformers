@@ -8,7 +8,7 @@ defmodule Gallformers.Species.Species do
   use Ecto.Schema
   import Ecto.Changeset
 
-  alias Gallformers.Species.GallTraits
+  alias Gallformers.Galls.GallTraits
 
   @behaviour Gallformers.SchemaFields
 
@@ -30,7 +30,7 @@ defmodule Gallformers.Species.Species do
     belongs_to :abundance, Gallformers.Species.Abundance
 
     has_many :images, Gallformers.Images.Image
-    has_one :gall_traits, Gallformers.Species.GallTraits, foreign_key: :species_id
+    has_one :gall_traits, Gallformers.Galls.GallTraits, foreign_key: :species_id
     has_many :species_sources, Gallformers.Species.SpeciesSource
 
     # Host relationships - this species as a gall

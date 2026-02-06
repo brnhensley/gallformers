@@ -14,9 +14,9 @@ defmodule GallformersWeb.Admin.GallHostLiveTest do
 
   alias Gallformers.Accounts.Auth0User
   alias Gallformers.GallHosts
+  alias Gallformers.Galls
+  alias Gallformers.Plants
   alias Gallformers.Ranges
-  alias Gallformers.Species
-  alias Gallformers.Species.Plants
 
   # Helper to set up admin session
   defp setup_admin_session(conn) do
@@ -36,7 +36,7 @@ defmodule GallformersWeb.Admin.GallHostLiveTest do
 
   # Helper to find a gall with hosts for testing
   defp find_gall_with_hosts do
-    galls = Species.list_galls()
+    galls = Galls.list_galls()
 
     Enum.find(galls, fn g ->
       length(GallHosts.get_hosts_for_gall(g.id)) > 0
@@ -45,7 +45,7 @@ defmodule GallformersWeb.Admin.GallHostLiveTest do
 
   # Helper to find a gall without hosts for testing
   defp find_gall_without_hosts do
-    galls = Species.list_galls()
+    galls = Galls.list_galls()
 
     Enum.find(galls, fn g ->
       length(GallHosts.get_hosts_for_gall(g.id)) == 0
@@ -83,7 +83,7 @@ defmodule GallformersWeb.Admin.GallHostLiveTest do
     end
 
     test "page loads with valid gall ID param", %{conn: conn} do
-      gall = find_gall_with_hosts() || hd(Species.list_galls())
+      gall = find_gall_with_hosts() || hd(Galls.list_galls())
 
       if gall do
         {:ok, _view, html} = live(conn, ~p"/admin/gallhost?id=#{gall.id}")
@@ -171,7 +171,7 @@ defmodule GallformersWeb.Admin.GallHostLiveTest do
     end
 
     test "clearing gall resets state", %{conn: conn} do
-      gall = find_gall_with_hosts() || hd(Species.list_galls())
+      gall = find_gall_with_hosts() || hd(Galls.list_galls())
 
       if gall do
         {:ok, view, _html} = live(conn, ~p"/admin/gallhost?id=#{gall.id}")
@@ -212,7 +212,7 @@ defmodule GallformersWeb.Admin.GallHostLiveTest do
     end
 
     test "host search returns results", %{conn: conn} do
-      gall = find_gall_with_hosts() || hd(Species.list_galls())
+      gall = find_gall_with_hosts() || hd(Galls.list_galls())
 
       if gall do
         {:ok, view, _html} = live(conn, ~p"/admin/gallhost?id=#{gall.id}")
@@ -229,7 +229,7 @@ defmodule GallformersWeb.Admin.GallHostLiveTest do
     end
 
     test "host search requires minimum 2 characters", %{conn: conn} do
-      gall = hd(Species.list_galls())
+      gall = hd(Galls.list_galls())
 
       if gall do
         {:ok, view, _html} = live(conn, ~p"/admin/gallhost?id=#{gall.id}")
@@ -307,7 +307,7 @@ defmodule GallformersWeb.Admin.GallHostLiveTest do
     end
 
     test "removing host with invalid relation ID shows error", %{conn: conn} do
-      gall = hd(Species.list_galls())
+      gall = hd(Galls.list_galls())
 
       if gall do
         {:ok, view, _html} = live(conn, ~p"/admin/gallhost?id=#{gall.id}")
@@ -354,7 +354,7 @@ defmodule GallformersWeb.Admin.GallHostLiveTest do
     end
 
     test "toggle_region for invalid code is silently ignored", %{conn: conn} do
-      gall = hd(Species.list_galls())
+      gall = hd(Galls.list_galls())
 
       if gall do
         {:ok, view, _html} = live(conn, ~p"/admin/gallhost?id=#{gall.id}")
@@ -494,7 +494,7 @@ defmodule GallformersWeb.Admin.GallHostLiveTest do
     end
 
     test "host picker is enabled when gall selected", %{conn: conn} do
-      gall = hd(Species.list_galls())
+      gall = hd(Galls.list_galls())
 
       if gall do
         {:ok, view, _html} = live(conn, ~p"/admin/gallhost?id=#{gall.id}")
@@ -528,7 +528,7 @@ defmodule GallformersWeb.Admin.GallHostLiveTest do
     end
 
     test "view public page link shown when gall selected", %{conn: conn} do
-      gall = hd(Species.list_galls())
+      gall = hd(Galls.list_galls())
 
       if gall do
         {:ok, view, html} = live(conn, ~p"/admin/gallhost?id=#{gall.id}")
@@ -538,7 +538,7 @@ defmodule GallformersWeb.Admin.GallHostLiveTest do
     end
 
     test "edit gall details link shown when gall selected", %{conn: conn} do
-      gall = hd(Species.list_galls())
+      gall = hd(Galls.list_galls())
 
       if gall do
         {:ok, view, html} = live(conn, ~p"/admin/gallhost?id=#{gall.id}")
@@ -567,7 +567,7 @@ defmodule GallformersWeb.Admin.GallHostLiveTest do
     end
 
     test "page title updates when gall selected", %{conn: conn} do
-      gall = hd(Species.list_galls())
+      gall = hd(Galls.list_galls())
 
       if gall do
         {:ok, view, _html} = live(conn, ~p"/admin/gallhost?id=#{gall.id}")
@@ -577,7 +577,7 @@ defmodule GallformersWeb.Admin.GallHostLiveTest do
     end
 
     test "page title resets when gall cleared", %{conn: conn} do
-      gall = hd(Species.list_galls())
+      gall = hd(Galls.list_galls())
 
       if gall do
         {:ok, view, _html} = live(conn, ~p"/admin/gallhost?id=#{gall.id}")

@@ -13,8 +13,9 @@ defmodule Gallformers.GallHosts do
   import Ecto.Query
 
   alias Gallformers.GallHosts.GallHost
+  alias Gallformers.Galls.GallTraits
   alias Gallformers.Repo
-  alias Gallformers.Species.{GallTraits, Species}
+  alias Gallformers.Species.Species
 
   @doc """
   Gets all hosts for a gall species.
@@ -146,6 +147,40 @@ defmodule Gallformers.GallHosts do
   end
 
   @doc """
+  Associates a host with a gall species and broadcasts a species update.
+  """
+  @spec add_host_to_gall(integer(), integer()) ::
+          {:ok, GallHost.t()} | {:error, Ecto.Changeset.t()}
+  def add_host_to_gall(gall_species_id, host_species_id) do
+    attrs = %{gall_species_id: gall_species_id, host_species_id: host_species_id}
+
+    case create_gall_host(attrs) do
+      {:ok, host_relation} ->
+        broadcast_species_change(gall_species_id, :species_updated)
+        {:ok, host_relation}
+
+      {:error, changeset} ->
+        {:error, changeset}
+    end
+  end
+
+  @doc """
+  Removes a host association from a gall species by relation ID.
+  """
+  @spec remove_host_from_gall(integer()) :: {:ok, map()} | {:error, :not_found}
+  def remove_host_from_gall(host_relation_id) do
+    case Repo.get(GallHost, host_relation_id) do
+      nil ->
+        {:error, :not_found}
+
+      host_relation ->
+        species_id = host_relation.gall_species_id
+        Repo.delete(host_relation)
+        broadcast_species_change(species_id, :species_updated)
+    end
+  end
+
+  @doc """
   Deletes a gall-host relationship by ID.
   """
   @spec delete_gall_host(integer()) :: {:ok, GallHost.t()} | {:error, :not_found}
@@ -161,4 +196,9 @@ defmodule Gallformers.GallHosts do
   """
   @spec get_gall_host(integer()) :: GallHost.t() | nil
   def get_gall_host(id), do: Repo.get(GallHost, id)
+
+  # Broadcasts on the species PubSub topic so admin forms pick up changes.
+  defp broadcast_species_change(species_id, event) do
+    Phoenix.PubSub.broadcast(Gallformers.PubSub, "species", {event, %{id: species_id}})
+  end
 end

@@ -7,7 +7,7 @@ defmodule GallformersWeb.GallLive do
   """
   use GallformersWeb, :live_view
 
-  alias Gallformers.{GallHosts, GallSummary, Markdown, Ranges, Sources, Species, Taxonomy}
+  alias Gallformers.{GallHosts, Galls, Markdown, Ranges, Sources, Species, Taxonomy}
   alias Gallformers.Images.Image
   alias GallformersWeb.SEO
 
@@ -47,7 +47,7 @@ defmodule GallformersWeb.GallLive do
   end
 
   defp load_gall(socket, gall_id) do
-    case Species.get_gall_by_id(gall_id) do
+    case Galls.get_gall(gall_id) do
       nil ->
         {:ok,
          assign(socket,
@@ -70,8 +70,8 @@ defmodule GallformersWeb.GallLive do
         taxonomy = get_taxonomy_info(gall_id)
         range = Ranges.get_places_for_gall(gall_id) |> MapSet.new()
         excluded_range = Ranges.get_excluded_places_for_gall(gall_id) |> MapSet.new()
-        gall_filters = Gallformers.Species.get_gall_filter_values(gall_id)
-        related_galls = Species.get_related_galls(gall)
+        gall_filters = Galls.get_gall_filter_values(gall_id)
+        related_galls = Galls.get_related_galls(gall)
 
         # Separate common names from scientific synonyms
         common_names = Enum.filter(aliases, &(&1.type == "common"))
@@ -85,8 +85,8 @@ defmodule GallformersWeb.GallLive do
         page_url = "/gall/#{gall_id}"
 
         # Generate SEO description using gall filter data
-        summary_filters = GallSummary.from_db_filters(gall_filters, gall.detachable)
-        page_description = GallSummary.for_seo(gall.name, summary_filters)
+        summary_filters = Galls.Summary.from_db_filters(gall_filters, gall.detachable)
+        page_description = Galls.Summary.for_seo(gall.name, summary_filters)
 
         page_image =
           case images do

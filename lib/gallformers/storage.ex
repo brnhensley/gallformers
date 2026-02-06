@@ -1,9 +1,9 @@
-defmodule Gallformers.Images.Storage do
+defmodule Gallformers.Storage do
   @moduledoc """
-  S3 storage operations for images.
+  S3 storage operations.
 
-  Handles all S3 interactions including uploads, deletions, presigned URLs,
-  size variant generation, and bucket listing operations.
+  Top-level shared infrastructure for all S3 interactions including uploads,
+  deletions, presigned URLs, size variant generation, and bucket listing operations.
   """
 
   require Logger

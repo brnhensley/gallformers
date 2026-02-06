@@ -7,8 +7,8 @@ defmodule GallformersWeb.IntegrationTest do
 
   alias Gallformers.Accounts.Auth0User
   alias Gallformers.GallHosts
-  alias Gallformers.Species
-  alias Gallformers.Species.Plants
+  alias Gallformers.Galls
+  alias Gallformers.Plants
 
   describe "Public page load flows" do
     test "home page loads successfully", %{conn: conn} do
@@ -59,7 +59,7 @@ defmodule GallformersWeb.IntegrationTest do
 
   describe "Entity page load flows" do
     test "gall page loads for valid ID", %{conn: conn} do
-      galls = Species.list_galls()
+      galls = Galls.list_galls()
 
       if length(galls) > 0 do
         gall = hd(galls)
@@ -107,7 +107,7 @@ defmodule GallformersWeb.IntegrationTest do
     end
 
     test "can navigate from gall to host", %{conn: conn} do
-      galls = Species.list_galls()
+      galls = Galls.list_galls()
 
       gall_with_host =
         Enum.find(galls, fn g ->
