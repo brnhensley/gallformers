@@ -298,6 +298,15 @@ defmodule GallformersWeb.AboutLive do
           <%!-- Version Info --%>
           <div class="mt-12 text-center text-sm text-gray-500">
             App: {@app_version} | API: {@api_version}
+            <span class="mx-2">&middot;</span>
+            <.link
+              href="https://github.com/jeffdc/gallformers/releases"
+              target="_blank"
+              rel="noreferrer"
+              class="hover:text-gray-700 transition-colors"
+            >
+              Release Notes
+            </.link>
           </div>
 
           <%!-- Easter Egg --%>
