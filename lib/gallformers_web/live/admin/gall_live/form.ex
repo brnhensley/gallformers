@@ -788,6 +788,15 @@ defmodule GallformersWeb.Admin.GallLive.Form do
   end
 
   @impl true
+  def handle_event("request_close_rename", _params, socket) do
+    if socket.assigns.rename_value == socket.assigns.gall.name do
+      {:noreply, assign(socket, :show_rename_modal, false)}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  @impl true
   def handle_event("update_rename_value", %{"value" => value}, socket) do
     {:noreply, assign(socket, :rename_value, value)}
   end

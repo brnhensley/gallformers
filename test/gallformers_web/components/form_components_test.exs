@@ -154,8 +154,8 @@ defmodule GallformersWeb.FormComponentsTest do
 
       assert html =~ ~s(role="dialog")
       assert html =~ ~s(aria-modal="true")
-      assert html =~ ~s(aria-labelledby="cascade-delete-title")
-      assert html =~ ~s(aria-label="Close")
+      assert html =~ ~s(aria-labelledby="cascade-delete-modal-title")
+      assert html =~ ~s(aria-label="close")
     end
   end
 end
