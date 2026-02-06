@@ -54,7 +54,8 @@ defmodule GallformersWeb.KeysLive do
               <p :if={key.subtitle} class="text-gf-autumn text-sm mb-2">{key.subtitle}</p>
               <p :if={key.description} class="text-gray-600">
                 {String.slice(key.description || "", 0, 200)}{if String.length(key.description || "") >
-                                                                   200, do: "..."}
+                                                                   200,
+                                                                 do: "..."}
               </p>
               <div :if={key.authors != []} class="text-sm text-gray-500 mt-3">
                 By {Enum.join(key.authors, ", ")}
