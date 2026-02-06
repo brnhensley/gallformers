@@ -685,7 +685,7 @@ defmodule GallformersWeb.GallLive do
             </div>
             <div :if={@selected_source.license} class="text-sm text-gray-500 pt-2 border-t">
               License:
-              <%= if @selected_source.licenselink do %>
+              <%= if @selected_source.licenselink not in [nil, ""] do %>
                 <.link
                   href={@selected_source.licenselink}
                   target="_blank"
@@ -703,7 +703,7 @@ defmodule GallformersWeb.GallLive do
         <:footer>
           <div class="flex justify-between items-center w-full">
             <.link
-              :if={@selected_source.externallink}
+              :if={@selected_source.externallink not in [nil, ""]}
               href={@selected_source.externallink}
               target="_blank"
               rel="noopener noreferrer"
@@ -711,7 +711,7 @@ defmodule GallformersWeb.GallLive do
             >
               View external link →
             </.link>
-            <span :if={!@selected_source.externallink}></span>
+            <span :if={@selected_source.externallink in [nil, ""]}></span>
             <.link
               href={"/source/#{@selected_source.id}"}
               class="text-gf-maroon hover:underline"

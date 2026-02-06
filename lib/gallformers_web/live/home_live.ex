@@ -267,7 +267,7 @@ defmodule GallformersWeb.HomeLive do
             <%= if @random_gall.image_creator do %>
               <p class="text-xs text-gray-500 mt-2">
                 Photo:
-                <%= if @random_gall.image_sourcelink do %>
+                <%= if @random_gall.image_sourcelink not in [nil, ""] do %>
                   <a
                     href={@random_gall.image_sourcelink}
                     target="_blank"
@@ -282,7 +282,7 @@ defmodule GallformersWeb.HomeLive do
                 <%= if @random_gall.image_license do %>
                   <span class="ml-1">
                     ©
-                    <%= if @random_gall.image_licenselink do %>
+                    <%= if @random_gall.image_licenselink not in [nil, ""] do %>
                       <a
                         href={@random_gall.image_licenselink}
                         target="_blank"

@@ -157,7 +157,7 @@ defmodule GallformersWeb.SourceLive do
                 />
               </div>
 
-              <%= if @source.link do %>
+              <%= if @source.link not in [nil, ""] do %>
                 <.link
                   href={@source.link}
                   target="_blank"
@@ -180,7 +180,7 @@ defmodule GallformersWeb.SourceLive do
                   </div>
                   <div>
                     <span class="font-semibold text-gray-700">License:</span>
-                    <%= if @source.licenselink do %>
+                    <%= if @source.licenselink not in [nil, ""] do %>
                       <.link
                         href={@source.licenselink}
                         target="_blank"
