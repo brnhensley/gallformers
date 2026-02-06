@@ -477,11 +477,28 @@ const InputEvent = {
   }
 }
 
+// ScrollToCouplet hook for dichotomous key navigation
+const ScrollToCouplet = {
+  mounted() {
+    this.handleEvent("scroll_to_couplet", ({id}) => {
+      requestAnimationFrame(() => {
+        const el = document.getElementById(id)
+        if (el) {
+          // Account for sticky header (~78px) and path tracker (~40px)
+          const offset = 130
+          const top = el.getBoundingClientRect().top + window.scrollY - offset
+          window.scrollTo({ top, behavior: "smooth" })
+        }
+      })
+    })
+  }
+}
+
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {Tabs, ImageGallery, RangeMap, ImageUpload, SortableImages, AutoDismiss, Typeahead, ArticleImageUpload, CopyToClipboard, DailyChart, InputEvent},
+  hooks: {Tabs, ImageGallery, RangeMap, ImageUpload, SortableImages, AutoDismiss, Typeahead, ArticleImageUpload, CopyToClipboard, DailyChart, InputEvent, ScrollToCouplet},
 })
 
 // Show progress bar on live navigation and form submits

@@ -135,7 +135,7 @@ defmodule GallformersWeb.HostLive do
 
     json_ld = if image, do: Map.put(json_ld, "image", image), else: json_ld
 
-    Phoenix.HTML.raw(~s(<script type="application/ld+json">#{Jason.encode!(json_ld)}</script>))
+    Jason.encode!(json_ld)
   end
 
   defp get_taxonomy_info(species_id) do
