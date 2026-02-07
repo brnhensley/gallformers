@@ -280,10 +280,7 @@ defmodule GallformersWeb.IDLive do
   end
 
   defp load_families_for_selection(nil, genus) do
-    case Taxonomy.get_family_for_genus(genus.id) do
-      nil -> []
-      family -> [family]
-    end
+    Taxonomy.list_gall_families_for_host_genus(genus.id)
   end
 
   defp load_families_for_selection(host, _genus) do
