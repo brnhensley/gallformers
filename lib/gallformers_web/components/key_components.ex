@@ -37,7 +37,12 @@ defmodule GallformersWeb.KeyComponents do
 
         <span :if={@terminal} class="flex items-center gap-1">
           <span class="text-gray-400">→</span>
-          <span class="font-bold text-gf-maroon">{@terminal.name}</span>
+          <span class={[
+            "font-bold text-gf-maroon",
+            if(italicize_taxon?(@terminal.name), do: "italic")
+          ]}>
+            {@terminal.name}
+          </span>
         </span>
 
         <button
@@ -98,6 +103,14 @@ defmodule GallformersWeb.KeyComponents do
       </div>
     </div>
     """
+  end
+
+  # Genus and species names are italicized; family (-idae), subfamily (-inae),
+  # superfamily (-oidea), and tribe (-ini/-ina) names are not.
+  defp italicize_taxon?(name) do
+    first_word = name |> String.split(~r/[\s(]/, parts: 2) |> hd()
+
+    not String.match?(first_word, ~r/(oidea|idae|inae|ini|ina)$/i)
   end
 
   defp couplet_classes(:active), do: "border-gf-maroon border-l-4 bg-white shadow-md"
@@ -201,7 +214,9 @@ defmodule GallformersWeb.KeyComponents do
           "inline-flex items-center gap-1 font-bold",
           if(@state == :unchosen, do: "text-gray-400", else: "text-gf-maroon")
         ]}>
-          <span class="italic">{@destination.name}</span>
+          <span class={if(italicize_taxon?(@destination.name), do: "italic")}>
+            {@destination.name}
+          </span>
           <span :if={@destination[:context]} class="text-sm font-normal text-gray-500">
             ({@destination.context})
           </span>
