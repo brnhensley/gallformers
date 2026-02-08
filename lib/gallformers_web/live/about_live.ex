@@ -278,6 +278,19 @@ defmodule GallformersWeb.AboutLive do
             Www.gallformers.org/[url to specific species], www.gallformers.org. Accessed [date]
           </div>
 
+          <h2>Database Download</h2>
+          <p>
+            A sanitized snapshot of the Gallformers database is available for download. It is updated daily and
+            provided as a SQLite file.
+          </p>
+          <p>
+            <.link
+              href="https://gallformers-backups.s3.amazonaws.com/public/gallformers.sqlite"
+            >
+              Download the Gallformers database
+            </.link>
+          </p>
+
           <h2>Public API</h2>
           <p>
             Gallformers provides a public API for programmatic access to our database. You can use it to search for
