@@ -284,9 +284,7 @@ defmodule GallformersWeb.AboutLive do
             provided as a SQLite file.
           </p>
           <p>
-            <.link
-              href="https://gallformers-backups.s3.amazonaws.com/public/gallformers.sqlite"
-            >
+            <.link href="https://gallformers-backups.s3.amazonaws.com/public/gallformers.sqlite">
               Download the Gallformers database
             </.link>
           </p>
