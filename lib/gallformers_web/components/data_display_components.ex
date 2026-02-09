@@ -329,24 +329,40 @@ defmodule GallformersWeb.DataDisplayComponents do
       </dialog>
     </div>
 
-    <div
-      :if={@image_count == 0 && @no_image_src}
-      class="aspect-[4/3] bg-gray-100 rounded-lg overflow-hidden"
-    >
-      <img
-        src={@no_image_src}
-        alt="No image available for this species"
-        class="w-full h-full object-contain"
-      />
+    <div :if={@image_count == 0 && @no_image_src}>
+      <div class="aspect-[4/3] bg-gray-100 rounded-lg overflow-hidden">
+        <img
+          src={@no_image_src}
+          alt="No image available for this species"
+          class="w-full h-full object-contain"
+        />
+      </div>
+      <div :if={@current_user && @species_id} class="mt-2 flex justify-center">
+        <.link
+          href={"/admin/images?species_id=#{@species_id}"}
+          class="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gf-maroon"
+        >
+          <.icon name="ph-upload-simple" class="size-4" />
+          <span>{gettext("Add images")}</span>
+        </.link>
+      </div>
     </div>
 
-    <div
-      :if={@image_count == 0 && !@no_image_src}
-      class="aspect-[4/3] bg-gray-100 rounded-lg flex items-center justify-center"
-    >
-      <div class="text-gray-400 text-center">
-        <.icon name="ph-image" class="size-12 mx-auto mb-2" />
-        <p>{gettext("No images available")}</p>
+    <div :if={@image_count == 0 && !@no_image_src}>
+      <div class="aspect-[4/3] bg-gray-100 rounded-lg flex items-center justify-center">
+        <div class="text-gray-400 text-center">
+          <.icon name="ph-image" class="size-12 mx-auto mb-2" />
+          <p>{gettext("No images available")}</p>
+        </div>
+      </div>
+      <div :if={@current_user && @species_id} class="mt-2 flex justify-center">
+        <.link
+          href={"/admin/images?species_id=#{@species_id}"}
+          class="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gf-maroon"
+        >
+          <.icon name="ph-upload-simple" class="size-4" />
+          <span>{gettext("Add images")}</span>
+        </.link>
       </div>
     </div>
     """
