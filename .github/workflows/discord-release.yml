@@ -3,19 +3,55 @@ name: Discord Release Notification
 on:
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to post (e.g. v2026.2.9)'
+        required: true
+        type: string
 
 jobs:
   notify:
     name: Post to Discord
     runs-on: ubuntu-latest
     steps:
-      - name: Post release notes to Discord
+      - name: Get release data
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          if [ -n "$TAG" ]; then
+            # Manual trigger - fetch release by tag
+            RELEASE=$(gh api repos/${{ github.repository }}/releases/tags/"$TAG")
+            echo "name=$(echo "$RELEASE" | jq -r .name)" >> "$GITHUB_OUTPUT"
+            echo "url=$(echo "$RELEASE" | jq -r .html_url)" >> "$GITHUB_OUTPUT"
+            echo "tag=$(echo "$RELEASE" | jq -r .tag_name)" >> "$GITHUB_OUTPUT"
+
+            # Body needs multiline handling
+            EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
+            echo "body<<$EOF" >> "$GITHUB_OUTPUT"
+            echo "$RELEASE" | jq -r .body >> "$GITHUB_OUTPUT"
+            echo "$EOF" >> "$GITHUB_OUTPUT"
+          else
+            # Release event trigger
+            echo "name=${{ github.event.release.name }}" >> "$GITHUB_OUTPUT"
+            echo "url=${{ github.event.release.html_url }}" >> "$GITHUB_OUTPUT"
+            echo "tag=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
+
+            EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
+            echo "body<<$EOF" >> "$GITHUB_OUTPUT"
+            echo "${{ github.event.release.body }}" >> "$GITHUB_OUTPUT"
+            echo "$EOF" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Post to Discord
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-          RELEASE_NAME: ${{ github.event.release.name }}
-          RELEASE_URL: ${{ github.event.release.html_url }}
-          RELEASE_BODY: ${{ github.event.release.body }}
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_NAME: ${{ steps.release.outputs.name }}
+          RELEASE_URL: ${{ steps.release.outputs.url }}
+          RELEASE_BODY: ${{ steps.release.outputs.body }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
         run: |
           # Truncate body to fit Discord's 4096-char embed description limit
           BODY="${RELEASE_BODY:0:4000}"
