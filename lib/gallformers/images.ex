@@ -316,10 +316,11 @@ defmodule Gallformers.Images do
       left_join: i in ImageSchema,
       on: i.species_id == s.id,
       where: fragment("lower(?) LIKE ?", s.name, ^search_term),
-      group_by: [s.id, s.name],
+      group_by: [s.id, s.name, s.taxoncode],
       select: %{
         id: s.id,
         name: s.name,
+        taxoncode: s.taxoncode,
         image_count: count(i.id)
       },
       order_by: s.name,

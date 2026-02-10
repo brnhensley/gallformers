@@ -66,16 +66,16 @@ defmodule GallformersWeb.Admin.ImagesLive do
         species_id = String.to_integer(species_id)
         images = Images.list_images_for_species(species_id)
 
-        # Get species name
-        species_name =
+        # Get species name and taxoncode
+        {species_name, taxoncode} =
           case Gallformers.Species.get_species(species_id) do
-            nil -> "Unknown Species"
-            s -> s.name
+            nil -> {"Unknown Species", "gall"}
+            s -> {s.name, s.taxoncode}
           end
 
         socket =
           socket
-          |> assign(:selected_species, %{id: species_id, name: species_name})
+          |> assign(:selected_species, %{id: species_id, name: species_name, taxoncode: taxoncode})
           |> assign(:images, images)
           |> assign(:images_version, 0)
 
@@ -86,7 +86,12 @@ defmodule GallformersWeb.Admin.ImagesLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.admin flash={@flash} current_user={@current_user} page_title="Image Management">
+    <Layouts.admin
+      flash={@flash}
+      current_user={@current_user}
+      page_title="Image Management"
+      public_url={species_public_url(@selected_species)}
+    >
       <div class="space-y-6">
         <%!-- Species Search --%>
         <div class="bg-white rounded-lg border border-gray-200 p-6">
@@ -117,17 +122,9 @@ defmodule GallformersWeb.Admin.ImagesLive do
           <%!-- Image Grid --%>
           <div class="bg-white rounded-lg border border-gray-200 p-6">
             <div class="flex items-center justify-between mb-4">
-              <div class="flex items-center gap-4">
-                <h2 class="text-lg font-medium text-gray-900">
-                  Images ({length(@images)})
-                </h2>
-                <.link
-                  navigate={~p"/gall/#{@selected_species.id}"}
-                  class="text-sm text-gf-maroon hover:underline"
-                >
-                  View public page
-                </.link>
-              </div>
+              <h2 class="text-lg font-medium text-gray-900">
+                Images ({length(@images)})
+              </h2>
               <div class="flex items-center gap-4">
                 <p :if={@images != [] && @view_mode == :grid} class="text-sm text-gray-500">
                   Drag to reorder. First image is the default.
@@ -913,15 +910,16 @@ defmodule GallformersWeb.Admin.ImagesLive do
   def handle_event("select_species", %{"id" => id}, socket) do
     species_id = String.to_integer(id)
 
-    # Get the species name from search results
+    # Get the species name and taxoncode from search results
     species_result = Enum.find(socket.assigns.search_results, &(&1.id == species_id))
     name = if species_result, do: species_result.name, else: "Unknown"
+    taxoncode = if species_result, do: species_result.taxoncode, else: "gall"
 
     images = Images.list_images_for_species(species_id)
 
     socket =
       socket
-      |> assign(:selected_species, %{id: species_id, name: name})
+      |> assign(:selected_species, %{id: species_id, name: name, taxoncode: taxoncode})
       |> assign(:images, images)
       |> assign(:images_version, 0)
       |> assign(:search_results, [])
@@ -1387,6 +1385,10 @@ defmodule GallformersWeb.Admin.ImagesLive do
         {:noreply, put_flash(socket, :error, "Failed to delete image: #{inspect(reason)}")}
     end
   end
+
+  defp species_public_url(nil), do: nil
+  defp species_public_url(%{taxoncode: "plant", id: id}), do: ~p"/host/#{id}"
+  defp species_public_url(%{id: id}), do: ~p"/gall/#{id}"
 
   # Helper to check if an image is missing required metadata
   defp image_incomplete?(image) do
