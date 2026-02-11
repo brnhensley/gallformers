@@ -215,11 +215,21 @@ const ImageGallery = {
     const creator = this.el.querySelector("[data-creator]")
     if (creator) creator.textContent = img.creator || ""
 
-    const license = this.el.querySelector("[data-license]")
-    if (license) license.textContent = img.license || ""
+    const hasLicenseLink = !!img.licenselink
 
     const licenseLink = this.el.querySelector("[data-license-link]")
-    if (licenseLink) licenseLink.href = img.licenselink || "#"
+    if (licenseLink) {
+      licenseLink.href = img.licenselink || "#"
+      licenseLink.classList.toggle("hidden", !hasLicenseLink)
+      const licenseSpan = licenseLink.querySelector("[data-license]")
+      if (licenseSpan) licenseSpan.textContent = img.license || ""
+    }
+
+    const licenseNoLink = this.el.querySelector("[data-license-nolink]")
+    if (licenseNoLink) {
+      licenseNoLink.textContent = img.license || ""
+      licenseNoLink.classList.toggle("hidden", hasLicenseLink)
+    }
 
     const licenseTooltip = this.el.querySelector("[data-license-tooltip]")
     if (licenseTooltip) licenseTooltip.textContent = img.license || "No license"
@@ -234,10 +244,17 @@ const ImageGallery = {
       infoSource.textContent = img.source_title || img.sourcelink || ""
     }
 
-    const infoLicense = this.el.querySelector("[data-info-license]")
-    if (infoLicense) {
-      infoLicense.href = img.licenselink || "#"
-      infoLicense.textContent = img.license || ""
+    const infoLicenseLink = this.el.querySelector("[data-info-license-link]")
+    if (infoLicenseLink) {
+      infoLicenseLink.href = img.licenselink || "#"
+      infoLicenseLink.textContent = img.license || ""
+      infoLicenseLink.classList.toggle("hidden", !hasLicenseLink)
+    }
+
+    const infoLicenseNoLink = this.el.querySelector("[data-info-license-nolink]")
+    if (infoLicenseNoLink) {
+      infoLicenseNoLink.textContent = img.license || ""
+      infoLicenseNoLink.classList.toggle("hidden", hasLicenseLink)
     }
 
     const infoAttribution = this.el.querySelector("[data-info-attribution]")
@@ -262,11 +279,19 @@ const ImageGallery = {
     const lightboxCreator = this.el.querySelector("[data-lightbox-creator]")
     if (lightboxCreator) lightboxCreator.textContent = img.creator || ""
 
-    const lightboxLicense = this.el.querySelector("[data-lightbox-license]")
-    if (lightboxLicense) lightboxLicense.textContent = img.license || ""
-
     const lightboxLicenseLink = this.el.querySelector("[data-lightbox-license-link]")
-    if (lightboxLicenseLink) lightboxLicenseLink.href = img.licenselink || "#"
+    if (lightboxLicenseLink) {
+      lightboxLicenseLink.href = img.licenselink || "#"
+      lightboxLicenseLink.classList.toggle("hidden", !hasLicenseLink)
+      const lightboxLicenseSpan = lightboxLicenseLink.querySelector("[data-lightbox-license]")
+      if (lightboxLicenseSpan) lightboxLicenseSpan.textContent = img.license || ""
+    }
+
+    const lightboxLicenseNoLink = this.el.querySelector("[data-lightbox-license-nolink]")
+    if (lightboxLicenseNoLink) {
+      lightboxLicenseNoLink.textContent = img.license || ""
+      lightboxLicenseNoLink.classList.toggle("hidden", hasLicenseLink)
+    }
 
     // Push event to server if needed
     this.pushEvent("gallery_index_changed", {index: this.currentIndex})

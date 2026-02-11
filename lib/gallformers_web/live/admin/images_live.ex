@@ -1138,10 +1138,15 @@ defmodule GallformersWeb.Admin.ImagesLive do
 
     case Images.reorder_images(species_id, order) do
       :ok ->
-        # Don't reload images - the DOM already shows the correct order
-        # (via JS manipulation) and the database has been updated.
-        # Reloading would trigger a re-render that fights with phx-update="ignore".
-        {:noreply, put_flash(socket, :info, "Image order saved")}
+        images = Images.list_images_for_species(species_id)
+
+        socket =
+          socket
+          |> assign(:images, images)
+          |> update(:images_version, &(&1 + 1))
+          |> put_flash(:info, "Image order saved")
+
+        {:noreply, socket}
 
       {:error, _reason} ->
         {:noreply, put_flash(socket, :error, "Failed to save image order")}

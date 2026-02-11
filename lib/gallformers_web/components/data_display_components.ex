@@ -114,21 +114,20 @@ defmodule GallformersWeb.DataDisplayComponents do
         <span data-creator>{get_img_field(@first_image, :creator)}</span>
         <span :if={get_img_field(@first_image, :license) != ""}>{" © "}</span>
         <a
-          :if={get_img_field(@first_image, :licenselink) != ""}
           data-license-link
           href={get_img_field(@first_image, :licenselink)}
           target="_blank"
           rel="noopener noreferrer"
-          class="hover:underline"
+          class={[
+            "hover:underline",
+            get_img_field(@first_image, :licenselink) == "" && "hidden"
+          ]}
         >
           <span data-license>{get_img_field(@first_image, :license)}</span>
         </a>
         <span
-          :if={
-            get_img_field(@first_image, :licenselink) == "" &&
-              get_img_field(@first_image, :license) != ""
-          }
-          data-license
+          data-license-nolink
+          class={get_img_field(@first_image, :licenselink) != "" && "hidden"}
         >
           {get_img_field(@first_image, :license)}
         </span>
@@ -201,21 +200,20 @@ defmodule GallformersWeb.DataDisplayComponents do
               <div>
                 <strong>{gettext("License:")}</strong>{" "}
                 <a
-                  :if={get_img_field(@first_image, :licenselink) != ""}
-                  data-info-license
+                  data-info-license-link
                   href={get_img_field(@first_image, :licenselink)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  class="hover:underline"
+                  class={[
+                    "hover:underline",
+                    get_img_field(@first_image, :licenselink) == "" && "hidden"
+                  ]}
                 >
                   {get_img_field(@first_image, :license)}
                 </a>
                 <span
-                  :if={
-                    get_img_field(@first_image, :licenselink) == "" &&
-                      get_img_field(@first_image, :license) != ""
-                  }
-                  data-info-license
+                  data-info-license-nolink
+                  class={get_img_field(@first_image, :licenselink) != "" && "hidden"}
                 >
                   {get_img_field(@first_image, :license)}
                 </span>
@@ -286,21 +284,20 @@ defmodule GallformersWeb.DataDisplayComponents do
             <span data-lightbox-creator>{get_img_field(@first_image, :creator)}</span>
             <span :if={get_img_field(@first_image, :license) != ""}>{" © "}</span>
             <a
-              :if={get_img_field(@first_image, :licenselink) != ""}
               data-lightbox-license-link
               href={get_img_field(@first_image, :licenselink)}
               target="_blank"
               rel="noopener noreferrer"
-              class="text-white hover:underline"
+              class={[
+                "text-white hover:underline",
+                get_img_field(@first_image, :licenselink) == "" && "hidden"
+              ]}
             >
               <span data-lightbox-license>{get_img_field(@first_image, :license)}</span>
             </a>
             <span
-              :if={
-                get_img_field(@first_image, :licenselink) == "" &&
-                  get_img_field(@first_image, :license) != ""
-              }
-              data-lightbox-license
+              data-lightbox-license-nolink
+              class={get_img_field(@first_image, :licenselink) != "" && "hidden"}
             >
               {get_img_field(@first_image, :license)}
             </span>
