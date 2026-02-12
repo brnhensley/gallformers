@@ -6,6 +6,7 @@ defmodule GallformersWeb.Admin.FormComponents do
   use Phoenix.Component
 
   import GallformersWeb.CoreComponents, only: [icon: 1]
+  import GallformersWeb.DataDisplayComponents, only: [taxon_name: 1]
   import GallformersWeb.UIComponents, only: [alert: 1]
 
   @doc """
@@ -24,6 +25,7 @@ defmodule GallformersWeb.Admin.FormComponents do
       <.form_actions form_dirty={@form_dirty} mode={@mode} save_label="Save Changes" create_label="Create Place" />
   """
   attr :form_dirty, :boolean, required: true
+  attr :form_valid, :boolean, default: true
   attr :mode, :atom, required: true, values: [:new, :edit]
   attr :save_label, :string, default: "Save"
   attr :create_label, :string, default: "Create"
@@ -40,7 +42,7 @@ defmodule GallformersWeb.Admin.FormComponents do
       </button>
       <button
         type="submit"
-        disabled={not @form_dirty}
+        disabled={not @form_dirty or not @form_valid}
         class="gf-btn gf-btn-primary"
       >
         {if @mode == :new, do: @create_label, else: @save_label}
@@ -85,6 +87,7 @@ defmodule GallformersWeb.Admin.FormComponents do
 
   defp alias_type_label("common"), do: "common name"
   defp alias_type_label("scientific"), do: "scientific synonym"
+  defp alias_type_label("former_undescribed"), do: "former undescribed name"
   defp alias_type_label(other), do: other
 
   defp species_path("gall", id), do: "/gall/#{id}"
@@ -133,7 +136,7 @@ defmodule GallformersWeb.Admin.FormComponents do
           </thead>
           <tbody class="divide-y divide-gray-200">
             <tr :for={a <- @aliases} class="hover:bg-gray-50">
-              <td class="px-3 py-1.5 italic">{a.name}</td>
+              <td class="px-3 py-1.5"><.taxon_name name={a.name} /></td>
               <td class="px-3 py-1.5">{a.type}</td>
               <td class="px-3 py-1.5">
                 <button
@@ -149,11 +152,12 @@ defmodule GallformersWeb.Admin.FormComponents do
             <tr>
               <td class="px-3 py-1.5">
                 <input
+                  id="new-alias-input"
                   type="text"
                   value={@new_alias_name}
                   placeholder="New alias..."
-                  phx-keyup="update_new_alias"
-                  phx-value-type={@new_alias_type}
+                  phx-hook="InputEvent"
+                  data-event="update_new_alias"
                   class="gf-input text-sm"
                 />
               </td>
@@ -190,10 +194,10 @@ defmodule GallformersWeb.Admin.FormComponents do
   end
 
   defp alias_type_options do
-    # Database constraint: type = 'common' OR type = 'scientific'
     [
       {"Common Name", "common"},
-      {"Scientific Synonym", "scientific"}
+      {"Scientific Synonym", "scientific"},
+      {"Former Undescribed Name", "former_undescribed"}
     ]
   end
 end

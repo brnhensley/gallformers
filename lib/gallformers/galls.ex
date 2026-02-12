@@ -28,7 +28,7 @@ defmodule Gallformers.Galls do
   alias Gallformers.Images.Image
   alias Gallformers.Repo
   alias Gallformers.Species.{Abundance, Species}
-  alias Gallformers.Taxonomy.{Taxonomy, TreeBuilder}
+  alias Gallformers.Taxonomy.{TaxonName, Taxonomy, TreeBuilder}
 
   @topic "galls"
 
@@ -334,12 +334,10 @@ defmodule Gallformers.Galls do
   """
   @spec get_related_galls(map()) :: [map()]
   def get_related_galls(gall) when is_map(gall) do
-    name = gall.name || ""
-    name_parts = String.split(name, " ", parts: 3)
+    parsed = TaxonName.parse(gall.name || "")
 
-    if length(name_parts) >= 2 do
-      # Match on "Genus species " with trailing space to avoid false positives
-      prefix = "#{Enum.at(name_parts, 0)} #{Enum.at(name_parts, 1)} "
+    if parsed.epithet do
+      prefix = "#{parsed.genus} #{parsed.epithet} "
 
       from(s in Species,
         where: fragment("? LIKE ?", s.name, ^"#{prefix}%"),
@@ -530,10 +528,14 @@ defmodule Gallformers.Galls do
 
   @doc """
   Updates gall properties (detachable, undescribed).
+
+  Silently enforces `undescribed: true` when the species is linked to an Unknown genus.
   """
   @spec update_gall_properties(integer(), map()) ::
           {:ok, GallTraits.t()} | {:error, Ecto.Changeset.t() | :not_found}
   def update_gall_properties(species_id, attrs) do
+    attrs = enforce_unknown_genus_floor(species_id, attrs)
+
     case Repo.get(GallTraits, species_id) do
       nil ->
         {:error, :not_found}
@@ -542,6 +544,32 @@ defmodule Gallformers.Galls do
         gall_traits
         |> GallTraits.changeset(attrs)
         |> Repo.update()
+    end
+  end
+
+  # If the caller is trying to set undescribed=false but the species has an Unknown genus,
+  # silently correct to undescribed=true.
+  defp enforce_unknown_genus_floor(species_id, attrs) do
+    undescribed = Map.get(attrs, :undescribed, Map.get(attrs, "undescribed"))
+
+    if undescribed == false and has_unknown_genus?(species_id) do
+      force_undescribed(attrs)
+    else
+      attrs
+    end
+  end
+
+  defp has_unknown_genus?(species_id) do
+    taxonomy = Gallformers.Taxonomy.get_taxonomy_for_species(species_id)
+    taxonomy && Gallformers.Taxonomy.placeholder_genus_name?(taxonomy.genus.name)
+  end
+
+  # Preserve the key type (atom or string) used by the caller
+  defp force_undescribed(attrs) do
+    if Map.has_key?(attrs, :undescribed) do
+      Map.put(attrs, :undescribed, true)
+    else
+      Map.put(attrs, "undescribed", true)
     end
   end
 
@@ -623,6 +651,70 @@ defmodule Gallformers.Galls do
   end
 
   # ============================================
+  # Undescribed Lock Logic
+  # ============================================
+
+  @doc """
+  Computes whether the undescribed checkbox should be locked and why.
+
+  A gall's undescribed flag is locked to `true` when:
+  - The genus is a placeholder (Unknown) — species with unknown genus are always undescribed
+  - The species has no sources linked — a source is required to mark as described
+
+  Returns `{locked?, reason}` where reason is a string explaining the lock, or nil if unlocked.
+  For new galls (species_id is nil), the source check is skipped.
+  """
+  @spec compute_undescribed_lock(Gallformers.Taxonomy.Lineage.t() | nil, integer() | nil) ::
+          {boolean(), String.t() | nil}
+  def compute_undescribed_lock(taxonomy, species_id \\ nil) do
+    genus_name = taxonomy && taxonomy.genus && taxonomy.genus.name
+
+    cond do
+      Gallformers.Taxonomy.placeholder_genus_name?(genus_name) ->
+        {true, "Undescribed is required for species with unknown genus."}
+
+      species_id && not Gallformers.Sources.has_sources?(species_id) ->
+        {true, "A source is required to mark a species as described."}
+
+      true ->
+        {false, nil}
+    end
+  end
+
+  @doc """
+  Returns true if the species has gall_traits with undescribed=true.
+  """
+  @spec undescribed?(integer()) :: boolean()
+  def undescribed?(species_id) do
+    case Repo.get(GallTraits, species_id) do
+      %GallTraits{undescribed: true} -> true
+      _ -> false
+    end
+  end
+
+  @doc """
+  Forces undescribed=true if the given genus is a placeholder (Unknown).
+  No-op if genus is not a placeholder or species has no gall_traits.
+  """
+  @spec force_undescribed_if_placeholder(integer(), integer()) :: :ok
+  def force_undescribed_if_placeholder(species_id, genus_id) do
+    genus = Gallformers.Taxonomy.get_taxonomy(genus_id)
+
+    if genus && genus.is_placeholder do
+      case Repo.get(GallTraits, species_id) do
+        nil ->
+          :ok
+
+        gall_traits ->
+          GallTraits.changeset(gall_traits, %{undescribed: true}) |> Repo.update!()
+          :ok
+      end
+    else
+      :ok
+    end
+  end
+
+  # ============================================
   # CRUD Operations
   # ============================================
 
@@ -691,6 +783,192 @@ defmodule Gallformers.Galls do
     case Repo.delete(gall) do
       {:ok, deleted} -> deleted
       {:error, changeset} -> Repo.rollback(changeset)
+    end
+  end
+
+  # ============================================
+  # Composite Save Operations
+  # ============================================
+
+  @doc """
+  Creates a new gall species with all associations in a single transaction.
+
+  Handles species creation, gall_traits, taxonomy linking, hosts, aliases,
+  filter values, and gall properties (detachable/undescribed).
+
+  ## Params
+
+    * `:species_attrs` - Map of species attributes (name, taxoncode, etc.)
+    * `:taxonomy` - Taxonomy map with genus info
+    * `:genus_is_new` - Boolean, whether to create a new genus
+    * `:parent_id` - Family or section ID for taxonomy linking
+    * `:hosts` - List of host maps with `:host_species_id`
+    * `:aliases` - List of alias maps with `:name` and `:type`
+    * `:filter_values` - Map of filter type => list of filter value maps
+    * `:detachable` - Detachable value string
+    * `:undescribed` - Boolean undescribed flag
+
+  Returns `{:ok, species}` or `{:error, changeset | reason}`.
+  """
+  @spec create_gall_with_associations(map()) ::
+          {:ok, Species.t()} | {:error, Ecto.Changeset.t() | term()}
+  def create_gall_with_associations(params) do
+    Repo.transaction(fn ->
+      case Gallformers.Species.create_species(params.species_attrs) do
+        {:ok, species} ->
+          {:ok, _gall} = create_gall_traits(species.id)
+
+          Gallformers.Taxonomy.link_species_taxonomy(
+            species.id,
+            params.taxonomy,
+            params.genus_is_new,
+            params.parent_id
+          )
+
+          for host <- params.hosts do
+            Gallformers.GallHosts.add_host_to_gall(species.id, host.host_species_id)
+          end
+
+          for a <- params.aliases do
+            Gallformers.Species.create_alias_for_species(species.id, %{
+              name: a.name,
+              type: a.type
+            })
+          end
+
+          sync_filter_values(species.id, empty_filter_values(), params.filter_values)
+
+          update_gall_properties(species.id, %{
+            detachable: params.detachable,
+            undescribed: params.undescribed
+          })
+
+          species
+
+        {:error, changeset} ->
+          Repo.rollback(changeset)
+      end
+    end)
+  end
+
+  @doc """
+  Updates a gall species with all associations in a single transaction.
+
+  Handles species update, alias changes, host changes, filter changes,
+  gall properties, and species timestamp touch.
+
+  ## Params
+
+    * `:species_attrs` - Map of species attributes to update
+    * `:alias_changes` - Tuple `{to_add, to_remove}` from DeferredChanges
+    * `:host_changes` - Tuple `{to_add, to_remove}` from DeferredChanges
+    * `:original_filter_values` - Original filter values map for diffing
+    * `:filter_values` - Current filter values map
+    * `:detachable` - Detachable value string
+    * `:undescribed` - Boolean undescribed flag
+
+  Returns `{:ok, species}` or `{:error, changeset | reason}`.
+  """
+  @spec update_gall_with_associations(Species.t(), map()) ::
+          {:ok, Species.t()} | {:error, Ecto.Changeset.t() | term()}
+  def update_gall_with_associations(species, params) do
+    {aliases_to_add, aliases_to_remove} = params.alias_changes
+    {hosts_to_add, hosts_to_remove} = params.host_changes
+
+    Repo.transaction(fn ->
+      case Gallformers.Species.update_species(species, params.species_attrs) do
+        {:ok, updated_species} ->
+          save_alias_changes(species.id, aliases_to_add, aliases_to_remove)
+          save_host_changes(species.id, hosts_to_add, hosts_to_remove)
+
+          sync_filter_values(
+            species.id,
+            params.original_filter_values,
+            params.filter_values
+          )
+
+          update_gall_properties(species.id, %{
+            detachable: params.detachable,
+            undescribed: params.undescribed
+          })
+
+          Gallformers.Species.touch(species.id)
+          updated_species
+
+        {:error, changeset} ->
+          Repo.rollback(changeset)
+      end
+    end)
+  end
+
+  @doc """
+  Syncs filter values for a gall by computing set differences and issuing
+  add/remove calls for each filter type.
+  """
+  @spec sync_filter_values(integer(), map(), map()) :: :ok
+  def sync_filter_values(gall_id, original_values, current_values) do
+    filter_types = [
+      :colors,
+      :shapes,
+      :textures,
+      :alignments,
+      :walls,
+      :cells,
+      :plant_parts,
+      :forms,
+      :seasons
+    ]
+
+    for filter_type <- filter_types do
+      original = Map.get(original_values, filter_type, [])
+      current = Map.get(current_values, filter_type, [])
+
+      original_ids = MapSet.new(Enum.map(original, & &1.id))
+      current_ids = MapSet.new(Enum.map(current, & &1.id))
+
+      for filter_id <- MapSet.difference(original_ids, current_ids) do
+        remove_filter_field_from_gall(gall_id, filter_type, filter_id)
+      end
+
+      for filter_id <- MapSet.difference(current_ids, original_ids) do
+        add_filter_field_to_gall(gall_id, filter_type, filter_id)
+      end
+    end
+
+    :ok
+  end
+
+  defp empty_filter_values do
+    %{
+      colors: [],
+      shapes: [],
+      textures: [],
+      alignments: [],
+      walls: [],
+      cells: [],
+      plant_parts: [],
+      forms: [],
+      seasons: []
+    }
+  end
+
+  defp save_alias_changes(species_id, to_add, to_remove) do
+    for alias_id <- to_remove do
+      Gallformers.Species.remove_alias_from_species(species_id, alias_id)
+    end
+
+    for a <- to_add do
+      Gallformers.Species.create_alias_for_species(species_id, %{name: a.name, type: a.type})
+    end
+  end
+
+  defp save_host_changes(species_id, to_add, to_remove) do
+    for relation_id <- to_remove do
+      Gallformers.GallHosts.remove_host_from_gall(relation_id)
+    end
+
+    for host <- to_add do
+      Gallformers.GallHosts.add_host_to_gall(species_id, host.host_species_id)
     end
   end
 

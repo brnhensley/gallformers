@@ -9,21 +9,26 @@ defmodule GallformersWeb.Admin.HostLive.Form do
   alias Gallformers.Places
   alias Gallformers.Plants
   alias Gallformers.Ranges
-  alias Gallformers.Repo
   alias Gallformers.Species
   alias Gallformers.Species.Species, as: SpeciesSchema
   alias Gallformers.Taxonomy
+  alias GallformersWeb.Admin.AliasHandlers
   alias GallformersWeb.Admin.DeferredChanges
 
   import GallformersWeb.Admin.FormComponents,
     only: [alias_collision_warning: 1, alias_editor: 1, form_actions: 1]
 
+  import GallformersWeb.Admin.ReclassifyHelpers
+
   @impl true
   def mount(_params, session, socket) do
     current_user = session["current_user"]
+
+    if connected?(socket), do: Species.subscribe()
+
     abundances = Species.list_abundances()
     all_places = Places.list_places()
-    families = Taxonomy.list_plant_families_for_select()
+    families = Taxonomy.list_families_for_select(:plant)
 
     socket =
       socket
@@ -47,40 +52,9 @@ defmodule GallformersWeb.Admin.HostLive.Form do
   end
 
   defp apply_action(socket, :new, _params) do
-    # New host - start in search mode so user can enter a name
     socket
+    |> build_default_assigns()
     |> assign(:page_title, "Add Host")
-    |> assign(:mode, :search)
-    |> assign(:host, nil)
-    |> assign(:form, nil)
-    # Deferred changes tracking
-    |> assign(DeferredChanges.init(:aliases, []))
-    |> assign(:original_places, [])
-    |> assign(:places, [])
-    |> assign(:taxonomy, nil)
-    |> assign(:genus_is_new, false)
-    |> assign(:selected_family_id, nil)
-    |> assign(:selected_section_id, nil)
-    |> assign(:sections_for_family, [])
-    |> assign(:new_alias_name, "")
-    |> assign(:new_alias_type, "common")
-    # Rename modal state
-    |> assign(:show_rename_modal, false)
-    |> assign(:rename_value, "")
-    |> assign(:add_alias_on_rename, false)
-    |> assign(:rename_alias_collisions, [])
-    # Alias collision warnings
-    |> assign(:alias_collisions, [])
-    # Genus confirmation modal state
-    |> assign(:show_genus_confirm, false)
-    |> assign(:pending_genus_info, nil)
-    # Genus disambiguation modal state
-    |> assign(:show_genus_disambiguation, false)
-    |> assign(:possible_families, [])
-    # Typeahead search state
-    |> assign(:host_search_query, "")
-    |> assign(:host_search_results, [])
-    |> reset_dirty()
   end
 
   defp apply_action(socket, :edit, %{"id" => id}) do
@@ -105,66 +79,21 @@ defmodule GallformersWeb.Admin.HostLive.Form do
 
   defp load_host_for_edit(socket, host) do
     host_id = host.id
-    changeset = Plants.change_host(host)
     aliases = Plants.get_aliases_for_host_full(host_id)
     places = Ranges.get_places_for_host(host_id)
     taxonomy = Taxonomy.get_taxonomy_for_species(host_id)
 
-    # Load sections for the host's genus (if genus exists)
-    genus_id = taxonomy && taxonomy.genus_id
-    family_id = taxonomy && taxonomy.family_id
-    sections_for_family = if genus_id, do: Taxonomy.list_sections_for_genus(genus_id), else: []
-
     socket
+    |> build_default_assigns()
+    |> assign(:mode, :edit)
     |> assign(:page_title, "Edit Host - #{host.name}")
     |> assign(:host, host)
-    |> assign(:form, to_form(changeset))
-    |> assign(:mode, :edit)
-    # Deferred changes tracking
+    |> assign(:form, to_form(Plants.change_host(host)))
+    # Deferred changes tracking (override defaults with loaded data)
     |> assign(DeferredChanges.init(:aliases, aliases))
     |> assign(:original_places, places)
     |> assign(:places, places)
-    |> assign(:taxonomy, taxonomy)
-    |> assign(:genus_is_new, false)
-    |> assign(:selected_family_id, family_id)
-    |> assign(:selected_section_id, taxonomy && taxonomy.section_id)
-    |> assign(:sections_for_family, sections_for_family)
-    |> assign(:new_alias_name, "")
-    |> assign(:new_alias_type, "common")
-    # Rename modal state
-    |> assign(:show_rename_modal, false)
-    |> assign(:rename_value, host.name)
-    |> assign(:add_alias_on_rename, false)
-    |> assign(:rename_alias_collisions, [])
-    # Alias collision warnings
-    |> assign(:alias_collisions, [])
-    # Genus confirmation modal state
-    |> assign(:show_genus_confirm, false)
-    |> assign(:pending_genus_info, nil)
-    # Genus disambiguation modal state
-    |> assign(:show_genus_disambiguation, false)
-    |> assign(:possible_families, [])
-    # Typeahead state (cleared in edit mode)
-    |> assign(:host_search_query, "")
-    |> assign(:host_search_results, [])
-    |> reset_dirty()
-  end
-
-  # Updates the genus's section if it changed
-  defp maybe_update_section(socket) do
-    taxonomy = socket.assigns.taxonomy
-    selected_section_id = socket.assigns.selected_section_id
-    original_section_id = taxonomy && taxonomy.section_id
-
-    # Only update if section changed and genus exists
-    if taxonomy && taxonomy.genus_id && selected_section_id != original_section_id do
-      # New parent is either the section or the family (if section cleared)
-      new_parent_id = selected_section_id || taxonomy.family_id
-
-      if new_parent_id do
-        Taxonomy.update_genus_parent(taxonomy.genus_id, new_parent_id)
-      end
-    end
+    |> assign_taxonomy_fields(taxonomy)
   end
 
   # Event handlers
@@ -215,8 +144,7 @@ defmodule GallformersWeb.Admin.HostLive.Form do
   def handle_event("search_host", %{"value" => query}, socket) do
     results =
       if String.length(query) >= 2 do
-        Species.search_species(query, 10)
-        |> Enum.filter(&(&1.taxoncode == "plant"))
+        Species.search_species_by_name(query, "plant", 10)
       else
         []
       end
@@ -250,19 +178,13 @@ defmodule GallformersWeb.Admin.HostLive.Form do
   def handle_event("select_family", %{"family_id" => family_id}, socket) do
     family_id = if family_id == "", do: nil, else: String.to_integer(family_id)
 
-    # Load sections for the selected family
-    sections_for_family =
-      if family_id do
-        Taxonomy.list_sections_for_family(family_id)
-      else
-        []
-      end
-
+    # Sections belong to a genus, not a family. When the family changes on a new genus,
+    # there are no sections to show. For existing genera, sections were loaded at init.
     {:noreply,
      socket
      |> assign(:selected_family_id, family_id)
      |> assign(:selected_section_id, nil)
-     |> assign(:sections_for_family, sections_for_family)
+     |> assign(:sections_for_family, [])
      |> mark_dirty()}
   end
 
@@ -274,89 +196,35 @@ defmodule GallformersWeb.Admin.HostLive.Form do
 
   @impl true
   def handle_event("select_family_from_disambiguation", %{"family_id" => family_id_str}, socket) do
-    family_id = String.to_integer(family_id_str)
-    possible_families = socket.assigns.possible_families
+    case apply_family_disambiguation(socket, family_id_str) do
+      {:ok, socket, selected} ->
+        sections_for_family = Taxonomy.list_sections_for_genus(selected.genus_id)
+        section_id = selected.section && selected.section.id
 
-    # Find the selected family from the possible families list
-    selected = Enum.find(possible_families, &(&1.family_id == family_id))
+        {:noreply,
+         socket
+         |> assign(:selected_section_id, section_id)
+         |> assign(:sections_for_family, sections_for_family)
+         |> mark_dirty()}
 
-    if selected do
-      # Load sections for this specific genus
-      sections_for_family = Taxonomy.list_sections_for_genus(selected.genus_id)
-
-      # Update taxonomy with the selected family info
-      taxonomy = %{
-        genus: socket.assigns.taxonomy.genus,
-        genus_id: selected.genus_id,
-        genus_is_new: false,
-        section: selected.section,
-        section_id: selected.section_id,
-        family: selected.family,
-        family_id: selected.family_id
-      }
-
-      {:noreply,
-       socket
-       |> assign(:taxonomy, taxonomy)
-       |> assign(:selected_family_id, family_id)
-       |> assign(:selected_section_id, selected.section_id)
-       |> assign(:sections_for_family, sections_for_family)
-       |> assign(:possible_families, [])
-       |> assign(:show_genus_disambiguation, false)
-       |> mark_dirty()}
-    else
-      {:noreply, put_flash(socket, :error, "Family not found")}
+      {:error, socket} ->
+        {:noreply, socket}
     end
   end
 
   # Alias events
 
   @impl true
-  def handle_event("update_new_alias", %{"value" => name, "type" => type}, socket) do
-    # Name field changed (from phx-keyup on text input)
-    {:noreply, assign(socket, new_alias_name: name, new_alias_type: type)}
-  end
+  def handle_event("update_new_alias", params, socket),
+    do: {:noreply, AliasHandlers.handle_update_new_alias(socket, params)}
 
   @impl true
-  def handle_event("update_new_alias", %{"value" => type, "name" => name}, socket) do
-    # Type field changed (from phx-change on select)
-    {:noreply, assign(socket, new_alias_name: name, new_alias_type: type)}
-  end
+  def handle_event("add_alias", _params, socket),
+    do: {:noreply, AliasHandlers.handle_add_alias(socket)}
 
   @impl true
-  def handle_event("add_alias", _params, socket) do
-    name = String.trim(socket.assigns.new_alias_name)
-    type = socket.assigns.new_alias_type
-
-    cond do
-      name == "" ->
-        {:noreply, put_flash(socket, :error, "Alias name cannot be empty")}
-
-      DeferredChanges.exists?(socket, :aliases, :name, name) ->
-        {:noreply, put_flash(socket, :error, "Alias already exists")}
-
-      true ->
-        socket =
-          socket
-          |> DeferredChanges.add_pending(:aliases, %{name: name, type: type})
-          |> assign(:new_alias_name, "")
-          |> mark_dirty()
-
-        {:noreply, socket}
-    end
-  end
-
-  @impl true
-  def handle_event("remove_alias", %{"alias-id" => alias_id}, socket) do
-    alias_id = String.to_integer(alias_id)
-
-    socket =
-      socket
-      |> DeferredChanges.remove_pending(:aliases, alias_id)
-      |> mark_dirty()
-
-    {:noreply, socket}
-  end
+  def handle_event("remove_alias", %{"alias-id" => alias_id}, socket),
+    do: {:noreply, AliasHandlers.handle_remove_alias(socket, alias_id)}
 
   # Range/Place events
 
@@ -386,53 +254,6 @@ defmodule GallformersWeb.Admin.HostLive.Form do
     end
   end
 
-  # Rename modal events
-
-  @impl true
-  def handle_event("open_rename_modal", _params, socket) do
-    {:noreply,
-     socket
-     |> assign(:show_rename_modal, true)
-     |> assign(:rename_value, socket.assigns.host.name)
-     |> assign(:add_alias_on_rename, false)
-     |> assign(:rename_alias_collisions, [])}
-  end
-
-  @impl true
-  def handle_event("close_rename_modal", _params, socket) do
-    {:noreply,
-     socket
-     |> assign(:show_rename_modal, false)
-     |> assign(:rename_alias_collisions, [])}
-  end
-
-  @impl true
-  def handle_event("request_close_rename", _params, socket) do
-    if socket.assigns.rename_value == socket.assigns.host.name do
-      {:noreply, assign(socket, :show_rename_modal, false)}
-    else
-      {:noreply, socket}
-    end
-  end
-
-  @impl true
-  def handle_event("update_rename_value", %{"value" => value}, socket) do
-    collisions =
-      if String.length(String.trim(value)) >= 2,
-        do: Species.find_species_with_alias(value),
-        else: []
-
-    {:noreply,
-     socket
-     |> assign(:rename_value, value)
-     |> assign(:rename_alias_collisions, collisions)}
-  end
-
-  @impl true
-  def handle_event("toggle_add_alias_on_rename", _params, socket) do
-    {:noreply, assign(socket, :add_alias_on_rename, !socket.assigns.add_alias_on_rename)}
-  end
-
   @impl true
   def handle_event("delete", _params, socket) do
     case Plants.delete_host(socket.assigns.host.id) do
@@ -445,108 +266,6 @@ defmodule GallformersWeb.Admin.HostLive.Form do
       {:error, _} ->
         {:noreply, put_flash(socket, :error, "Failed to delete host")}
     end
-  end
-
-  @impl true
-  def handle_event("do_rename", _params, socket) do
-    new_name = String.trim(socket.assigns.rename_value)
-    old_name = socket.assigns.host.name
-
-    cond do
-      new_name == "" ->
-        {:noreply, put_flash(socket, :error, "Name cannot be empty")}
-
-      new_name == old_name ->
-        {:noreply, assign(socket, :show_rename_modal, false)}
-
-      not valid_species_name?(new_name) ->
-        {:noreply, put_flash(socket, :error, "Name must be a valid species name (Genus species)")}
-
-      true ->
-        case Plants.rename_host(
-               socket.assigns.host.id,
-               new_name,
-               socket.assigns.add_alias_on_rename
-             ) do
-          {:ok, updated_host} ->
-            {:noreply, handle_rename_success(socket, updated_host, new_name)}
-
-          {:needs_genus_confirmation, info} ->
-            # Genus change requires user confirmation to create new genus
-            {:noreply,
-             socket
-             |> assign(:show_rename_modal, false)
-             |> assign(:show_genus_confirm, true)
-             |> assign(:pending_genus_info, info)}
-
-          {:error, :name_exists} ->
-            {:noreply, put_flash(socket, :error, "That name is already in use")}
-
-          {:error, _} ->
-            {:noreply, put_flash(socket, :error, "Failed to rename host")}
-        end
-    end
-  end
-
-  # Genus confirmation modal events
-
-  @impl true
-  def handle_event("cancel_genus_confirm", _params, socket) do
-    {:noreply,
-     socket
-     |> assign(:show_genus_confirm, false)
-     |> assign(:pending_genus_info, nil)}
-  end
-
-  @impl true
-  def handle_event("confirm_genus_creation", _params, socket) do
-    info = socket.assigns.pending_genus_info
-
-    case Plants.rename_host_with_new_genus(
-           info.host_id,
-           info.new_name,
-           info.new_genus,
-           info.family_id,
-           info.add_alias
-         ) do
-      {:ok, updated_host} ->
-        {:noreply,
-         socket
-         |> assign(:show_genus_confirm, false)
-         |> assign(:pending_genus_info, nil)
-         |> handle_rename_success(updated_host, info.new_name)
-         |> put_flash(:info, "Host renamed and new genus \"#{info.new_genus}\" created")}
-
-      {:error, reason} ->
-        {:noreply,
-         socket
-         |> assign(:show_genus_confirm, false)
-         |> assign(:pending_genus_info, nil)
-         |> put_flash(:error, "Failed to create genus: #{inspect(reason)}")}
-    end
-  end
-
-  # Helper functions for handle_event
-
-  defp handle_rename_success(socket, updated_host, new_name) do
-    # Reload aliases if we added one
-    aliases =
-      if socket.assigns.add_alias_on_rename do
-        Plants.get_aliases_for_host_full(socket.assigns.host.id)
-      else
-        socket.assigns.aliases
-      end
-
-    # Reload taxonomy since genus may have changed
-    taxonomy = Taxonomy.get_taxonomy_for_species(updated_host.id)
-
-    socket
-    |> assign(:host, updated_host)
-    |> assign(:aliases, aliases)
-    |> assign(:taxonomy, taxonomy)
-    |> assign(:show_rename_modal, false)
-    |> assign(:page_title, "Edit Host - #{new_name}")
-    |> put_flash(:info, "Host renamed successfully")
   end
 
   defp toggle_region(%{assigns: %{mode: mode}} = socket, _code) when mode != :edit, do: socket
@@ -566,150 +285,106 @@ defmodule GallformersWeb.Admin.HostLive.Form do
     if code in places, do: Enum.reject(places, &(&1 == code)), else: places ++ [code]
   end
 
-  # Initialize state for a new host (user typed new name in typeahead)
-  defp init_new_host_state(socket, name) do
-    host = %SpeciesSchema{taxoncode: "plant", name: name}
-    changeset = Plants.change_host(host)
-    # Look up taxonomy from the genus name - this always returns a result
-    # with genus_is_new: true/false to indicate if genus needs to be created
-    raw_taxonomy = Taxonomy.lookup_taxonomy_for_new_species(name)
-
-    # Handle genus disambiguation: filter to plant families only
-    {taxonomy, genus_is_new, selected_family_id, selected_section_id, possible_families} =
-      resolve_taxonomy_for_host(raw_taxonomy, socket.assigns.families)
-
-    # Load sections only for existing genus
-    # Sections are specific to a genus, so new genera have no sections
-    sections_for_family =
-      if !genus_is_new && taxonomy && taxonomy.genus_id do
-        Taxonomy.list_sections_for_genus(taxonomy.genus_id)
-      else
-        []
-      end
-
-    # Check for alias collisions
-    alias_collisions = Species.find_species_with_alias(name)
-
+  # Sets ALL host form assigns to their default/empty values.
+  # Each init path calls this first, then overrides only what differs.
+  defp build_default_assigns(socket) do
     socket
-    |> assign(:mode, :new)
-    |> assign(:page_title, "New Host")
-    |> assign(:host, host)
-    |> assign(:form, to_form(changeset))
+    |> assign(:mode, :search)
+    |> assign(:host, nil)
+    |> assign(:form, nil)
     # Deferred changes tracking
     |> assign(DeferredChanges.init(:aliases, []))
     |> assign(:original_places, [])
     |> assign(:places, [])
+    |> assign(:taxonomy, nil)
+    |> assign(:genus_is_new, false)
+    |> assign(:selected_family_id, nil)
+    |> assign(:selected_section_id, nil)
+    |> assign(:sections_for_family, [])
+    |> assign(:new_alias_name, "")
+    |> assign(:new_alias_type, "common")
+    # Alias collision warnings
+    |> assign(:alias_collisions, [])
+    # Genus disambiguation modal state
+    |> assign(:show_genus_disambiguation, false)
+    |> assign(:possible_families, [])
+    # Typeahead search state
+    |> assign(:host_search_query, "")
+    |> assign(:host_search_results, [])
+    |> reset_dirty()
+  end
+
+  # Initialize state for a new host (user typed new name in typeahead)
+  defp init_new_host_state(socket, name) do
+    host = %SpeciesSchema{taxoncode: "plant", name: name}
+    raw_taxonomy = Taxonomy.lookup_taxonomy_for_new_species(name)
+
+    # Handle genus disambiguation: filter to plant families only
+    plant_family_ids = MapSet.new(socket.assigns.families, fn {_name, id} -> id end)
+
+    %{
+      taxonomy: taxonomy,
+      genus_is_new: genus_is_new,
+      family_id: selected_family_id,
+      section_id: selected_section_id,
+      possible_families: possible_families
+    } =
+      Taxonomy.resolve_taxonomy_for_species(raw_taxonomy, plant_family_ids)
+
+    # Load sections only for existing genus
+    sections_for_family =
+      if !genus_is_new && taxonomy && taxonomy.genus && taxonomy.genus.id do
+        Taxonomy.list_sections_for_genus(taxonomy.genus.id)
+      else
+        []
+      end
+
+    socket
+    |> build_default_assigns()
+    |> assign(:mode, :new)
+    |> assign(:page_title, "New Host")
+    |> assign(:host, host)
+    |> assign(:form, to_form(Plants.change_host(host)))
     |> assign(:taxonomy, taxonomy)
     |> assign(:genus_is_new, genus_is_new)
     |> assign(:selected_family_id, selected_family_id)
     |> assign(:selected_section_id, selected_section_id)
     |> assign(:sections_for_family, sections_for_family)
     |> assign(:possible_families, possible_families)
-    |> assign(:new_alias_name, "")
-    |> assign(:new_alias_type, "common")
-    # Rename modal state
-    |> assign(:show_rename_modal, false)
-    |> assign(:rename_value, "")
-    |> assign(:add_alias_on_rename, false)
-    |> assign(:rename_alias_collisions, [])
-    # Alias collision warnings
-    |> assign(:alias_collisions, alias_collisions)
-    # Genus disambiguation modal state
-    |> assign(:show_genus_disambiguation, false)
-    # Clear search state
-    |> assign(:host_search_query, "")
-    |> assign(:host_search_results, [])
-    # Mark form dirty since user entered a name (enables save button)
-    |> reset_dirty()
+    |> assign(:alias_collisions, Species.find_species_with_alias(name))
     |> mark_dirty()
   end
 
-  # Resolve taxonomy for hosts: filter to plant families only
-  defp resolve_taxonomy_for_host(nil, _families), do: {nil, false, nil, nil, []}
+  defp assign_taxonomy_fields(socket, nil) do
+    socket
+    |> assign(:taxonomy, nil)
+    |> assign(:selected_family_id, nil)
+    |> assign(:selected_section_id, nil)
+    |> assign(:sections_for_family, [])
+  end
 
-  defp resolve_taxonomy_for_host(taxonomy, families) do
-    plant_family_ids = MapSet.new(families, fn {_name, id} -> id end)
+  defp assign_taxonomy_fields(socket, taxonomy) do
+    genus_id = taxonomy.genus && taxonomy.genus.id
+    sections_for_family = if genus_id, do: Taxonomy.list_sections_for_genus(genus_id), else: []
 
-    cond do
-      # Genus is new - user must select a plant family
-      Map.get(taxonomy, :genus_is_new) ->
-        {taxonomy, true, nil, nil, []}
-
-      # Genus exists in multiple families - filter to plant families
-      Map.get(taxonomy, :requires_disambiguation) ->
-        plant_families =
-          Enum.filter(taxonomy.possible_families, fn family ->
-            MapSet.member?(plant_family_ids, family.family_id)
-          end)
-
-        case plant_families do
-          [] ->
-            # No plant families found - treat as new genus
-            {%{genus: taxonomy.genus, genus_id: nil, genus_is_new: true}, true, nil, nil, []}
-
-          [single] ->
-            # Only one plant family - auto-select it
-            resolved = %{
-              genus: taxonomy.genus,
-              genus_id: single.genus_id,
-              genus_is_new: false,
-              section: single.section,
-              section_id: single.section_id,
-              family: single.family,
-              family_id: single.family_id
-            }
-
-            {resolved, false, single.family_id, single.section_id, []}
-
-          multiple ->
-            # Multiple plant families - needs disambiguation
-            {taxonomy, false, nil, nil, multiple}
-        end
-
-      # Genus exists in exactly one family - check if it's a plant family
-      true ->
-        if MapSet.member?(plant_family_ids, taxonomy.family_id) do
-          # It's a plant family - use it
-          {taxonomy, false, taxonomy.family_id, taxonomy.section_id, []}
-        else
-          # It's NOT a plant family - treat as new genus
-          {%{genus: taxonomy.genus, genus_id: nil, genus_is_new: true}, true, nil, nil, []}
-        end
-    end
+    socket
+    |> assign(:taxonomy, taxonomy)
+    |> assign(:selected_family_id, taxonomy.family && taxonomy.family.id)
+    |> assign(:selected_section_id, taxonomy.section && taxonomy.section.id)
+    |> assign(:sections_for_family, sections_for_family)
   end
 
   defp save_host(socket, :new, params) do
-    aliases_to_add = socket.assigns.aliases
-    taxonomy = socket.assigns.taxonomy
-    genus_is_new = socket.assigns.genus_is_new
-    selected_family_id = socket.assigns.selected_family_id
-    selected_section_id = socket.assigns.selected_section_id
+    create_params = %{
+      species_attrs: params,
+      taxonomy: socket.assigns.taxonomy,
+      genus_is_new: socket.assigns.genus_is_new,
+      parent_id: socket.assigns.selected_section_id || socket.assigns.selected_family_id,
+      aliases: socket.assigns.aliases
+    }
 
-    # Use section as parent if selected, otherwise family
-    parent_id = selected_section_id || selected_family_id
-
-    transaction_result =
-      Repo.transaction(fn ->
-        case Plants.create_host(params) do
-          {:ok, host} ->
-            # Handle taxonomy: create genus if new, or link to existing
-            Taxonomy.link_species_taxonomy(host.id, taxonomy, genus_is_new, parent_id)
-
-            # Add any aliases entered before save
-            for a <- aliases_to_add do
-              Plants.create_alias_for_host(host.id, %{name: a.name, type: a.type})
-            end
-
-            host
-
-          {:error, changeset} ->
-            Repo.rollback(changeset)
-        end
-      end)
-
-    case transaction_result do
+    case Plants.create_host_with_associations(create_params) do
       {:ok, host} ->
-        # Redirect to edit mode for the new host so user can add range/aliases
         {:noreply,
          socket
          |> put_flash(:info, "Host created successfully")
@@ -725,46 +400,34 @@ defmodule GallformersWeb.Admin.HostLive.Form do
 
   defp save_host(socket, :edit, params) do
     host_id = socket.assigns.host.id
+    taxonomy = socket.assigns.taxonomy
 
-    # Compute changes using DeferredChanges
-    {aliases_to_add, aliases_to_remove} = DeferredChanges.compute_changes(socket, :aliases)
+    update_params = %{
+      species_attrs: params,
+      alias_changes: DeferredChanges.compute_changes(socket, :aliases),
+      place_changes: %{
+        original_places: socket.assigns.original_places,
+        current_places: socket.assigns.places,
+        all_places: socket.assigns.all_places
+      },
+      section_update: %{
+        species_id: host_id,
+        genus_id: taxonomy && taxonomy.genus && taxonomy.genus.id,
+        selected_section_id: socket.assigns.selected_section_id,
+        section_id: taxonomy && taxonomy.section && taxonomy.section.id
+      }
+    }
 
-    # Wrap all saves in a transaction for atomicity
-    transaction_result =
-      Repo.transaction(fn ->
-        case Plants.update_host(socket.assigns.host, params) do
-          {:ok, updated_host} ->
-            # Save aliases
-            save_alias_changes(host_id, aliases_to_add, aliases_to_remove)
-
-            # Save places - diff original vs current
-            save_place_changes(
-              host_id,
-              socket.assigns.original_places,
-              socket.assigns.places,
-              socket.assigns.all_places
-            )
-
-            # Update section if it changed
-            maybe_update_section(socket)
-
-            updated_host
-
-          {:error, changeset} ->
-            Repo.rollback(changeset)
-        end
-      end)
-
-    case transaction_result do
+    case Plants.update_host_with_associations(socket.assigns.host, update_params) do
       {:ok, updated_host} ->
-        # Reload data from DB to get actual IDs for new records
         aliases = Plants.get_aliases_for_host_full(host_id)
         places = Ranges.get_places_for_host(host_id)
+        taxonomy = Taxonomy.get_taxonomy_for_species(host_id)
 
-        # Stay on page, update state to reflect saved data
         {:noreply,
          socket
          |> assign(:host, updated_host)
+         |> assign(:taxonomy, taxonomy)
          |> DeferredChanges.refresh(:aliases, aliases)
          |> assign(:original_places, places)
          |> assign(:places, places)
@@ -779,35 +442,79 @@ defmodule GallformersWeb.Admin.HostLive.Form do
     end
   end
 
-  # Helper to save alias changes
-  defp save_alias_changes(host_id, to_add, to_remove) do
-    # Delete removed aliases
-    for alias_id <- to_remove do
-      Plants.remove_alias_from_host(host_id, alias_id)
-    end
+  # =================================================================
+  # Reclassify callbacks (from ReclassifyLive component)
+  # =================================================================
 
-    # Add new aliases
-    for alias <- to_add do
-      Plants.create_alias_for_host(host_id, %{name: alias.name, type: alias.type})
+  @impl true
+  def handle_info({:reclassify_complete, result}, socket) do
+    species_id = result.species.id
+    taxonomy = Taxonomy.get_taxonomy_for_species(species_id)
+
+    aliases =
+      if result.add_alias? and result.name_changed?,
+        do: Plants.get_aliases_for_host_full(species_id),
+        else: socket.assigns.aliases
+
+    {:noreply,
+     socket
+     |> assign(:host, result.species)
+     |> assign(:aliases, aliases)
+     |> assign(:page_title, "Edit Host - #{result.species.name}")
+     |> assign_taxonomy_fields(taxonomy)
+     |> put_flash(:info, "Host updated successfully")}
+  end
+
+  @impl true
+  def handle_info({:reclassify_flash, level, message}, socket) do
+    {:noreply, put_flash(socket, level, message)}
+  end
+
+  # =================================================================
+  # PubSub handlers
+  # =================================================================
+
+  @impl true
+  def handle_info({:species_updated, species}, socket) do
+    # If the currently edited host was updated elsewhere, reload it
+    if socket.assigns.host && socket.assigns.host.id == species.id do
+      case Plants.get_host_species(species.id) do
+        nil ->
+          {:noreply,
+           socket
+           |> put_flash(:warning, "This host was deleted by another user")
+           |> build_default_assigns()}
+
+        host ->
+          {:noreply, load_host_for_edit(socket, host)}
+      end
+    else
+      {:noreply, socket}
     end
   end
 
-  # Helper to save place changes
-  defp save_place_changes(host_id, original_places, current_places, all_places) do
-    # Convert to place_ids
-    place_code_to_id = Map.new(all_places, &{&1.code, &1.id})
-
-    original_set = MapSet.new(original_places)
-    current_set = MapSet.new(current_places)
-
-    # Only update if there are changes
-    if original_set != current_set do
-      place_ids =
-        Enum.map(current_places, &Map.get(place_code_to_id, &1)) |> Enum.reject(&is_nil/1)
-
-      Ranges.update_host_places(host_id, place_ids)
+  @impl true
+  def handle_info({:species_deleted, species}, socket) do
+    # If the currently edited host was deleted, clear it
+    if socket.assigns.host && socket.assigns.host.id == species.id do
+      {:noreply,
+       socket
+       |> put_flash(:warning, "This host was deleted by another user")
+       |> build_default_assigns()}
+    else
+      {:noreply, socket}
     end
   end
+
+  @impl true
+  def handle_info({:species_created, _species}, socket) do
+    # New species created elsewhere - no action needed
+    {:noreply, socket}
+  end
+
+  # =================================================================
+  # Render
+  # =================================================================
 
   @impl true
   def render(assigns) do
@@ -877,10 +584,11 @@ defmodule GallformersWeb.Admin.HostLive.Form do
               />
               <button
                 type="button"
-                phx-click="open_rename_modal"
-                class="px-3 py-2 text-sm bg-gray-200 hover:bg-gray-300 border border-gray-300 rounded"
+                phx-click="open_reclassify_modal"
+                phx-target="#reclassify"
+                class="px-3 py-2 text-sm bg-gray-200 hover:bg-gray-300 border border-gray-300 rounded whitespace-nowrap"
               >
-                Rename
+                Rename/Reclassify
               </button>
             </div>
           <% else %>
@@ -926,51 +634,13 @@ defmodule GallformersWeb.Admin.HostLive.Form do
         <fieldset disabled={@mode == :search} class={[@mode == :search && "opacity-50"]}>
           <.form :if={@form} for={@form} id="host-form" phx-change="validate" phx-submit="save">
             <%!-- Row: Genus | Family --%>
-            <div class="grid grid-cols-2 gap-4 mb-3">
-              <div>
-                <label class="gf-label">
-                  Genus (filled automatically):
-                </label>
-                <input
-                  type="text"
-                  value={if @taxonomy, do: @taxonomy.genus, else: ""}
-                  disabled
-                  class="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded text-gray-500 text-sm italic"
-                />
-                <p :if={@genus_is_new} class="text-amber-600 text-xs mt-1">
-                  New genus - will be created under selected section/family
-                </p>
-              </div>
-              <div>
-                <label class="gf-label">
-                  Family:<span :if={@genus_is_new} class="text-red-600 ml-0.5">*</span>
-                </label>
-                <%= if @genus_is_new do %>
-                  <%!-- Genus is new - user must select a family --%>
-                  <select
-                    name="family_id"
-                    phx-change="select_family"
-                    class="w-full px-3 py-2 border border-gray-300 rounded text-sm"
-                  >
-                    <option value="">-- Select Family --</option>
-                    <%= for {name, id} <- @families do %>
-                      <option value={id} selected={@selected_family_id == id}>{name}</option>
-                    <% end %>
-                  </select>
-                  <p :if={is_nil(@selected_family_id)} class="text-red-600 text-xs mt-1">
-                    Please select a family for the new genus
-                  </p>
-                <% else %>
-                  <%!-- Genus exists - family is read-only --%>
-                  <input
-                    type="text"
-                    value={if @taxonomy, do: @taxonomy.family, else: ""}
-                    disabled
-                    class="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded text-gray-500 text-sm"
-                  />
-                <% end %>
-              </div>
-            </div>
+            <.taxonomy_genus_family_row
+              taxonomy={@taxonomy}
+              genus_is_new={@genus_is_new}
+              selected_family_id={@selected_family_id}
+              families={@families}
+              new_genus_hint="selected section/family"
+            />
 
             <%!-- Row: Section | Abundance --%>
             <div class="grid grid-cols-2 gap-4 mb-3">
@@ -992,7 +662,7 @@ defmodule GallformersWeb.Admin.HostLive.Form do
                     type="text"
                     value=""
                     disabled
-                    placeholder="No sections for this family"
+                    placeholder="No sections in this genus"
                     class="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded text-gray-500 text-sm"
                   />
                 <% end %>
@@ -1114,91 +784,26 @@ defmodule GallformersWeb.Admin.HostLive.Form do
         <.discard_confirm_modal show={@show_discard_confirm} />
       </Layouts.admin_edit_layout>
 
-      <.rename_modal
-        show={@show_rename_modal}
-        value={@rename_value}
-        add_alias_checked={@add_alias_on_rename}
+      <.live_component
+        module={GallformersWeb.Admin.ReclassifyLive}
+        id="reclassify"
+        species_id={@host && @host.id}
+        species_name={@host && @host.name}
+        current_family={@taxonomy && @taxonomy.family}
+        current_genus={@taxonomy && @taxonomy.genus}
         entity_type="Host"
-        rename_collisions={@rename_alias_collisions}
+        is_gall={false}
+        undescribed={false}
       />
 
       <%!-- Genus disambiguation modal --%>
-      <.modal
-        :if={@possible_families != [] && @taxonomy}
-        id="genus-disambiguation-modal"
-        show
-        on_cancel={JS.push("clear_host")}
-      >
-        <:header>Select Family for Genus "{Map.get(@taxonomy, :genus, "")}"</:header>
-        <:body>
-          <p class="text-gray-700 mb-4">
-            The genus <strong>{Map.get(@taxonomy, :genus, "")}</strong>
-            exists in multiple plant families. Please select which family this host belongs to:
-          </p>
-          <div class="space-y-2">
-            <%= for family <- @possible_families do %>
-              <button
-                type="button"
-                phx-click="select_family_from_disambiguation"
-                phx-value-family_id={family.family_id}
-                class="block w-full text-left px-4 py-3 border border-gray-300 rounded-md hover:bg-gray-50 hover:border-gf-maroon transition-colors"
-              >
-                <div class="font-medium text-gray-900">{family.family}</div>
-                <%= if family.section do %>
-                  <div class="text-sm text-gray-500">Section: {family.section}</div>
-                <% end %>
-              </button>
-            <% end %>
-          </div>
-        </:body>
-        <:footer>
-          <button
-            type="button"
-            phx-click="clear_host"
-            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-          >
-            Cancel
-          </button>
-        </:footer>
-      </.modal>
-
-      <%!-- Genus confirmation modal --%>
-      <.modal
-        :if={@show_genus_confirm}
-        id="genus-confirm-modal"
-        show
-        on_cancel={JS.push("cancel_genus_confirm")}
-      >
-        <:header>Create New Genus?</:header>
-        <:body>
-          <p class="text-gray-700 mb-4">
-            Renaming to
-            <em class="font-medium">{@pending_genus_info && @pending_genus_info.new_name}</em>
-            will create a new genus
-            <strong>{@pending_genus_info && @pending_genus_info.new_genus}</strong>
-            under the family <strong>{@pending_genus_info && @pending_genus_info.family_name}</strong>.
-          </p>
-          <p class="text-gray-600 text-sm">
-            This will create a new genus entry in the taxonomy. Are you sure you want to continue?
-          </p>
-        </:body>
-        <:footer>
-          <button
-            type="button"
-            phx-click="cancel_genus_confirm"
-            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            phx-click="confirm_genus_creation"
-            class="px-4 py-2 text-sm font-medium text-white bg-gf-maroon border border-transparent rounded-md hover:bg-gf-maroon/90"
-          >
-            Create Genus & Rename
-          </button>
-        </:footer>
-      </.modal>
+      <.genus_disambiguation_modal
+        possible_families={@possible_families}
+        taxonomy={@taxonomy}
+        entity_description="plant"
+        select_event="select_family_from_disambiguation"
+        clear_event="clear_host"
+      />
     </Layouts.admin>
     """
   end

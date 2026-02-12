@@ -11,15 +11,17 @@ defmodule GallformersWeb.Admin.GallLive.Form do
   use GallformersWeb, :live_view
   use GallformersWeb.Admin.FormHelpers
 
-  alias Gallformers.GallHosts
   alias Gallformers.Galls
-  alias Gallformers.Repo
   alias Gallformers.Species
   alias Gallformers.Species.Species, as: SpeciesSchema
+  alias Gallformers.Taxonomy.TaxonName
+  alias GallformersWeb.Admin.AliasHandlers
   alias GallformersWeb.Admin.DeferredChanges
 
   import GallformersWeb.Admin.FormComponents,
     only: [alias_collision_warning: 1, alias_editor: 1, form_actions: 1]
+
+  import GallformersWeb.Admin.ReclassifyHelpers
 
   @detachable_options [
     {"Unknown", "unknown"},
@@ -38,7 +40,7 @@ defmodule GallformersWeb.Admin.GallLive.Form do
     if connected?(socket), do: Species.subscribe()
 
     filter_options = Galls.get_all_filter_options()
-    families = Gallformers.Taxonomy.list_gall_families_for_select()
+    families = Gallformers.Taxonomy.list_families_for_select(:gall)
 
     socket =
       socket
@@ -49,7 +51,6 @@ defmodule GallformersWeb.Admin.GallLive.Form do
       |> assign(:detachable_options, @detachable_options)
       |> assign(:families, families)
       |> init_form_state()
-      |> init_search_state()
       |> init_empty_gall_state()
 
     {:ok, socket}
@@ -87,17 +88,15 @@ defmodule GallformersWeb.Admin.GallLive.Form do
     end
   end
 
-  # Initialize search state
-  defp init_search_state(socket) do
-    socket
-    |> assign(:gall_search_query, "")
-    |> assign(:gall_search_results, [])
-  end
-
   # Initialize empty gall state (no gall selected)
-  defp init_empty_gall_state(socket) do
+  defp init_empty_gall_state(socket), do: build_default_assigns(socket)
+
+  # Sets ALL gall form assigns to their default/empty values.
+  # Each init path calls this first, then overrides only what differs.
+  defp build_default_assigns(socket) do
     socket
     |> assign(:mode, :search)
+    |> assign(:from_undescribed_flow, false)
     |> assign(:gall, nil)
     |> assign(:gall_data, nil)
     |> assign(:form, nil)
@@ -115,6 +114,8 @@ defmodule GallformersWeb.Admin.GallLive.Form do
     |> assign(:filter_values, empty_filter_values())
     |> assign(:detachable, "unknown")
     |> assign(:undescribed, false)
+    |> assign(:undescribed_locked, false)
+    |> assign(:undescribed_lock_reason, nil)
     |> assign(:new_alias_name, "")
     |> assign(:new_alias_type, "common")
     |> assign(:host_search_query, "")
@@ -122,213 +123,109 @@ defmodule GallformersWeb.Admin.GallLive.Form do
     |> assign(:host_dropdown_open, false)
     |> assign(:filter_search, init_filter_search_state())
     |> assign(:filter_dropdown_open, nil)
-    # Rename modal state
-    |> assign(:show_rename_modal, false)
-    |> assign(:rename_value, "")
-    |> assign(:add_alias_on_rename, false)
-    |> assign(:rename_alias_collisions, [])
     # Alias collision warnings
     |> assign(:alias_collisions, [])
     # Genus disambiguation modal state
     |> assign(:show_genus_disambiguation, false)
     |> assign(:possible_families, [])
+    # Search state
+    |> assign(:gall_search_query, "")
+    |> assign(:gall_search_results, [])
     |> reset_dirty()
   end
 
   # Initialize state for a new gall (user typed new name)
+  # If the genus is a placeholder (Unknown), redirect to the undescribed naming flow instead.
   defp init_new_gall_state(socket, name) do
-    gall = %SpeciesSchema{taxoncode: "gall", name: name}
-    changeset = Species.change_species(gall)
-    # Look up taxonomy from the genus name - this always returns a result
-    # with genus_is_new: true/false to indicate if genus needs to be created
-    raw_taxonomy = Gallformers.Taxonomy.lookup_taxonomy_for_new_species(name)
+    lookup_result = Gallformers.Taxonomy.lookup_taxonomy_for_new_species(name)
 
-    # Handle genus disambiguation: filter to non-plant families only
-    {taxonomy, genus_is_new, selected_family_id, possible_families} =
-      resolve_taxonomy_for_gall(raw_taxonomy, socket.assigns.families)
+    genus_name = lookup_genus_name(lookup_result)
 
-    # Check for alias collisions
-    alias_collisions = Species.find_species_with_alias(name)
+    if genus_name && Gallformers.Taxonomy.placeholder_genus_name?(genus_name) do
+      redirect_to_undescribed_flow(socket, name)
+    else
+      init_new_gall_form(socket, name, lookup_result)
+    end
+  end
+
+  defp lookup_genus_name({:ok, %{genus: genus}}), do: genus.name
+  defp lookup_genus_name({:new_genus, %{genus: genus}}), do: genus.name
+  defp lookup_genus_name({:ambiguous, genus_name, _}), do: genus_name
+  defp lookup_genus_name(nil), do: nil
+
+  defp redirect_to_undescribed_flow(socket, name) do
+    description = TaxonName.parse(name).full_epithet || ""
+
+    query = URI.encode_query(%{description: description})
 
     socket
+    |> put_flash(:info, "Undescribed galls should be created through the guided naming flow.")
+    |> push_navigate(to: "/admin/galls/undescribed?#{query}")
+  end
+
+  defp init_new_gall_form(socket, name, raw_taxonomy) do
+    gall = %SpeciesSchema{taxoncode: "gall", name: name}
+
+    # Handle genus disambiguation: filter to non-plant families only
+    gall_family_ids = MapSet.new(socket.assigns.families, fn {_name, id} -> id end)
+
+    %{
+      taxonomy: taxonomy,
+      genus_is_new: genus_is_new,
+      family_id: selected_family_id,
+      possible_families: possible_families
+    } =
+      Gallformers.Taxonomy.resolve_taxonomy_for_species(raw_taxonomy, gall_family_ids)
+
+    socket
+    |> build_default_assigns()
     |> assign(:mode, :new)
     |> assign(:page_title, "New Gall")
     |> assign(:gall, gall)
-    |> assign(:gall_data, nil)
-    |> assign(:form, to_form(changeset))
-    |> assign(:gall_id, nil)
-    # Deferred changes tracking
-    |> assign(DeferredChanges.init(:aliases, []))
-    |> assign(DeferredChanges.init(:hosts, []))
-    |> assign(:original_filter_values, empty_filter_values())
-    |> assign(:original_detachable, "unknown")
-    |> assign(:original_undescribed, false)
-    # Pending state
+    |> assign(:form, to_form(Species.change_species(gall)))
     |> assign(:taxonomy, taxonomy)
     |> assign(:genus_is_new, genus_is_new)
     |> assign(:selected_family_id, selected_family_id)
     |> assign(:possible_families, possible_families)
-    |> assign(:filter_values, empty_filter_values())
-    |> assign(:detachable, "unknown")
-    |> assign(:undescribed, false)
-    |> assign(:new_alias_name, "")
-    |> assign(:new_alias_type, "common")
-    |> assign(:host_search_query, "")
-    |> assign(:host_search_results, [])
-    |> assign(:host_dropdown_open, false)
-    |> assign(:filter_search, init_filter_search_state())
-    |> assign(:filter_dropdown_open, nil)
-    |> assign(:show_rename_modal, false)
-    |> assign(:rename_value, "")
-    |> assign(:add_alias_on_rename, false)
-    |> assign(:rename_alias_collisions, [])
-    # Alias collision warnings
-    |> assign(:alias_collisions, alias_collisions)
-    # Genus disambiguation modal state
-    |> assign(:show_genus_disambiguation, false)
-    # Clear search
-    |> assign(:gall_search_query, "")
-    |> assign(:gall_search_results, [])
-    # Mark form dirty since user entered a name (enables save button)
-    |> reset_dirty()
+    |> assign(:alias_collisions, Species.find_species_with_alias(name))
+    |> apply_undescribed_lock(taxonomy)
     |> mark_dirty()
   end
 
-  # Resolve taxonomy for galls: filter to non-plant families only
-  defp resolve_taxonomy_for_gall(nil, _families), do: {nil, false, nil, []}
+  # Initialize state for a new undescribed gall from the undescribed naming flow.
+  # Params: species_name, host_id, undescribed. Taxonomy is resolved from the name
+  # by the backend (Taxonomy.resolve_taxonomy_from_name/1).
+  defp init_undescribed_gall_state(socket, params) do
+    name = params["species_name"]
+    host_id = parse_int_param(params["host_id"])
 
-  defp resolve_taxonomy_for_gall(taxonomy, families) do
-    gall_family_ids = MapSet.new(families, fn {_name, id} -> id end)
+    case Gallformers.Taxonomy.resolve_taxonomy_from_name(name) do
+      {:ok, taxonomy} ->
+        init_undescribed_gall_with_taxonomy(socket, name, taxonomy, host_id)
 
-    cond do
-      # Genus is new - user must select a gall family
-      Map.get(taxonomy, :genus_is_new) ->
-        {taxonomy, true, nil, []}
-
-      # Genus exists in multiple families - filter to non-plant families
-      Map.get(taxonomy, :requires_disambiguation) ->
-        gall_families =
-          Enum.filter(taxonomy.possible_families, fn family ->
-            MapSet.member?(gall_family_ids, family.family_id)
-          end)
-
-        case gall_families do
-          [] ->
-            # No gall families found - treat as new genus
-            {%{genus: taxonomy.genus, genus_id: nil, genus_is_new: true}, true, nil, []}
-
-          [single] ->
-            # Only one gall family - auto-select it
-            resolved = %{
-              genus: taxonomy.genus,
-              genus_id: single.genus_id,
-              genus_is_new: false,
-              section: single.section,
-              section_id: single.section_id,
-              family: single.family,
-              family_id: single.family_id
-            }
-
-            {resolved, false, single.family_id, []}
-
-          multiple ->
-            # Multiple gall families - needs disambiguation
-            {taxonomy, false, nil, multiple}
-        end
-
-      # Genus exists in exactly one family - check if it's a gall family
-      true ->
-        if MapSet.member?(gall_family_ids, taxonomy.family_id) do
-          # It's a gall family - use it
-          {taxonomy, false, taxonomy.family_id, []}
-        else
-          # It's NOT a gall family - treat as new genus
-          {%{genus: taxonomy.genus, genus_id: nil, genus_is_new: true}, true, nil, []}
-        end
+      {:error, reason} ->
+        socket
+        |> put_flash(:error, "Could not resolve taxonomy: #{reason}")
+        |> push_navigate(to: ~p"/admin/galls/undescribed")
     end
   end
 
-  # Initialize state for a new undescribed gall from the undescribed flow modal.
-  # Params come from URL query string: species_name, genus_id, family_id, host_id, undescribed
-  defp init_undescribed_gall_state(socket, params) do
-    name = params["species_name"]
-    genus_id = parse_int_param(params["genus_id"])
-    family_id = parse_int_param(params["family_id"])
-    host_id = parse_int_param(params["host_id"])
-
+  defp init_undescribed_gall_with_taxonomy(socket, name, taxonomy, host_id) do
     gall = %SpeciesSchema{taxoncode: "gall", name: name}
-    changeset = Species.change_species(gall)
-
-    # Build taxonomy info based on whether genus_id is provided
-    {taxonomy, genus_is_new, selected_family_id} =
-      if genus_id do
-        # Known genus - look it up
-        genus = Gallformers.Taxonomy.get_taxonomy(genus_id)
-
-        if genus do
-          taxonomy = Gallformers.Taxonomy.lookup_taxonomy_for_new_species(name)
-          {taxonomy, false, family_id}
-        else
-          # Genus not found, fall back to family-only
-          {%{genus: "Unknown", genus_id: nil, genus_is_new: true, family_id: family_id}, true,
-           family_id}
-        end
-      else
-        # Unknown genus - will create "Unknown" genus under the family
-        {%{
-           genus: "Unknown",
-           genus_id: nil,
-           genus_is_new: true,
-           section: nil,
-           section_id: nil,
-           family: nil,
-           family_id: family_id
-         }, true, family_id}
-      end
-
-    # Fetch the type host to add to pending hosts
     host = if host_id, do: Species.get_species(host_id)
 
     socket
+    |> build_default_assigns()
     |> assign(:mode, :new)
     |> assign(:page_title, "New Undescribed Gall")
+    |> assign(:from_undescribed_flow, true)
     |> assign(:gall, gall)
-    |> assign(:gall_data, nil)
-    |> assign(:form, to_form(changeset))
-    |> assign(:gall_id, nil)
-    # Deferred changes tracking
-    |> assign(DeferredChanges.init(:aliases, []))
-    |> assign(DeferredChanges.init(:hosts, []))
-    |> assign(:original_filter_values, empty_filter_values())
-    |> assign(:original_detachable, "unknown")
-    |> assign(:original_undescribed, false)
-    # Pending state - set undescribed to true
+    |> assign(:form, to_form(Species.change_species(gall)))
     |> assign(:taxonomy, taxonomy)
-    |> assign(:genus_is_new, genus_is_new)
-    |> assign(:selected_family_id, selected_family_id)
-    |> assign(:filter_values, empty_filter_values())
-    |> assign(:detachable, "unknown")
+    |> assign(:selected_family_id, taxonomy.family && taxonomy.family.id)
     |> assign(:undescribed, true)
-    |> assign(:new_alias_name, "")
-    |> assign(:new_alias_type, "common")
-    |> assign(:host_search_query, "")
-    |> assign(:host_search_results, [])
-    |> assign(:host_dropdown_open, false)
-    |> assign(:filter_search, init_filter_search_state())
-    |> assign(:filter_dropdown_open, nil)
-    |> assign(:show_rename_modal, false)
-    |> assign(:rename_value, "")
-    |> assign(:add_alias_on_rename, false)
-    # Genus disambiguation modal state
-    |> assign(:show_genus_disambiguation, false)
-    |> assign(:possible_families, [])
-    # Clear search
-    |> assign(:gall_search_query, "")
-    |> assign(:gall_search_results, [])
-    # Add the type host if provided
     |> maybe_add_initial_host(host)
-    # Mark form dirty since coming from undescribed flow
-    |> reset_dirty()
+    |> apply_undescribed_lock(taxonomy)
     |> mark_dirty()
   end
 
@@ -373,7 +270,6 @@ defmodule GallformersWeb.Admin.GallLive.Form do
             redirect_on_error
           )
         else
-          changeset = Species.change_species(species)
           aliases = Species.get_aliases_for_species(species_id)
           hosts = Gallformers.GallHosts.get_hosts_for_gall(species_id)
           taxonomy = Gallformers.Taxonomy.get_taxonomy_for_species(species_id)
@@ -382,42 +278,26 @@ defmodule GallformersWeb.Admin.GallLive.Form do
           undescribed = gall_data.undescribed || false
 
           socket
+          |> build_default_assigns()
           |> assign(:mode, :edit)
           |> assign(:page_title, "Edit Gall - #{species.name}")
           |> assign(:gall, species)
           |> assign(:gall_data, gall_data)
-          |> assign(:form, to_form(changeset))
+          |> assign(:form, to_form(Species.change_species(species)))
           |> assign(:gall_id, gall_data.gall_id)
-          # Deferred changes tracking
+          # Deferred changes tracking (override defaults with loaded data)
           |> assign(DeferredChanges.init(:aliases, aliases))
           |> assign(DeferredChanges.init(:hosts, hosts))
           |> assign(:original_filter_values, filter_values)
           |> assign(:original_detachable, detachable)
           |> assign(:original_undescribed, undescribed)
-          # Pending state
+          # Pending state (loaded from DB)
           |> assign(:taxonomy, taxonomy)
-          |> assign(:genus_is_new, false)
-          |> assign(:selected_family_id, taxonomy && taxonomy.family_id)
+          |> assign(:selected_family_id, taxonomy && taxonomy.family && taxonomy.family.id)
           |> assign(:filter_values, filter_values)
           |> assign(:detachable, detachable)
           |> assign(:undescribed, undescribed)
-          |> assign(:new_alias_name, "")
-          |> assign(:new_alias_type, "common")
-          |> assign(:host_search_query, "")
-          |> assign(:host_search_results, [])
-          |> assign(:host_dropdown_open, false)
-          |> assign(:filter_search, init_filter_search_state())
-          |> assign(:filter_dropdown_open, nil)
-          |> assign(:show_rename_modal, false)
-          |> assign(:rename_value, species.name)
-          |> assign(:add_alias_on_rename, false)
-          # Genus disambiguation modal state
-          |> assign(:show_genus_disambiguation, false)
-          |> assign(:possible_families, [])
-          # Clear search
-          |> assign(:gall_search_query, "")
-          |> assign(:gall_search_results, [])
-          |> reset_dirty()
+          |> apply_undescribed_lock(taxonomy, species_id)
         end
     end
   end
@@ -470,8 +350,7 @@ defmodule GallformersWeb.Admin.GallLive.Form do
   def handle_event("search_gall", %{"value" => query}, socket) do
     results =
       if String.length(query) >= 2 do
-        Species.search_species(query, 10)
-        |> Enum.filter(&(&1.taxoncode == "gall"))
+        Species.search_species_by_name(query, "gall", 10)
       else
         []
       end
@@ -523,31 +402,16 @@ defmodule GallformersWeb.Admin.GallLive.Form do
 
   @impl true
   def handle_event("save", %{"species" => params}, socket) do
-    cond do
-      # Validate that family is selected when genus is new
-      socket.assigns.genus_is_new && is_nil(socket.assigns.selected_family_id) ->
-        {:noreply, put_flash(socket, :error, "Please select a Family for the new genus")}
+    if socket.assigns.genus_is_new && is_nil(socket.assigns.selected_family_id) do
+      {:noreply, put_flash(socket, :error, "Please select a Family for the new genus")}
+    else
+      # Name is captured via typeahead (outside the form), so add it from socket assigns
+      params =
+        params
+        |> Map.put("taxoncode", "gall")
+        |> Map.put("name", socket.assigns.gall.name)
 
-      # Check for Unknown genus/family without undescribed flag
-      has_unknown_taxonomy?(socket) && !socket.assigns.undescribed &&
-          !socket.assigns[:unknown_taxonomy_confirmed] ->
-        {:noreply,
-         socket
-         |> put_flash(
-           :warning,
-           "This gall has an Unknown genus/family but is not marked as undescribed. " <>
-             "This is likely an error. Click Save again to confirm, or check the Undescribed box."
-         )
-         |> assign(:unknown_taxonomy_confirmed, true)}
-
-      true ->
-        # Name is captured via typeahead (outside the form), so add it from socket assigns
-        params =
-          params
-          |> Map.put("taxoncode", "gall")
-          |> Map.put("name", socket.assigns.gall.name)
-
-        save_gall(socket, socket.assigns.mode, params)
+      save_gall(socket, socket.assigns.mode, params)
     end
   end
 
@@ -562,49 +426,16 @@ defmodule GallformersWeb.Admin.GallLive.Form do
   # =================================================================
 
   @impl true
-  def handle_event("update_new_alias", %{"value" => name, "type" => type}, socket) do
-    {:noreply, assign(socket, new_alias_name: name, new_alias_type: type)}
-  end
+  def handle_event("update_new_alias", params, socket),
+    do: {:noreply, AliasHandlers.handle_update_new_alias(socket, params)}
 
   @impl true
-  def handle_event("update_new_alias", %{"value" => type, "name" => name}, socket) do
-    {:noreply, assign(socket, new_alias_name: name, new_alias_type: type)}
-  end
+  def handle_event("add_alias", _params, socket),
+    do: {:noreply, AliasHandlers.handle_add_alias(socket)}
 
   @impl true
-  def handle_event("add_alias", _params, socket) do
-    name = String.trim(socket.assigns.new_alias_name)
-    type = socket.assigns.new_alias_type
-
-    cond do
-      name == "" ->
-        {:noreply, put_flash(socket, :error, "Alias name cannot be empty")}
-
-      DeferredChanges.exists?(socket, :aliases, :name, name) ->
-        {:noreply, put_flash(socket, :error, "Alias already exists")}
-
-      true ->
-        socket =
-          socket
-          |> DeferredChanges.add_pending(:aliases, %{name: name, type: type})
-          |> assign(:new_alias_name, "")
-          |> mark_dirty()
-
-        {:noreply, socket}
-    end
-  end
-
-  @impl true
-  def handle_event("remove_alias", %{"alias-id" => alias_id}, socket) do
-    alias_id = String.to_integer(alias_id)
-
-    socket =
-      socket
-      |> DeferredChanges.remove_pending(:aliases, alias_id)
-      |> mark_dirty()
-
-    {:noreply, socket}
-  end
+  def handle_event("remove_alias", %{"alias-id" => alias_id}, socket),
+    do: {:noreply, AliasHandlers.handle_remove_alias(socket, alias_id)}
 
   # =================================================================
   # Event handlers - Hosts
@@ -670,13 +501,12 @@ defmodule GallformersWeb.Admin.GallLive.Form do
 
   @impl true
   def handle_event("toggle_undescribed", _params, socket) do
-    new_value = !socket.assigns.undescribed
-
-    {:noreply,
-     socket
-     |> assign(:undescribed, new_value)
-     |> assign(:unknown_taxonomy_confirmed, false)
-     |> mark_dirty()}
+    if socket.assigns.undescribed_locked do
+      {:noreply, put_flash(socket, :warning, socket.assigns.undescribed_lock_reason)}
+    else
+      new_value = !socket.assigns.undescribed
+      {:noreply, socket |> assign(:undescribed, new_value) |> mark_dirty()}
+    end
   end
 
   @impl true
@@ -687,33 +517,12 @@ defmodule GallformersWeb.Admin.GallLive.Form do
 
   @impl true
   def handle_event("select_family_from_disambiguation", %{"family_id" => family_id_str}, socket) do
-    family_id = String.to_integer(family_id_str)
-    possible_families = socket.assigns.possible_families
+    case apply_family_disambiguation(socket, family_id_str) do
+      {:ok, socket, _selected} ->
+        {:noreply, mark_dirty(socket)}
 
-    # Find the selected family from the possible families list
-    selected = Enum.find(possible_families, &(&1.family_id == family_id))
-
-    if selected do
-      # Update taxonomy with the selected family info
-      taxonomy = %{
-        genus: socket.assigns.taxonomy.genus,
-        genus_id: selected.genus_id,
-        genus_is_new: false,
-        section: selected.section,
-        section_id: selected.section_id,
-        family: selected.family,
-        family_id: selected.family_id
-      }
-
-      {:noreply,
-       socket
-       |> assign(:taxonomy, taxonomy)
-       |> assign(:selected_family_id, family_id)
-       |> assign(:possible_families, [])
-       |> assign(:show_genus_disambiguation, false)
-       |> mark_dirty()}
-    else
-      {:noreply, put_flash(socket, :error, "Family not found")}
+      {:error, socket} ->
+        {:noreply, socket}
     end
   end
 
@@ -780,101 +589,6 @@ defmodule GallformersWeb.Admin.GallLive.Form do
   end
 
   # =================================================================
-  # Event handlers - Rename modal
-  # =================================================================
-
-  @impl true
-  def handle_event("open_rename_modal", _params, socket) do
-    {:noreply,
-     socket
-     |> assign(:show_rename_modal, true)
-     |> assign(:rename_value, socket.assigns.gall.name)
-     |> assign(:add_alias_on_rename, false)
-     |> assign(:rename_alias_collisions, [])}
-  end
-
-  @impl true
-  def handle_event("close_rename_modal", _params, socket) do
-    {:noreply,
-     socket
-     |> assign(:show_rename_modal, false)
-     |> assign(:rename_alias_collisions, [])}
-  end
-
-  @impl true
-  def handle_event("request_close_rename", _params, socket) do
-    if socket.assigns.rename_value == socket.assigns.gall.name do
-      {:noreply, assign(socket, :show_rename_modal, false)}
-    else
-      {:noreply, socket}
-    end
-  end
-
-  @impl true
-  def handle_event("update_rename_value", %{"value" => value}, socket) do
-    collisions =
-      if String.length(String.trim(value)) >= 2,
-        do: Species.find_species_with_alias(value),
-        else: []
-
-    {:noreply,
-     socket
-     |> assign(:rename_value, value)
-     |> assign(:rename_alias_collisions, collisions)}
-  end
-
-  @impl true
-  def handle_event("toggle_add_alias_on_rename", _params, socket) do
-    {:noreply, assign(socket, :add_alias_on_rename, !socket.assigns.add_alias_on_rename)}
-  end
-
-  @impl true
-  def handle_event("do_rename", _params, socket) do
-    new_name = String.trim(socket.assigns.rename_value)
-    old_name = socket.assigns.gall.name
-
-    cond do
-      new_name == "" ->
-        {:noreply, put_flash(socket, :error, "Name cannot be empty")}
-
-      new_name == old_name ->
-        {:noreply, assign(socket, :show_rename_modal, false)}
-
-      not valid_species_name?(new_name) ->
-        {:noreply, put_flash(socket, :error, "Name must be a valid species name (Genus species)")}
-
-      true ->
-        case Species.rename_species(
-               socket.assigns.gall.id,
-               new_name,
-               socket.assigns.add_alias_on_rename
-             ) do
-          {:ok, updated_species} ->
-            aliases =
-              if socket.assigns.add_alias_on_rename do
-                Species.get_aliases_for_species(socket.assigns.gall.id)
-              else
-                socket.assigns.aliases
-              end
-
-            {:noreply,
-             socket
-             |> assign(:gall, updated_species)
-             |> assign(:aliases, aliases)
-             |> assign(:show_rename_modal, false)
-             |> assign(:page_title, "Edit Gall - #{new_name}")
-             |> put_flash(:info, "Gall renamed successfully")}
-
-          {:error, :name_exists} ->
-            {:noreply, put_flash(socket, :error, "That name is already in use")}
-
-          {:error, _} ->
-            {:noreply, put_flash(socket, :error, "Failed to rename gall")}
-        end
-    end
-  end
-
-  # =================================================================
   # Event handlers - Delete
   # =================================================================
 
@@ -890,6 +604,36 @@ defmodule GallformersWeb.Admin.GallLive.Form do
       {:error, _changeset} ->
         {:noreply, put_flash(socket, :error, "Failed to delete gall")}
     end
+  end
+
+  # =================================================================
+  # Reclassify callbacks (from ReclassifyLive component)
+  # =================================================================
+
+  @impl true
+  def handle_info({:reclassify_complete, result}, socket) do
+    species_id = result.species.id
+    taxonomy = Gallformers.Taxonomy.get_taxonomy_for_species(species_id)
+
+    aliases =
+      if result.add_alias? and result.name_changed?,
+        do: Species.get_aliases_for_species(species_id),
+        else: socket.assigns.aliases
+
+    {:noreply,
+     socket
+     |> assign(:gall, result.species)
+     |> assign(:aliases, aliases)
+     |> assign(:taxonomy, taxonomy)
+     |> assign(:selected_family_id, taxonomy && taxonomy.family && taxonomy.family.id)
+     |> assign(:page_title, "Edit Gall - #{result.species.name}")
+     |> apply_undescribed_lock(taxonomy, species_id)
+     |> put_flash(:info, "Gall updated successfully")}
+  end
+
+  @impl true
+  def handle_info({:reclassify_flash, level, message}, socket) do
+    {:noreply, put_flash(socket, level, message)}
   end
 
   # =================================================================
@@ -929,21 +673,14 @@ defmodule GallformersWeb.Admin.GallLive.Form do
   # Private helper functions
   # =================================================================
 
-  # Checks if genus or family is "Unknown"
-  defp has_unknown_taxonomy?(socket) do
-    taxonomy = socket.assigns.taxonomy
-    genus_name = socket.assigns[:genus] || (taxonomy && taxonomy.genus)
+  # Applies the undescribed lock result from Galls.compute_undescribed_lock/2 to the socket.
+  defp apply_undescribed_lock(socket, taxonomy, species_id \\ nil) do
+    {locked?, reason} = Galls.compute_undescribed_lock(taxonomy, species_id)
 
-    # Check both the selected genus (if new) and the taxonomy data
-    if socket.assigns.genus_is_new do
-      # For new genus flow, check the selected family
-      family = Gallformers.Taxonomy.get_taxonomy(socket.assigns.selected_family_id)
-      family && family.name == "Unknown"
-    else
-      # Check the taxonomy record for Unknown genus or family
-      (genus_name && genus_name == "Unknown") ||
-        (taxonomy && taxonomy.family == "Unknown")
-    end
+    socket
+    |> assign(:undescribed_locked, locked?)
+    |> assign(:undescribed_lock_reason, reason)
+    |> then(fn s -> if locked?, do: assign(s, :undescribed, true), else: s end)
   end
 
   defp add_host_to_pending(socket, host_id) do
@@ -969,56 +706,19 @@ defmodule GallformersWeb.Admin.GallLive.Form do
   end
 
   defp save_gall(socket, :new, params) do
-    # For new galls, we create everything in one transaction
-    hosts_to_add = socket.assigns.hosts
-    filter_values = socket.assigns.filter_values
-    aliases_to_add = socket.assigns.aliases
-    taxonomy = socket.assigns.taxonomy
-    genus_is_new = socket.assigns.genus_is_new
-    selected_family_id = socket.assigns.selected_family_id
+    create_params = %{
+      species_attrs: params,
+      taxonomy: socket.assigns.taxonomy,
+      genus_is_new: socket.assigns.genus_is_new,
+      parent_id: socket.assigns.selected_family_id,
+      hosts: socket.assigns.hosts,
+      aliases: socket.assigns.aliases,
+      filter_values: socket.assigns.filter_values,
+      detachable: socket.assigns.detachable,
+      undescribed: socket.assigns.undescribed
+    }
 
-    transaction_result =
-      Repo.transaction(fn ->
-        case Species.create_species(params) do
-          {:ok, species} ->
-            # Create gall-specific record
-            {:ok, _gall} = Galls.create_gall_traits(species.id)
-
-            # Handle taxonomy: create genus if new, or link to existing
-            Gallformers.Taxonomy.link_species_taxonomy(
-              species.id,
-              taxonomy,
-              genus_is_new,
-              selected_family_id
-            )
-
-            # Add hosts
-            for host <- hosts_to_add do
-              GallHosts.add_host_to_gall(species.id, host.host_species_id)
-            end
-
-            # Add aliases
-            for a <- aliases_to_add do
-              Species.create_alias_for_species(species.id, %{name: a.name, type: a.type})
-            end
-
-            # Add filter values
-            save_filter_changes(species.id, empty_filter_values(), filter_values)
-
-            # Save gall properties
-            Galls.update_gall_properties(species.id, %{
-              detachable: socket.assigns.detachable,
-              undescribed: socket.assigns.undescribed
-            })
-
-            species
-
-          {:error, changeset} ->
-            Repo.rollback(changeset)
-        end
-      end)
-
-    case transaction_result do
+    case Galls.create_gall_with_associations(create_params) do
       {:ok, species} ->
         {:noreply,
          socket
@@ -1037,37 +737,23 @@ defmodule GallformersWeb.Admin.GallLive.Form do
     gall_id = socket.assigns.gall_id
     species_id = socket.assigns.gall.id
 
-    # Compute changes using DeferredChanges
-    {aliases_to_add, aliases_to_remove} = DeferredChanges.compute_changes(socket, :aliases)
+    update_params = %{
+      species_attrs: params,
+      alias_changes: DeferredChanges.compute_changes(socket, :aliases),
+      host_changes: DeferredChanges.compute_changes(socket, :hosts, id_field: :host_relation_id),
+      original_filter_values: socket.assigns.original_filter_values,
+      filter_values: socket.assigns.filter_values,
+      detachable: socket.assigns.detachable,
+      undescribed: socket.assigns.undescribed
+    }
 
-    {hosts_to_add, hosts_to_remove} =
-      DeferredChanges.compute_changes(socket, :hosts, id_field: :host_relation_id)
-
-    # Wrap all saves in a transaction for atomicity
-    transaction_result =
-      Repo.transaction(fn ->
-        case Species.update_species(socket.assigns.gall, params) do
-          {:ok, updated_gall} ->
-            save_alias_changes(species_id, aliases_to_add, aliases_to_remove)
-            save_host_changes(species_id, hosts_to_add, hosts_to_remove)
-            save_gall_specific_data(gall_id, socket.assigns)
-            updated_gall
-
-          {:error, changeset} ->
-            Repo.rollback(changeset)
-        end
-      end)
-
-    case transaction_result do
+    case Galls.update_gall_with_associations(socket.assigns.gall, update_params) do
       {:ok, updated_gall} ->
         # Reload data from DB to get actual IDs for new records
         aliases = Species.get_aliases_for_species(species_id)
         hosts = Gallformers.GallHosts.get_hosts_for_gall(species_id)
+        filter_values = Galls.get_gall_filter_values(gall_id)
 
-        filter_values =
-          if gall_id, do: Galls.get_gall_filter_values(gall_id), else: empty_filter_values()
-
-        # Stay on page, update state to reflect saved data
         {:noreply,
          socket
          |> assign(:gall, updated_gall)
@@ -1085,74 +771,6 @@ defmodule GallformersWeb.Admin.GallLive.Form do
 
       {:error, _reason} ->
         {:noreply, put_flash(socket, :error, "Failed to save gall. Please try again.")}
-    end
-  end
-
-  defp save_gall_specific_data(nil, _assigns), do: :ok
-
-  defp save_gall_specific_data(gall_id, assigns) do
-    save_filter_changes(gall_id, assigns.original_filter_values, assigns.filter_values)
-
-    Galls.update_gall_properties(gall_id, %{
-      detachable: assigns.detachable,
-      undescribed: assigns.undescribed
-    })
-
-    # Touch species updated_at so gall-specific changes are reflected in the timestamp
-    Species.touch(gall_id)
-  end
-
-  defp save_alias_changes(species_id, to_add, to_remove) do
-    for alias_id <- to_remove do
-      Species.remove_alias_from_species(species_id, alias_id)
-    end
-
-    for a <- to_add do
-      Species.create_alias_for_species(species_id, %{name: a.name, type: a.type})
-    end
-  end
-
-  defp save_host_changes(species_id, to_add, to_remove) do
-    for relation_id <- to_remove do
-      GallHosts.remove_host_from_gall(relation_id)
-    end
-
-    for host <- to_add do
-      GallHosts.add_host_to_gall(species_id, host.host_species_id)
-    end
-  end
-
-  defp save_filter_changes(gall_id, original_values, current_values) do
-    filter_types = [
-      :colors,
-      :shapes,
-      :textures,
-      :alignments,
-      :walls,
-      :cells,
-      :plant_parts,
-      :forms,
-      :seasons
-    ]
-
-    for filter_type <- filter_types do
-      original = Map.get(original_values, filter_type, [])
-      current = Map.get(current_values, filter_type, [])
-
-      original_ids = MapSet.new(Enum.map(original, & &1.id))
-      current_ids = MapSet.new(Enum.map(current, & &1.id))
-
-      removed_ids = MapSet.difference(original_ids, current_ids)
-
-      for filter_id <- removed_ids do
-        Galls.remove_filter_field_from_gall(gall_id, filter_type, filter_id)
-      end
-
-      added_ids = MapSet.difference(current_ids, original_ids)
-
-      for filter_id <- added_ids do
-        Galls.add_filter_field_to_gall(gall_id, filter_type, filter_id)
-      end
     end
   end
 
@@ -1190,7 +808,12 @@ defmodule GallformersWeb.Admin.GallLive.Form do
               navigate={~p"/admin/sources"}
               class="hover:underline"
             >Sources</.link>,
-            then map species to sources.
+            then map species to sources. <br />
+            To add an undescribed gall, you must use the <.link
+              navigate={~p"/admin/galls/undescribed"}
+              class="text-gf-maroon hover:underline"
+            >
+              Undescribed Gall guided naming flow</.link>.
           </:intro>
 
           <:quick_links :if={@mode == :edit}>
@@ -1216,43 +839,62 @@ defmodule GallformersWeb.Admin.GallLive.Form do
 
           <%!-- Name field with typeahead for search/create --%>
           <div class="mb-3">
-            <%= if @mode == :edit do %>
-              <%!-- Edit mode: show selected name with rename button --%>
-              <label class="gf-label">Name (binomial):</label>
-              <div class="flex gap-2">
-                <input
-                  type="text"
-                  value={@gall.name}
-                  disabled
-                  class="flex-1 px-3 py-2 bg-gray-100 border border-gray-300 rounded text-gray-700 text-sm italic"
+            <%= cond do %>
+              <% @mode == :edit -> %>
+                <%!-- Edit mode: show selected name with rename button --%>
+                <label class="gf-label">Name (binomial):</label>
+                <div class="flex gap-2">
+                  <input
+                    type="text"
+                    value={@gall.name}
+                    disabled
+                    class="flex-1 px-3 py-2 bg-gray-100 border border-gray-300 rounded text-gray-700 text-sm italic"
+                  />
+                  <button
+                    type="button"
+                    phx-click="open_reclassify_modal"
+                    phx-target="#reclassify"
+                    class="px-3 py-2 text-sm bg-gray-200 hover:bg-gray-300 border border-gray-300 rounded whitespace-nowrap"
+                  >
+                    Rename/Reclassify
+                  </button>
+                </div>
+              <% @from_undescribed_flow -> %>
+                <%!-- Undescribed flow: read-only name with link back to naming flow --%>
+                <label class="gf-label">Name (binomial):</label>
+                <div class="flex gap-2">
+                  <input
+                    type="text"
+                    value={@gall.name}
+                    disabled
+                    class="flex-1 px-3 py-2 bg-gray-100 border border-gray-300 rounded text-gray-700 text-sm italic"
+                  />
+                  <.link
+                    navigate={~p"/admin/galls/undescribed"}
+                    class="px-3 py-2 text-sm bg-gray-200 hover:bg-gray-300 border border-gray-300 rounded whitespace-nowrap"
+                  >
+                    Edit Name
+                  </.link>
+                </div>
+              <% true -> %>
+                <%!-- Search/New mode: typeahead for search or create --%>
+                <.typeahead
+                  id="gall-picker"
+                  label="Name (binomial):"
+                  placeholder="Search existing galls or type new name..."
+                  search_event="search_gall"
+                  select_event="select_gall"
+                  clear_event="clear_gall"
+                  create_event="create_gall"
+                  allow_new={true}
+                  query={@gall_search_query}
+                  results={@gall_search_results}
+                  selected={@gall}
+                  display_fn={fn gall -> gall.name end}
                 />
-                <button
-                  type="button"
-                  phx-click="open_rename_modal"
-                  class="px-3 py-2 text-sm bg-gray-200 hover:bg-gray-300 border border-gray-300 rounded"
-                >
-                  Rename
-                </button>
-              </div>
-            <% else %>
-              <%!-- Search/New mode: typeahead for search or create --%>
-              <.typeahead
-                id="gall-picker"
-                label="Name (binomial):"
-                placeholder="Search existing galls or type new name..."
-                search_event="search_gall"
-                select_event="select_gall"
-                clear_event="clear_gall"
-                create_event="create_gall"
-                allow_new={true}
-                query={@gall_search_query}
-                results={@gall_search_results}
-                selected={@gall}
-                display_fn={fn gall -> gall.name end}
-              />
-              <p :if={@mode == :search} class="text-gray-500 text-xs mt-1">
-                Type to search existing galls, or enter a new name to create one.
-              </p>
+                <p :if={@mode == :search} class="text-gray-500 text-xs mt-1">
+                  Type to search existing galls, or enter a new name to create one.
+                </p>
             <% end %>
           </div>
 
@@ -1268,51 +910,14 @@ defmodule GallformersWeb.Admin.GallLive.Form do
               phx-submit="save"
             >
               <%!-- Row: Genus | Family --%>
-              <div class="grid grid-cols-2 gap-4 mb-3">
-                <div>
-                  <label class="gf-label">
-                    Genus (filled automatically):
-                  </label>
-                  <input
-                    type="text"
-                    value={if @taxonomy, do: @taxonomy.genus, else: ""}
-                    disabled
-                    class="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded text-gray-500 text-sm"
-                  />
-                  <p :if={@genus_is_new} class="text-amber-600 text-xs mt-1">
-                    New genus - will be created under selected family
-                  </p>
-                </div>
-                <div>
-                  <label class="gf-label">
-                    Family:<span class="text-red-600 ml-0.5">*</span>
-                  </label>
-                  <%= if @genus_is_new do %>
-                    <%!-- Genus is new - user must select a family --%>
-                    <select
-                      name="family_id"
-                      phx-change="select_family"
-                      class="w-full px-3 py-2 border border-gray-300 rounded text-sm"
-                    >
-                      <option value="">-- Select Family --</option>
-                      <%= for {name, id} <- @families do %>
-                        <option value={id} selected={@selected_family_id == id}>{name}</option>
-                      <% end %>
-                    </select>
-                    <p :if={is_nil(@selected_family_id)} class="text-red-600 text-xs mt-1">
-                      Please select a family for the new genus
-                    </p>
-                  <% else %>
-                    <%!-- Genus exists - family is read-only --%>
-                    <input
-                      type="text"
-                      value={if @taxonomy, do: @taxonomy.family, else: ""}
-                      disabled
-                      class="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded text-gray-500 text-sm"
-                    />
-                  <% end %>
-                </div>
-              </div>
+              <.taxonomy_genus_family_row
+                taxonomy={@taxonomy}
+                genus_is_new={@genus_is_new}
+                selected_family_id={@selected_family_id}
+                families={@families}
+                new_genus_hint="selected family"
+                family_required_always={true}
+              />
 
               <%!-- Row: Hosts --%>
               <div class="mb-3">
@@ -1524,15 +1129,26 @@ defmodule GallformersWeb.Admin.GallLive.Form do
                   label="All sources containing unique information relevant to this gall have been added and are reflected in its associated data. However, filter criteria may not be comprehensive in every field."
                 />
 
-                <label class="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={@undescribed}
-                    phx-click="toggle_undescribed"
-                    class="rounded border-gray-300 text-gf-maroon focus:ring-gf-maroon"
-                  />
-                  <span class="text-sm text-gray-700">Undescribed?</span>
-                </label>
+                <div>
+                  <label class={[
+                    "flex items-center gap-2",
+                    if(@undescribed_locked, do: "cursor-not-allowed", else: "cursor-pointer")
+                  ]}>
+                    <input
+                      type="checkbox"
+                      name="undescribed"
+                      value="true"
+                      checked={@undescribed}
+                      phx-change="toggle_undescribed"
+                      disabled={@undescribed_locked}
+                      class="rounded border-gray-300 text-gf-maroon focus:ring-gf-maroon disabled:opacity-50"
+                    />
+                    <span class="text-sm text-gray-700">Undescribed?</span>
+                  </label>
+                  <p :if={@undescribed_lock_reason} class="text-amber-600 text-xs mt-1 ml-6">
+                    {@undescribed_lock_reason}
+                  </p>
+                </div>
               </div>
 
               <%!-- Action buttons --%>
@@ -1568,53 +1184,26 @@ defmodule GallformersWeb.Admin.GallLive.Form do
           <.discard_confirm_modal show={@show_discard_confirm} />
         </Layouts.admin_edit_layout>
 
-        <.rename_modal
-          show={@show_rename_modal}
-          value={@rename_value}
-          add_alias_checked={@add_alias_on_rename}
+        <.live_component
+          module={GallformersWeb.Admin.ReclassifyLive}
+          id="reclassify"
+          species_id={@gall && @gall.id}
+          species_name={@gall && @gall.name}
+          current_family={@taxonomy && @taxonomy.family}
+          current_genus={@taxonomy && @taxonomy.genus}
           entity_type="Gall"
-          rename_collisions={@rename_alias_collisions}
+          is_gall={true}
+          undescribed={@undescribed}
         />
 
         <%!-- Genus disambiguation modal --%>
-        <.modal
-          :if={@possible_families != [] && @taxonomy}
-          id="genus-disambiguation-modal"
-          show
-          on_cancel={JS.push("clear_gall")}
-        >
-          <:header>Select Family for Genus "{Map.get(@taxonomy, :genus, "")}"</:header>
-          <:body>
-            <p class="text-gray-700 mb-4">
-              The genus <strong>{Map.get(@taxonomy, :genus, "")}</strong>
-              exists in multiple gall-forming families. Please select which family this gall belongs to:
-            </p>
-            <div class="space-y-2">
-              <%= for family <- @possible_families do %>
-                <button
-                  type="button"
-                  phx-click="select_family_from_disambiguation"
-                  phx-value-family_id={family.family_id}
-                  class="block w-full text-left px-4 py-3 border border-gray-300 rounded-md hover:bg-gray-50 hover:border-gf-maroon transition-colors"
-                >
-                  <div class="font-medium text-gray-900">{family.family}</div>
-                  <%= if family.section do %>
-                    <div class="text-sm text-gray-500">Section: {family.section}</div>
-                  <% end %>
-                </button>
-              <% end %>
-            </div>
-          </:body>
-          <:footer>
-            <button
-              type="button"
-              phx-click="clear_gall"
-              class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-            >
-              Cancel
-            </button>
-          </:footer>
-        </.modal>
+        <.genus_disambiguation_modal
+          possible_families={@possible_families}
+          taxonomy={@taxonomy}
+          entity_description="gall-forming"
+          select_event="select_family_from_disambiguation"
+          clear_event="clear_gall"
+        />
       </div>
     </Layouts.admin>
     """
