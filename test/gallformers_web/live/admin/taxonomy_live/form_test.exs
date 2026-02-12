@@ -103,7 +103,7 @@ defmodule GallformersWeb.Admin.TaxonomyLive.FormTest do
 
       # Modal should appear with warning
       assert has_element?(view, "#cascade-delete-modal")
-      assert has_element?(view, "h3", "Delete CascadeTestFamily?")
+      assert has_element?(view, "h3 span.text-red-800", "Delete")
     end
 
     test "impact modal displays correct counts", %{conn: conn, family: family} do

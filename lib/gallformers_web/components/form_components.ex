@@ -9,6 +9,7 @@ defmodule GallformersWeb.FormComponents do
   use Gettext, backend: GallformersWeb.Gettext
 
   import GallformersWeb.CoreComponents, only: [icon: 1, modal: 1]
+  import GallformersWeb.DataDisplayComponents, only: [taxon_name: 1]
   import GallformersWeb.UIComponents, only: [alert: 1]
 
   alias Phoenix.LiveView.JS
@@ -938,7 +939,8 @@ defmodule GallformersWeb.FormComponents do
     >
       <:header>
         <span class="text-red-800">
-          <.icon name="ph-warning" class="h-5 w-5 inline mr-1" /> Delete {@impact.taxonomy.name}?
+          <.icon name="ph-warning" class="h-5 w-5 inline mr-1" /> Delete
+          <.taxon_name name={@impact.taxonomy.name} rank={@impact.taxonomy.type} />?
         </span>
       </:header>
       <:body>
@@ -987,13 +989,17 @@ defmodule GallformersWeb.FormComponents do
               <div :if={@impact.genera_count > 0}>
                 <p class="font-medium text-gray-700">Genera:</p>
                 <ul class="list-disc list-inside text-gray-600 max-h-32 overflow-y-auto">
-                  <li :for={genus <- @impact.genera}>{genus.name}</li>
+                  <li :for={genus <- @impact.genera}>
+                    <.taxon_name name={genus.name} rank="genus" />
+                  </li>
                 </ul>
               </div>
               <div :if={@impact.sections_count > 0}>
                 <p class="font-medium text-gray-700">Sections:</p>
                 <ul class="list-disc list-inside text-gray-600 max-h-32 overflow-y-auto">
-                  <li :for={section <- @impact.sections}>{section.name}</li>
+                  <li :for={section <- @impact.sections}>
+                    <.taxon_name name={section.name} rank="section" />
+                  </li>
                 </ul>
               </div>
             </div>
@@ -1139,7 +1145,7 @@ defmodule GallformersWeb.FormComponents do
             display_fn={fn g -> g.name end}
           >
             <:result :let={item}>
-              <span class="italic">{item.name}</span>
+              <.taxon_name name={item.name} rank="genus" />
               <span :if={item.is_placeholder} class="text-amber-600 text-xs ml-2">
                 (Unknown/undescribed)
               </span>
@@ -1404,7 +1410,7 @@ defmodule GallformersWeb.FormComponents do
       <:header>Select Family for Genus "{@taxonomy.genus.name}"</:header>
       <:body>
         <p class="text-gray-700 mb-4">
-          The genus <strong>{@taxonomy.genus.name}</strong>
+          The genus <strong><.taxon_name name={@taxonomy.genus.name} rank="genus" /></strong>
           exists in multiple {@entity_description} families. Please select which family this belongs to:
         </p>
         <div class="space-y-2">
@@ -1417,7 +1423,9 @@ defmodule GallformersWeb.FormComponents do
             >
               <div class="font-medium text-gray-900">{family.family.name}</div>
               <%= if family.section do %>
-                <div class="text-sm text-gray-500">Section: {family.section.name}</div>
+                <div class="text-sm text-gray-500">
+                  Section: <.taxon_name name={family.section.name} rank="section" />
+                </div>
               <% end %>
             </button>
           <% end %>

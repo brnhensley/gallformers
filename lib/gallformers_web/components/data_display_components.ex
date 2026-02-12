@@ -18,25 +18,35 @@ defmodule GallformersWeb.DataDisplayComponents do
   Species, genus, and section names are wrapped in `<em>` (italic).
   Family and higher ranks render as plain `<span>`.
 
+  When rank is `"auto"`, italicization is inferred from the name itself
+  (e.g., names ending in -idae, -oidea are not italicized). Use this when
+  the rank is unknown, such as in identification key destinations.
+
   ## Examples
 
       <.taxon_name name="Andricus quercuslanigera" />
       <.taxon_name name="Cynipidae" rank="family" />
       <.taxon_name name="Quercus" rank="genus" class="text-lg" />
+      <.taxon_name name="Ichneumonoidea" rank="auto" />
   """
   attr :name, :string, required: true
   attr :rank, :string, default: "species"
   attr :class, :any, default: nil
 
   def taxon_name(assigns) do
+    assigns = assign(assigns, :italicize, should_italicize?(assigns.rank, assigns.name))
+
     ~H"""
-    <%= if TaxonName.italicize_rank?(@rank) do %>
+    <%= if @italicize do %>
       <em class={["taxon-name", @class]}>{@name}</em>
     <% else %>
       <span class={@class}>{@name}</span>
     <% end %>
     """
   end
+
+  defp should_italicize?("auto", name), do: TaxonName.italicize_name?(name)
+  defp should_italicize?(rank, _name), do: TaxonName.italicize_rank?(rank)
 
   @doc """
   Renders an image gallery with lightbox support and V1-style attribution.

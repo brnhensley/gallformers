@@ -128,7 +128,7 @@ defmodule GallformersWeb.Admin.SectionLive.Index do
                     navigate={~p"/admin/section/#{section.id}"}
                     class="hover:underline font-medium"
                   >
-                    {section.name}
+                    <.taxon_name name={section.name} rank="section" />
                   </.link>
                 </td>
                 <td class="text-gray-500">
@@ -137,7 +137,7 @@ defmodule GallformersWeb.Admin.SectionLive.Index do
                 <td>
                   <%= if section.genus_name do %>
                     <.link navigate={~p"/genus/#{section.genus_id}"} class="hover:underline">
-                      {section.genus_name}
+                      <.taxon_name name={section.genus_name} rank="genus" />
                     </.link>
                   <% else %>
                     <span class="text-gray-400">—</span>

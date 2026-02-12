@@ -282,7 +282,7 @@ defmodule GallformersWeb.Admin.SectionLive.Form do
                 <div class="flex flex-wrap gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
                   <%= for species <- @species do %>
                     <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm bg-green-100 text-green-800">
-                      {species.name}
+                      <.taxon_name name={species.name} />
                       <button
                         type="button"
                         phx-click="remove_species"
@@ -324,7 +324,7 @@ defmodule GallformersWeb.Admin.SectionLive.Form do
                       phx-value-id={result.id}
                       class="w-full text-left px-4 py-2 hover:bg-gray-100 border-b border-gray-100 last:border-0"
                     >
-                      {result.name}
+                      <.taxon_name name={result.name} />
                     </button>
                   <% end %>
                 </div>

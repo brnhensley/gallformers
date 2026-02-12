@@ -111,7 +111,7 @@ defmodule GallformersWeb.Admin.ImagesLive do
           >
             <:result :let={species}>
               <div class="flex justify-between items-center w-full">
-                <span class="text-gray-900">{species.name}</span>
+                <.taxon_name name={species.name} class="text-gray-900" />
                 <span class="text-sm text-gray-500">{species.image_count} images</span>
               </div>
             </:result>

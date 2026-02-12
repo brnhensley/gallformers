@@ -4,8 +4,9 @@ defmodule GallformersWeb.KeyComponents do
   """
   use Phoenix.Component
 
+  import GallformersWeb.DataDisplayComponents, only: [taxon_name: 1]
+
   alias Gallformers.Storage
-  alias Gallformers.Taxonomy.TaxonName
 
   @doc """
   Renders the path tracker showing the user's navigation history through the key.
@@ -109,8 +110,6 @@ defmodule GallformersWeb.KeyComponents do
     </div>
     """
   end
-
-  defp italicize_taxon?(name), do: TaxonName.italicize_name?(name)
 
   defp couplet_classes(:active), do: "border-gf-maroon border-l-4 bg-white shadow-md"
   defp couplet_classes(:visited), do: "border-gray-200 bg-gray-50"
@@ -249,19 +248,11 @@ defmodule GallformersWeb.KeyComponents do
     ~H"""
     <%= case @species_ids do %>
       <% [single_id] -> %>
-        <a
-          href={"/gall/#{single_id}"}
-          class={[
-            "hover:underline",
-            if(italicize_taxon?(@destination.name), do: "italic")
-          ]}
-        >
-          {@destination.name}
+        <a href={"/gall/#{single_id}"} class="hover:underline">
+          <.taxon_name name={@destination.name} rank="auto" />
         </a>
       <% [_ | _] = ids -> %>
-        <span class={if(italicize_taxon?(@destination.name), do: "italic")}>
-          {@destination.name}
-        </span>
+        <.taxon_name name={@destination.name} rank="auto" />
         <span class="inline-flex gap-1 ml-1">
           <a
             :for={id <- ids}
@@ -272,9 +263,7 @@ defmodule GallformersWeb.KeyComponents do
           </a>
         </span>
       <% _ -> %>
-        <span class={if(italicize_taxon?(@destination.name), do: "italic")}>
-          {@destination.name}
-        </span>
+        <.taxon_name name={@destination.name} rank="auto" />
     <% end %>
     """
   end

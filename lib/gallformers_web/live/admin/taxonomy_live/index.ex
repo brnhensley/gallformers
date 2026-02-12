@@ -403,7 +403,7 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Index do
                     navigate={~p"/admin/taxonomy/#{taxonomy.id}"}
                     class="hover:underline font-medium"
                   >
-                    {taxonomy.name}
+                    <.taxon_name name={taxonomy.name} rank={taxonomy.type} />
                   </.link>
                 </td>
                 <td>
@@ -414,7 +414,11 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Index do
                 </td>
                 <td>
                   <%= if taxonomy.parent_name do %>
-                    <span class="text-gray-900">{taxonomy.parent_name}</span>
+                    <.taxon_name
+                      name={taxonomy.parent_name}
+                      rank={taxonomy.parent_type}
+                      class="text-gray-900"
+                    />
                     <span class="text-gray-500 text-xs ml-1">({taxonomy.parent_type})</span>
                   <% else %>
                     <span class="text-gray-400">—</span>
@@ -489,7 +493,7 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Index do
               <div class="flex flex-wrap gap-2">
                 <%= for taxonomy <- Enum.filter(@taxonomies, fn t -> MapSet.member?(@selected_genera, t.id) end) do %>
                   <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium bg-green-100 text-green-800">
-                    {taxonomy.name}
+                    <.taxon_name name={taxonomy.name} rank={taxonomy.type} />
                   </span>
                 <% end %>
               </div>

@@ -668,7 +668,7 @@ defmodule GallformersWeb.Admin.ImageAuditLive do
             display_fn={& &1.name}
           >
             <:result :let={species}>
-              <span class="text-gray-900">{species.name}</span>
+              <.taxon_name name={species.name} class="text-gray-900" />
             </:result>
           </.typeahead>
 

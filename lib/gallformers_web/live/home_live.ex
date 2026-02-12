@@ -257,7 +257,7 @@ defmodule GallformersWeb.HomeLive do
               />
             </.link>
             <.link href={"/gall/#{@random_gall.id}"} class="hover:underline">
-              <em class="text-gf-maroon font-medium">{@random_gall.name}</em>
+              <.taxon_name name={@random_gall.name} class="text-gf-maroon font-medium" />
             </.link>
             <%= if @random_gall.undescribed do %>
               <span class="ml-2 text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded">

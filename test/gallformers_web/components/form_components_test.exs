@@ -89,8 +89,9 @@ defmodule GallformersWeb.FormComponentsTest do
     test "renders modal with impact summary", %{conn: conn} do
       {:ok, _view, html} = live_isolated(conn, CascadeDeleteTestLive)
 
-      # Check header
-      assert html =~ "Delete TestFamily?"
+      # Check header — name is wrapped in .taxon_name component
+      assert html =~ "Delete"
+      assert html =~ "TestFamily"
 
       # Check impact summary
       assert html =~ "2"
