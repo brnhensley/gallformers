@@ -33,6 +33,10 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Index do
       |> assign(:families, [])
       |> assign(:move_target_family_id, nil)
       |> assign(:hide_empty_unknown, true)
+      |> assign(:show_delete_modal, false)
+      |> assign(:deletion_impact, nil)
+      |> assign(:delete_confirmation, "")
+      |> assign(:delete_taxonomy, nil)
       |> load_taxonomies()
 
     {:ok, socket}
@@ -109,16 +113,60 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Index do
   end
 
   @impl true
-  def handle_event("delete", %{"id" => _id}, socket) do
-    # Taxonomy deletion is disabled until soft delete is implemented
-    # Deleting taxonomy entries can cascade to hundreds of downstream records
+  def handle_event("delete", %{"id" => id}, socket) do
+    taxonomy = Taxonomy.get_taxonomy!(id)
+    impact = Taxonomy.get_deletion_impact(taxonomy)
+
     {:noreply,
-     put_flash(
-       socket,
-       :error,
-       "Taxonomy deletion is temporarily disabled. Deleting a family or genus can cascade to " <>
-         "hundreds of species records. This will be re-enabled once soft delete is implemented."
-     )}
+     socket
+     |> assign(:delete_taxonomy, taxonomy)
+     |> assign(:deletion_impact, impact)
+     |> assign(:show_delete_modal, true)
+     |> assign(:delete_confirmation, "")}
+  end
+
+  @impl true
+  def handle_event("update_delete_confirmation", %{"value" => value}, socket) do
+    {:noreply, assign(socket, :delete_confirmation, value)}
+  end
+
+  @impl true
+  def handle_event("confirm_cascade_delete", %{"confirmation" => confirmation}, socket) do
+    taxonomy = socket.assigns.delete_taxonomy
+    expected_name = taxonomy.name
+
+    if String.trim(confirmation) == expected_name do
+      case Taxonomy.delete_taxonomy_cascade(taxonomy) do
+        {:ok, impact} ->
+          message = build_delete_success_message(taxonomy, impact)
+
+          {:noreply,
+           socket
+           |> assign(:show_delete_modal, false)
+           |> assign(:delete_taxonomy, nil)
+           |> put_flash(:info, message)
+           |> load_taxonomies()}
+
+        {:error, reason} ->
+          {:noreply,
+           socket
+           |> assign(:show_delete_modal, false)
+           |> assign(:delete_taxonomy, nil)
+           |> put_flash(:error, "Delete failed: #{inspect(reason)}")}
+      end
+    else
+      {:noreply, put_flash(socket, :error, "Name does not match. Please type the exact name.")}
+    end
+  end
+
+  @impl true
+  def handle_event("cancel_cascade_delete", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:show_delete_modal, false)
+     |> assign(:deletion_impact, nil)
+     |> assign(:delete_confirmation, "")
+     |> assign(:delete_taxonomy, nil)}
   end
 
   @impl true
@@ -535,8 +583,42 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Index do
           </button>
         </:footer>
       </.modal>
+      <%!-- Cascade Delete Modal --%>
+      <.cascade_delete_modal
+        :if={@show_delete_modal}
+        show={@show_delete_modal}
+        impact={@deletion_impact}
+        confirmation_value={@delete_confirmation}
+      />
     </Layouts.admin>
     """
+  end
+
+  # Handle impact map (for family/genus cascade delete)
+  defp build_delete_success_message(
+         taxonomy,
+         %{genera_count: _, sections_count: _, species_count: _} = impact
+       ) do
+    base = "Deleted #{taxonomy.type} \"#{taxonomy.name}\""
+
+    details =
+      [
+        if(impact.genera_count > 0, do: "#{impact.genera_count} genera"),
+        if(impact.sections_count > 0, do: "#{impact.sections_count} sections"),
+        if(impact.species_count > 0, do: "#{impact.species_count} species")
+      ]
+      |> Enum.filter(& &1)
+
+    if details == [] do
+      base
+    else
+      base <> " and #{Enum.join(details, ", ")}"
+    end
+  end
+
+  # Handle simple taxonomy struct (for section delete - no cascade)
+  defp build_delete_success_message(_taxonomy, %Taxonomy.Taxonomy{} = deleted) do
+    "Deleted #{deleted.type} \"#{deleted.name}\""
   end
 
   defp type_badge(assigns) do
