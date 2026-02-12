@@ -109,7 +109,9 @@ defmodule Gallformers.Taxonomy.Tree do
   When renaming a genus, automatically updates all linked species names and
   creates scientific synonyms with the old names.
   """
-  @spec update_taxonomy(Taxonomy.t(), map()) :: {:ok, Taxonomy.t()} | {:error, Ecto.Changeset.t()}
+  @spec update_taxonomy(Taxonomy.t(), map()) ::
+          {:ok, Taxonomy.t()}
+          | {:error, Ecto.Changeset.t() | {:rename_collision, String.t(), atom()}}
   def update_taxonomy(%Taxonomy{} = taxonomy, attrs) do
     new_name = attrs["name"] || attrs[:name]
     is_genus_rename = taxonomy.type == "genus" && new_name && new_name != taxonomy.name
@@ -141,7 +143,14 @@ defmodule Gallformers.Taxonomy.Tree do
         |> Repo.all()
 
       for species <- species_list do
-        Gallformers.Species.rename_for_genus_change(species, old_genus_name, new_genus_name)
+        case Gallformers.Species.rename_for_genus_change(
+               species,
+               old_genus_name,
+               new_genus_name
+             ) do
+          {:ok, _} -> :ok
+          {:error, reason} -> Repo.rollback({:rename_collision, species.name, reason})
+        end
       end
 
       # Update the genus itself

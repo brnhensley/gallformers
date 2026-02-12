@@ -2,7 +2,7 @@
 #
 # Phoenix/LiveView development commands
 
-.PHONY: dev dev-lan test test-db test-prod-data test-prod-data-e2e test-prod-data-all download-db ci help deps assets setup clean check-db build run-local-release dump-schema upload-reset-db
+.PHONY: dev dev-lan test test-db test-prod-data test-prod-data-e2e test-prod-data-all download-db ci preflight help deps assets setup clean check-db build run-local-release dump-schema upload-reset-db
 
 # Download production database for local dev
 # Uses public S3 snapshot (updated daily by GitHub Actions)
@@ -151,9 +151,11 @@ test-prod-data: check-db
 	@echo "Copying production database for testing..."
 	@cp priv/gallformers.sqlite priv/gallformers_test.sqlite
 	@echo "Running prod data tests (excluding E2E)..."
-	mix test test/prod_data --exclude e2e --include prod_data
-	@echo "Restoring test database..."
-	@$(MAKE) test-db
+	@mix test test/prod_data --exclude e2e --include prod_data; \
+		status=$$?; \
+		echo "Restoring test database..."; \
+		$(MAKE) test-db; \
+		exit $$status
 
 # Run E2E browser tests against a copy of the production database
 # Requires chromedriver: brew install chromedriver
@@ -162,9 +164,11 @@ test-prod-data-e2e: check-db
 	@echo "Copying production database for testing..."
 	@cp priv/gallformers.sqlite priv/gallformers_test.sqlite
 	@echo "Running prod data E2E tests..."
-	GALLFORMERS_E2E=1 mix test test/prod_data/e2e --include prod_data
-	@echo "Restoring test database..."
-	@$(MAKE) test-db
+	@GALLFORMERS_E2E=1 mix test test/prod_data/e2e --include prod_data; \
+		status=$$?; \
+		echo "Restoring test database..."; \
+		$(MAKE) test-db; \
+		exit $$status
 
 # Run all prod data tests (context + E2E)
 test-prod-data-all: check-db
@@ -172,9 +176,11 @@ test-prod-data-all: check-db
 	@echo "Copying production database for testing..."
 	@cp priv/gallformers.sqlite priv/gallformers_test.sqlite
 	@echo "Running all prod data tests..."
-	GALLFORMERS_E2E=1 mix test test/prod_data --include prod_data
-	@echo "Restoring test database..."
-	@$(MAKE) test-db
+	@GALLFORMERS_E2E=1 mix test test/prod_data --include prod_data; \
+		status=$$?; \
+		echo "Restoring test database..."; \
+		$(MAKE) test-db; \
+		exit $$status
 
 # Check for unexpected test exclusions (non-E2E tests with @tag :skip, etc.)
 # Runs ALL tests including E2E - if output shows "X excluded", investigate
@@ -298,6 +304,24 @@ ci: assets/node_modules
 	mix dialyzer
 	@echo "==> All CI checks passed!"
 
+# Run everything before pushing to main (local only, not for CI)
+# Requires: chromedriver (make e2e-setup) and prod DB copy (make download-db)
+preflight: ci check-db
+	$(call check_chromedriver)
+	@echo ""
+	@echo "==> CI checks passed. Running E2E browser tests..."
+	GALLFORMERS_E2E=1 mix test test/e2e --include e2e
+	@echo ""
+	@echo "==> E2E tests passed. Running prod data tests..."
+	@cp priv/gallformers.sqlite priv/gallformers_test.sqlite
+	@GALLFORMERS_E2E=1 mix test test/prod_data --include prod_data; \
+		status=$$?; \
+		echo "Restoring test database..."; \
+		$(MAKE) test-db; \
+		exit $$status
+	@echo ""
+	@echo "==> All preflight checks passed! Safe to push."
+
 # =============================================================================
 # Git Sync Targets (for multi-agent workflow)
 # =============================================================================
@@ -373,6 +397,7 @@ help:
 	@echo "  make test-prod-data-e2e  Run E2E tests against prod data copy (requires chromedriver)"
 	@echo "  make test-prod-data-all  Run all tests against prod data copy"
 	@echo "  make ci                Run all CI checks (format, compile, credo, test, dialyzer)"
+	@echo "  make preflight         Run EVERYTHING before pushing (ci + e2e + prod data tests)"
 	@echo ""
 	@echo "E2E Testing (Wallaby/Chrome):"
 	@echo "  make e2e-setup         Check chromedriver installation"

@@ -38,6 +38,28 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
   # Note: delete_entity/1 callback not needed - we use include_delete: false
   # and handle delete in handle_event("delete", ...) below
 
+  # Override do_update to handle genus rename collision errors,
+  # which return {:error, {:rename_collision, ...}} instead of changeset errors.
+  defp do_update(socket, params) do
+    entity = Map.get(socket.assigns, entity_key())
+
+    case update_entity(entity, params) do
+      {:ok, entity} ->
+        {:noreply, after_update(socket, entity)}
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        {:noreply, assign(socket, :form, to_form(changeset))}
+
+      {:error, {:rename_collision, species_name, _reason}} ->
+        {:noreply,
+         put_flash(
+           socket,
+           :error,
+           "Cannot rename: \"#{species_name}\" would collide with an existing species"
+         )}
+    end
+  end
+
   @impl true
   def mount(_params, session, socket) do
     {:ok, init_admin_form(socket, session)}

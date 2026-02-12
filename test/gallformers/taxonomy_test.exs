@@ -151,6 +151,167 @@ defmodule Gallformers.TaxonomyTest do
     end
   end
 
+  describe "update_taxonomy/2 genus rename collision" do
+    setup do
+      {:ok, family} =
+        Taxonomy.create_taxonomy(%{
+          name: "CollisionTestFamily",
+          type: "family",
+          description: "Test family for collision tests"
+        })
+
+      {:ok, genus} =
+        Taxonomy.create_taxonomy(%{
+          name: "Collisiongenus",
+          type: "genus",
+          description: "Genus to be renamed",
+          parent_id: family.id
+        })
+
+      # Create a species under the genus
+      {:ok, species} =
+        Repo.insert(%Species{
+          name: "Collisiongenus alpha",
+          taxoncode: "gall",
+          datacomplete: false
+        })
+
+      Taxonomy.link_species_to_taxonomy(species.id, genus.id)
+
+      # Create a colliding species that already has the target name
+      {:ok, _colliding} =
+        Repo.insert(%Species{
+          name: "Targetgenus alpha",
+          taxoncode: "gall",
+          datacomplete: false
+        })
+
+      {:ok, family: family, genus: genus, species: species}
+    end
+
+    test "returns error when genus rename would cause species name collision", %{
+      genus: genus,
+      species: species
+    } do
+      # Renaming "Collisiongenus" → "Targetgenus" would make "Collisiongenus alpha" → "Targetgenus alpha"
+      # which already exists
+      assert {:error, {:rename_collision, "Collisiongenus alpha", :name_exists}} =
+               Taxonomy.update_taxonomy(genus, %{"name" => "Targetgenus"})
+
+      # Genus should be unchanged (transaction rolled back)
+      unchanged_genus = Taxonomy.get_taxonomy!(genus.id)
+      assert unchanged_genus.name == "Collisiongenus"
+
+      # Species should be unchanged
+      unchanged_species = Repo.get!(Species, species.id)
+      assert unchanged_species.name == "Collisiongenus alpha"
+    end
+
+    test "succeeds when genus rename does not cause collision", %{
+      genus: genus
+    } do
+      assert {:ok, updated_genus} =
+               Taxonomy.update_taxonomy(genus, %{"name" => "Safegenusname"})
+
+      assert updated_genus.name == "Safegenusname"
+    end
+  end
+
+  describe "reclassify_species/2 collision" do
+    alias Gallformers.Galls.GallTraits
+
+    setup do
+      {:ok, family} =
+        Taxonomy.create_taxonomy(%{
+          name: "ReclCollisionFamily",
+          type: "family",
+          description: "Wasp"
+        })
+
+      {:ok, genus1} =
+        Taxonomy.create_taxonomy(%{
+          name: "ReclCollisionGenus1",
+          type: "genus",
+          parent_id: family.id
+        })
+
+      {:ok, genus2} =
+        Taxonomy.create_taxonomy(%{
+          name: "ReclCollisionGenus2",
+          type: "genus",
+          parent_id: family.id
+        })
+
+      {:ok, species} =
+        Repo.insert(%Species{
+          name: "ReclCollisionGenus1 testsp",
+          taxoncode: "gall",
+          datacomplete: false
+        })
+
+      Taxonomy.link_species_to_taxonomy(species.id, genus1.id)
+
+      {:ok, _gall_traits} =
+        Repo.insert(%GallTraits{
+          species_id: species.id,
+          undescribed: false,
+          detachable: "unknown"
+        })
+
+      # Create colliding species in target genus
+      {:ok, _colliding} =
+        Repo.insert(%Species{
+          name: "ReclCollisionGenus2 testsp",
+          taxoncode: "gall",
+          datacomplete: false
+        })
+
+      {:ok, genus1: genus1, genus2: genus2, species: species}
+    end
+
+    test "reclassify returns error when target name already exists", %{
+      species: species,
+      genus2: genus2
+    } do
+      assert {:error, :name_exists} =
+               Taxonomy.reassign_species_taxonomy(species.id, genus2.id)
+
+      # Species should be unchanged
+      unchanged = Repo.get!(Species, species.id)
+      assert unchanged.name == "ReclCollisionGenus1 testsp"
+    end
+
+    test "reclassify via reclassify_species returns error for name-only collision", %{
+      species: species,
+      genus1: genus1
+    } do
+      # Create a species with the target name
+      {:ok, _colliding2} =
+        Repo.insert(%Species{
+          name: "ReclCollisionGenus1 newepithet",
+          taxoncode: "gall",
+          datacomplete: false
+        })
+
+      params = %{
+        genus_id: genus1.id,
+        new_name: "ReclCollisionGenus1 newepithet",
+        old_name: "ReclCollisionGenus1 testsp",
+        genus_changed?: false,
+        name_changed?: true,
+        add_alias?: true,
+        undescribed?: false,
+        former_undescribed_choice: nil
+      }
+
+      assert {:error, :name_exists} = Taxonomy.reclassify_species(species.id, params)
+
+      # Species should be unchanged
+      unchanged = Repo.get!(Species, species.id)
+      assert unchanged.name == "ReclCollisionGenus1 testsp"
+    end
+  end
+
   describe "get_taxonomy_for_species" do
     test "returns taxonomy info for species with genus only" do
       # Create Family → Genus

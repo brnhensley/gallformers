@@ -375,6 +375,102 @@ defmodule Gallformers.SpeciesTest do
     end
   end
 
+  describe "rename_species/4 collision detection" do
+    setup do
+      {:ok, species1} =
+        Repo.insert(%Gallformers.Species.Species{
+          name: "Testgenus alpha",
+          taxoncode: "gall",
+          datacomplete: false
+        })
+
+      {:ok, species2} =
+        Repo.insert(%Gallformers.Species.Species{
+          name: "Testgenus beta",
+          taxoncode: "gall",
+          datacomplete: false
+        })
+
+      {:ok, species1: species1, species2: species2}
+    end
+
+    test "returns {:error, :name_exists} when target name already exists", %{
+      species1: species1,
+      species2: species2
+    } do
+      assert {:error, :name_exists} =
+               Species.rename_species(species1.id, species2.name, false)
+
+      # Verify species1 was not renamed
+      unchanged = Species.get_species!(species1.id)
+      assert unchanged.name == "Testgenus alpha"
+    end
+
+    test "succeeds when target name does not exist", %{species1: species1} do
+      assert {:ok, updated} = Species.rename_species(species1.id, "Testgenus gamma", true)
+      assert updated.name == "Testgenus gamma"
+
+      # Verify alias was created
+      aliases = Species.get_aliases_for_species(species1.id)
+      assert length(aliases) == 1
+      assert hd(aliases).name == "Testgenus alpha"
+    end
+
+    test "no-ops when new name matches current name", %{species1: species1} do
+      assert {:ok, returned} = Species.rename_species(species1.id, "Testgenus alpha", true)
+      assert returned.name == "Testgenus alpha"
+
+      # No alias should be created for a no-op
+      aliases = Species.get_aliases_for_species(species1.id)
+      assert aliases == []
+    end
+
+    test "updates FTS index after rename", %{species1: species1} do
+      assert {:ok, _updated} = Species.rename_species(species1.id, "Xyzuniquename testfts", false)
+
+      # Should be findable via FTS
+      results = Species.search_species_fts("xyzuniquename", 10)
+      assert Enum.any?(results, &(&1.id == species1.id))
+    end
+  end
+
+  describe "rename_for_genus_change/5 collision detection" do
+    setup do
+      {:ok, species1} =
+        Repo.insert(%Gallformers.Species.Species{
+          name: "Oldgenus alpha",
+          taxoncode: "gall",
+          datacomplete: false
+        })
+
+      # Create a species that would collide after genus rename
+      {:ok, colliding} =
+        Repo.insert(%Gallformers.Species.Species{
+          name: "Newgenus alpha",
+          taxoncode: "gall",
+          datacomplete: false
+        })
+
+      {:ok, species1: species1, colliding: colliding}
+    end
+
+    test "returns {:error, :name_exists} when computed name collides", %{species1: species1} do
+      assert {:error, :name_exists} =
+               Species.rename_for_genus_change(species1, "Oldgenus", "Newgenus")
+
+      # Verify species1 was not renamed
+      unchanged = Species.get_species!(species1.id)
+      assert unchanged.name == "Oldgenus alpha"
+    end
+
+    test "succeeds when computed name does not collide", %{species1: species1} do
+      assert {:ok, updated} =
+               Species.rename_for_genus_change(species1, "Oldgenus", "Safenewgenus")
+
+      assert updated.name == "Safenewgenus alpha"
+    end
+  end
+
   describe "delete_species/1" do
     test "deletes the species and associated gall_traits record" do
       # Species 100 is "Andricus quercuscalifornicus" with gall traits

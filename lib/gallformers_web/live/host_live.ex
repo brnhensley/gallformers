@@ -348,21 +348,23 @@ defmodule GallformersWeb.HostLive do
               </div>
 
               <p :if={@taxonomy}>
-                <strong>Family:</strong>
-                <.link
-                  href={"/family/#{@taxonomy.family.id}"}
-                  class="hover:underline"
-                >
-                  {@taxonomy.family.name}
-                </.link>
-                <span
-                  :if={@taxonomy.family && @taxonomy.family.description not in [nil, ""]}
-                  class="text-gray-600"
-                >
-                  ({@taxonomy.family.description})
+                <span :if={@taxonomy.family}>
+                  <strong>Family:</strong>
+                  <.link
+                    href={"/family/#{@taxonomy.family.id}"}
+                    class="hover:underline"
+                  >
+                    {@taxonomy.family.name}
+                  </.link>
+                  <span
+                    :if={@taxonomy.family.description not in [nil, ""]}
+                    class="text-gray-600"
+                  >
+                    ({@taxonomy.family.description})
+                  </span>
                 </span>
                 <span :if={@taxonomy.section}>
-                  <span class="mx-1">|</span>
+                  <span :if={@taxonomy.family} class="mx-1">|</span>
                   <strong>Section:</strong>
                   <.link
                     href={"/section/#{@taxonomy.section.id}"}
@@ -377,19 +379,21 @@ defmodule GallformersWeb.HostLive do
                     ({@taxonomy.section.description})
                   </span>
                 </span>
-                <span class="mx-1">|</span>
-                <strong>Genus:</strong>
-                <.link
-                  href={"/genus/#{@taxonomy.genus.id}"}
-                  class="hover:underline"
-                >
-                  <.taxon_name name={@taxonomy.genus.name} rank="genus" />
-                </.link>
-                <span
-                  :if={@taxonomy.genus.description not in [nil, ""]}
-                  class="text-gray-600"
-                >
-                  ({@taxonomy.genus.description})
+                <span :if={@taxonomy.genus}>
+                  <span :if={@taxonomy.family || @taxonomy.section} class="mx-1">|</span>
+                  <strong>Genus:</strong>
+                  <.link
+                    href={"/genus/#{@taxonomy.genus.id}"}
+                    class="hover:underline"
+                  >
+                    <.taxon_name name={@taxonomy.genus.name} rank="genus" />
+                  </.link>
+                  <span
+                    :if={@taxonomy.genus.description not in [nil, ""]}
+                    class="text-gray-600"
+                  >
+                    ({@taxonomy.genus.description})
+                  </span>
                 </span>
               </p>
 

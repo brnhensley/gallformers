@@ -568,6 +568,78 @@ defmodule GallformersWeb.ProdDataE2E.TaxonomyAdminTest do
   end
 
   # ──────────────────────────────────────────────────────────────────
+  # Genus rename collision tests
+  # ──────────────────────────────────────────────────────────────────
+
+  describe "genus rename collision" do
+    test "genus rename with collision shows flash error, genus unchanged", %{session: session} do
+      # Find a real family to create test data under
+      family =
+        Repo.one(
+          from f in "taxonomy",
+            where: f.type == "family",
+            limit: 1,
+            select: %{id: f.id, name: f.name}
+        )
+
+      assert family, "Need a family for this test"
+
+      # Create a test genus under this family
+      unique = System.unique_integer([:positive])
+      test_genus_name = "Collisiongenus#{unique}"
+
+      {:ok, test_genus} =
+        Gallformers.Taxonomy.create_taxonomy(%{
+          name: test_genus_name,
+          type: "genus",
+          parent_id: family.id
+        })
+
+      # Create a species under this genus
+      {:ok, test_species} =
+        Repo.insert(%Gallformers.Species.Species{
+          name: "#{test_genus_name} testspecies",
+          taxoncode: "gall",
+          datacomplete: false
+        })
+
+      Gallformers.Taxonomy.link_species_to_taxonomy(test_species.id, test_genus.id)
+
+      # Pick a target name that will collide
+      target_genus_name = "Targetgenus#{unique}"
+
+      # Create a species whose name matches what the rename would produce
+      {:ok, _blocker} =
+        Repo.insert(%Gallformers.Species.Species{
+          name: "#{target_genus_name} testspecies",
+          taxoncode: "gall",
+          datacomplete: false
+        })
+
+      # Navigate to the taxonomy admin page for our test genus
+      session
+      |> visit("/admin/taxonomy/#{test_genus.id}")
+      |> wait_for_liveview()
+      |> fill_taxonomy_field("name", target_genus_name)
+      |> submit_taxonomy_form()
+
+      # Should see error flash about collision
+      session
+      |> assert_has(css("[role='alert']", text: "would collide"))
+
+      # Verify genus name unchanged in DB
+      unchanged =
+        Repo.one(
+          from t in "taxonomy",
+            where: t.id == ^test_genus.id,
+            select: %{name: t.name}
+        )
+
+      assert unchanged.name == test_genus_name
+    end
+  end
+
+  # ──────────────────────────────────────────────────────────────────
   # Edge case tests
   # ──────────────────────────────────────────────────────────────────
 

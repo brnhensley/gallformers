@@ -202,6 +202,24 @@ Do not commit until precommit passes.
 
 ## Testing
 
+All tests run serially (`async: false`) due to SQLite's single-writer constraint.
+
+### Test Types
+
+| Type | Location | Run with | What it covers |
+|------|----------|----------|----------------|
+| Context/Unit | `test/gallformers/` | `make test` | Domain logic, context functions, changesets |
+| LiveView | `test/gallformers_web/live/` | `make test` | Page rendering, user interactions, form workflows (public + admin) |
+| Controller/API | `test/gallformers_web/controllers/` | `make test` | REST endpoints, JSON responses, auth, error pages |
+| Component | `test/gallformers_web/components/` | `make test` | Reusable component rendering and events |
+| Plug | `test/gallformers_web/plugs/` | `make test` | Analytics, caching, CORS middleware |
+| Integration | `test/gallformers_web/integration_test.exs` | `make test` | Full page load flows, navigation, PubSub |
+| E2E (browser) | `test/e2e/` | `make e2e` | Real Chrome tests via Wallaby. Excluded by default. |
+| Prod data | `test/prod_data/` | `make test-prod-data` | Validates against real production DB copy. Excluded by default. |
+| Prod data E2E | `test/prod_data/e2e/` | `make test-prod-data-e2e` | Browser tests against real production data. Excluded by default. |
+
+**Support files** (`test/support/`): `DataCase` (Ecto sandbox), `ConnCase` (HTTP), `E2ECase` (Wallaby), `ProdDataCase` (real DB validation), `ProdDataE2ECase` (combined).
+
 ### Test Database
 
 Tests use a **separate test database** (`priv/gallformers_test.sqlite`) that is:

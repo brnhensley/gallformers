@@ -119,6 +119,7 @@ defmodule Gallformers.Taxonomy.Reclassification do
   end
 
   # Renames a species to reflect its new genus after reclassification.
+  # Returns the updated species or calls Repo.rollback on collision.
   defp rename_species_for_reclassification(
          species_id,
          new_genus_id,
@@ -134,36 +135,47 @@ defmodule Gallformers.Taxonomy.Reclassification do
     epithet = target_epithet || TaxonName.epithet(species.name)
     new_name = TaxonName.build(new_genus_display, epithet)
 
-    if new_name != species.name do
+    if new_name == species.name do
+      species
+    else
+      alias_type = resolve_reclassify_alias_type(explicit_alias_type, was_undescribed?)
       old_genus_display = TaxonName.genus_display(species.name)
 
-      alias_type =
-        explicit_alias_type ||
-          if was_undescribed?,
-            do: "former_undescribed",
-            else: "scientific"
-
-      Gallformers.Species.rename_for_genus_change(
-        species,
-        old_genus_display,
-        new_genus_display,
-        add_alias?,
+      do_reclassify_rename(species, old_genus_display, new_genus_display, new_name, add_alias?,
         alias_type: alias_type
       )
+    end
+  end
 
-      # When target_epithet was provided, rename_for_genus_change produced
-      # "NewGenus old_epithet" — correct the name to use the target epithet.
-      updated = Repo.get!(Species, species_id)
+  defp resolve_reclassify_alias_type(nil, true), do: "former_undescribed"
+  defp resolve_reclassify_alias_type(nil, false), do: "scientific"
+  defp resolve_reclassify_alias_type(explicit, _), do: explicit
 
-      if updated.name != new_name do
-        updated
-        |> Species.changeset(%{name: new_name})
-        |> Repo.update!()
-      else
-        updated
-      end
-    else
-      species
+  # Performs genus rename then optional epithet correction, rolling back on collision.
+  defp do_reclassify_rename(species, old_genus, new_genus, final_name, add_alias?, opts) do
+    case Gallformers.Species.rename_for_genus_change(
+           species,
+           old_genus,
+           new_genus,
+           add_alias?,
+           opts
+         ) do
+      {:ok, updated} ->
+        maybe_correct_epithet(updated, final_name)
+
+      {:error, reason} ->
+        Repo.rollback(reason)
+    end
+  end
+
+  # When target_epithet was provided, rename_for_genus_change produced
+  # "NewGenus old_epithet" — correct the name to use the target epithet.
+  defp maybe_correct_epithet(species, final_name) when species.name == final_name, do: species
+
+  defp maybe_correct_epithet(species, final_name) do
+    case Gallformers.Species.rename_species(species.id, final_name, false) do
+      {:ok, final} -> final
+      {:error, reason} -> Repo.rollback(reason)
     end
   end
 

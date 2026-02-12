@@ -768,7 +768,7 @@ defmodule Gallformers.ProdData.WriteOperationsTest do
       end
     end
 
-    test "reclassify where target name collides" do
+    test "reclassify where target name collides returns error" do
       # Find two gall species in the same genus
       pair =
         Repo.all(
@@ -803,21 +803,179 @@ defmodule Gallformers.ProdData.WriteOperationsTest do
             former_undescribed_choice: nil
           })
 
-        # Document actual behavior — this may succeed or fail depending on
-        # whether rename_species checks for name collisions
-        case result do
-          {:ok, _} ->
-            IO.puts(
-              "NOTE: Name collision reclassify SUCCEEDED — rename_species allows duplicate names"
-            )
+        assert {:error, :name_exists} = result
 
-          {:error, reason} ->
-            IO.puts("NOTE: Name collision reclassify returned error: #{inspect(reason)}")
-        end
-
-        # The test passes either way — we're documenting behavior
-        assert true
+        # Verify original species name unchanged
+        species = Repo.get!(Species, sp1.species_id)
+        assert species.name == sp1.species_name
       end
+    end
+  end
+
+  # =====================================================================
+  # Rename collision detection
+  # =====================================================================
+
+  describe "rename collision detection" do
+    test "reclassify species returns {:error, :name_exists} when target name is taken" do
+      # Find a gall species with a genus
+      species =
+        Repo.one(
+          from(s in Species,
+            join: st in "species_taxonomy",
+            on: st.species_id == s.id,
+            join: t in TaxonomySchema,
+            on: t.id == st.taxonomy_id,
+            where:
+              s.taxoncode == "gall" and t.type == "genus" and
+                t.is_placeholder == false and
+                not like(t.name, "Unknown%"),
+            limit: 1,
+            select: s
+          )
+        )
+
+      assert species, "Need a gall species with taxonomy"
+
+      lineage = Taxonomy.get_taxonomy_for_species(species.id)
+
+      # Find a different genus to reclassify to
+      different_genus =
+        Repo.one(
+          from(t in TaxonomySchema,
+            where:
+              t.type == "genus" and t.id != ^lineage.genus.id and
+                t.is_placeholder == false,
+            limit: 1
+          )
+        )
+
+      assert different_genus, "Need a different genus"
+
+      # Create a species with the name that reclassification would produce
+      colliding_name = "#{different_genus.name} #{Taxonomy.extract_epithet(species.name)}"
+
+      {:ok, _blocker} =
+        Repo.insert(%Species{
+          name: colliding_name,
+          taxoncode: "gall",
+          datacomplete: false
+        })
+
+      # Attempt reclassification — should fail with :name_exists
+      result =
+        Taxonomy.reassign_species_taxonomy(species.id, different_genus.id,
+          add_alias?: true,
+          target_epithet: Taxonomy.extract_epithet(species.name)
+        )
+
+      assert {:error, :name_exists} = result
+
+      # Verify original species name unchanged
+      unchanged = Repo.get!(Species, species.id)
+      assert unchanged.name == species.name
+    end
+
+    test "genus rename returns error when a resulting species name would collide" do
+      # Find a genus with at least one species
+      genus =
+        Repo.one(
+          from(t in TaxonomySchema,
+            join: st in "species_taxonomy",
+            on: st.taxonomy_id == t.id,
+            where: t.type == "genus" and t.is_placeholder == false,
+            group_by: t.id,
+            having: count(st.species_id) >= 1,
+            limit: 1,
+            select: t
+          )
+        )
+
+      assert genus, "Need a genus with species"
+
+      species_ids = Taxonomy.get_species_ids_for_genus(genus.id)
+      [first_species | _] = Repo.all(from(s in Species, where: s.id in ^species_ids))
+
+      new_genus_name = "Collisiontest#{System.unique_integer([:positive])}"
+
+      # Create a species whose name matches what the rename would produce
+      colliding_name =
+        "#{new_genus_name} #{Taxonomy.extract_epithet(first_species.name)}"
+
+      {:ok, _blocker} =
+        Repo.insert(%Species{
+          name: colliding_name,
+          taxoncode: first_species.taxoncode,
+          datacomplete: false
+        })
+
+      # Attempt genus rename — should fail with rename_collision
+      result = Taxonomy.update_taxonomy(genus, %{name: new_genus_name})
+      assert {:error, {:rename_collision, _, :name_exists}} = result
+
+      # Verify genus name unchanged
+      unchanged_genus = Repo.get!(TaxonomySchema, genus.id)
+      assert unchanged_genus.name == genus.name
+
+      # Verify species name unchanged
+      unchanged_species = Repo.get!(Species, first_species.id)
+      assert unchanged_species.name == first_species.name
+    end
+
+    test "no partial state on genus rename collision with multiple species" do
+      # Find a genus with 2+ species
+      genus =
+        Repo.one(
+          from(t in TaxonomySchema,
+            join: st in "species_taxonomy",
+            on: st.taxonomy_id == t.id,
+            where: t.type == "genus" and t.is_placeholder == false,
+            group_by: t.id,
+            having: count(st.species_id) >= 2,
+            limit: 1,
+            select: t
+          )
+        )
+
+      assert genus, "Need a genus with 2+ species"
+
+      species_ids = Taxonomy.get_species_ids_for_genus(genus.id)
+
+      all_species =
+        Repo.all(from(s in Species, where: s.id in ^species_ids, order_by: s.name))
+
+      old_names = Map.new(all_species, &{&1.id, &1.name})
+      new_genus_name = "Collisiontest#{System.unique_integer([:positive])}"
+
+      # Pick the LAST species to collide with — earlier species would rename first,
+      # so partial state means some renamed and some didn't
+      last_species = List.last(all_species)
+
+      colliding_name =
+        "#{new_genus_name} #{Taxonomy.extract_epithet(last_species.name)}"
+
+      {:ok, _blocker} =
+        Repo.insert(%Species{
+          name: colliding_name,
+          taxoncode: last_species.taxoncode,
+          datacomplete: false
+        })
+
+      # Attempt genus rename — should fail
+      result = Taxonomy.update_taxonomy(genus, %{name: new_genus_name})
+      assert {:error, {:rename_collision, _, :name_exists}} = result
+
+      # Verify ALL species retain original names (transaction rolled back completely)
+      for sp <- all_species do
+        current = Repo.get!(Species, sp.id)
+
+        assert current.name == old_names[sp.id],
+               "Species #{sp.id} should retain name '#{old_names[sp.id]}' but has '#{current.name}'"
+      end
+
+      # Verify genus name also unchanged
+      unchanged_genus = Repo.get!(TaxonomySchema, genus.id)
+      assert unchanged_genus.name == genus.name
     end
   end
 end

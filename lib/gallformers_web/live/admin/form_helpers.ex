@@ -104,7 +104,7 @@ defmodule GallformersWeb.Admin.FormHelpers do
   @callback change_entity(entity :: struct(), params :: map()) :: Ecto.Changeset.t()
   @callback create_entity(params :: map()) :: {:ok, struct()} | {:error, Ecto.Changeset.t()}
   @callback update_entity(entity :: struct(), params :: map()) ::
-              {:ok, struct()} | {:error, Ecto.Changeset.t()}
+              {:ok, struct()} | {:error, Ecto.Changeset.t() | term()}
   @callback delete_entity(entity :: struct()) ::
               {:ok, struct()} | {:error, Ecto.Changeset.t()}
   @callback prepare_params(params :: map()) :: map()
@@ -450,6 +450,8 @@ defmodule GallformersWeb.Admin.FormHelpers do
                Phoenix.Component.assign(socket, :form, Phoenix.Component.to_form(changeset))}
           end
         end
+
+        defoverridable do_update: 2
       end
     end
   end

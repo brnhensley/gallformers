@@ -589,23 +589,13 @@ defmodule Gallformers.Species do
   @spec rename_species(integer(), String.t(), boolean(), String.t()) ::
           {:ok, Species.t()} | {:error, atom() | String.t()}
   def rename_species(species_id, new_name, add_alias?, alias_type \\ "scientific") do
-    if species_name_exists?(new_name) do
-      {:error, :name_exists}
-    else
-      do_rename_species(species_id, new_name, add_alias?, alias_type)
-    end
-  end
-
-  defp do_rename_species(species_id, new_name, add_alias?, alias_type) do
     species = get_species!(species_id)
-    old_name = species.name
 
     Repo.transaction(fn ->
-      if add_alias?, do: add_rename_alias(species_id, old_name, alias_type)
-
-      species
-      |> Species.changeset(%{name: new_name})
-      |> Repo.update!()
+      case do_rename(species, new_name, add_alias?, alias_type) do
+        {:ok, updated} -> updated
+        {:error, reason} -> Repo.rollback(reason)
+      end
     end)
   end
 
@@ -685,18 +675,23 @@ defmodule Gallformers.Species do
 
   Called by Taxonomy when a genus is renamed. For each species linked to
   that genus, this function:
-  1. Creates a "scientific synonym" alias with the old species name
-  2. Updates the species name by replacing the old genus with the new genus
+  1. Checks for name collisions
+  2. Creates a "scientific synonym" alias with the old species name
+  3. Updates the species name by replacing the old genus with the new genus
+  4. Updates the FTS index
 
   This is called within a Taxonomy transaction, so no additional transaction
   is created here.
 
+  Returns `{:ok, species}` on success, `{:error, :name_exists}` on collision.
+
   ## Examples
 
       iex> rename_for_genus_change(species, "Quercus", "Oakus")
-      :ok  # "Quercus alba" becomes "Oakus alba", synonym "Quercus alba" created
+      {:ok, species}  # "Quercus alba" becomes "Oakus alba", synonym "Quercus alba" created
   """
-  @spec rename_for_genus_change(Species.t(), String.t(), String.t(), boolean(), keyword()) :: :ok
+  @spec rename_for_genus_change(Species.t(), String.t(), String.t(), boolean(), keyword()) ::
+          {:ok, Species.t()} | {:error, :name_exists}
   def rename_for_genus_change(
         %Species{} = species,
         old_genus_name,
@@ -705,18 +700,46 @@ defmodule Gallformers.Species do
         opts \\ []
       ) do
     alias_type = Keyword.get(opts, :alias_type, "scientific")
-    old_species_name = species.name
-    new_species_name = TaxonName.replace_genus(old_species_name, old_genus_name, new_genus_name)
+    new_species_name = TaxonName.replace_genus(species.name, old_genus_name, new_genus_name)
 
-    # Create synonym alias with the old name (best-effort, don't fail transaction)
-    if add_alias?, do: add_rename_alias(species.id, old_species_name, alias_type)
+    do_rename(species, new_species_name, add_alias?, alias_type)
+  end
 
-    # Update the species name
-    species
-    |> Species.changeset(%{name: new_species_name})
-    |> Repo.update!()
+  # Core rename helper used by all rename paths.
+  # Checks for name collisions, optionally adds alias, updates species name, and updates FTS.
+  # Must be called within a transaction when atomicity with other operations is needed.
+  defp do_rename(%Species{} = species, new_name, _add_alias?, _alias_type)
+       when new_name == species.name,
+       do: {:ok, species}
 
-    :ok
+  defp do_rename(%Species{} = species, new_name, add_alias?, alias_type) do
+    case check_name_collision(species.id, new_name) do
+      :ok ->
+        if add_alias?, do: add_rename_alias(species.id, species.name, alias_type)
+
+        updated =
+          species
+          |> Species.changeset(%{name: new_name})
+          |> Repo.update!()
+
+        update_species_fts(updated.id)
+        {:ok, updated}
+
+      {:error, _} = err ->
+        err
+    end
+  end
+
+  defp check_name_collision(species_id, new_name) do
+    case from(s in Species,
+           where: s.name == ^new_name and s.id != ^species_id,
+           select: s.id,
+           limit: 1
+         )
+         |> Repo.one() do
+      nil -> :ok
+      _id -> {:error, :name_exists}
+    end
   end
 
   @doc """

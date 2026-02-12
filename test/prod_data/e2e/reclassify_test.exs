@@ -438,6 +438,55 @@ defmodule GallformersWeb.ProdDataE2E.ReclassifyTest do
   end
 
   # ──────────────────────────────────────────────────────────────────
+  # Test: Reclassify to colliding name shows error
+  # ──────────────────────────────────────────────────────────────────
+
+  describe "reclassify collision detection" do
+    test "reclassify to colliding name shows flash error, species unchanged", %{session: session} do
+      gall = find_gall_with_taxonomy()
+      assert gall, "Need a gall with taxonomy for this test"
+
+      target_genus =
+        find_different_genus_in_family(gall.family_id, gall.genus_id, "gall")
+
+      if is_nil(target_genus) do
+        # Try a genus in a different family if same-family doesn't work
+        target_genus = find_genus_in_different_family(gall.family_id, "gall")
+        assert target_genus, "Need a different genus for this test"
+      end
+
+      # Insert a species with the name that reclassification would produce
+      epithet = gall.name |> String.split(" ", parts: 2) |> List.last()
+      colliding_name = "#{target_genus.name} #{epithet}"
+
+      Repo.insert!(%Gallformers.Species.Species{
+        name: colliding_name,
+        taxoncode: "gall",
+        datacomplete: false
+      })
+
+      session
+      |> visit("/admin/galls/#{gall.id}")
+      |> wait_for_liveview()
+      |> open_reclassify_modal()
+      |> search_and_select_genus(target_genus.name)
+      |> click_reclassify_save()
+
+      # Should see error flash about name already in use
+      session
+      |> assert_has(css("[role='alert']", text: "already in use"))
+
+      # Navigate back and verify species name is unchanged
+      session
+      |> visit("/admin/galls/#{gall.id}")
+      |> wait_for_liveview()
+
+      session
+      |> assert_has(css("input.italic[disabled][value='#{gall.name}']"))
+    end
+  end
+
+  # ──────────────────────────────────────────────────────────────────
   # Test: Reclassify host to different genus
   # ──────────────────────────────────────────────────────────────────
 
