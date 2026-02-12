@@ -57,8 +57,5 @@ jobs:
       - name: Compile
         run: mix compile
 
-      - name: Wait for deployment to be ready
-        run: sleep 30
-
       - name: Run smoke tests
         run: mix smoke_test https://gallformers.fly.dev
