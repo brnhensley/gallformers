@@ -197,7 +197,7 @@ Daily snapshots are stored in two locations:
 - **Public** (`s3://gallformers-backups/public/`) - Sanitized, PII removed
 - **Private** (`s3://gallformers-full-backups/`) - Full backup with PII
 
-See [docs/backup-setup.md](docs/backup-setup.md) for complete backup documentation.
+For restore procedures, see [runbooks/restore-database.md](runbooks/restore-database.md). For AWS bucket details, see [docs/ops/aws-private-backup-bucket.md](docs/ops/aws-private-backup-bucket.md).
 
 ## PII Handling
 

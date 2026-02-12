@@ -33,7 +33,7 @@ The same credentials used for Litestream backups have access to this bucket. No 
 
 | Bucket | Access | Contains PII | Use |
 |--------|--------|--------------|-----|
-| `gallformers` | Public | No | Production images |
+| `gallformers-images-us-east-1` | Public | No | Production images |
 | `gallformers-backups` | Mixed | No | Litestream (private) + sanitized snapshots (public) |
 | `gallformers-full-backups` | Private | **Yes** | Full unsanitized backups |
 
