@@ -31,12 +31,26 @@ defmodule GallformersWeb.Admin.SpeciesSourceLive.AddFromSource do
       |> assign(:selected_species, nil)
       |> assign(:form, nil)
       |> assign(:editing_existing, false)
+      |> assign(:preselected_species, nil)
 
     {:ok, socket}
   end
 
   @impl true
   def handle_params(params, _url, socket) do
+    # Allow pre-selecting a species via query param (species-first workflow)
+    socket =
+      case params do
+        %{"species_id" => species_id} ->
+          case Species.get_species(String.to_integer(species_id)) do
+            nil -> socket
+            species -> assign(socket, :preselected_species, %{id: species.id, name: species.name})
+          end
+
+        _ ->
+          socket
+      end
+
     # Allow pre-selecting a source via query param
     socket =
       case params do
@@ -56,12 +70,36 @@ defmodule GallformersWeb.Admin.SpeciesSourceLive.AddFromSource do
   defp select_source(socket, source) do
     mapped_species = Sources.get_species_for_source(source.id)
 
-    socket
-    |> assign(:selected_source, source)
-    |> assign(:mapped_species, mapped_species)
-    |> assign(:source_search_query, "")
-    |> assign(:source_search_results, [])
-    |> clear_species_form()
+    socket =
+      socket
+      |> assign(:selected_source, source)
+      |> assign(:mapped_species, mapped_species)
+      |> assign(:source_search_query, "")
+      |> assign(:source_search_results, [])
+      |> clear_species_form()
+
+    # If a species was pre-selected (species-first workflow), auto-populate it
+    case socket.assigns.preselected_species do
+      %{id: species_id} = species ->
+        existing = Sources.get_species_source_by_ids(species_id, source.id)
+
+        if existing do
+          existing_data = %{
+            id: existing.id,
+            description: existing.description,
+            externallink: existing.externallink,
+            useasdefault: existing.useasdefault
+          }
+
+          load_species_form(socket, species, existing_data)
+          |> put_flash(:info, "This species is already mapped. Editing existing entry.")
+        else
+          load_species_form(socket, species)
+        end
+
+      _ ->
+        socket
+    end
   end
 
   defp clear_species_form(socket) do
@@ -328,8 +366,13 @@ defmodule GallformersWeb.Admin.SpeciesSourceLive.AddFromSource do
           <div class="px-4 py-3 border-b border-gray-200 bg-gray-50">
             <h4 class="text-lg font-semibold text-gf-maroon">Add Species from Source</h4>
             <p class="text-sm text-gray-600 mt-1">
-              Select a source, then add species mappings one at a time.
-              The source stays selected while you add multiple species.
+              <%= if @preselected_species do %>
+                Adding source mapping for <.taxon_name name={@preselected_species.name} />.
+                Select a source below, then fill in the details.
+              <% else %>
+                Select a source, then add species mappings one at a time.
+                The source stays selected while you add multiple species.
+              <% end %>
             </p>
           </div>
 

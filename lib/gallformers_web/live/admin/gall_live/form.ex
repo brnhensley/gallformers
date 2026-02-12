@@ -831,9 +831,15 @@ defmodule GallformersWeb.Admin.GallLive.Form do
             </.link>
             <.link
               navigate={~p"/admin/species-sources/find?species_id=#{@gall.id}"}
-              class="text-sm hover:underline"
+              class="text-sm hover:underline mr-4"
             >
               Species-Source Mappings
+            </.link>
+            <.link
+              navigate={~p"/admin/species-sources/add?species_id=#{@gall.id}"}
+              class="text-sm hover:underline"
+            >
+              Add Source Mapping
             </.link>
           </:quick_links>
 

@@ -364,7 +364,7 @@ defmodule GallformersWeb.Admin.HostLive.Form do
   end
 
   defp assign_taxonomy_fields(socket, taxonomy) do
-    genus_id = taxonomy.genus && taxonomy.genus.id
+    genus_id = taxonomy.genus.id
     sections_for_family = if genus_id, do: Taxonomy.list_sections_for_genus(genus_id), else: []
 
     socket
@@ -550,9 +550,15 @@ defmodule GallformersWeb.Admin.HostLive.Form do
           </.link>
           <.link
             navigate={~p"/admin/species-sources/find?species_id=#{@host.id}"}
-            class="text-sm hover:underline"
+            class="text-sm hover:underline mr-4"
           >
             Species-Source Mappings
+          </.link>
+          <.link
+            navigate={~p"/admin/species-sources/add?species_id=#{@host.id}"}
+            class="text-sm hover:underline"
+          >
+            Add Source Mapping
           </.link>
         </:quick_links>
 

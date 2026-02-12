@@ -589,7 +589,17 @@ defmodule GallformersWeb.HostLive do
           </div>
 
           <%= if length(@sources) > 0 do %>
-            <h3 class="font-semibold mb-2">Further Information ({length(@sources)})</h3>
+            <div class="flex items-center gap-2 mb-2">
+              <h3 class="font-semibold">Further Information ({length(@sources)})</h3>
+              <.link
+                :if={@current_user}
+                href={~p"/admin/species-sources/add?species_id=#{@host.id}"}
+                class="text-gray-400 hover:text-gf-maroon"
+                title="Add source mapping"
+              >
+                <.icon name="ph-plus-circle" class="h-5 w-5" />
+              </.link>
+            </div>
             <div class="space-y-2">
               <div
                 :for={source <- @sources}
