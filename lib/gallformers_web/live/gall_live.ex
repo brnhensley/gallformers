@@ -9,6 +9,7 @@ defmodule GallformersWeb.GallLive do
 
   alias Gallformers.{GallHosts, Galls, Glossaries, Markdown, Ranges, Sources, Species, Taxonomy}
   alias Gallformers.Images.Image
+  alias Gallformers.Taxonomy.TaxonName
   alias GallformersWeb.SEO
 
   @aliases_page_size 10
@@ -93,9 +94,14 @@ defmodule GallformersWeb.GallLive do
         {base_name, generation_term, glossary_word, generation_definition} =
           parse_generation_term(gall.name)
 
-        # Separate common names from scientific synonyms
+        # Separate common names from scientific synonyms (former_undescribed are internal, not shown in synonymy)
         common_names = Enum.filter(aliases, &(&1.type == "common"))
-        scientific_aliases = Enum.reject(aliases, &(&1.type == "common"))
+
+        scientific_aliases =
+          Enum.filter(aliases, &(&1.type not in ["common", "former_undescribed"]))
+
+        {gallformers_code, former_undescribed_alias} =
+          compute_gallformers_code(aliases, gall, taxonomy)
 
         # Check if Gallformers notes exist for this species
         gallformers_notes = Enum.find(sources, fn s -> s.id == @gallformers_notes_source_id end)
@@ -139,6 +145,8 @@ defmodule GallformersWeb.GallLive do
            related_galls: related_galls,
            common_names: common_names,
            scientific_aliases: scientific_aliases,
+           gallformers_code: gallformers_code,
+           former_undescribed_name: former_undescribed_alias && former_undescribed_alias.name,
            has_gallformers_notes: has_gallformers_notes,
            notes_alert_dismissed: false,
            aliases_page: 1,
@@ -190,24 +198,27 @@ defmodule GallformersWeb.GallLive do
   defp get_detachable_display(value), do: Map.get(@detachable_values, value, "")
   defp format_fields(fields), do: Enum.map_join(fields, ", ", & &1.field)
 
-  # Extract the gallformers code from the species name by removing the genus and any trailing parenthetical.
-  # For "Unknown" genera (e.g., "Unknown (Cynipidae)"), the species name uses a different format
-  # like "Unknown-cynipidae ..." so we strip the "Unknown-family" or "Unknown" prefix instead.
-  defp get_gallformers_code(species_name, genus_name) when is_binary(genus_name) do
-    if String.starts_with?(genus_name, "Unknown") do
-      # Strip "Unknown-family " or "Unknown " prefix from species name
-      species_name
-      |> String.replace(~r/^Unknown(?:-[a-z]+)?\s+/, "")
-      |> String.replace(~r/ \([^)]+\)$/, "")
-    else
-      species_name
-      |> String.replace(genus_name, "")
-      |> String.trim()
-      |> String.replace(~r/ \([^)]+\)$/, "")
-    end
-  end
+  # Compute gallformers code for iNat link:
+  # 1. Check for former_undescribed alias (gall was reclassified from Unknown→Known)
+  # 2. Else if currently undescribed, derive from species name
+  # 3. Otherwise nil (described galls don't have a gallformers code)
+  defp compute_gallformers_code(aliases, gall, _taxonomy) do
+    former_undescribed_alias = Enum.find(aliases, &(&1.type == "former_undescribed"))
 
-  defp get_gallformers_code(species_name, _), do: species_name
+    code =
+      cond do
+        former_undescribed_alias ->
+          TaxonName.parse(former_undescribed_alias.name).epithet
+
+        gall.undescribed ->
+          TaxonName.parse(gall.name).epithet
+
+        true ->
+          nil
+      end
+
+    {code, former_undescribed_alias}
+  end
 
   # Parses generation qualifier from species name and fetches glossary definition.
   # Returns {base_name, term, glossary_word, definition} or {full_name, nil, nil, nil}.
@@ -342,7 +353,7 @@ defmodule GallformersWeb.GallLive do
               <div class="flex items-start justify-between gap-4">
                 <div class="flex items-center gap-2">
                   <h2 class="text-2xl font-bold">
-                    <em>
+                    <em class="taxon-name">
                       {@base_name}
                       <.glossary_tooltip
                         :if={@generation_term}
@@ -377,11 +388,11 @@ defmodule GallformersWeb.GallLive do
                   <button
                     id="copy-gallformers-code"
                     phx-hook="CopyToClipboard"
-                    data-copy-text={get_gallformers_code(@gall.name, @taxonomy && @taxonomy.genus)}
+                    data-copy-text={@gallformers_code}
                     class="ml-1 cursor-pointer hover:opacity-70"
                   >
                     <code class="px-2 py-0.5 bg-white border border-amber-200 rounded font-mono text-amber-800">
-                      {get_gallformers_code(@gall.name, @taxonomy && @taxonomy.genus)}
+                      {@gallformers_code}
                     </code>
                     <span class="ml-2 text-xs hover:underline">
                       Click to Copy
@@ -390,7 +401,7 @@ defmodule GallformersWeb.GallLive do
                 </p>
                 <p class="text-sm text-gray-600">
                   <a
-                    href={"https://www.inaturalist.org/observations?verifiable=any&place_id=any&field:Gallformers%20Code=#{URI.encode(get_gallformers_code(@gall.name, @taxonomy && @taxonomy.genus))}"}
+                    href={"https://www.inaturalist.org/observations?verifiable=any&place_id=any&field:Gallformers%20Code=#{URI.encode(@gallformers_code)}"}
                     target="_blank"
                     rel="noreferrer"
                     class="text-gf-maroon hover:underline"
@@ -403,38 +414,53 @@ defmodule GallformersWeb.GallLive do
                 </p>
               </div>
 
+              <div
+                :if={!@gall.undescribed && @former_undescribed_name}
+                class="text-sm text-gray-600"
+              >
+                Formerly tracked as <.taxon_name name={@former_undescribed_name} /> —
+                <a
+                  href={"https://www.inaturalist.org/observations?verifiable=any&place_id=any&field:Gallformers%20Code=#{URI.encode(@gallformers_code)}"}
+                  target="_blank"
+                  rel="noreferrer"
+                  class="text-gf-maroon hover:underline"
+                >
+                  view iNat observations linked under that former name
+                </a>
+              </div>
+
               <div class="flex flex-col md:flex-row md:items-start gap-4">
                 <div class="flex-1 space-y-2">
                   <p :if={@taxonomy}>
                     <span :if={@taxonomy.family}>
                       <strong>Family:</strong>
                       <.link
-                        href={"/family/#{@taxonomy.family_id}"}
+                        href={"/family/#{@taxonomy.family.id}"}
                         class="hover:underline"
                       >
-                        {@taxonomy.family}
+                        {@taxonomy.family.name}
                       </.link>
                       <span
-                        :if={@taxonomy.family_description && @taxonomy.family_description != ""}
+                        :if={@taxonomy.family.description not in [nil, ""]}
                         class="text-gray-600"
                       >
-                        ({@taxonomy.family_description})
+                        ({@taxonomy.family.description})
                       </span>
                     </span>
                     <span :if={@taxonomy.family && @taxonomy.genus} class="mx-1">|</span>
                     <span :if={@taxonomy.genus}>
                       <strong>Genus:</strong>
                       <.link
-                        href={"/genus/#{@taxonomy.genus_id}"}
+                        href={"/genus/#{@taxonomy.genus.id}"}
                         class="hover:underline"
                       >
-                        <em>{@taxonomy.genus}</em>
+                        <.taxon_name name={@taxonomy.genus.name} rank="genus" />
                       </.link>
                       <span
-                        :if={@taxonomy.genus_description && @taxonomy.genus_description != ""}
+                        :if={@taxonomy.genus.description not in [nil, ""]}
                         class="text-gray-600"
                       >
-                        ({@taxonomy.genus_description})
+                        ({@taxonomy.genus.description})
                       </span>
                     </span>
                   </p>
@@ -442,7 +468,7 @@ defmodule GallformersWeb.GallLive do
                   <div :if={@gall.hosts && length(@gall.hosts) > 0} class="flex items-center gap-1">
                     <div>
                       <strong>Hosts:</strong>
-                      <em>
+                      <em class="taxon-name">
                         <span :for={{host, idx} <- Enum.with_index(@gall.hosts)}>
                           {if idx > 0, do: " / "}<.link
                             href={"/host/#{host.host_species_id}"}
@@ -519,7 +545,7 @@ defmodule GallformersWeb.GallLive do
                       <tr :for={
                         a <- paginated_aliases(@scientific_aliases, @aliases_page, @aliases_page_size)
                       }>
-                        <td><em>{a.name}</em></td>
+                        <td><.taxon_name name={a.name} /></td>
                         <td class="text-gray-600">{a.type || "—"}</td>
                         <td class="text-gray-600">{a.description || "—"}</td>
                       </tr>
@@ -544,7 +570,7 @@ defmodule GallformersWeb.GallLive do
                 <ul class="list-disc list-inside space-y-1">
                   <li :for={related <- @related_galls}>
                     <.link href={"/gall/#{related.id}"} class="hover:underline">
-                      <em>{related.name}</em>
+                      <.taxon_name name={related.name} />
                     </.link>
                   </li>
                 </ul>

@@ -407,6 +407,146 @@ defmodule Gallformers.Plants do
   end
 
   # ============================================
+  # Composite Save Operations
+  # ============================================
+
+  @doc """
+  Creates a new host species with all associations in a single transaction.
+
+  Handles species creation, taxonomy linking, and aliases.
+
+  ## Params
+
+    * `:species_attrs` - Map of species attributes (name, taxoncode, etc.)
+    * `:taxonomy` - Taxonomy map with genus info
+    * `:genus_is_new` - Boolean, whether to create a new genus
+    * `:parent_id` - Family or section ID for taxonomy linking
+    * `:aliases` - List of alias maps with `:name` and `:type`
+
+  Returns `{:ok, species}` or `{:error, changeset | reason}`.
+  """
+  @spec create_host_with_associations(map()) ::
+          {:ok, Species.t()} | {:error, Ecto.Changeset.t() | term()}
+  def create_host_with_associations(params) do
+    Repo.transaction(fn ->
+      case create_host(params.species_attrs) do
+        {:ok, host} ->
+          Taxonomy.link_species_taxonomy(
+            host.id,
+            params.taxonomy,
+            params.genus_is_new,
+            params.parent_id
+          )
+
+          for a <- params.aliases do
+            create_alias_for_host(host.id, %{name: a.name, type: a.type})
+          end
+
+          host
+
+        {:error, changeset} ->
+          Repo.rollback(changeset)
+      end
+    end)
+  end
+
+  @doc """
+  Updates a host species with all associations in a single transaction.
+
+  Handles species update, alias changes, place changes, and section updates.
+
+  ## Params
+
+    * `:species_attrs` - Map of species attributes to update
+    * `:alias_changes` - Tuple `{to_add, to_remove}` from DeferredChanges
+    * `:place_changes` - Map with `:original_places`, `:current_places`, `:all_places`
+    * `:section_update` - Map with `:genus_id`, `:selected_section_id`, `:section_id`, `:family_id`
+
+  Returns `{:ok, species}` or `{:error, changeset | reason}`.
+  """
+  @spec update_host_with_associations(Species.t(), map()) ::
+          {:ok, Species.t()} | {:error, Ecto.Changeset.t() | term()}
+  def update_host_with_associations(host, params) do
+    {aliases_to_add, aliases_to_remove} = params.alias_changes
+
+    Repo.transaction(fn ->
+      case update_host(host, params.species_attrs) do
+        {:ok, updated_host} ->
+          save_alias_changes(host.id, aliases_to_add, aliases_to_remove)
+          save_place_changes(host.id, params.place_changes)
+          maybe_update_section(params.section_update)
+          updated_host
+
+        {:error, changeset} ->
+          Repo.rollback(changeset)
+      end
+    end)
+  end
+
+  defp save_alias_changes(host_id, to_add, to_remove) do
+    for alias_id <- to_remove do
+      Gallformers.Species.remove_alias_from_species(host_id, alias_id)
+    end
+
+    for a <- to_add do
+      Gallformers.Species.create_alias_for_species(host_id, %{name: a.name, type: a.type})
+    end
+  end
+
+  defp save_place_changes(host_id, %{
+         original_places: original_places,
+         current_places: current_places,
+         all_places: all_places
+       }) do
+    place_code_to_id = Map.new(all_places, &{&1.code, &1.id})
+
+    original_set = MapSet.new(original_places)
+    current_set = MapSet.new(current_places)
+
+    if original_set != current_set do
+      place_ids =
+        Enum.map(current_places, &Map.get(place_code_to_id, &1)) |> Enum.reject(&is_nil/1)
+
+      Ranges.update_host_places(host_id, place_ids)
+    end
+  end
+
+  defp maybe_update_section(%{genus_id: _genus_id} = section_update) do
+    # Only update the species→section link in species_taxonomy, not genus.parent_id.
+    # Sections are children of genera (Family → Genus → Section).
+    update_species_section_link(
+      section_update[:species_id],
+      section_update.selected_section_id,
+      section_update.section_id
+    )
+  end
+
+  defp maybe_update_section(_), do: :ok
+
+  # Updates the species→section link in species_taxonomy when section changes.
+  defp update_species_section_link(_species_id, same, same), do: :ok
+  defp update_species_section_link(nil, _new, _old), do: :ok
+
+  defp update_species_section_link(species_id, new_section_id, old_section_id) do
+    import Ecto.Query
+
+    # Remove old section link if any
+    if old_section_id do
+      from(st in "species_taxonomy",
+        where: st.species_id == ^species_id and st.taxonomy_id == ^old_section_id
+      )
+      |> Repo.delete_all()
+    end
+
+    # Add new section link if any
+    if new_section_id do
+      Taxonomy.link_species_to_taxonomy(species_id, new_section_id)
+    end
+
+    :ok
+  end
+
+  # ============================================
   # Alias Management
   # ============================================
 
@@ -457,158 +597,4 @@ defmodule Gallformers.Plants do
   def remove_alias_from_host(host_id, alias_id) do
     Gallformers.Species.remove_alias_from_species(host_id, alias_id)
   end
-
-  # ============================================
-  # Rename Support
-  # ============================================
-
-  @doc """
-  Renames a host species, optionally adding the old name as an alias.
-
-  Handles genus changes:
-  - If genus unchanged: simple rename
-  - If new genus exists: rename + update taxonomy link
-  - If new genus doesn't exist: returns {:needs_genus_confirmation, info}
-    so caller can show confirmation dialog before calling rename_host_with_new_genus/4
-  """
-  @spec rename_host(integer(), String.t(), boolean()) ::
-          {:ok, Species.t()}
-          | {:needs_genus_confirmation, map()}
-          | {:error, :not_found | :name_exists | Ecto.Changeset.t()}
-  def rename_host(host_id, new_name, add_alias? \\ false) do
-    with {:ok, host} <- fetch_host_species(host_id),
-         :ok <- check_name_available(new_name, host_id) do
-      handle_rename(host, new_name, add_alias?)
-    end
-  end
-
-  defp handle_rename(host, new_name, add_alias?) do
-    old_genus = Taxonomy.extract_genus_from_name(host.name)
-    new_genus = Taxonomy.extract_genus_from_name(new_name)
-
-    if old_genus == new_genus do
-      # No genus change - simple rename
-      do_simple_rename(host, new_name, add_alias?)
-    else
-      # Genus is changing - check if new genus exists
-      handle_genus_change(host, new_name, new_genus, add_alias?)
-    end
-  end
-
-  defp handle_genus_change(host, new_name, new_genus_name, add_alias?) do
-    case Taxonomy.get_taxonomy_by_name(new_genus_name, "genus") do
-      nil ->
-        # New genus doesn't exist - need confirmation from user
-        current_taxonomy = Taxonomy.get_taxonomy_for_species(host.id)
-        family_id = current_taxonomy && current_taxonomy.family_id
-        family_name = current_taxonomy && current_taxonomy.family
-
-        {:needs_genus_confirmation,
-         %{
-           host_id: host.id,
-           old_name: host.name,
-           new_name: new_name,
-           new_genus: new_genus_name,
-           family_id: family_id,
-           family_name: family_name,
-           add_alias: add_alias?
-         }}
-
-      existing_genus ->
-        # New genus exists - rename and update link
-        do_rename_with_genus_update(host, new_name, existing_genus.id, add_alias?)
-    end
-  end
-
-  defp do_simple_rename(host, new_name, add_alias?) do
-    with {:ok, updated_host} <- do_rename_host(host, new_name) do
-      maybe_add_alias(host.id, host.name, add_alias?)
-      broadcast({:ok, updated_host}, :host_updated)
-    end
-  end
-
-  defp do_rename_with_genus_update(host, new_name, new_genus_id, add_alias?) do
-    Repo.transaction(fn ->
-      with {:ok, updated_host} <- do_rename_host(host, new_name),
-           :ok <- Taxonomy.update_species_genus(host.id, new_genus_id) do
-        maybe_add_alias(host.id, host.name, add_alias?)
-        updated_host
-      else
-        {:error, reason} -> Repo.rollback(reason)
-      end
-    end)
-    |> case do
-      {:ok, updated_host} -> broadcast({:ok, updated_host}, :host_updated)
-      {:error, reason} -> {:error, reason}
-    end
-  end
-
-  @doc """
-  Renames a host and creates a new genus for it.
-
-  Called after user confirms they want to create a new genus.
-  Creates the genus under the specified family, then renames the host
-  and links it to the new genus.
-  """
-  @spec rename_host_with_new_genus(integer(), String.t(), String.t(), integer(), boolean()) ::
-          {:ok, Species.t()} | {:error, term()}
-  def rename_host_with_new_genus(host_id, new_name, new_genus_name, family_id, add_alias?) do
-    with {:ok, host} <- fetch_host_species(host_id),
-         :ok <- check_name_available(new_name, host_id) do
-      do_rename_with_new_genus(host, new_name, new_genus_name, family_id, add_alias?)
-    end
-  end
-
-  defp do_rename_with_new_genus(host, new_name, new_genus_name, family_id, add_alias?) do
-    Repo.transaction(fn ->
-      with {:ok, new_genus} <- create_genus(new_genus_name, family_id),
-           {:ok, updated_host} <- do_rename_host(host, new_name) do
-        Taxonomy.update_species_genus(host.id, new_genus.id)
-        maybe_add_alias(host.id, host.name, add_alias?)
-        updated_host
-      else
-        {:error, reason} -> Repo.rollback(reason)
-      end
-    end)
-    |> case do
-      {:ok, updated_host} -> broadcast({:ok, updated_host}, :host_updated)
-      {:error, reason} -> {:error, reason}
-    end
-  end
-
-  defp create_genus(name, family_id) do
-    Taxonomy.create_taxonomy(%{name: name, type: "genus", parent_id: family_id})
-  end
-
-  defp fetch_host_species(host_id) do
-    case get_host_species(host_id) do
-      nil -> {:error, :not_found}
-      host -> {:ok, host}
-    end
-  end
-
-  defp check_name_available(new_name, host_id) do
-    existing =
-      from(s in Species,
-        where: s.name == ^new_name and s.id != ^host_id
-      )
-      |> Repo.one()
-
-    if existing, do: {:error, :name_exists}, else: :ok
-  end
-
-  defp do_rename_host(host, new_name) do
-    host
-    |> Species.changeset(%{name: new_name})
-    |> Repo.update()
-  end
-
-  defp maybe_add_alias(host_id, old_name, true) do
-    Gallformers.Species.create_alias_for_species(host_id, %{
-      name: old_name,
-      type: "scientific"
-    })
-  end
-
-  defp maybe_add_alias(_host_id, _old_name, false), do: :ok
 end

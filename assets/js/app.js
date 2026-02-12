@@ -383,7 +383,7 @@ const Typeahead = {
       this.input.addEventListener("input", () => {
         const searchEvent = this.el.dataset.searchEvent
         if (searchEvent) {
-          this.pushEvent(searchEvent, {value: this.input.value})
+          this.pushTargetedEvent(searchEvent, {value: this.input.value})
         }
       })
     }
@@ -392,6 +392,16 @@ const Typeahead = {
     if (this.selectedContainer && !this.selectedContainer._typeaheadListener) {
       this.selectedContainer._typeaheadListener = true
       this.selectedContainer.addEventListener("keydown", this.selectedHandler)
+    }
+  },
+
+  // Push event to the correct target (LiveComponent or LiveView)
+  pushTargetedEvent(event, payload) {
+    const target = this.el.dataset.target
+    if (target) {
+      this.pushEventTo(`[data-phx-component="${target}"]`, event, payload)
+    } else {
+      this.pushEvent(event, payload)
     }
   },
 
@@ -431,7 +441,7 @@ const Typeahead = {
           // No result highlighted but there's text - trigger close to add as new item
           const closeEvent = this.el.dataset.closeEvent
           if (closeEvent) {
-            this.pushEvent(closeEvent, {})
+            this.pushTargetedEvent(closeEvent, {})
             this.input.value = "" // Clear input immediately (LiveView won't update focused inputs)
           }
         }
@@ -454,7 +464,7 @@ const Typeahead = {
       if (clearEvent) {
         // Set flag to focus input after DOM updates
         this.pendingFocus = true
-        this.pushEvent(clearEvent, {})
+        this.pushTargetedEvent(clearEvent, {})
       }
     } else if (e.key.length === 1) {
       // Printable character - clear and start searching
@@ -462,8 +472,8 @@ const Typeahead = {
       if (clearEvent && searchEvent) {
         // Set flag to focus input after DOM updates
         this.pendingFocus = true
-        this.pushEvent(clearEvent, {})
-        this.pushEvent(searchEvent, {value: e.key})
+        this.pushTargetedEvent(clearEvent, {})
+        this.pushTargetedEvent(searchEvent, {value: e.key})
       }
     }
   },
@@ -491,12 +501,18 @@ const Typeahead = {
 
 // Generic hook that pushes an event on the DOM "input" event (catches paste, autofill, etc.)
 // Usage: <input phx-hook="InputEvent" data-event="update_rename_value" />
+// Optional: data-target="CID" to push to a specific LiveComponent
 const InputEvent = {
   mounted() {
     this.el.addEventListener("input", () => {
       const event = this.el.dataset.event
       if (event) {
-        this.pushEvent(event, {value: this.el.value})
+        const target = this.el.dataset.target
+        if (target) {
+          this.pushEventTo(`[data-phx-component="${target}"]`, event, {value: this.el.value})
+        } else {
+          this.pushEvent(event, {value: this.el.value})
+        }
       }
     })
   }
@@ -533,11 +549,28 @@ const ScrollToCouplet = {
   }
 }
 
+// AdminNav hook - highlights the active nav link based on the current URL path
+const AdminNav = {
+  mounted() { this.highlight() },
+  updated() { this.highlight() },
+  highlight() {
+    const path = window.location.pathname
+    this.el.querySelectorAll("[data-nav-href]").forEach(link => {
+      const href = link.dataset.navHref
+      const active = href === "/admin" ? path === "/admin" : path.startsWith(href)
+      link.classList.toggle("opacity-50", !active)
+      link.classList.toggle("underline", active)
+      link.classList.toggle("underline-offset-4", active)
+      link.classList.toggle("decoration-2", active)
+    })
+  }
+}
+
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {Tabs, ImageGallery, RangeMap, ImageUpload, SortableImages, AutoDismiss, Typeahead, ArticleImageUpload, CopyToClipboard, DailyChart, InputEvent, ScrollToCouplet},
+  hooks: {Tabs, ImageGallery, RangeMap, ImageUpload, SortableImages, AutoDismiss, Typeahead, ArticleImageUpload, CopyToClipboard, DailyChart, InputEvent, ScrollToCouplet, AdminNav},
 })
 
 // Show progress bar on live navigation and form submits

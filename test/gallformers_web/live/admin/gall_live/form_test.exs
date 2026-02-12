@@ -320,6 +320,36 @@ defmodule GallformersWeb.Admin.GallLive.FormTest do
 
     test "toggle_undescribed marks form as dirty", %{conn: conn} do
       gall = require_gall()
+
+      # The undescribed checkbox is locked when the gall has no sources or has a
+      # placeholder genus. Add a genus and source so the checkbox is unlocked.
+      {:ok, genus} =
+        Gallformers.Repo.insert(%Gallformers.Taxonomy.Taxonomy{
+          name: "Andricus",
+          description: "",
+          type: "genus",
+          is_placeholder: false
+        })
+
+      Gallformers.Repo.insert_all("species_taxonomy", [
+        [species_id: gall.id, taxonomy_id: genus.id]
+      ])
+
+      {:ok, source} =
+        Gallformers.Sources.create_source(%{
+          title: "Test Source",
+          author: "Test Author",
+          pubyear: "2026",
+          link: "https://example.com",
+          citation: "Test citation",
+          license: "CC0"
+        })
+
+      Gallformers.Sources.create_species_source(%{
+        species_id: gall.id,
+        source_id: source.id
+      })
+
       {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
 
       # Initially form should not be dirty (save button disabled)
@@ -333,51 +363,124 @@ defmodule GallformersWeb.Admin.GallLive.FormTest do
     end
   end
 
-  describe "Rename modal" do
+  describe "Rename/Reclassify modal" do
     setup %{conn: conn} do
       {:ok, conn: setup_admin_session(conn)}
     end
 
-    test "open_rename_modal shows the modal", %{conn: conn} do
+    test "open_reclassify_modal shows the modal", %{conn: conn} do
       gall = require_gall()
       {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
 
-      html = render_click(view, "open_rename_modal", %{})
+      html = view |> element("button", "Rename/Reclassify") |> render_click()
 
-      assert html =~ "Edit Gall Name"
-      assert html =~ "Add Alias for old name"
+      assert html =~ "Rename and/or Reclassify Gall"
+      assert html =~ "Specific epithet"
+      assert html =~ "Add scientific synonym alias"
     end
 
-    test "close_rename_modal hides the modal", %{conn: conn} do
+    test "close_reclassify_modal hides the modal", %{conn: conn} do
       gall = require_gall()
       {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
 
-      render_click(view, "open_rename_modal", %{})
-      html = render_click(view, "close_rename_modal", %{})
+      view |> element("button", "Rename/Reclassify") |> render_click()
 
-      refute html =~ "Edit Gall Name"
+      html =
+        view
+        |> with_target("#reclassify")
+        |> render_click("close_reclassify_modal", %{})
+
+      refute html =~ "Rename and/or Reclassify Gall"
     end
 
-    test "do_rename with empty name shows error", %{conn: conn} do
+    test "do_reclassify without genus selected shows error", %{conn: conn} do
       gall = require_gall()
       {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
 
-      render_click(view, "open_rename_modal", %{})
-      render_click(view, "update_rename_value", %{"value" => ""})
-      html = render_click(view, "do_rename", %{})
+      view |> element("button", "Rename/Reclassify") |> render_click()
+      # Clear genus selection to test guard
+      view |> with_target("#reclassify") |> render_click("reclassify_clear_genus", %{})
+      view |> with_target("#reclassify") |> render_click("do_reclassify", %{})
+      html = render(view)
 
-      assert html =~ "cannot be empty"
+      assert html =~ "select a genus"
     end
 
-    test "do_rename with invalid name format shows error", %{conn: conn} do
-      gall = require_gall()
-      {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
+    test "happy path: reclassify gall to different genus", %{conn: conn} do
+      # Set up taxonomy: Family "Cynipidae" with two genera
+      {:ok, family} =
+        Gallformers.Repo.insert(%Gallformers.Taxonomy.Taxonomy{
+          name: "Cynipidae",
+          description: "Gall Wasps",
+          type: "family",
+          is_placeholder: false
+        })
 
-      render_click(view, "open_rename_modal", %{})
-      render_click(view, "update_rename_value", %{"value" => "invalidname"})
-      html = render_click(view, "do_rename", %{})
+      {:ok, source_genus} =
+        Gallformers.Repo.insert(%Gallformers.Taxonomy.Taxonomy{
+          name: "Andricus",
+          description: "",
+          type: "genus",
+          parent_id: family.id,
+          is_placeholder: false
+        })
 
-      assert html =~ "valid species name"
+      {:ok, target_genus} =
+        Gallformers.Repo.insert(%Gallformers.Taxonomy.Taxonomy{
+          name: "Callirhytis",
+          description: "",
+          type: "genus",
+          parent_id: family.id,
+          is_placeholder: false
+        })
+
+      # Link gall species 100 ("Andricus quercuscalifornicus") to source genus
+      gall_id = 100
+
+      Gallformers.Repo.insert_all("species_taxonomy", [
+        [species_id: gall_id, taxonomy_id: source_genus.id]
+      ])
+
+      # Link gall species 102 to target genus (so it appears in taxoncode-filtered search)
+      Gallformers.Repo.insert_all("species_taxonomy", [
+        [species_id: 102, taxonomy_id: target_genus.id]
+      ])
+
+      {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall_id}")
+
+      # Open the reclassify modal
+      view |> element("button", "Rename/Reclassify") |> render_click()
+
+      # Search and select the target family
+      view
+      |> with_target("#reclassify")
+      |> render_click("reclassify_search_family", %{"value" => "Cynip"})
+
+      view
+      |> with_target("#reclassify")
+      |> render_click("reclassify_select_family", %{"id" => Integer.to_string(family.id)})
+
+      # Search and select the target genus
+      view
+      |> with_target("#reclassify")
+      |> render_click("reclassify_search_genus", %{"value" => "Call"})
+
+      view
+      |> with_target("#reclassify")
+      |> render_click("reclassify_select_genus", %{"id" => Integer.to_string(target_genus.id)})
+
+      # Submit reclassification
+      view
+      |> with_target("#reclassify")
+      |> render_click("do_reclassify", %{})
+
+      html = render(view)
+
+      # Verify: species renamed and success flash shown
+      assert html =~ "Callirhytis quercuscalifornicus"
+      assert html =~ "updated successfully"
+      # The old name should appear as a scientific synonym alias
+      assert html =~ "Andricus quercuscalifornicus"
     end
   end
 

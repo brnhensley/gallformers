@@ -217,17 +217,6 @@ defmodule GallformersWeb.Admin.FormHelpers do
         Regex.match?(~r/^[A-Z][a-z-]+ (x )?[a-z-]+/, name)
       end
 
-      @doc """
-      Returns dropdown options for alias types.
-      """
-      def alias_type_options do
-        [
-          {"Common Name", "common name"},
-          {"Scientific Synonym", "scientific synonym"},
-          {"Other", "other"}
-        ]
-      end
-
       # Conditionally include CRUD helpers if crud_helpers: true is passed
       if unquote(crud_helpers) do
         # =================================================================

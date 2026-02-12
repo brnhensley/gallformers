@@ -328,7 +328,7 @@ defmodule GallformersWeb.HostLive do
                       href={"/id?h=#{URI.encode(@host.name)}"}
                       class="hover:underline"
                     >
-                      <em>{@host.name}</em>
+                      <.taxon_name name={@host.name} />
                     </.link>
                   </h2>
                   <.link
@@ -350,46 +350,46 @@ defmodule GallformersWeb.HostLive do
               <p :if={@taxonomy}>
                 <strong>Family:</strong>
                 <.link
-                  href={"/family/#{@taxonomy.family_id}"}
+                  href={"/family/#{@taxonomy.family.id}"}
                   class="hover:underline"
                 >
-                  {@taxonomy.family}
+                  {@taxonomy.family.name}
                 </.link>
                 <span
-                  :if={@taxonomy.family_description && @taxonomy.family_description != ""}
+                  :if={@taxonomy.family && @taxonomy.family.description not in [nil, ""]}
                   class="text-gray-600"
                 >
-                  ({@taxonomy.family_description})
+                  ({@taxonomy.family.description})
                 </span>
                 <span :if={@taxonomy.section}>
                   <span class="mx-1">|</span>
                   <strong>Section:</strong>
                   <.link
-                    href={"/section/#{@taxonomy.section_id}"}
+                    href={"/section/#{@taxonomy.section.id}"}
                     class="hover:underline"
                   >
-                    <em>{@taxonomy.section}</em>
+                    <.taxon_name name={@taxonomy.section.name} rank="section" />
                   </.link>
                   <span
-                    :if={@taxonomy.section_description && @taxonomy.section_description != ""}
+                    :if={@taxonomy.section.description not in [nil, ""]}
                     class="text-gray-600"
                   >
-                    ({@taxonomy.section_description})
+                    ({@taxonomy.section.description})
                   </span>
                 </span>
                 <span class="mx-1">|</span>
                 <strong>Genus:</strong>
                 <.link
-                  href={"/genus/#{@taxonomy.genus_id}"}
+                  href={"/genus/#{@taxonomy.genus.id}"}
                   class="hover:underline"
                 >
-                  <em>{@taxonomy.genus}</em>
+                  <.taxon_name name={@taxonomy.genus.name} rank="genus" />
                 </.link>
                 <span
-                  :if={@taxonomy.genus_description && @taxonomy.genus_description != ""}
+                  :if={@taxonomy.genus.description not in [nil, ""]}
                   class="text-gray-600"
                 >
-                  ({@taxonomy.genus_description})
+                  ({@taxonomy.genus.description})
                 </span>
               </p>
 
@@ -422,7 +422,7 @@ defmodule GallformersWeb.HostLive do
                       <tr :for={
                         s <- paginated_synonyms(synonyms, @synonymy_page, @synonymy_page_size)
                       }>
-                        <td><em>{s.name}</em></td>
+                        <td><.taxon_name name={s.name} /></td>
                         <td class="text-gray-600">{s.description || "—"}</td>
                       </tr>
                     </tbody>
@@ -486,7 +486,7 @@ defmodule GallformersWeb.HostLive do
                               href={"/gall/#{gall.id}"}
                               class="hover:underline"
                             >
-                              <em>{gall.name}</em>
+                              <.taxon_name name={gall.name} />
                             </.link>
                           </td>
                           <td class="text-center">
