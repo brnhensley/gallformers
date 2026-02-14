@@ -1074,36 +1074,9 @@ defmodule GallformersWeb.Admin.ImagesLive do
 
     uploader = socket.assigns.db_display_name
 
-    # Create image records in the database
+    # Create image records and schedule variant generation
     Enum.each(paths, fn path ->
-      Images.create_image(%{
-        species_id: species_id,
-        path: path,
-        uploader: uploader,
-        lastchangedby: uploader,
-        default: false
-      })
-
-      # Generate size variants in the background
-      Gallformers.Async.run(fn ->
-        try do
-          # Wait for CDN to propagate
-          Process.sleep(5000)
-
-          case Storage.generate_size_variants(path) do
-            :ok ->
-              Logger.info("Successfully generated size variants for #{path}")
-
-            {:error, reason} ->
-              Logger.error("Failed to generate size variants for #{path}: #{inspect(reason)}")
-          end
-        rescue
-          e ->
-            Logger.error(
-              "Exception generating size variants for #{path}: #{Exception.format(:error, e, __STACKTRACE__)}"
-            )
-        end
-      end)
+      Images.finalize_upload(path, species_id, uploader)
     end)
 
     # Reload images

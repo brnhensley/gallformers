@@ -141,6 +141,49 @@ defmodule Gallformers.ImagesTest do
     end
   end
 
+  describe "finalize_upload/3,4" do
+    setup do
+      species = Gallformers.Repo.one!(from s in Gallformers.Species.Species, limit: 1)
+      %{species: species}
+    end
+
+    test "creates image record with correct attributes", %{species: species} do
+      path = "gall/#{species.id}/#{species.id}_123_456_original.jpg"
+
+      assert {:ok, image} = Images.finalize_upload(path, species.id, "testuser")
+      assert image.path == path
+      assert image.species_id == species.id
+      assert image.uploader == "testuser"
+      assert image.lastchangedby == "testuser"
+    end
+
+    test "accepts extra metadata attrs", %{species: species} do
+      path = "gall/#{species.id}/#{species.id}_123_456_original.jpg"
+
+      attrs = %{
+        creator: "janedoe - Jane Doe",
+        license: "CC-BY-NC",
+        licenselink: "https://creativecommons.org/licenses/by-nc/4.0/",
+        sourcelink: "https://www.inaturalist.org/observations/12345"
+      }
+
+      assert {:ok, image} = Images.finalize_upload(path, species.id, "testuser", attrs)
+      assert image.creator == "janedoe - Jane Doe"
+      assert image.license == "CC-BY-NC"
+      assert image.sourcelink == "https://www.inaturalist.org/observations/12345"
+    end
+
+    test "assigns next sort_order", %{species: species} do
+      path1 = "gall/#{species.id}/#{species.id}_1_1_original.jpg"
+      path2 = "gall/#{species.id}/#{species.id}_2_2_original.jpg"
+
+      {:ok, img1} = Images.finalize_upload(path1, species.id, "testuser")
+      {:ok, img2} = Images.finalize_upload(path2, species.id, "testuser")
+
+      assert img2.sort_order > img1.sort_order
+    end
+  end
+
   describe "copy_metadata/3" do
     setup do
       # Get a real species from test seeds

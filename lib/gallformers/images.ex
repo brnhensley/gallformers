@@ -60,6 +60,55 @@ defmodule Gallformers.Images do
   end
 
   @doc """
+  Creates an image record and schedules background size variant generation.
+
+  Used by both the presigned-URL upload flow and the iNat import flow.
+  `extra_attrs` can include `:creator`, `:license`, `:licenselink`, `:sourcelink`, etc.
+  """
+  @spec finalize_upload(String.t(), integer(), String.t(), map()) ::
+          {:ok, ImageSchema.t()} | {:error, Ecto.Changeset.t()}
+  def finalize_upload(path, species_id, uploader, extra_attrs \\ %{}) do
+    attrs =
+      Map.merge(extra_attrs, %{
+        species_id: species_id,
+        path: path,
+        uploader: uploader,
+        lastchangedby: uploader
+      })
+
+    case create_image(attrs) do
+      {:ok, image} ->
+        schedule_size_variants(path)
+        {:ok, image}
+
+      error ->
+        error
+    end
+  end
+
+  defp schedule_size_variants(path) do
+    Gallformers.Async.run(fn ->
+      try do
+        # Wait for CDN to propagate
+        Process.sleep(5000)
+
+        case Storage.generate_size_variants(path) do
+          :ok ->
+            Logger.info("Successfully generated size variants for #{path}")
+
+          {:error, reason} ->
+            Logger.error("Failed to generate size variants for #{path}: #{inspect(reason)}")
+        end
+      rescue
+        e ->
+          Logger.error(
+            "Exception generating size variants for #{path}: #{Exception.format(:error, e, __STACKTRACE__)}"
+          )
+      end
+    end)
+  end
+
+  @doc """
   Creates a new image record.
 
   Automatically assigns the next sort_order for the species (appends to end).
