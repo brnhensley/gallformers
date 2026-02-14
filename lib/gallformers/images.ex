@@ -87,6 +87,13 @@ defmodule Gallformers.Images do
   end
 
   defp schedule_size_variants(path) do
+    # Skip variant generation when S3 is disabled (test environment)
+    if Application.get_env(:gallformers, :s3_enabled, true) do
+      do_schedule_size_variants(path)
+    end
+  end
+
+  defp do_schedule_size_variants(path) do
     Gallformers.Async.run(fn ->
       try do
         # Wait for CDN to propagate
