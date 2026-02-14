@@ -98,7 +98,7 @@ defmodule GallformersWeb.Admin.InatImportComponent do
 
   defp render_state(%{state: :idle} = assigns) do
     ~H"""
-    <form phx-submit="inat_fetch" phx-target={@myself} class="flex gap-2">
+    <form phx-submit="inat_fetch" phx-target={@myself} class="flex gap-2 items-end">
       <input
         type="text"
         name="url"
@@ -107,16 +107,16 @@ defmodule GallformersWeb.Admin.InatImportComponent do
         placeholder="iNaturalist observation URL or ID"
         phx-change="inat_url_changed"
         phx-target={@myself}
-        class="flex-1 rounded-md border-gray-300 shadow-sm focus:border-gf-maroon focus:ring-gf-maroon text-sm"
+        class="gf-input max-w-md"
       />
-      <button
+      <.button
         type="submit"
         data-role="inat-fetch-button"
         disabled={@url_input == ""}
-        class="px-4 py-2 bg-gf-maroon text-white rounded-md hover:bg-gf-maroon/90 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+        variant="primary"
       >
         Fetch
-      </button>
+      </.button>
     </form>
     """
   end
@@ -126,13 +126,9 @@ defmodule GallformersWeb.Admin.InatImportComponent do
     <div class="flex items-center gap-3">
       <.loading_spinner size="sm" />
       <span class="text-sm text-gray-600">Fetching observation...</span>
-      <button
-        phx-click="inat_cancel"
-        phx-target={@myself}
-        class="text-sm text-gray-500 hover:text-gray-700"
-      >
+      <.button phx-click="inat_cancel" phx-target={@myself} variant="ghost" size="sm">
         Cancel
-      </button>
+      </.button>
     </div>
     """
   end
@@ -190,7 +186,7 @@ defmodule GallformersWeb.Admin.InatImportComponent do
             phx-click="inat_toggle_photo"
             phx-value-photo-id={photo.id}
             phx-target={@myself}
-            class="absolute top-2 left-2 h-4 w-4 rounded border-gray-300 text-gf-maroon focus:ring-gf-maroon"
+            class="gf-checkbox absolute top-2 left-2"
           />
           <div
             :if={photo.all_rights_reserved?}
@@ -209,21 +205,18 @@ defmodule GallformersWeb.Admin.InatImportComponent do
 
       <%!-- Action buttons --%>
       <div :if={@observation.photos != []} class="flex gap-2">
-        <button
+        <.button
           phx-click="inat_import"
           phx-target={@myself}
           disabled={MapSet.size(@selected_photo_ids) == 0}
-          class="px-4 py-2 bg-gf-maroon text-white rounded-md hover:bg-gf-maroon/90 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+          variant="primary"
+          size="sm"
         >
           Import Selected ({MapSet.size(@selected_photo_ids)})
-        </button>
-        <button
-          phx-click="inat_cancel"
-          phx-target={@myself}
-          class="px-4 py-2 text-gray-600 hover:text-gray-800 text-sm"
-        >
+        </.button>
+        <.button phx-click="inat_cancel" phx-target={@myself} variant="ghost" size="sm">
           Cancel
-        </button>
+        </.button>
       </div>
     </div>
     """
@@ -244,13 +237,9 @@ defmodule GallformersWeb.Admin.InatImportComponent do
     ~H"""
     <div class="text-sm">
       <p class="text-green-700 font-medium">{@done_message}</p>
-      <button
-        phx-click="inat_reset"
-        phx-target={@myself}
-        class="mt-2 text-sm text-gf-maroon hover:underline"
-      >
+      <.button phx-click="inat_reset" phx-target={@myself} variant="ghost" size="sm" class="mt-2">
         Import another
-      </button>
+      </.button>
     </div>
     """
   end
