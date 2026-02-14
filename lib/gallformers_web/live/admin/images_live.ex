@@ -547,6 +547,14 @@ defmodule GallformersWeb.Admin.ImagesLive do
                 </button>
               </div>
             </div>
+
+            <%!-- iNat Import --%>
+            <.live_component
+              module={GallformersWeb.Admin.InatImportComponent}
+              id="inat-import"
+              species_id={@selected_species.id}
+              uploader={@db_display_name}
+            />
           </div>
         </div>
 
@@ -1368,6 +1376,16 @@ defmodule GallformersWeb.Admin.ImagesLive do
   defp species_public_url(nil), do: nil
   defp species_public_url(%{taxoncode: "plant", id: id}), do: ~p"/host/#{id}"
   defp species_public_url(%{id: id}), do: ~p"/gall/#{id}"
+
+  @impl true
+  def handle_info({:inat_import_complete, species_id}, socket) do
+    images = Images.list_images_for_species(species_id)
+
+    {:noreply,
+     socket
+     |> assign(:images, images)
+     |> update(:images_version, &(&1 + 1))}
+  end
 
   # Helper to check if an image is missing required metadata
   defp image_incomplete?(image) do
