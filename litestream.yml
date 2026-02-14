@@ -6,5 +6,6 @@ dbs:
         path: litestream
         region: us-east-1
         sync-interval: 5s
+        snapshot-interval: 1h
         access-key-id: ${LITESTREAM_ACCESS_KEY_ID}
         secret-access-key: ${LITESTREAM_SECRET_ACCESS_KEY}

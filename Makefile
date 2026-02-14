@@ -306,7 +306,7 @@ ci: assets/node_modules
 
 # Run everything before pushing to main (local only, not for CI)
 # Requires: chromedriver (make e2e-setup) and prod DB copy (make download-db)
-preflight: ci check-db
+preflight: ci download-db
 	$(call check_chromedriver)
 	@echo ""
 	@echo "==> CI checks passed. Running E2E browser tests..."
