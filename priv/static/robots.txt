@@ -8,6 +8,9 @@ Disallow: /globalsearch
 # Admin area
 Disallow: /admin
 
+# Allow API documentation for discovery by AI agents
+Allow: /api/docs/
+
 # API - use programmatically, not for crawling
 Disallow: /api
 

@@ -23,7 +23,10 @@ defmodule GallformersWeb.RobotsController do
     Disallow: /admin/
     Disallow: /admin
 
-    # Disallow API routes (use the API directly with proper authentication)
+    # Allow API documentation for discovery by AI agents
+    Allow: /api/docs/
+
+    # Disallow other API routes (use the API programmatically, not for crawling)
     Disallow: /api/
     Disallow: /api
 

@@ -1,0 +1,32 @@
+# Gallformers
+
+> Gallformers is a comprehensive database and reference guide for plant galls — abnormal growths on plants caused by insects, mites, fungi, and other organisms. The site covers gall identification, taxonomy, host plant associations, and scientific references, primarily for North American species.
+
+## API
+
+The Gallformers REST API provides structured access to all data. All endpoints return JSON, support CORS, and require no authentication.
+
+- [OpenAPI Specification](https://gallformers.org/api/docs/openapi.json): Full machine-readable API schema (OpenAPI 3.0)
+- [API Documentation](https://gallformers.org/api/docs/): Interactive Swagger UI for exploring endpoints
+
+## API Endpoints
+
+Base URL: `https://gallformers.org/api/v2`
+
+- [Galls](https://gallformers.org/api/v2/galls): Gall-forming species with morphology, host associations, and images. Supports search (`?q=`) and pagination (`?limit=&offset=`).
+- [Hosts](https://gallformers.org/api/v2/hosts): Host plant species with taxonomy and associated galls. Supports search and pagination.
+- [Families](https://gallformers.org/api/v2/families): Taxonomic families with their genera.
+- [Genera](https://gallformers.org/api/v2/genera): Taxonomic genera with parent family and species. Supports prefix search.
+- [Sources](https://gallformers.org/api/v2/sources): Scientific literature references. Supports search and pagination.
+- [Glossary](https://gallformers.org/api/v2/glossary): Terminology definitions. Supports search and pagination.
+- [Places](https://gallformers.org/api/v2/places): Geographic locations organized hierarchically.
+- [Search](https://gallformers.org/api/v2/search?q=oak): Global search across all entity types. Requires `?q=` parameter.
+- [Stats](https://gallformers.org/api/v2/stats): Database summary statistics (species counts, image counts, etc.).
+
+## Key Concepts
+
+- A **gall** is an abnormal plant growth induced by another organism (insect, mite, fungus, etc.)
+- Each gall has morphological traits (shape, color, texture, alignment, walls, cells), host plant associations, seasonality, and location on the host plant
+- **Host plants** are the plant species on which galls form
+- **Taxonomy** follows standard biological classification: Family > Genus > Section (optional) > Species
+- Species may have **aliases** (alternative names) and are linked to **sources** (scientific literature)

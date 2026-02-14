@@ -23,7 +23,8 @@ defmodule GallformersWeb do
   # File prefixes for Plug.Static's `only_matching:` option (prefix match)
   # This allows digested files like favicon-abc123.ico to be served
   def static_matching,
-    do: ~w(robots favicon apple-touch-icon apple-icon android-icon ms-icon manifest browserconfig)
+    do:
+      ~w(robots favicon apple-touch-icon apple-icon android-icon ms-icon manifest browserconfig llms)
 
   # Combined list for Phoenix's ~p sigil validation
   def static_paths, do: static_dirs() ++ static_matching()
