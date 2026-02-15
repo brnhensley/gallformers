@@ -1,8 +1,8 @@
 ---
 status: done
 created: 2026-02-13
-updated: 2026-02-14
-phase: 1-foundation
+updated: 2026-02-15
+epic: 1-foundation
 ---
 
 # llms.txt

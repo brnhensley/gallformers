@@ -95,7 +95,7 @@ tofu import aws_s3_bucket.images gallformers-images-us-east-1
 
 ## Next Steps
 
-See [Beads](../.beads/) for tracked infrastructure work (issues tagged with `infra`).
+See project matter tracker for tracked infrastructure work.
 
 Key runbooks:
 - [backup-setup.md](../docs/backup-setup.md) - S3/IAM configuration details

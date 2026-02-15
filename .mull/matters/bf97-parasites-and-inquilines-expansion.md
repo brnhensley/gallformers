@@ -4,7 +4,7 @@ created: 2026-02-13
 updated: 2026-02-13
 relates: [e29c]
 needs: [1db6]
-phase: 3-associates
+epic: 3-associates
 ---
 
 # Parasites and inquilines expansion

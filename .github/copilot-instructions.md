@@ -18,7 +18,6 @@
 - **Auth**: Auth0 (admin features only)
 - **Infrastructure**: Fly.io, AWS S3, Litestream
 - **Development**: Elixir, Mix, ExUnit, Credo
-- **Issue Tracking**: Beads (bd)
 
 ## Coding Guidelines
 
@@ -35,57 +34,8 @@
 - E2E tests use Wallaby with Chrome
 
 ### Git Workflow
-- Always commit `.beads/issues.jsonl` with code changes
-- Run `bd sync` at end of work sessions
+- Run `mix precommit` before committing
 - Follow the session close protocol (see below)
-
-## Issue Tracking with bd
-
-**CRITICAL**: This project uses **bd (beads)** for ALL task tracking. Do NOT create markdown TODO lists.
-
-### Essential Commands
-
-```bash
-# Find work
-bd ready                          # Unblocked issues
-bd list --status open             # All open issues
-
-# Create and manage
-bd create --title "Title" --type bug|feature|task --priority 0-4
-bd update <id> --status in_progress
-bd close <id> --reason "Done"
-
-# Search
-bd show <id>
-
-# Sync (CRITICAL at end of session!)
-bd sync  # Force immediate export/commit/push
-```
-
-### Workflow
-
-1. **Check ready work**: `bd ready`
-2. **Claim task**: `bd update <id> --status in_progress`
-3. **Work on it**: Implement, test, document
-4. **Discover new work?** `bd create --title "Found bug" --priority 1`
-5. **Complete**: `bd close <id> --reason "Done"`
-6. **Sync**: `bd sync` (flushes changes to git immediately)
-
-### Priorities
-
-- `0` - Critical (security, data loss, broken builds)
-- `1` - High (major features, important bugs)
-- `2` - Medium (default, nice-to-have)
-- `3` - Low (polish, optimization)
-- `4` - Backlog (future ideas)
-
-### Issue Types
-
-- `bug` - Something broken
-- `feature` - New functionality
-- `task` - Work item (tests, docs, refactoring)
-- `epic` - Large feature with subtasks
-- `chore` - Maintenance (dependencies, tooling)
 
 ## Project Structure
 
@@ -101,7 +51,6 @@ gallformers/
 ├── docs/                    # Documentation
 ├── runbooks/               # Operational runbooks
 ├── services/               # Auxiliary services (tileserver, usda_plants)
-├── .beads/                 # Beads issue tracking
 └── .github/                # CI workflows
 ```
 
@@ -153,34 +102,10 @@ See `lib/gallformers/` for Ecto schemas. Key modules:
 3. Run `mix ecto.migrate`
 4. Update `priv/repo/structure.sql` if needed
 
-## Session Close Protocol
-
-**CRITICAL**: Before saying "done" or "complete", you MUST:
-
-```
-[ ] 1. git status              (check what changed)
-[ ] 2. git add <files>         (stage code changes)
-[ ] 3. bd sync                 (commit beads changes)
-[ ] 4. git commit -m "..."     (commit code)
-[ ] 5. bd sync                 (commit any new beads changes)
-[ ] 6. git push                (push to remote)
-```
-
-**NEVER skip this.** Work is not done until pushed.
-
-## CLI Help
-
-Run `bd <command> --help` to see all available flags for any command.
-
 ## Important Rules
 
-- Use bd for ALL task tracking
 - Run `mix precommit` before committing
 - Test before committing
-- Commit `.beads/issues.jsonl` with code changes
-- Do NOT create markdown TODO lists
-- Do NOT commit `.beads/beads.db`
-- Do NOT skip the session close protocol
 - Do NOT create new files unless necessary (prefer editing existing)
 
 ---

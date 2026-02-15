@@ -5,5 +5,3 @@
 *.{bat,[bB][aA][tT]} text eol=crlf
 *.{ts,tsx,js,jsx,json,yml,yaml,md,html,css,scss} text eol=lf
 
-# Use bd merge for beads JSONL files
-.beads/issues.jsonl merge=beads

@@ -71,9 +71,9 @@ After presenting the issues, ask:
 
 > "Would you like to:
 > 1. Work through these one by one now
-> 2. Create beads for them to tackle later
-> 3. Mix: work the quick ones now, create beads for the rest"
+> 2. Capture them as matters to tackle later
+> 3. Mix: work the quick ones now, capture the rest as matters"
 
-**Important:** If any issue seems large (multi-file refactor, architectural change, significant learning topic), proactively suggest creating a bead so context isn't lost. Say something like:
+**Important:** If any issue seems large (multi-file refactor, architectural change, significant learning topic), proactively suggest capturing it as a matter so context isn't lost. Say something like:
 
-> "Issue #3 (refactoring to use contexts properly) is substantial—I'd recommend creating a bead for this so we can give it proper attention without losing context."
+> "Issue #3 (refactoring to use contexts properly) is substantial—I'd recommend capturing this as a matter so we can give it proper attention without losing context."

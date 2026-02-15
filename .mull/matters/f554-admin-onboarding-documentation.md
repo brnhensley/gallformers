@@ -3,7 +3,7 @@ status: raw
 created: 2026-02-13
 updated: 2026-02-13
 relates: [9005]
-phase: 1-foundation
+epic: 1-foundation
 ---
 
 # Admin onboarding documentation

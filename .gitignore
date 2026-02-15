@@ -89,10 +89,6 @@ api/bin/
 /test/screenshots/*.png
 !/test/screenshots/.gitkeep
 
-# bv (beads viewer) local config and caches
-.bv/
-.beads/.bv.lock
-
 # OpenTofu / Terraform
 .terraform/
 *.tfstate

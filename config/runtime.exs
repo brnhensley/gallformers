@@ -53,6 +53,13 @@ if s3_access_key = System.get_env("S3_PUT_AWS_ACCESS_KEY_ID") do
     secret_access_key: System.get_env("S3_PUT_AWS_SECRET_ACCESS_KEY")
 end
 
+# S3 image prefix for preview deploys
+# When set, new uploads go to "preview/gall/..." instead of "gall/..."
+# Existing images in the DB still resolve from their original paths
+if s3_image_prefix = System.get_env("S3_IMAGE_PREFIX") do
+  config :gallformers, :s3_image_prefix, s3_image_prefix
+end
+
 if config_env() == :prod do
   database_path =
     System.get_env("DATABASE_PATH") ||
@@ -102,6 +109,7 @@ if config_env() == :prod do
       "//gallformers.com",
       "//www.gallformers.com",
       "//gallformers.fly.dev",
+      "//gallformers-preview.fly.dev",
       "//*.cloudfront.net"
     ]
 

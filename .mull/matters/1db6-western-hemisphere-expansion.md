@@ -5,7 +5,7 @@ updated: 2026-02-13
 relates: [ccee, 1374]
 blocks: [bf97]
 needs: [4143, 5b3d]
-phase: 2-hemisphere
+epic: 2-hemisphere
 ---
 
 # Western Hemisphere expansion

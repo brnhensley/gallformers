@@ -128,8 +128,6 @@ These rules are **non-negotiable** and exist because of a production incident:
 
 # Gallformers Project Overview
 
-**Note**: This project uses [bd (beads)](https://github.com/steveyegge/beads) for issue tracking. Use `bd` commands instead of markdown TODOs. See AGENTS.md for workflow details.
-
 ## What is Gallformers?
 
 Gallformers (gallformers.org) is a comprehensive online database and reference guide for **galls** - abnormal plant growths caused by insects, mites, and other organisms. The site serves as a resource for:
@@ -164,7 +162,6 @@ gallformers/
 ├── services/            # Auxiliary services
 │   ├── tileserver-gl/   # Map tile server
 │   └── usda_plants/     # USDA plants data (Rust)
-├── .beads/              # Beads issue tracking
 └── .github/             # CI workflows
 ```
 
@@ -426,22 +423,11 @@ HTTP requests are logged to JSON Lines files. See CODING_STANDARDS.md for log fo
 - **Development**: `priv/logs/requests-YYYY-MM-DD.log`
 - **Retrieve**: `fly ssh sftp get /data/logs/requests-YYYY-MM-DD.log`
 
-## Beads Workflow
-
-This project uses **Beads** for issue tracking.
-
-Key points:
-- Use `bd ready` to find available work
-- Use `bd create` to create new issues (NOT TodoWrite)
-- Run `bd sync` before ending sessions
-- Follow the session close protocol for git commits
-
 ## Git Workflow
 
 **Push approval rules:**
 | Change Type | Approval Required | Notes |
 |-------------|-------------------|-------|
-| Beads | No | Daemon auto-syncs to `beads-sync` branch |
 | Everything else | **Yes** | Always ask user before pushing |
 
 **Commit messages:** Present tense, imperative mood.
@@ -479,5 +465,4 @@ Check the `infra/` dir for OpenTofu defintions if you need to work with the AWS 
 ## Getting Help
 
 - Check README.md for setup issues
-- Use `bd doctor` to diagnose Beads issues
 - See [runbooks/](runbooks/) for operational procedures

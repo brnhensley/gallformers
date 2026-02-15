@@ -39,6 +39,27 @@ defmodule Gallformers.Storage do
     Application.get_env(:gallformers, :images)[:bucket]
   end
 
+  @doc """
+  Returns the S3 image prefix for preview deploys.
+
+  When set (e.g., "preview"), new uploads go to "preview/gall/..." instead of "gall/...".
+  Returns nil in production (no prefix).
+  """
+  @spec s3_image_prefix() :: String.t() | nil
+  def s3_image_prefix do
+    Application.get_env(:gallformers, :s3_image_prefix)
+  end
+
+  # Prepends the S3 image prefix to a path when configured.
+  # Used for new uploads only — existing DB paths are not prefixed.
+  defp prefix_path(path) do
+    case s3_image_prefix() do
+      nil -> path
+      "" -> path
+      prefix -> "#{prefix}/#{path}"
+    end
+  end
+
   # =============================================================================
   # Path Generation
   # =============================================================================
@@ -53,7 +74,7 @@ defmodule Gallformers.Storage do
     timestamp = System.system_time(:millisecond)
     unique = System.unique_integer([:positive])
     ext = String.trim_leading(extension, ".")
-    "gall/#{species_id}/#{species_id}_#{timestamp}_#{unique}_original.#{ext}"
+    prefix_path("gall/#{species_id}/#{species_id}_#{timestamp}_#{unique}_original.#{ext}")
   end
 
   @doc """
@@ -67,7 +88,7 @@ defmodule Gallformers.Storage do
   def generate_article_path(article_id, extension) when is_integer(article_id) do
     timestamp = System.system_time(:millisecond)
     ext = String.trim_leading(extension, ".")
-    "articles/#{article_id}/#{timestamp}.#{ext}"
+    prefix_path("articles/#{article_id}/#{timestamp}.#{ext}")
   end
 
   @doc """
@@ -242,7 +263,7 @@ defmodule Gallformers.Storage do
   """
   @spec list_article_images() :: [map()]
   def list_article_images do
-    list_article_images_with_prefix("articles/")
+    list_article_images_with_prefix(prefix_path("articles/"))
   end
 
   @doc """
@@ -250,7 +271,7 @@ defmodule Gallformers.Storage do
   """
   @spec list_article_images_for_article(integer()) :: [map()]
   def list_article_images_for_article(article_id) do
-    list_article_images_with_prefix("articles/#{article_id}/")
+    list_article_images_with_prefix(prefix_path("articles/#{article_id}/"))
   end
 
   defp list_article_images_with_prefix(prefix) do
@@ -310,7 +331,7 @@ defmodule Gallformers.Storage do
   @spec list_all_gall_paths() :: {:ok, [map()]} | {:error, term()}
   def list_all_gall_paths do
     if Application.get_env(:gallformers, :s3_enabled, true) do
-      list_gall_paths_recursive("gall/", nil, [])
+      list_gall_paths_recursive(prefix_path("gall/"), nil, [])
     else
       # Return empty list in test environment to avoid real S3 calls
       {:ok, []}

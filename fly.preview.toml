@@ -1,0 +1,35 @@
+# Gallformers Preview - Fly.io Configuration
+# Disposable preview instance with baked-in database (no volumes)
+# Deploy with: make preview
+
+app = "gallformers-preview"
+primary_region = "iad"
+
+kill_signal = "SIGTERM"
+kill_timeout = "30s"
+
+[build]
+  dockerfile = "Dockerfile.preview"
+
+[env]
+  DATABASE_PATH = "/app/data/gallformers.sqlite"
+  PHX_HOST = "gallformers-preview.fly.dev"
+  PORT = "4000"
+  S3_IMAGE_PREFIX = "preview"
+
+[http_service]
+  internal_port = 4000
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [http_service.concurrency]
+    type = "requests"
+    hard_limit = 250
+    soft_limit = 200
+
+[[vm]]
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1

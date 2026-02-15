@@ -1,9 +1,9 @@
 ---
-status: active
+status: refined
 created: 2026-02-13
 updated: 2026-02-14
 relates: [1501, 9ca2]
-phase: 1-foundation
+epic: 1-foundation
 ---
 
 # PostgreSQL migration

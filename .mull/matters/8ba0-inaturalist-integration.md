@@ -4,7 +4,7 @@ created: 2026-02-13
 updated: 2026-02-14
 relates: [9005]
 needs: [2708]
-phase: 2-hemisphere
+epic: 2-hemisphere
 ---
 
 # iNaturalist integration

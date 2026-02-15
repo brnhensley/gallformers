@@ -1,9 +1,9 @@
 ---
-status: complete
+status: done
 created: 2026-02-14
-updated: 2026-02-14
+updated: 2026-02-15
 blocks: [8ba0]
-needs: [1f5f]
+docket: false
 ---
 
 # iNat image import on Images Admin

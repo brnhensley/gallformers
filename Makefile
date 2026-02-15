@@ -2,7 +2,7 @@
 #
 # Phoenix/LiveView development commands
 
-.PHONY: dev dev-lan test test-db test-prod-data test-prod-data-e2e test-prod-data-all download-db ci preflight help deps assets setup clean check-db build run-local-release dump-schema upload-reset-db
+.PHONY: dev dev-lan test test-db test-prod-data test-prod-data-e2e test-prod-data-all download-db ci preflight help deps assets setup clean check-db build run-local-release dump-schema upload-reset-db preview preview-stop preview-destroy
 
 # Download production database for local dev
 # Uses public S3 snapshot (updated daily by GitHub Actions)
@@ -323,6 +323,27 @@ preflight: ci download-db
 	@echo "==> All preflight checks passed! Safe to push."
 
 # =============================================================================
+# Preview Deploys
+# =============================================================================
+# Deploy current branch to a disposable Fly.io preview instance.
+# One-time setup: fly apps create gallformers-preview && fly secrets set ... (mirror prod secrets)
+
+# Build and deploy preview from current local branch
+preview:
+	fly deploy --config fly.preview.toml --dockerfile Dockerfile.preview \
+		--build-secret AWS_ACCESS_KEY_ID=$$AWS_ACCESS_KEY_ID \
+		--build-secret AWS_SECRET_ACCESS_KEY=$$AWS_SECRET_ACCESS_KEY \
+		--remote-only
+
+# Stop the preview machine (preserves app config and secrets)
+preview-stop:
+	fly machine stop --select --config fly.preview.toml
+
+# Destroy the preview app entirely
+preview-destroy:
+	fly apps destroy gallformers-preview --yes
+
+# =============================================================================
 # Git Sync Targets (for multi-agent workflow)
 # =============================================================================
 # Integration branch for Phoenix work
@@ -421,6 +442,11 @@ help:
 	@echo ""
 	@echo "Database:"
 	@echo "  make download-db       Download database snapshot from S3"
+	@echo ""
+	@echo "Preview Deploys:"
+	@echo "  make preview           Deploy current branch to preview (gallformers-preview.fly.dev)"
+	@echo "  make preview-stop      Stop the preview machine (preserves config)"
+	@echo "  make preview-destroy   Destroy the preview app entirely"
 	@echo ""
 	@echo "Git Sync (multi-agent workflow):"
 	@echo "  make sync-start              Reset branch to integration (for code1/code2)"

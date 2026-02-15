@@ -1,8 +1,9 @@
 ---
-status: raw
+status: planned
 created: 2026-02-14
-updated: 2026-02-14
+updated: 2026-02-15
 relates: [5b3d]
+title: Separate undescribed status from data completeness (gallformers code)
 docket: true
 ---
 
@@ -49,3 +50,9 @@ A gall cannot be marked as described (unchecked) if:
 - Riskiest part: data migration backfill
 - Most changes are simplification (stored field replaces computed derivation)
 - Alias cleanup is a win — former_undescribed was a workaround
+
+## Plan Docs
+- docs/plans/2026-02-15-undescribed-completeness-separation-design.md
+- docs/plans/2026-02-15-undescribed-completeness-separation-plan.md
+
+Design doc: docs/plans/2026-02-15-undescribed-completeness-separation-design.md\nImplementation plan: docs/plans/2026-02-15-undescribed-completeness-separation-plan.md\nTriage doc: docs/plans/Triaging the state of Gall species data.md
