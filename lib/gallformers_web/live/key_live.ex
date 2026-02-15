@@ -8,6 +8,7 @@ defmodule GallformersWeb.KeyLive do
   use GallformersWeb, :live_view
 
   alias Gallformers.Keys
+  alias Gallformers.Keys.PdfGenerator
 
   import GallformersWeb.KeyComponents
 
@@ -23,6 +24,8 @@ defmodule GallformersWeb.KeyLive do
            page_image: nil,
            page_json_ld: nil,
            key: key,
+           pdf_urls: PdfGenerator.cdn_urls(key),
+           key_has_images: PdfGenerator.key_has_images?(key),
            path: [],
            active_couplet: "1",
            terminal: nil,
@@ -264,6 +267,26 @@ defmodule GallformersWeb.KeyLive do
             </p>
 
             <p :if={@key.description} class="text-gray-700 mt-4">{@key.description}</p>
+
+            <div class="flex gap-3 mt-4">
+              <a
+                href={@pdf_urls.text_only}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="inline-flex items-center gap-1.5 text-sm text-gf-maroon hover:underline"
+              >
+                <.icon name="ph-file-pdf" class="w-4 h-4" /> Download PDF
+              </a>
+              <a
+                :if={@key_has_images}
+                href={@pdf_urls.with_images}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="inline-flex items-center gap-1.5 text-sm text-gf-maroon hover:underline"
+              >
+                <.icon name="ph-file-pdf" class="w-4 h-4" /> Download PDF (with images)
+              </a>
+            </div>
           </div>
 
           <%!-- Path tracker --%>

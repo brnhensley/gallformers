@@ -12,6 +12,8 @@ defmodule GallformersWeb.Admin.KeyLive.Form do
   use GallformersWeb, :live_view
   use GallformersWeb.Admin.FormHelpers, crud_helpers: true
 
+  require Logger
+
   import GallformersWeb.Admin.FormComponents, only: [form_actions: 1]
 
   alias Gallformers.Keys
@@ -34,6 +36,40 @@ defmodule GallformersWeb.Admin.KeyLive.Form do
   def update_entity(entity, params), do: Keys.update_key(entity, params)
   @impl GallformersWeb.Admin.FormHelpers
   def delete_entity(entity), do: Keys.delete_key(entity)
+
+  @impl GallformersWeb.Admin.FormHelpers
+  def after_create(socket, entity) do
+    trigger_pdf_generation(entity)
+
+    socket
+    |> put_flash(:info, "Key created successfully. PDF generation started.")
+    |> push_navigate(to: "#{list_path()}/#{entity.id}")
+  end
+
+  @impl GallformersWeb.Admin.FormHelpers
+  def after_update(socket, entity) do
+    trigger_pdf_generation(entity)
+
+    changeset = change_entity(entity)
+
+    socket
+    |> put_flash(:info, "Key updated successfully. PDF generation started.")
+    |> assign(entity_key(), entity)
+    |> assign(:form, to_form(changeset, as: "key"))
+    |> assign(:form_dirty, false)
+  end
+
+  defp trigger_pdf_generation(key) do
+    Gallformers.Async.run(fn ->
+      case Keys.PdfGenerator.generate_and_upload(key) do
+        :ok ->
+          Logger.info("PDF generated and uploaded for key: #{key.slug}")
+
+        {:error, reason} ->
+          Logger.error("PDF generation failed for key #{key.slug}: #{inspect(reason)}")
+      end
+    end)
+  end
 
   @impl true
   def mount(_params, session, socket) do
@@ -102,6 +138,13 @@ defmodule GallformersWeb.Admin.KeyLive.Form do
 
   @impl true
   def handle_event("delete", params, socket), do: handle_delete(params, socket)
+
+  @impl true
+  def handle_event("regenerate_pdfs", _params, socket) do
+    key = socket.assigns.key
+    trigger_pdf_generation(key)
+    {:noreply, put_flash(socket, :info, "PDF regeneration started for #{key.title}")}
+  end
 
   @impl true
   def handle_event("json_changed", %{"value" => json_text}, socket) do
@@ -350,7 +393,7 @@ defmodule GallformersWeb.Admin.KeyLive.Form do
           </div>
 
           <div class="flex justify-between pt-4 mt-4 border-t border-gray-200">
-            <div>
+            <div class="flex gap-2">
               <button
                 :if={@mode == :edit}
                 type="button"
@@ -359,6 +402,14 @@ defmodule GallformersWeb.Admin.KeyLive.Form do
                 class="gf-btn gf-btn-danger"
               >
                 Delete
+              </button>
+              <button
+                :if={@mode == :edit}
+                type="button"
+                phx-click="regenerate_pdfs"
+                class="gf-btn gf-btn-secondary"
+              >
+                Regenerate PDFs
               </button>
             </div>
             <.form_actions form_dirty={@form_dirty} mode={@mode} create_label="Create Key" />

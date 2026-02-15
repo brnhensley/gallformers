@@ -61,6 +61,10 @@ RUN apk add --no-cache libstdc++ openssl ncurses-libs sqlite su-exec aws-cli vip
 ADD https://github.com/benbjohnson/litestream/releases/download/v0.3.13/litestream-v0.3.13-linux-amd64.tar.gz /tmp/litestream.tar.gz
 RUN tar -C /usr/local/bin -xzf /tmp/litestream.tar.gz && rm /tmp/litestream.tar.gz
 
+# Install Typst for PDF generation of identification keys
+ADD https://github.com/typst/typst/releases/download/v0.14.2/typst-x86_64-unknown-linux-musl.tar.xz /tmp/typst.tar.xz
+RUN tar -C /usr/local/bin -xf /tmp/typst.tar.xz --strip-components=1 typst-x86_64-unknown-linux-musl/typst && rm /tmp/typst.tar.xz
+
 WORKDIR /app
 
 # Create non-root user
