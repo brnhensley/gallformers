@@ -4,77 +4,20 @@
 
 **Goal:** Separate taxonomic "undescribed" status from entry "incomplete" status, promote gallformers code to a real data field, and clean up the former_undescribed alias infrastructure.
 
-**Architecture:** Remove the source-check branch from `compute_undescribed_lock/2`. Add a parallel `compute_datacomplete_lock/1` that gates datacomplete on sources. Add `gallformers_code` string field to `gall_traits` and read it directly instead of deriving from names/aliases. Remove all `former_undescribed` alias machinery.
+**Architecture:** Remove the source-check branch from `compute_undescribed_lock/2`. Add a parallel `compute_datacomplete_lock/1` that gates datacomplete on sources and undescribed status. Add `gallformers_code` string field (unique) to `gall_traits` and read it directly instead of deriving from names/aliases. Remove all `former_undescribed` alias machinery.
 
 **Tech Stack:** Elixir/Phoenix LiveView, Ecto with SQLite, TDD with ExUnit.
 
 **Working on:** `main` branch directly (no worktree).
 
 **Design doc:** `docs/plans/2026-02-15-undescribed-completeness-separation-design.md`
+**Data audit:** `docs/plans/Triaging the state of Gall species data.md`
 
 ---
 
-## Task 1: Run Diagnostic Queries
+## Task 1: Data Audit — COMPLETE
 
-**GATE: User must review results before any code changes proceed.**
-
-**Step 1: Run diagnostics in IEx**
-
-```bash
-iex -S mix
-```
-
-Run these queries one at a time and record results:
-
-```elixir
-import Ecto.Query
-alias Gallformers.Repo
-
-# 1. Undescribed galls with real genera (the mislabeled ones)
-real_genus_undescribed = Repo.all(
-  from gt in "gall_traits",
-    join: st in "species_taxonomy", on: st.species_id == gt.species_id,
-    join: t in "taxonomy", on: st.taxonomy_id == t.id,
-    join: s in "species", on: s.id == gt.species_id,
-    where: gt.undescribed == true,
-    where: t.type == "genus",
-    where: not like(t.name, "Unknown%"),
-    select: %{species_id: gt.species_id, name: s.name, genus: t.name}
-)
-IO.puts("Undescribed galls with real genera: #{length(real_genus_undescribed)}")
-
-# 2. Of those, how many have sources vs don't
-with_sources = Enum.filter(real_genus_undescribed, fn %{species_id: sid} ->
-  Repo.exists?(from ss in "species_source", where: ss.species_id == ^sid)
-end)
-IO.puts("  With sources: #{length(with_sources)}")
-IO.puts("  Without sources: #{length(real_genus_undescribed) - length(with_sources)}")
-
-# 3. Galls marked datacomplete but lacking sources
-complete_no_sources = Repo.all(
-  from s in "species",
-    where: s.taxoncode == "gall",
-    where: s.datacomplete == true,
-    where: s.id not in subquery(from ss in "species_source", select: ss.species_id),
-    select: %{id: s.id, name: s.name}
-)
-IO.puts("Data-complete galls without sources: #{length(complete_no_sources)}")
-
-# 4. Current former_undescribed aliases
-former_aliases = Repo.all(
-  from a in "alias",
-    join: als in "alias_species", on: als.alias_id == a.id,
-    join: s in "species", on: s.id == als.species_id,
-    where: a.type == "former_undescribed",
-    select: %{alias_id: a.id, alias_name: a.name, species_id: s.id, species_name: s.name}
-)
-IO.puts("Former undescribed aliases: #{length(former_aliases)}")
-Enum.each(former_aliases, fn a -> IO.puts("  #{a.species_name} <- #{a.alias_name}") end)
-```
-
-**Step 2: Present results to user for review**
-
-Show all counts and the list of former_undescribed aliases. Wait for user approval before proceeding.
+Data audit is done. Results documented in the triage doc. Three action items sent to reviewers, feedback due Tuesday 2026-02-18. Code tasks 2-9 can proceed now. Data migration (task 10) is blocked until feedback is in.
 
 ---
 
@@ -102,6 +45,11 @@ defmodule Gallformers.Repo.Migrations.AddGallformersCodeToGallTraits do
     alter table(:gall_traits) do
       add :gallformers_code, :string
     end
+
+    create unique_index(:gall_traits, [:gallformers_code],
+      where: "gallformers_code IS NOT NULL",
+      name: :gall_traits_gallformers_code_unique
+    )
   end
 end
 ```
@@ -113,6 +61,7 @@ Modify `lib/gallformers/galls/gall_traits.ex`:
 - Add `:gallformers_code` to `@optional_fields` (line 14)
 - Add `field :gallformers_code, :string` to schema (after line 28)
 - Add `gallformers_code: String.t() | nil` to `@type t` (after line 19)
+- Add `unique_constraint(:gallformers_code, name: :gall_traits_gallformers_code_unique)` to changeset
 
 **Step 4: Run migration**
 
@@ -130,6 +79,10 @@ mix compile --warnings-as-errors
 
 ```
 Add gallformers_code field to gall_traits schema
+
+Stores the iNaturalist observation linking code as a proper data field
+instead of deriving it from the species name. Unique index enforced
+when non-null.
 ```
 
 ---
@@ -140,9 +93,9 @@ Add gallformers_code field to gall_traits schema
 - Modify: `lib/gallformers/galls.ex:669-682`
 - Modify: `test/gallformers/galls_test.exs:361-423`
 
-**Step 1: Update the test — remove "locked when no sources" case, change expectation**
+**Step 1: Update the test — change "locked when no sources" to expect unlocked**
 
-In `test/gallformers/galls_test.exs`, the test at line 379 ("locked when species has no sources") should be changed to expect `{false, nil}` — a gall with a real genus and no sources should now be **unlocked**:
+In `test/gallformers/galls_test.exs`, the test at line 379 ("locked when species has no sources") should be changed to expect `{false, nil}`:
 
 ```elixir
 test "unlocked when species has no sources but real genus" do
@@ -194,7 +147,7 @@ mix test test/gallformers/galls_test.exs --only describe:"compute_undescribed_lo
 
 Expected: all pass.
 
-**Step 5: Run full test suite to check for regressions**
+**Step 5: Run full test suite**
 
 ```bash
 mix test
@@ -236,7 +189,38 @@ describe "compute_datacomplete_lock/1" do
     assert reason =~ "source is required"
   end
 
-  test "unlocked when species has sources" do
+  test "locked when species is undescribed" do
+    {:ok, species} =
+      Repo.insert(%Species{
+        name: "Undesc sp",
+        taxoncode: "gall",
+        datacomplete: false
+      })
+
+    {:ok, _} = Galls.create_gall_traits(species.id)
+    Galls.update_gall_properties(species.id, %{undescribed: true})
+
+    # Add a source so we isolate the undescribed check
+    {:ok, source} =
+      Gallformers.Sources.create_source(%{
+        title: "Test Source",
+        author: "Author",
+        pubyear: "2020",
+        link: "http://example.com",
+        citation: "Test citation",
+        license: "CC BY"
+      })
+
+    Gallformers.Sources.create_species_source(%{
+      species_id: species.id,
+      source_id: source.id
+    })
+
+    {true, reason} = Galls.compute_datacomplete_lock(species.id)
+    assert reason =~ "undescribed"
+  end
+
+  test "unlocked when species has sources and is described" do
     {:ok, species} =
       Repo.insert(%Species{
         name: "Haslock sp",
@@ -284,18 +268,25 @@ Add to `lib/gallformers/galls.ex`, after `compute_undescribed_lock`:
 @doc """
 Computes whether the datacomplete checkbox should be locked and why.
 
-A gall's datacomplete flag is locked to `false` when the species has no
-sources linked. Returns `{locked?, reason}` where reason is a string
-explaining the lock, or nil if unlocked.
+A gall's datacomplete flag is locked to `false` when:
+- The species has no sources linked — a source is required for completeness
+- The gall is marked undescribed — undescribed species are by definition incomplete
+
+Returns `{locked?, reason}` where reason is a string explaining the lock, or nil if unlocked.
 """
 @spec compute_datacomplete_lock(integer() | nil) :: {boolean(), String.t() | nil}
 def compute_datacomplete_lock(nil), do: {false, nil}
 
 def compute_datacomplete_lock(species_id) do
-  if Gallformers.Sources.has_sources?(species_id) do
-    {false, nil}
-  else
-    {true, "A source is required to mark a gall as data complete."}
+  cond do
+    not Gallformers.Sources.has_sources?(species_id) ->
+      {true, "A source is required to mark a gall as data complete."}
+
+    undescribed?(species_id) ->
+      {true, "An undescribed gall cannot be marked as data complete."}
+
+    true ->
+      {false, nil}
   end
 end
 ```
@@ -311,7 +302,10 @@ Expected: all pass.
 **Step 5: Commit**
 
 ```
-Add compute_datacomplete_lock to gate completeness on sources
+Add compute_datacomplete_lock to gate completeness on sources and undescribed
+
+Datacomplete is locked when a gall has no sources or is marked
+undescribed. An undescribed species by definition has incomplete data.
 ```
 
 ---
@@ -346,26 +340,16 @@ end
 
 **Step 3: Call it everywhere `apply_undescribed_lock` is called**
 
-There are 4 call sites in the file. After each `apply_undescribed_lock` call, pipe into `apply_datacomplete_lock`:
+There are 4 call sites. After each `apply_undescribed_lock` call, pipe into `apply_datacomplete_lock`:
 
-- Line 191: `|> apply_undescribed_lock(taxonomy)` — add `|> apply_datacomplete_lock()`
-- Line 228: `|> apply_undescribed_lock(taxonomy)` — add `|> apply_datacomplete_lock()`
-- Line 300: `|> apply_undescribed_lock(taxonomy, species_id)` — add `|> apply_datacomplete_lock(species_id)`
-- Line 630: `|> apply_undescribed_lock(taxonomy, species_id)` — add `|> apply_datacomplete_lock(species_id)`
+- Line 191: add `|> apply_datacomplete_lock()`
+- Line 228: add `|> apply_datacomplete_lock()`
+- Line 300: add `|> apply_datacomplete_lock(species_id)`
+- Line 630: add `|> apply_datacomplete_lock(species_id)`
 
 **Step 4: Update the template — lock the datacomplete checkbox**
 
-Replace the datacomplete checkbox section (around lines 1132-1136) from:
-
-```heex
-<.input
-  type="checkbox"
-  field={@form[:datacomplete]}
-  label="All sources containing unique information relevant to this gall have been added and are reflected in its associated data. However, filter criteria may not be comprehensive in every field."
-/>
-```
-
-To a manual checkbox with lock behavior (matching the undescribed pattern):
+Replace the datacomplete checkbox section (around lines 1132-1136) from the `.input` component to a manual checkbox with lock behavior matching the undescribed pattern:
 
 ```heex
 <div>
@@ -393,11 +377,7 @@ To a manual checkbox with lock behavior (matching the undescribed pattern):
 
 **Step 5: Force datacomplete=false on save when locked**
 
-In `save_gall/3` for `:new` (around line 708), the `species_attrs` params map already includes `datacomplete` from the form. But when the checkbox is disabled, browsers don't submit it — so it defaults to false. No special handling needed for create.
-
-For `:edit` (around line 736), same principle applies. But to be safe, add defensive enforcement in `update_gall_with_associations` or at the form level: if `datacomplete_locked` is true, force the species_attrs datacomplete to false before passing to the context. Add this in `save_gall/3` for `:edit`:
-
-After `|> Map.put("name", socket.assigns.gall.name)` in the save handler (line 412), add:
+In the `save` event handler (around line 404), after building `params`, add:
 
 ```elixir
 params =
@@ -420,7 +400,8 @@ mix compile --warnings-as-errors && mix test
 Wire datacomplete lock into gall admin form
 
 Datacomplete checkbox is now disabled with amber reason text when
-the gall has no sources, mirroring the undescribed lock pattern.
+the gall has no sources or is undescribed, mirroring the undescribed
+lock pattern.
 ```
 
 ---
@@ -433,19 +414,19 @@ the gall has no sources, mirroring the undescribed lock pattern.
 
 **Step 1: Add gallformers_code to save params**
 
-In `save_gall/3` for `:new` (around line 709), add `gallformers_code` to `create_params`:
+In `save_gall/3` for `:new` (around line 709), add to `create_params`:
 
 ```elixir
 gallformers_code: socket.assigns[:gallformers_code]
 ```
 
-In `save_gall/3` for `:edit` (around line 740), add `gallformers_code` to `update_params`:
+In `save_gall/3` for `:edit` (around line 740), add to `update_params`:
 
 ```elixir
 gallformers_code: socket.assigns[:gallformers_code]
 ```
 
-**Step 2: Update `update_gall_properties` calls in `create_gall_with_associations` and `update_gall_with_associations`**
+**Step 2: Update `update_gall_properties` calls**
 
 In `lib/gallformers/galls.ex`, the `update_gall_properties` call in `create_gall_with_associations` (line 841) becomes:
 
@@ -457,17 +438,9 @@ update_gall_properties(species.id, %{
 })
 ```
 
-Same for `update_gall_with_associations` (line 890):
+Same for `update_gall_with_associations` (line 890).
 
-```elixir
-update_gall_properties(species.id, %{
-  detachable: params.detachable,
-  undescribed: params.undescribed,
-  gallformers_code: params[:gallformers_code]
-})
-```
-
-**Step 3: Add assign and form field**
+**Step 3: Add assign, event handler, and load logic**
 
 In the form's default assigns setup, add:
 
@@ -475,7 +448,7 @@ In the form's default assigns setup, add:
 |> assign(:gallformers_code, nil)
 ```
 
-In `load_gall_for_edit`, after loading the gall, fetch the gallformers_code from gall_traits:
+In `load_gall_for_edit`, fetch the gallformers_code from gall_traits:
 
 ```elixir
 gall_traits = Repo.get(Gallformers.Galls.GallTraits, species_id)
@@ -487,7 +460,7 @@ Then assign it:
 |> assign(:gallformers_code, gall_traits && gall_traits.gallformers_code)
 ```
 
-Add a handle_event for the field:
+Add event handler:
 
 ```elixir
 def handle_event("update_gallformers_code", %{"value" => value}, socket) do
@@ -497,7 +470,7 @@ end
 
 **Step 4: Add template input**
 
-In the template, near the undescribed checkbox section (around line 1157), add:
+Near the undescribed checkbox section (around line 1157), add:
 
 ```heex
 <div :if={@undescribed || @gallformers_code not in [nil, ""]} class="mt-2">
@@ -542,7 +515,7 @@ existing code. Persisted via update_gall_properties.
 
 **Step 1: Pass gallformers_code through the undescribed flow**
 
-In `undescribed.ex`, the `continue` event handler (line 373) navigates with query params. Add the gallformers code (derived from the epithet of the generated name):
+In `undescribed.ex`, the `continue` event handler (line 373) navigates with query params. Add the gallformers code derived from the epithet:
 
 ```elixir
 # After line 375: name = String.trim(socket.assigns.name)
@@ -557,9 +530,9 @@ query_string =
   })
 ```
 
-**Step 2: Read gallformers_code in the form's init_from_undescribed_flow**
+**Step 2: Read gallformers_code in the form's undescribed init**
 
-In `form.ex`, the function that handles the undescribed flow params (around line 195, `init_undescribed_gall_with_taxonomy`) needs to read and assign the gallformers_code from the query params. Find where it reads `species_name` and `undescribed` from params, and add:
+In `form.ex`, the function that handles undescribed flow params (around line 195) needs to assign the gallformers_code:
 
 ```elixir
 |> assign(:gallformers_code, params["gallformers_code"])
@@ -586,7 +559,7 @@ Pre-populate gallformers_code in undescribed creation flow
 
 **Step 1: Replace `compute_gallformers_code/3` with direct field read**
 
-In `gall_live.ex`, around line 103-104, replace:
+Around line 103-104, replace:
 
 ```elixir
 {gallformers_code, former_undescribed_alias} =
@@ -604,35 +577,31 @@ gallformers_code = gall_traits && gall_traits.gallformers_code
 
 Remove the `former_undescribed_name` assign (line 149). Remove the `former_undescribed_alias` variable.
 
-Change the `gallformers_code` assign to use the field value directly (it's already named `gallformers_code`).
+**Step 3: Simplify scientific_aliases filter**
 
-**Step 3: Remove the former_undescribed filter from scientific_aliases**
-
-Lines 100-101 currently filter out `former_undescribed`:
+Lines 100-101, change from:
 
 ```elixir
 scientific_aliases =
   Enum.filter(aliases, &(&1.type not in ["common", "former_undescribed"]))
 ```
 
-Change to:
+To:
 
 ```elixir
 scientific_aliases =
   Enum.filter(aliases, &(&1.type != "common"))
 ```
 
-(Once the migration converts former_undescribed aliases to scientific, this handles them correctly.)
-
 **Step 4: Update template display logic**
 
-The undescribed blurb (line 382) currently checks `@gall.undescribed`. Change to check for both undescribed AND gallformers_code:
+The undescribed blurb (line 382) — add gallformers_code guard:
 
 ```heex
 <div :if={@gall.undescribed && @gallformers_code} class="bg-amber-50 border border-amber-200 rounded-lg p-4">
 ```
 
-The "formerly undescribed" blurb (line 417-430) currently checks `!@gall.undescribed && @former_undescribed_name`. Change to:
+The "formerly undescribed" blurb (lines 417-430) — replace:
 
 ```heex
 <div
@@ -650,8 +619,6 @@ The "formerly undescribed" blurb (line 417-430) currently checks `!@gall.undescr
   </a>
 </div>
 ```
-
-Note: The old template showed the former_undescribed_name with `.taxon_name`. Since we no longer store the former name (just the code), the display simplifies.
 
 **Step 5: Delete `compute_gallformers_code/3` function**
 
@@ -688,7 +655,7 @@ This is the largest task. Work through it methodically.
 
 **Step 1: Simplify `reclassification.ex`**
 
-Replace `resolve_alias_opts/1` (lines 68-74). The function currently routes between `"scientific"` and `"former_undescribed"`. All aliases should now be `"scientific"`:
+Replace `resolve_alias_opts/1` (lines 68-74) — all aliases are now `"scientific"`:
 
 ```elixir
 defp resolve_alias_opts(_params) do
@@ -696,65 +663,49 @@ defp resolve_alias_opts(_params) do
 end
 ```
 
-Remove `maybe_rotate_former_undescribed/2` (lines 182-186) — replace calls with no-ops.
+In `reclassify_species/2` (line 35): remove `former_undescribed_choice` from extracted params. Remove the `if rotate?` branch in `name_changed?` (line 58).
 
 In `reassign_species_taxonomy/3` (line 88):
 - Remove `rotate_former_undescribed` from opts (line 90)
-- Remove `was_undescribed?` capture (line 94) — it's only used for alias type resolution
+- Remove `was_undescribed?` capture (line 94)
 - Remove call to `maybe_rotate_former_undescribed` (line 100)
 - Remove `was_undescribed?` parameter from `rename_species_for_reclassification` (line 106)
 
-Simplify `resolve_reclassify_alias_type/2` (lines 150-152) to always return `"scientific"`:
+Simplify `resolve_reclassify_alias_type/2` (lines 150-152) — always `"scientific"`. Or remove entirely and pass `"scientific"` directly.
 
-```elixir
-defp resolve_reclassify_alias_type(_explicit, _was_undescribed), do: "scientific"
-```
-
-Or better: remove it entirely and just pass `"scientific"` directly in `rename_species_for_reclassification`.
-
-In `reclassify_species/2` (line 35):
-- Remove `former_undescribed_choice` from the extracted params
-- The `rotate?` variable from `resolve_alias_opts` is now always `false`, so the `if rotate?` branch in `name_changed?` (line 58) is dead — remove it.
+Delete `maybe_rotate_former_undescribed/2` (lines 182-186).
 
 **Step 2: Remove functions from `species.ex`**
 
-Delete these functions:
+Delete:
 - `has_former_undescribed_alias?/1` (lines 635-643)
 - `rotate_former_undescribed_alias/1` (lines 653-671)
 
-In `add_rename_alias/3` (lines 610-630), remove the `former_undescribed` guard:
-
-```elixir
-def add_rename_alias(species_id, old_name, type \\ "scientific") do
-  alias_changeset =
-    %Alias{}
-    |> Alias.changeset(%{name: old_name, type: type, description: "Previous name"})
-  # ... rest of the create logic (without the former_undescribed check)
-end
-```
+In `add_rename_alias/3` (lines 610-630), remove the `former_undescribed` guard.
 
 **Step 3: Simplify `reclassify_live.ex`**
 
-In `init_component_state/1` (line 68): remove `:has_former_undescribed` assign.
-In `open_modal/1` (lines 76-78): remove the `has_former_undescribed` computation and assign.
-In `execute_reclassify/6` (lines 322-333): remove `former_undescribed_choice` from params.
-Remove passing `has_former_undescribed` and `alias_choice` to the component (line 133-134).
+- Remove `:has_former_undescribed` from `init_component_state/1` (line 68)
+- Remove `has_former_undescribed` computation from `open_modal/1` (lines 76-78)
+- Remove `former_undescribed_choice` from `execute_reclassify/6` params (lines 322-333)
+- Remove passing `has_former_undescribed` and `alias_choice` to the component (lines 133-134)
 
 **Step 4: Simplify `form_components.ex` reclassify modal**
 
-Remove the `has_former_undescribed` attr (lines 1091-1093).
-Remove the `alias_choice` attr (lines 1095-1097).
-Remove the conditional former_undescribed radio group section (lines 1186-1228). Keep only the standard "Add scientific synonym alias" checkbox.
+- Remove the `has_former_undescribed` attr (lines 1091-1093)
+- Remove the `alias_choice` attr (lines 1095-1097)
+- Remove the conditional former_undescribed radio group section (lines 1186-1228)
+- Keep only the standard "Add scientific synonym alias" checkbox
 
 **Step 5: Update tests**
 
 In `test/gallformers/taxonomy_test.exs`:
-- Tests that assert `former_undescribed` alias creation should now assert `scientific` alias creation instead
-- Tests for `has_former_undescribed_alias?` and `rotate_former_undescribed_alias` should be deleted
-- Tests for `former_undescribed_choice` parameter should be deleted or simplified
+- Tests asserting `former_undescribed` alias creation → change to expect `scientific`
+- Delete tests for `has_former_undescribed_alias?` and `rotate_former_undescribed_alias`
+- Delete tests for `former_undescribed_choice` parameter
 
 In `test/prod_data/invariants_test.exs`:
-- Remove the "no species has more than one alias of type former_undescribed" test (lines 358-372)
+- Remove "no species has more than one alias of type former_undescribed" test (lines 358-372)
 
 **Step 6: Verify compilation and run full tests**
 
@@ -777,178 +728,57 @@ former_undescribed_choice parameter, alias rotation logic.
 
 ## Task 10: Data Migration
 
-**GATE: Only proceed after Task 1 diagnostics are reviewed and approved by user.**
+**BLOCKED: Awaiting reviewer feedback on 3 action items (due Tuesday 2026-02-18).**
+
+See [triage doc](Triaging%20the%20state%20of%20Gall%20species%20data.md) for full details.
+
+**Pre-requisites before writing this migration:**
+1. ID 1115 renamed (or decision to skip and fix manually after)
+2. Duplicate gallformers codes resolved (IDs 4081/4082 and 2747/5443)
+3. Fresh `make download-db` to get latest production data
 
 **Files:**
 - Create: migration via `mix ecto.gen.migration separate_undescribed_from_incomplete`
 
-**Step 1: Generate migration**
+**Migration must use Elixir code (not raw SQL) for epithet extraction** — call `TaxonName.parse/1` to correctly handle both `"Genus epithet"` and `"Unknown (Family) epithet"` name formats.
 
-```bash
-mix ecto.gen.migration separate_undescribed_from_incomplete
-```
+**Operations:**
 
-**Step 2: Write the migration**
+1. **Populate gallformers_code** from species name epithet for galls with 1+ dashes in epithet, excluding 23 legitimate described species:
+   - 1 dash exclusions: 778, 1005, 1339, 1340, 1373, 1906, 1996, 2255, 2688, 3167, 3346, 3979, 3981, 3992, 4089, 4092, 4603, 4792, 5027, 5578, 5645
+   - 2 dash exclusions: 633, 4614
 
-```elixir
-defmodule Gallformers.Repo.Migrations.SeparateUndescribedFromIncomplete do
-  use Gallformers.Migration
+2. **Populate gallformers_code from former_undescribed aliases** (none exist today; defensive)
 
-  def up do
-    # 1. Populate gallformers_code from former_undescribed aliases
-    # (these have the original undescribed name — extract the epithet)
-    execute("""
-    UPDATE gall_traits
-    SET gallformers_code = (
-      SELECT REPLACE(TRIM(SUBSTR(a.name, INSTR(a.name, ' ') + 1)), ' ', '-')
-      FROM alias a
-      JOIN alias_species als ON als.alias_id = a.id
-      WHERE als.species_id = gall_traits.species_id
-        AND a.type = 'former_undescribed'
-      LIMIT 1
-    )
-    WHERE species_id IN (
-      SELECT als.species_id
-      FROM alias a
-      JOIN alias_species als ON als.alias_id = a.id
-      WHERE a.type = 'former_undescribed'
-    )
-    """)
+3. **Fix undescribed flags:**
+   - ID 2235 → set undescribed = true
+   - All undescribed galls with real genus AND no dashes in epithet → set undescribed = false (except ID 1115)
+   - All galls under Unknown genera → ensure undescribed = true
 
-    # 2. Populate gallformers_code for currently-undescribed galls that don't have one yet
-    # (extract epithet from current species name)
-    execute("""
-    UPDATE gall_traits
-    SET gallformers_code = (
-      SELECT REPLACE(TRIM(SUBSTR(s.name, INSTR(s.name, ' ') + 1)), ' ', '-')
-      FROM species s
-      WHERE s.id = gall_traits.species_id
-    )
-    WHERE undescribed = 1
-      AND (gallformers_code IS NULL OR gallformers_code = '')
-    """)
+4. **Fix datacomplete:**
+   - All galls without sources → set datacomplete = false
+   - All undescribed galls → set datacomplete = false
 
-    # 3. Fix undescribed flags: un-undescribe galls with real genera
-    execute("""
-    UPDATE gall_traits SET undescribed = 0
-    WHERE undescribed = 1
-      AND species_id IN (
-        SELECT st.species_id FROM species_taxonomy st
-        JOIN taxonomy t ON st.taxonomy_id = t.id
-        WHERE t.type = 'genus' AND t.name NOT LIKE 'Unknown%'
-      )
-    """)
+5. **Clean up aliases:** Convert any `former_undescribed` aliases to `scientific` type
 
-    # 4. Fix datacomplete: ensure no sourceless gall claims completeness
-    execute("""
-    UPDATE species SET datacomplete = 0
-    WHERE datacomplete = 1
-      AND taxoncode = 'gall'
-      AND id NOT IN (SELECT species_id FROM species_source)
-    """)
-
-    # 5. Convert former_undescribed aliases to scientific
-    execute("""
-    UPDATE alias SET type = 'scientific'
-    WHERE type = 'former_undescribed'
-    """)
-  end
-
-  def down do
-    # Not reversible — data was corrected
-    :ok
-  end
-end
-```
-
-**Important note on epithet extraction:** The SQL `SUBSTR(name, INSTR(name, ' ') + 1)` extracts everything after the first space. For names like `"Unknown (Cynipidae) q-lobata-leaf-blister"`, this gives `"(Cynipidae) q-lobata-leaf-blister"` which is wrong. We need a smarter approach for Unknown genus names.
-
-A safer approach: use Elixir code in the migration to call `TaxonName.parse/1`:
+**Post-migration spot checks:**
 
 ```elixir
-def up do
-  # 1. Populate gallformers_code from former_undescribed aliases
-  former_aliases = repo().all(
-    from a in "alias",
-      join: als in "alias_species", on: als.alias_id == a.id,
-      where: a.type == "former_undescribed",
-      select: {als.species_id, a.name}
-  )
-
-  for {species_id, alias_name} <- former_aliases do
-    epithet = Gallformers.Taxonomy.TaxonName.parse(alias_name).epithet
-    if epithet do
-      repo().query!("UPDATE gall_traits SET gallformers_code = ?1 WHERE species_id = ?2",
-        [epithet, species_id])
-    end
-  end
-
-  # 2. Populate for currently-undescribed galls without a code yet
-  undescribed_without_code = repo().all(
-    from gt in "gall_traits",
-      join: s in "species", on: s.id == gt.species_id,
-      where: gt.undescribed == true,
-      where: is_nil(gt.gallformers_code) or gt.gallformers_code == "",
-      select: {gt.species_id, s.name}
-  )
-
-  for {species_id, name} <- undescribed_without_code do
-    epithet = Gallformers.Taxonomy.TaxonName.parse(name).epithet
-    if epithet do
-      repo().query!("UPDATE gall_traits SET gallformers_code = ?1 WHERE species_id = ?2",
-        [epithet, species_id])
-    end
-  end
-
-  # 3-5: SQL operations (same as above)
-  # ...
-end
+# No undescribed galls with real genera and no dashes (except 1115 if not yet fixed)
+# No former_undescribed aliases
+# No datacomplete galls without sources
+# No datacomplete undescribed galls
+# No duplicate gallformers_code values
+# Count of galls with gallformers_code populated
 ```
 
-**Step 3: Run migration**
-
-```bash
-mix ecto.migrate
-```
-
-**Step 4: Spot-check results**
-
-```bash
-iex -S mix
-```
-
-```elixir
-import Ecto.Query
-alias Gallformers.Repo
-
-# Verify no undescribed galls with real genera remain
-bad = Repo.all(
-  from gt in "gall_traits",
-    join: st in "species_taxonomy", on: st.species_id == gt.species_id,
-    join: t in "taxonomy", on: st.taxonomy_id == t.id,
-    where: gt.undescribed == true,
-    where: t.type == "genus",
-    where: not like(t.name, "Unknown%"),
-    select: gt.species_id
-)
-IO.puts("Undescribed with real genera (should be 0): #{length(bad)}")
-
-# Verify no former_undescribed aliases remain
-former = Repo.one(from a in "alias", where: a.type == "former_undescribed", select: count(a.id))
-IO.puts("Former undescribed aliases (should be 0): #{former}")
-
-# Verify gallformers_code populated
-codes = Repo.one(from gt in "gall_traits", where: not is_nil(gt.gallformers_code) and gt.gallformers_code != "", select: count(gt.species_id))
-IO.puts("Galls with gallformers_code: #{codes}")
-```
-
-**Step 5: Commit**
+**Commit:**
 
 ```
 Migrate data: separate undescribed from incomplete
 
-Populates gallformers_code from former_undescribed aliases and
-undescribed species names. Fixes mislabeled undescribed flags.
+Populates gallformers_code from species name epithets. Fixes
+mislabeled undescribed flags. Enforces datacomplete rules.
 Converts former_undescribed aliases to scientific.
 ```
 
@@ -959,7 +789,7 @@ Converts former_undescribed aliases to scientific.
 **Files:**
 - Modify: `test/prod_data/invariants_test.exs`
 
-**Step 1: Add new invariant — no datacomplete gall without sources**
+**Step 1: Add new invariants**
 
 ```elixir
 test "no gall with datacomplete=true lacks sources" do
@@ -976,20 +806,45 @@ test "no gall with datacomplete=true lacks sources" do
   assert bad == [],
          "Found #{length(bad)} complete galls without sources: #{inspect(Enum.take(bad, 10))}"
 end
+
+test "no undescribed gall has datacomplete=true" do
+  bad =
+    Repo.all(
+      from(s in "species",
+        join: gt in "gall_traits", on: gt.species_id == s.id,
+        where: s.taxoncode == "gall",
+        where: gt.undescribed == true,
+        where: s.datacomplete == true,
+        select: %{id: s.id, name: s.name}
+      )
+    )
+
+  assert bad == [],
+         "Found #{length(bad)} undescribed complete galls: #{inspect(Enum.take(bad, 10))}"
+end
+
+test "no duplicate gallformers_code values" do
+  bad =
+    Repo.all(
+      from(gt in "gall_traits",
+        where: not is_nil(gt.gallformers_code) and gt.gallformers_code != "",
+        group_by: gt.gallformers_code,
+        having: count(gt.species_id) > 1,
+        select: gt.gallformers_code
+      )
+    )
+
+  assert bad == [],
+         "Found #{length(bad)} duplicate gallformers codes: #{inspect(bad)}"
+end
 ```
 
-**Step 2: The former_undescribed invariant test (line 358) was already removed in Task 9.**
+**Step 2: Remove the former_undescribed invariant** (already removed in Task 9)
 
-**Step 3: Verify prod data tests pass (if prod data available)**
-
-```bash
-make test-prod-data
-```
-
-**Step 4: Commit**
+**Step 3: Commit**
 
 ```
-Add invariant: datacomplete galls must have sources
+Add invariants: datacomplete requires sources, undescribed blocks complete, unique gallformers codes
 ```
 
 ---
@@ -1012,8 +867,10 @@ make ci
 
 Start the dev server and verify:
 - Admin gall form: datacomplete checkbox locked with reason when no sources
+- Admin gall form: datacomplete checkbox locked with reason when undescribed
 - Admin gall form: undescribed checkbox only locked for Unknown genera
 - Admin gall form: gallformers_code field visible and editable
+- Admin gall form: gallformers_code uniqueness validated
 - Public gall page: undescribed gall with code shows blurb + iNat link
 - Public gall page: described gall with code shows "formerly" blurb
 - Public gall page: gall without code shows nothing special
