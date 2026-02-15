@@ -6,6 +6,7 @@ defmodule Gallformers.Sources.Source do
   """
   use Ecto.Schema
   import Ecto.Changeset
+  import Gallformers.ChangesetHelpers
 
   @behaviour Gallformers.SchemaFields
 
@@ -63,6 +64,8 @@ defmodule Gallformers.Sources.Source do
     |> validate_required(@required_fields)
     |> validate_length(:title, min: 1, max: 500)
     |> validate_format(:pubyear, ~r/^[12][0-9]{3}$/, message: "must be a valid 4-digit year")
+    |> validate_url(:link)
+    |> validate_url(:licenselink)
     |> validate_license_link()
     |> unsafe_validate_unique(:title, Gallformers.Repo,
       message: "a source with this title already exists"

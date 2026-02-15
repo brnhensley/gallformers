@@ -395,7 +395,7 @@ defmodule GallformersWeb.Admin.ImagesLive do
                         <% end %>
                       </td>
                       <td class="px-3 py-2 text-sm">
-                        <%= if image.licenselink && image.licenselink != "" do %>
+                        <%= if valid_url?(image.licenselink) do %>
                           <a
                             href={image.licenselink}
                             target="_blank"

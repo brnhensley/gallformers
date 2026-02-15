@@ -67,9 +67,12 @@ defmodule Gallformers.AccountsTest do
 
       assert {:error, changeset} = Accounts.create_user(attrs)
       errors = errors_on(changeset)
-      assert %{inaturalist_url: ["must be a valid URL"]} = errors
-      assert %{social_url: ["must be a valid URL"]} = errors
-      assert %{personal_url: ["must be a valid URL"]} = errors
+
+      assert %{inaturalist_url: ["must be a valid URL starting with http:// or https://"]} =
+               errors
+
+      assert %{social_url: ["must be a valid URL starting with http:// or https://"]} = errors
+      assert %{personal_url: ["must be a valid URL starting with http:// or https://"]} = errors
     end
 
     test "accepts valid URLs on create" do
@@ -150,7 +153,8 @@ defmodule Gallformers.AccountsTest do
       assert {:error, changeset} =
                Accounts.update_user(user, %{inaturalist_url: "invalid-url"})
 
-      assert %{inaturalist_url: ["must be a valid URL"]} = errors_on(changeset)
+      assert %{inaturalist_url: ["must be a valid URL starting with http:// or https://"]} =
+               errors_on(changeset)
     end
 
     test "accepts valid URLs on update", %{user: user} do

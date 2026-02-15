@@ -653,7 +653,7 @@ defmodule GallformersWeb.GallLive do
                   {if source.author, do: " - #{source.author}"}
                   {if source.pubyear, do: " (#{source.pubyear})"}
                   <.link
-                    :if={source.externallink not in [nil, ""]}
+                    :if={valid_url?(source.externallink)}
                     href={source.externallink}
                     target="_blank"
                     rel="noopener noreferrer"
@@ -697,7 +697,7 @@ defmodule GallformersWeb.GallLive do
                 </button>
                 <p :if={source.license} class="mt-1 text-sm text-gray-500">
                   License:
-                  <%= if source.licenselink && source.licenselink != "" do %>
+                  <%= if valid_url?(source.licenselink) do %>
                     <.link
                       href={source.licenselink}
                       target="_blank"
@@ -781,7 +781,7 @@ defmodule GallformersWeb.GallLive do
             </div>
             <div :if={@selected_source.license} class="text-sm text-gray-500 pt-2 border-t">
               License:
-              <%= if @selected_source.licenselink not in [nil, ""] do %>
+              <%= if valid_url?(@selected_source.licenselink) do %>
                 <.link
                   href={@selected_source.licenselink}
                   target="_blank"
@@ -800,7 +800,7 @@ defmodule GallformersWeb.GallLive do
           <div class="flex items-center justify-between w-full">
             <div class="flex items-center gap-4">
               <.link
-                :if={@selected_source.externallink not in [nil, ""]}
+                :if={valid_url?(@selected_source.externallink)}
                 href={@selected_source.externallink}
                 target="_blank"
                 rel="noopener noreferrer"

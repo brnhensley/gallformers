@@ -6,6 +6,7 @@ defmodule Gallformers.Species.SpeciesSource do
   """
   use Ecto.Schema
   import Ecto.Changeset
+  import Gallformers.ChangesetHelpers
 
   @behaviour Gallformers.SchemaFields
 
@@ -48,6 +49,7 @@ defmodule Gallformers.Species.SpeciesSource do
       :alias_id
     ])
     |> validate_required(@required_fields)
+    |> validate_url(:externallink)
     |> unique_constraint([:species_id, :source_id],
       name: :species_source_species_id_source_id,
       message: "this species is already linked to this source"

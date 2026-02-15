@@ -20,6 +20,7 @@ defmodule Gallformers.Accounts.User do
 
   use Ecto.Schema
   import Ecto.Changeset
+  import Gallformers.ChangesetHelpers
 
   @behaviour Gallformers.SchemaFields
 
@@ -101,18 +102,5 @@ defmodule Gallformers.Accounts.User do
     |> validate_url(:inaturalist_url)
     |> validate_url(:social_url)
     |> validate_url(:personal_url)
-  end
-
-  defp validate_url(changeset, field) do
-    validate_change(changeset, field, fn _, value ->
-      case URI.parse(value) do
-        %URI{scheme: scheme, host: host}
-        when scheme in ["http", "https"] and is_binary(host) and host != "" ->
-          []
-
-        _ ->
-          [{field, "must be a valid URL"}]
-      end
-    end)
   end
 end
