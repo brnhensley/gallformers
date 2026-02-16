@@ -1,10 +1,10 @@
 ---
-status: planned
+status: done
 created: 2026-02-14
 updated: 2026-02-16
 relates: [5b3d]
-title: Separate undescribed status from data completeness (gallformers code)
 docket: true
+title: Separate undescribed status from data completeness (gallformers code)
 ---
 
 # Gallformers code as separate data field

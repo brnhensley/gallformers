@@ -1,9 +1,9 @@
 ---
 status: raw
 created: 2026-02-13
-updated: 2026-02-13
-relates: [ec68]
+updated: 2026-02-16
 epic: 1-foundation
+relates: [ec68, 5c56]
 ---
 
 # Audit trail
