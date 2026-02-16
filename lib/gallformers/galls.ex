@@ -548,6 +548,19 @@ defmodule Gallformers.Galls do
     end
   end
 
+  # Extracts gall property attrs from params and updates, rolling back on error.
+  # Use inside Repo.transaction to flatten nesting.
+  defp update_gall_properties!(species_id, params) do
+    case update_gall_properties(species_id, %{
+           detachable: params.detachable,
+           undescribed: params.undescribed,
+           gallformers_code: params[:gallformers_code]
+         }) do
+      {:ok, result} -> result
+      {:error, changeset} -> Repo.rollback(changeset)
+    end
+  end
+
   @doc """
   Checks whether a gallformers_code is already in use by another species.
   Returns the species_id of the owner if taken, nil if available.
@@ -881,14 +894,8 @@ defmodule Gallformers.Galls do
 
           sync_filter_values(species.id, empty_filter_values(), params.filter_values)
 
-          case update_gall_properties(species.id, %{
-                 detachable: params.detachable,
-                 undescribed: params.undescribed,
-                 gallformers_code: params[:gallformers_code]
-               }) do
-            {:ok, _} -> species
-            {:error, changeset} -> Repo.rollback(changeset)
-          end
+          update_gall_properties!(species.id, params)
+          species
 
         {:error, changeset} ->
           Repo.rollback(changeset)
@@ -932,18 +939,9 @@ defmodule Gallformers.Galls do
             params.filter_values
           )
 
-          case update_gall_properties(species.id, %{
-                 detachable: params.detachable,
-                 undescribed: params.undescribed,
-                 gallformers_code: params[:gallformers_code]
-               }) do
-            {:ok, _} ->
-              Gallformers.Species.touch(species.id)
-              updated_species
-
-            {:error, changeset} ->
-              Repo.rollback(changeset)
-          end
+          update_gall_properties!(species.id, params)
+          Gallformers.Species.touch(species.id)
+          updated_species
 
         {:error, changeset} ->
           Repo.rollback(changeset)
