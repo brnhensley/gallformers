@@ -363,6 +363,7 @@ defmodule GallformersWeb.ProdDataE2E.TaxonomyAdminTest do
       # Should redirect to taxonomy listing with success flash
       session
       |> assert_has(css("[role='alert']", text: "Deleted"))
+      |> wait_for_liveview()
 
       # Verify via DB: genus should be gone
       refute taxonomy_exists?(genus.id)
@@ -395,6 +396,7 @@ defmodule GallformersWeb.ProdDataE2E.TaxonomyAdminTest do
       # Should redirect with success flash
       session
       |> assert_has(css("[role='alert']", text: "Deleted"))
+      |> wait_for_liveview()
 
       # Verify via DB: family gone
       refute taxonomy_exists?(family.id)
