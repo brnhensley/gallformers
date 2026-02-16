@@ -97,6 +97,24 @@ defmodule Gallformers.GallsTest do
       {:ok, result} = Galls.update_gall_properties(species.id, %{"undescribed" => false})
       assert result.undescribed == true
     end
+
+    test "rejects duplicate gallformers_code" do
+      {:ok, species1} =
+        Repo.insert(%Species{name: "Dupecode sp1", taxoncode: "gall", datacomplete: false})
+
+      {:ok, species2} =
+        Repo.insert(%Species{name: "Dupecode sp2", taxoncode: "gall", datacomplete: false})
+
+      {:ok, _} = Galls.create_gall_traits(species1.id)
+      {:ok, _} = Galls.create_gall_traits(species2.id)
+
+      {:ok, _} = Galls.update_gall_properties(species1.id, %{gallformers_code: "dupe-code"})
+
+      {:error, changeset} =
+        Galls.update_gall_properties(species2.id, %{gallformers_code: "dupe-code"})
+
+      assert errors_on(changeset).gallformers_code
+    end
   end
 
   describe "create_gall_with_associations/1" do
@@ -376,7 +394,7 @@ defmodule Gallformers.GallsTest do
       assert {false, nil} = Galls.compute_undescribed_lock(taxonomy)
     end
 
-    test "locked when species has no sources" do
+    test "unlocked when species has no sources but real genus" do
       {:ok, species} =
         Repo.insert(%Species{
           name: "Locktest sp",
@@ -385,8 +403,7 @@ defmodule Gallformers.GallsTest do
         })
 
       taxonomy = %Lineage{genus: %Genus{name: "Locktest"}}
-      {true, reason} = Galls.compute_undescribed_lock(taxonomy, species.id)
-      assert reason =~ "source is required"
+      assert {false, nil} = Galls.compute_undescribed_lock(taxonomy, species.id)
     end
 
     test "unlocked when species has sources" do
@@ -419,6 +436,81 @@ defmodule Gallformers.GallsTest do
 
     test "returns unlocked for nil taxonomy" do
       assert {false, nil} = Galls.compute_undescribed_lock(nil)
+    end
+  end
+
+  describe "compute_datacomplete_lock/1" do
+    test "locked when species has no sources" do
+      {:ok, species} =
+        Repo.insert(%Species{
+          name: "Nolock sp",
+          taxoncode: "gall",
+          datacomplete: false
+        })
+
+      {true, reason} = Galls.compute_datacomplete_lock(species.id)
+      assert reason =~ "source is required"
+    end
+
+    test "locked when species is undescribed" do
+      {:ok, species} =
+        Repo.insert(%Species{
+          name: "Undesc sp",
+          taxoncode: "gall",
+          datacomplete: false
+        })
+
+      {:ok, _} = Galls.create_gall_traits(species.id)
+      Galls.update_gall_properties(species.id, %{undescribed: true})
+
+      # Add a source so we isolate the undescribed check
+      {:ok, source} =
+        Gallformers.Sources.create_source(%{
+          title: "Test Source",
+          author: "Author",
+          pubyear: "2020",
+          link: "http://example.com",
+          citation: "Test citation",
+          license: "CC BY"
+        })
+
+      Gallformers.Sources.create_species_source(%{
+        species_id: species.id,
+        source_id: source.id
+      })
+
+      {true, reason} = Galls.compute_datacomplete_lock(species.id)
+      assert reason =~ "undescribed"
+    end
+
+    test "unlocked when species has sources and is described" do
+      {:ok, species} =
+        Repo.insert(%Species{
+          name: "Haslock sp",
+          taxoncode: "gall",
+          datacomplete: false
+        })
+
+      {:ok, source} =
+        Gallformers.Sources.create_source(%{
+          title: "Test Source",
+          author: "Author",
+          pubyear: "2020",
+          link: "http://example.com",
+          citation: "Test citation",
+          license: "CC BY"
+        })
+
+      Gallformers.Sources.create_species_source(%{
+        species_id: species.id,
+        source_id: source.id
+      })
+
+      assert {false, nil} = Galls.compute_datacomplete_lock(species.id)
+    end
+
+    test "unlocked for nil species_id" do
+      assert {false, nil} = Galls.compute_datacomplete_lock(nil)
     end
   end
 end

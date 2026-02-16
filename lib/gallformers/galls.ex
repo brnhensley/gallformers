@@ -265,6 +265,7 @@ defmodule Gallformers.Galls do
           abundance_name: a.abundance,
           detachable: gt.detachable,
           undescribed: gt.undescribed,
+          gallformers_code: gt.gallformers_code,
           inserted_at: s.inserted_at,
           updated_at: s.updated_at
         }
@@ -547,6 +548,29 @@ defmodule Gallformers.Galls do
     end
   end
 
+  @doc """
+  Checks whether a gallformers_code is already in use by another species.
+  Returns the species_id of the owner if taken, nil if available.
+  """
+  @spec gallformers_code_taken?(String.t(), integer() | nil) :: integer() | nil
+  def gallformers_code_taken?(code, exclude_species_id \\ nil)
+  def gallformers_code_taken?(code, _) when code in [nil, ""], do: nil
+
+  def gallformers_code_taken?(code, exclude_species_id) do
+    query =
+      from(gt in GallTraits,
+        where: gt.gallformers_code == ^code,
+        select: gt.species_id
+      )
+
+    query =
+      if exclude_species_id,
+        do: where(query, [gt], gt.species_id != ^exclude_species_id),
+        else: query
+
+    Repo.one(query)
+  end
+
   # If the caller is trying to set undescribed=false but the species has an Unknown genus,
   # silently correct to undescribed=true.
   defp enforce_unknown_genus_floor(species_id, attrs) do
@@ -659,25 +683,19 @@ defmodule Gallformers.Galls do
 
   A gall's undescribed flag is locked to `true` when:
   - The genus is a placeholder (Unknown) — species with unknown genus are always undescribed
-  - The species has no sources linked — a source is required to mark as described
 
   Returns `{locked?, reason}` where reason is a string explaining the lock, or nil if unlocked.
-  For new galls (species_id is nil), the source check is skipped.
+  Missing sources are handled by `compute_datacomplete_lock/1` instead.
   """
   @spec compute_undescribed_lock(Gallformers.Taxonomy.Lineage.t() | nil, integer() | nil) ::
           {boolean(), String.t() | nil}
-  def compute_undescribed_lock(taxonomy, species_id \\ nil) do
+  def compute_undescribed_lock(taxonomy, _species_id \\ nil) do
     genus_name = taxonomy && taxonomy.genus && taxonomy.genus.name
 
-    cond do
-      Gallformers.Taxonomy.placeholder_genus_name?(genus_name) ->
-        {true, "Undescribed is required for species with unknown genus."}
-
-      species_id && not Gallformers.Sources.has_sources?(species_id) ->
-        {true, "A source is required to mark a species as described."}
-
-      true ->
-        {false, nil}
+    if Gallformers.Taxonomy.placeholder_genus_name?(genus_name) do
+      {true, "Undescribed is required for species with unknown genus."}
+    else
+      {false, nil}
     end
   end
 
@@ -689,6 +707,31 @@ defmodule Gallformers.Galls do
     case Repo.get(GallTraits, species_id) do
       %GallTraits{undescribed: true} -> true
       _ -> false
+    end
+  end
+
+  @doc """
+  Computes whether the datacomplete checkbox should be locked and why.
+
+  A gall's datacomplete flag is locked to `false` when:
+  - The species has no sources linked — a source is required for completeness
+  - The gall is marked undescribed — undescribed species are by definition incomplete
+
+  Returns `{locked?, reason}` where reason is a string explaining the lock, or nil if unlocked.
+  """
+  @spec compute_datacomplete_lock(integer() | nil) :: {boolean(), String.t() | nil}
+  def compute_datacomplete_lock(nil), do: {false, nil}
+
+  def compute_datacomplete_lock(species_id) do
+    cond do
+      not Gallformers.Sources.has_sources?(species_id) ->
+        {true, "A source is required to mark a gall as data complete."}
+
+      undescribed?(species_id) ->
+        {true, "An undescribed gall cannot be marked as data complete."}
+
+      true ->
+        {false, nil}
     end
   end
 
@@ -838,12 +881,14 @@ defmodule Gallformers.Galls do
 
           sync_filter_values(species.id, empty_filter_values(), params.filter_values)
 
-          update_gall_properties(species.id, %{
-            detachable: params.detachable,
-            undescribed: params.undescribed
-          })
-
-          species
+          case update_gall_properties(species.id, %{
+                 detachable: params.detachable,
+                 undescribed: params.undescribed,
+                 gallformers_code: params[:gallformers_code]
+               }) do
+            {:ok, _} -> species
+            {:error, changeset} -> Repo.rollback(changeset)
+          end
 
         {:error, changeset} ->
           Repo.rollback(changeset)
@@ -887,13 +932,18 @@ defmodule Gallformers.Galls do
             params.filter_values
           )
 
-          update_gall_properties(species.id, %{
-            detachable: params.detachable,
-            undescribed: params.undescribed
-          })
+          case update_gall_properties(species.id, %{
+                 detachable: params.detachable,
+                 undescribed: params.undescribed,
+                 gallformers_code: params[:gallformers_code]
+               }) do
+            {:ok, _} ->
+              Gallformers.Species.touch(species.id)
+              updated_species
 
-          Gallformers.Species.touch(species.id)
-          updated_species
+            {:error, changeset} ->
+              Repo.rollback(changeset)
+          end
 
         {:error, changeset} ->
           Repo.rollback(changeset)

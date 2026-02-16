@@ -116,6 +116,10 @@ defmodule GallformersWeb.Admin.GallLive.Form do
     |> assign(:undescribed, false)
     |> assign(:undescribed_locked, false)
     |> assign(:undescribed_lock_reason, nil)
+    |> assign(:datacomplete_locked, false)
+    |> assign(:datacomplete_lock_reason, nil)
+    |> assign(:gallformers_code, nil)
+    |> assign(:gallformers_code_error, nil)
     |> assign(:new_alias_name, "")
     |> assign(:new_alias_type, "common")
     |> assign(:host_search_query, "")
@@ -189,6 +193,7 @@ defmodule GallformersWeb.Admin.GallLive.Form do
     |> assign(:possible_families, possible_families)
     |> assign(:alias_collisions, Species.find_species_with_alias(name))
     |> apply_undescribed_lock(taxonomy)
+    |> apply_datacomplete_lock()
     |> mark_dirty()
   end
 
@@ -198,10 +203,11 @@ defmodule GallformersWeb.Admin.GallLive.Form do
   defp init_undescribed_gall_state(socket, params) do
     name = params["species_name"]
     host_id = parse_int_param(params["host_id"])
+    gallformers_code = params["gallformers_code"]
 
     case Gallformers.Taxonomy.resolve_taxonomy_from_name(name) do
       {:ok, taxonomy} ->
-        init_undescribed_gall_with_taxonomy(socket, name, taxonomy, host_id)
+        init_undescribed_gall_with_taxonomy(socket, name, taxonomy, host_id, gallformers_code)
 
       {:error, reason} ->
         socket
@@ -210,7 +216,7 @@ defmodule GallformersWeb.Admin.GallLive.Form do
     end
   end
 
-  defp init_undescribed_gall_with_taxonomy(socket, name, taxonomy, host_id) do
+  defp init_undescribed_gall_with_taxonomy(socket, name, taxonomy, host_id, gallformers_code) do
     gall = %SpeciesSchema{taxoncode: "gall", name: name}
     host = if host_id, do: Species.get_species(host_id)
 
@@ -224,8 +230,10 @@ defmodule GallformersWeb.Admin.GallLive.Form do
     |> assign(:taxonomy, taxonomy)
     |> assign(:selected_family_id, taxonomy.family && taxonomy.family.id)
     |> assign(:undescribed, true)
+    |> assign(:gallformers_code, gallformers_code)
     |> maybe_add_initial_host(host)
     |> apply_undescribed_lock(taxonomy)
+    |> apply_datacomplete_lock()
     |> mark_dirty()
   end
 
@@ -276,6 +284,7 @@ defmodule GallformersWeb.Admin.GallLive.Form do
           filter_values = gall_data.filter_values
           detachable = gall_data.detachable || "unknown"
           undescribed = gall_data.undescribed || false
+          gallformers_code = gall_data.gallformers_code
 
           socket
           |> build_default_assigns()
@@ -297,7 +306,9 @@ defmodule GallformersWeb.Admin.GallLive.Form do
           |> assign(:filter_values, filter_values)
           |> assign(:detachable, detachable)
           |> assign(:undescribed, undescribed)
+          |> assign(:gallformers_code, gallformers_code)
           |> apply_undescribed_lock(taxonomy, species_id)
+          |> apply_datacomplete_lock(species_id)
         end
     end
   end
@@ -411,6 +422,14 @@ defmodule GallformersWeb.Admin.GallLive.Form do
         |> Map.put("taxoncode", "gall")
         |> Map.put("name", socket.assigns.gall.name)
 
+      # Enforce datacomplete lock server-side
+      params =
+        if socket.assigns.datacomplete_locked do
+          Map.put(params, "datacomplete", "false")
+        else
+          params
+        end
+
       save_gall(socket, socket.assigns.mode, params)
     end
   end
@@ -507,6 +526,22 @@ defmodule GallformersWeb.Admin.GallLive.Form do
       new_value = !socket.assigns.undescribed
       {:noreply, socket |> assign(:undescribed, new_value) |> mark_dirty()}
     end
+  end
+
+  @impl true
+  def handle_event("update_gallformers_code", %{"gallformers_code" => value}, socket) do
+    species_id = socket.assigns[:gall_id]
+
+    error =
+      if Galls.gallformers_code_taken?(value, species_id),
+        do: "This code is already in use by another gall.",
+        else: nil
+
+    {:noreply,
+     socket
+     |> assign(:gallformers_code, value)
+     |> assign(:gallformers_code_error, error)
+     |> mark_dirty()}
   end
 
   @impl true
@@ -628,6 +663,7 @@ defmodule GallformersWeb.Admin.GallLive.Form do
      |> assign(:selected_family_id, taxonomy && taxonomy.family && taxonomy.family.id)
      |> assign(:page_title, "Edit Gall - #{result.species.name}")
      |> apply_undescribed_lock(taxonomy, species_id)
+     |> apply_datacomplete_lock(species_id)
      |> put_flash(:info, "Gall updated successfully")}
   end
 
@@ -683,6 +719,14 @@ defmodule GallformersWeb.Admin.GallLive.Form do
     |> then(fn s -> if locked?, do: assign(s, :undescribed, true), else: s end)
   end
 
+  defp apply_datacomplete_lock(socket, species_id \\ nil) do
+    {locked?, reason} = Galls.compute_datacomplete_lock(species_id)
+
+    socket
+    |> assign(:datacomplete_locked, locked?)
+    |> assign(:datacomplete_lock_reason, reason)
+  end
+
   defp add_host_to_pending(socket, host_id) do
     host_result = Enum.find(socket.assigns.host_search_results, &(&1.id == host_id))
 
@@ -715,7 +759,8 @@ defmodule GallformersWeb.Admin.GallLive.Form do
       aliases: socket.assigns.aliases,
       filter_values: socket.assigns.filter_values,
       detachable: socket.assigns.detachable,
-      undescribed: socket.assigns.undescribed
+      undescribed: socket.assigns.undescribed,
+      gallformers_code: socket.assigns.gallformers_code
     }
 
     case Galls.create_gall_with_associations(create_params) do
@@ -726,7 +771,8 @@ defmodule GallformersWeb.Admin.GallLive.Form do
          |> load_gall_for_edit(species.id)}
 
       {:error, %Ecto.Changeset{} = changeset} ->
-        {:noreply, assign(socket, :form, to_form(changeset))}
+        message = changeset_error_message(changeset)
+        {:noreply, put_flash(socket, :error, message)}
 
       {:error, _reason} ->
         {:noreply, put_flash(socket, :error, "Failed to create gall. Please try again.")}
@@ -744,7 +790,8 @@ defmodule GallformersWeb.Admin.GallLive.Form do
       original_filter_values: socket.assigns.original_filter_values,
       filter_values: socket.assigns.filter_values,
       detachable: socket.assigns.detachable,
-      undescribed: socket.assigns.undescribed
+      undescribed: socket.assigns.undescribed,
+      gallformers_code: socket.assigns.gallformers_code
     }
 
     case Galls.update_gall_with_associations(socket.assigns.gall, update_params) do
@@ -767,11 +814,21 @@ defmodule GallformersWeb.Admin.GallLive.Form do
          |> put_flash(:info, "Gall saved successfully")}
 
       {:error, %Ecto.Changeset{} = changeset} ->
-        {:noreply, assign(socket, :form, to_form(changeset))}
+        message = changeset_error_message(changeset)
+        {:noreply, put_flash(socket, :error, message)}
 
       {:error, _reason} ->
         {:noreply, put_flash(socket, :error, "Failed to save gall. Please try again.")}
     end
+  end
+
+  defp changeset_error_message(changeset) do
+    Ecto.Changeset.traverse_errors(changeset, fn {msg, opts} ->
+      Regex.replace(~r"%{(\w+)}", msg, fn _, key ->
+        opts |> Keyword.get(String.to_existing_atom(key), key) |> to_string()
+      end)
+    end)
+    |> Enum.map_join("; ", fn {field, errors} -> "#{field} #{Enum.join(errors, ", ")}" end)
   end
 
   # Convert valid filter type strings to atoms (whitelist strings derived from @valid_filter_types)
@@ -1129,11 +1186,29 @@ defmodule GallformersWeb.Admin.GallLive.Form do
 
               <%!-- Checkboxes --%>
               <div class="space-y-2 mb-4">
-                <.input
-                  type="checkbox"
-                  field={@form[:datacomplete]}
-                  label="All sources containing unique information relevant to this gall have been added and are reflected in its associated data. However, filter criteria may not be comprehensive in every field."
-                />
+                <div>
+                  <label class={[
+                    "flex items-center gap-2",
+                    if(@datacomplete_locked, do: "cursor-not-allowed", else: "cursor-pointer")
+                  ]}>
+                    <input
+                      type="checkbox"
+                      name={@form[:datacomplete].name}
+                      value="true"
+                      checked={
+                        Phoenix.HTML.Form.normalize_value("checkbox", @form[:datacomplete].value)
+                      }
+                      disabled={@datacomplete_locked}
+                      class="rounded border-gray-300 text-gf-maroon focus:ring-gf-maroon disabled:opacity-50"
+                    />
+                    <span class="text-sm text-gray-700">
+                      All sources containing unique information relevant to this gall have been added and are reflected in its associated data.
+                    </span>
+                  </label>
+                  <p :if={@datacomplete_lock_reason} class="text-amber-600 text-xs mt-1 ml-6">
+                    {@datacomplete_lock_reason}
+                  </p>
+                </div>
 
                 <div>
                   <label class={[
@@ -1155,6 +1230,27 @@ defmodule GallformersWeb.Admin.GallLive.Form do
                     {@undescribed_lock_reason}
                   </p>
                 </div>
+
+                <div :if={@undescribed || @gallformers_code not in [nil, ""]} class="mt-2">
+                  <label class="block text-sm font-medium text-gray-700 mb-1">
+                    Gallformers Code
+                  </label>
+                  <input
+                    type="text"
+                    name="gallformers_code"
+                    value={@gallformers_code}
+                    phx-change="update_gallformers_code"
+                    phx-debounce="300"
+                    placeholder="e.g. q-lobata-leaf-blister"
+                    class="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:ring-gf-maroon focus:border-gf-maroon"
+                  />
+                  <p :if={@gallformers_code_error} class="text-red-600 text-xs mt-1">
+                    {@gallformers_code_error}
+                  </p>
+                  <p :if={!@gallformers_code_error} class="text-gray-500 text-xs mt-1">
+                    Used for iNaturalist observation linking. Auto-populated for new undescribed galls.
+                  </p>
+                </div>
               </div>
 
               <%!-- Action buttons --%>
@@ -1170,7 +1266,11 @@ defmodule GallformersWeb.Admin.GallLive.Form do
                     Delete
                   </button>
                 </div>
-                <.form_actions form_dirty={@form_dirty} mode={@mode} />
+                <.form_actions
+                  form_dirty={@form_dirty}
+                  form_valid={!@gallformers_code_error}
+                  mode={@mode}
+                />
               </div>
             </.form>
 
