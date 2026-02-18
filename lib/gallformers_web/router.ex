@@ -244,7 +244,9 @@ defmodule GallformersWeb.Router do
   scope "/admin" do
     pipe_through [:browser, :superadmin]
 
-    live_dashboard "/dashboard", metrics: GallformersWeb.Telemetry
+    live_dashboard "/dashboard",
+      metrics: GallformersWeb.Telemetry,
+      ecto_repos: [Gallformers.Repo]
   end
 
   # Swoosh mailbox preview in development only
