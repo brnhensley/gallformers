@@ -22,7 +22,7 @@ defmodule GallformersWeb.Admin.GallLive.Index do
       |> assign(:search_query, "")
       |> assign(:current_page, 1)
       |> assign(:page_size, @page_size)
-      |> assign(:gall_list, list_galls(""))
+      |> load_galls()
 
     {:ok, socket}
   end
@@ -39,14 +39,17 @@ defmodule GallformersWeb.Admin.GallLive.Index do
 
   @impl true
   def handle_event("search", %{"query" => query}, socket) do
-    gall_list = list_galls(query)
-    {:noreply, assign(socket, gall_list: gall_list, search_query: query, current_page: 1)}
+    {:noreply,
+     socket
+     |> assign(:search_query, query)
+     |> assign(:current_page, 1)
+     |> load_galls()}
   end
 
   @impl true
   def handle_event("page", %{"page" => page}, socket) do
-    page = max(1, min(page, total_pages(socket.assigns.gall_list, socket.assigns.page_size)))
-    {:noreply, assign(socket, current_page: page)}
+    page = max(1, min(page, total_pages(socket)))
+    {:noreply, socket |> assign(:current_page, page) |> load_galls()}
   end
 
   @impl true
@@ -58,7 +61,7 @@ defmodule GallformersWeb.Admin.GallLive.Index do
         {:noreply,
          socket
          |> put_flash(:info, "Gall deleted successfully")
-         |> assign(:gall_list, list_galls(socket.assigns.search_query))}
+         |> load_galls()}
 
       {:error, _changeset} ->
         {:noreply, put_flash(socket, :error, "Failed to delete gall")}
@@ -68,27 +71,32 @@ defmodule GallformersWeb.Admin.GallLive.Index do
   @impl true
   def handle_info({event, _species}, socket)
       when event in [:species_created, :species_updated, :species_deleted] do
-    gall_list = list_galls(socket.assigns.search_query)
-    {:noreply, assign(socket, gall_list: gall_list)}
+    {:noreply, load_galls(socket)}
   end
 
-  defp list_galls("") do
-    Galls.list_galls()
+  defp load_galls(socket) do
+    %{search_query: query, current_page: page, page_size: page_size} = socket.assigns
+    offset = (page - 1) * page_size
+
+    case query do
+      "" ->
+        socket
+        |> assign(:total_count, Galls.count_galls())
+        |> assign(:gall_list, Galls.list_galls_paginated(page_size, offset))
+
+      query ->
+        results =
+          Species.search_species(query, 500)
+          |> Enum.filter(&(&1.taxoncode == "gall"))
+
+        socket
+        |> assign(:total_count, length(results))
+        |> assign(:gall_list, Enum.drop(results, offset) |> Enum.take(page_size))
+    end
   end
 
-  defp list_galls(query) do
-    Species.search_species(query, 500)
-    |> Enum.filter(&(&1.taxoncode == "gall"))
-  end
-
-  defp paginated(list, current_page, page_size) do
-    list
-    |> Enum.drop((current_page - 1) * page_size)
-    |> Enum.take(page_size)
-  end
-
-  defp total_pages(list, page_size) do
-    max(1, ceil(length(list) / page_size))
+  defp total_pages(socket) do
+    max(1, ceil(socket.assigns.total_count / socket.assigns.page_size))
   end
 
   @impl true
@@ -125,7 +133,7 @@ defmodule GallformersWeb.Admin.GallLive.Index do
               </tr>
             </thead>
             <tbody>
-              <tr :for={gall <- paginated(@gall_list, @current_page, @page_size)}>
+              <tr :for={gall <- @gall_list}>
                 <td>
                   <.link
                     navigate={~p"/admin/galls/#{gall.id}"}
@@ -193,17 +201,17 @@ defmodule GallformersWeb.Admin.GallLive.Index do
           </table>
         </div>
 
-        <%= if total_pages(@gall_list, @page_size) > 1 do %>
+        <%= if ceil(@total_count / @page_size) > 1 do %>
           <.pagination
             page={@current_page}
-            total_pages={total_pages(@gall_list, @page_size)}
-            total_items={length(@gall_list)}
+            total_pages={ceil(@total_count / @page_size)}
+            total_items={@total_count}
             page_size={@page_size}
             on_page_change={fn page -> JS.push("page", value: %{page: page}) end}
           />
         <% else %>
           <p class="text-sm text-gray-500">
-            Showing {length(@gall_list)} galls
+            Showing {@total_count} galls
           </p>
         <% end %>
       </div>

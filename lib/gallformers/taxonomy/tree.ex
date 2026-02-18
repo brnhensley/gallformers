@@ -522,6 +522,93 @@ defmodule Gallformers.Taxonomy.Tree do
   end
 
   @doc """
+  Returns a paginated list of taxonomies with their parent, optionally filtered by type.
+
+  Same filtering as `list_taxonomies_with_parent/2` but with LIMIT/OFFSET.
+  """
+  @spec list_taxonomies_with_parent_paginated(String.t() | nil, integer(), integer(), keyword()) ::
+          [map()]
+  def list_taxonomies_with_parent_paginated(type, limit, offset, opts \\ []) do
+    hide_empty_unknown = Keyword.get(opts, :hide_empty_unknown, false)
+
+    base_query =
+      from(t in Taxonomy,
+        left_join: p in Taxonomy,
+        on: t.parent_id == p.id,
+        order_by: [t.type, t.name],
+        limit: ^limit,
+        offset: ^offset,
+        select: %{
+          id: t.id,
+          name: t.name,
+          description: t.description,
+          type: t.type,
+          parent_id: t.parent_id,
+          parent_name: p.name,
+          parent_type: p.type
+        }
+      )
+
+    query_with_type =
+      if type do
+        from([t, p] in base_query, where: t.type == ^type)
+      else
+        base_query
+      end
+
+    query =
+      if hide_empty_unknown do
+        from([t, p] in query_with_type,
+          where:
+            not (t.is_placeholder == true and t.type == "genus" and
+                   fragment(
+                     "NOT EXISTS (SELECT 1 FROM species_taxonomy st WHERE st.taxonomy_id = ?)",
+                     t.id
+                   ))
+        )
+      else
+        query_with_type
+      end
+
+    Repo.all(query)
+  end
+
+  @doc """
+  Returns the count of taxonomies, optionally filtered by type.
+
+  Respects the same `hide_empty_unknown` option as `list_taxonomies_with_parent/2`.
+  """
+  @spec count_taxonomies(String.t() | nil, keyword()) :: integer()
+  def count_taxonomies(type \\ nil, opts \\ []) do
+    hide_empty_unknown = Keyword.get(opts, :hide_empty_unknown, false)
+
+    base_query = from(t in Taxonomy, select: count(t.id))
+
+    query_with_type =
+      if type do
+        from(t in base_query, where: t.type == ^type)
+      else
+        base_query
+      end
+
+    query =
+      if hide_empty_unknown do
+        from(t in query_with_type,
+          where:
+            not (t.is_placeholder == true and t.type == "genus" and
+                   fragment(
+                     "NOT EXISTS (SELECT 1 FROM species_taxonomy st WHERE st.taxonomy_id = ?)",
+                     t.id
+                   ))
+        )
+      else
+        query_with_type
+      end
+
+    Repo.one(query)
+  end
+
+  @doc """
   Lists all genera that are direct children of a family.
   """
   @spec list_child_genera(integer()) :: [Taxonomy.t()]

@@ -37,6 +37,7 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Index do
       |> assign(:deletion_impact, nil)
       |> assign(:delete_confirmation, "")
       |> assign(:delete_taxonomy, nil)
+      |> assign(:total_count, 0)
       |> load_taxonomies()
 
     {:ok, socket}
@@ -89,8 +90,9 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Index do
 
   @impl true
   def handle_event("page", %{"page" => page}, socket) do
-    page = max(1, min(page, total_pages(socket.assigns.taxonomies, socket.assigns.page_size)))
-    {:noreply, assign(socket, current_page: page)}
+    total = max(1, ceil(socket.assigns.total_count / socket.assigns.page_size))
+    page = max(1, min(page, total))
+    {:noreply, socket |> assign(:current_page, page) |> load_taxonomies()}
   end
 
   @impl true
@@ -253,17 +255,37 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Index do
   end
 
   defp load_taxonomies(socket) do
-    hide_empty_unknown = socket.assigns.hide_empty_unknown
+    %{
+      hide_empty_unknown: hide_empty_unknown,
+      search_query: query,
+      filter_type: filter_type,
+      current_page: page,
+      page_size: page_size
+    } = socket.assigns
+
     opts = [hide_empty_unknown: hide_empty_unknown]
+    offset = (page - 1) * page_size
 
-    taxonomies =
-      case {socket.assigns.search_query, socket.assigns.filter_type} do
-        {"", nil} -> Taxonomy.list_taxonomies_with_parent(nil, opts)
-        {"", type} -> Taxonomy.list_taxonomies_with_parent(type, opts)
-        {query, type} -> search_and_filter(query, type, hide_empty_unknown)
-      end
+    case query do
+      "" ->
+        total = Taxonomy.count_taxonomies(filter_type, opts)
 
-    assign(socket, :taxonomies, taxonomies)
+        taxonomies =
+          Taxonomy.list_taxonomies_with_parent_paginated(filter_type, page_size, offset, opts)
+
+        socket
+        |> assign(:total_count, total)
+        |> assign(:taxonomies, taxonomies)
+        |> assign(:searching, false)
+
+      query ->
+        results = search_and_filter(query, filter_type, hide_empty_unknown)
+
+        socket
+        |> assign(:total_count, length(results))
+        |> assign(:taxonomies, results)
+        |> assign(:searching, true)
+    end
   end
 
   defp search_and_filter(query, type, hide_empty_unknown) do
@@ -319,15 +341,18 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Index do
     if sort_dir == :desc, do: Enum.reverse(sorted), else: sorted
   end
 
-  defp paginated_taxonomies(taxonomies, current_page, page_size, sort_by, sort_dir) do
-    taxonomies
-    |> sorted_taxonomies(sort_by, sort_dir)
-    |> Enum.drop((current_page - 1) * page_size)
-    |> Enum.take(page_size)
-  end
+  # Browse mode: already paginated by DB, just sort in-memory (DB sorts by type, name)
+  # Search mode: sort and paginate the full result set in memory
+  defp display_taxonomies(taxonomies, searching, current_page, page_size, sort_by, sort_dir) do
+    sorted = sorted_taxonomies(taxonomies, sort_by, sort_dir)
 
-  defp total_pages(taxonomies, page_size) do
-    max(1, ceil(length(taxonomies) / page_size))
+    if searching do
+      sorted
+      |> Enum.drop((current_page - 1) * page_size)
+      |> Enum.take(page_size)
+    else
+      sorted
+    end
   end
 
   defp taxonomy_public_url(%{type: "family", id: id}), do: ~p"/family/#{id}"
@@ -431,7 +456,14 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Index do
               <tr
                 :for={
                   taxonomy <-
-                    paginated_taxonomies(@taxonomies, @current_page, @page_size, @sort_by, @sort_dir)
+                    display_taxonomies(
+                      @taxonomies,
+                      @searching,
+                      @current_page,
+                      @page_size,
+                      @sort_by,
+                      @sort_dir
+                    )
                 }
                 class={if MapSet.member?(@selected_genera, taxonomy.id), do: "bg-canary", else: ""}
               >
@@ -504,17 +536,17 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Index do
           </table>
         </div>
 
-        <%= if total_pages(@taxonomies, @page_size) > 1 do %>
+        <%= if ceil(@total_count / @page_size) > 1 do %>
           <.pagination
             page={@current_page}
-            total_pages={total_pages(@taxonomies, @page_size)}
-            total_items={length(@taxonomies)}
+            total_pages={ceil(@total_count / @page_size)}
+            total_items={@total_count}
             page_size={@page_size}
             on_page_change={fn page -> JS.push("page", value: %{page: page}) end}
           />
         <% else %>
           <p class="text-sm text-gray-500">
-            Showing {length(@taxonomies)} entries
+            Showing {@total_count} entries
           </p>
         <% end %>
       </div>

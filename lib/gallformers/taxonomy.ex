@@ -46,6 +46,8 @@ defmodule Gallformers.Taxonomy do
   defdelegate list_taxonomies(), to: Tree
   defdelegate list_taxonomies_by_type(type), to: Tree
   defdelegate list_taxonomies_with_parent(type \\ nil, opts \\ []), to: Tree
+  defdelegate list_taxonomies_with_parent_paginated(type, limit, offset, opts \\ []), to: Tree
+  defdelegate count_taxonomies(type \\ nil, opts \\ []), to: Tree
   defdelegate list_child_genera(family_id), to: Tree
   defdelegate list_child_sections(genus_id), to: Tree
   defdelegate list_sections_for_family_tree(family_id), to: Tree

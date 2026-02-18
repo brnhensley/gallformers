@@ -20,7 +20,7 @@ config :gallformers, GallformersWeb.Endpoint,
     layout: false
   ],
   pubsub_server: Gallformers.PubSub,
-  live_view: [signing_salt: "NrFzJJrt"]
+  live_view: [signing_salt: "NrFzJJrt", hibernate_after: 5_000]
 
 # Configure the mailer
 #

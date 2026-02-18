@@ -21,7 +21,7 @@ defmodule GallformersWeb.Admin.HostLive.Index do
       |> assign(:search_query, "")
       |> assign(:current_page, 1)
       |> assign(:page_size, @page_size)
-      |> assign(:hosts, list_hosts(""))
+      |> load_hosts()
 
     {:ok, socket}
   end
@@ -38,14 +38,17 @@ defmodule GallformersWeb.Admin.HostLive.Index do
 
   @impl true
   def handle_event("search", %{"query" => query}, socket) do
-    hosts = list_hosts(query)
-    {:noreply, assign(socket, hosts: hosts, search_query: query, current_page: 1)}
+    {:noreply,
+     socket
+     |> assign(:search_query, query)
+     |> assign(:current_page, 1)
+     |> load_hosts()}
   end
 
   @impl true
   def handle_event("page", %{"page" => page}, socket) do
-    page = max(1, min(page, total_pages(socket.assigns.hosts, socket.assigns.page_size)))
-    {:noreply, assign(socket, current_page: page)}
+    page = max(1, min(page, total_pages(socket)))
+    {:noreply, socket |> assign(:current_page, page) |> load_hosts()}
   end
 
   @impl true
@@ -55,7 +58,7 @@ defmodule GallformersWeb.Admin.HostLive.Index do
         {:noreply,
          socket
          |> put_flash(:info, "Host deleted successfully")
-         |> assign(:hosts, list_hosts(socket.assigns.search_query))}
+         |> load_hosts()}
 
       {:error, _} ->
         {:noreply, put_flash(socket, :error, "Failed to delete host")}
@@ -65,21 +68,30 @@ defmodule GallformersWeb.Admin.HostLive.Index do
   @impl true
   def handle_info({event, _host}, socket)
       when event in [:host_created, :host_updated, :host_deleted] do
-    hosts = list_hosts(socket.assigns.search_query)
-    {:noreply, assign(socket, hosts: hosts)}
+    {:noreply, load_hosts(socket)}
   end
 
-  defp list_hosts(""), do: Plants.list_hosts()
-  defp list_hosts(query), do: Plants.search_hosts(query, 500)
+  defp load_hosts(socket) do
+    %{search_query: query, current_page: page, page_size: page_size} = socket.assigns
+    offset = (page - 1) * page_size
 
-  defp paginated(list, current_page, page_size) do
-    list
-    |> Enum.drop((current_page - 1) * page_size)
-    |> Enum.take(page_size)
+    case query do
+      "" ->
+        socket
+        |> assign(:total_count, Plants.count_hosts())
+        |> assign(:hosts, Plants.list_hosts_paginated(page_size, offset))
+
+      query ->
+        results = Plants.search_hosts(query, 500)
+
+        socket
+        |> assign(:total_count, length(results))
+        |> assign(:hosts, Enum.drop(results, offset) |> Enum.take(page_size))
+    end
   end
 
-  defp total_pages(list, page_size) do
-    max(1, ceil(length(list) / page_size))
+  defp total_pages(socket) do
+    max(1, ceil(socket.assigns.total_count / socket.assigns.page_size))
   end
 
   @impl true
@@ -116,7 +128,7 @@ defmodule GallformersWeb.Admin.HostLive.Index do
               </tr>
             </thead>
             <tbody>
-              <tr :for={host <- paginated(@hosts, @current_page, @page_size)}>
+              <tr :for={host <- @hosts}>
                 <td>
                   <.link
                     navigate={~p"/admin/hosts/#{host.id}"}
@@ -179,17 +191,17 @@ defmodule GallformersWeb.Admin.HostLive.Index do
           </table>
         </div>
 
-        <%= if total_pages(@hosts, @page_size) > 1 do %>
+        <%= if ceil(@total_count / @page_size) > 1 do %>
           <.pagination
             page={@current_page}
-            total_pages={total_pages(@hosts, @page_size)}
-            total_items={length(@hosts)}
+            total_pages={ceil(@total_count / @page_size)}
+            total_items={@total_count}
             page_size={@page_size}
             on_page_change={fn page -> JS.push("page", value: %{page: page}) end}
           />
         <% else %>
           <p class="text-sm text-gray-500">
-            Showing {length(@hosts)} hosts
+            Showing {@total_count} hosts
           </p>
         <% end %>
       </div>
