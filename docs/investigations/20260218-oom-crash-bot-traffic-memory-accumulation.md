@@ -1,6 +1,6 @@
 # P2: OOM Crash & Bot Traffic Analysis - February 18, 2026
 
-## Status: Open — Mitigations deployed, root cause investigation pending
+## Status: Open — Mitigations deployed, codebase investigation complete, fixes planned
 
 ## Summary
 
@@ -155,28 +155,75 @@ gradual growth. At this rate, another OOM is likely within hours.
 
 **Primary**: Gradual BEAM memory accumulation that does not resolve over the application's
 lifetime. The app starts healthy after a restart and progressively consumes memory until OOM.
-The exact source of the accumulation is unknown and requires profiling (see matter `1edb`).
 
-**Suspected contributors** (to be investigated):
-1. **BEAM allocator fragmentation** — many short-lived processes (25+ req/min sustained from
-   bots) cause memory fragmentation where RSS grows but usable memory doesn't. Known BEAM
-   issue with well-documented tuning flags (`+MBas`, `+MBcs`, etc.)
-2. **LiveView processes holding stale assigns** — real users with tabs open for hours, each
-   holding species data, image lists, etc. in process memory. Need to verify LiveView
-   processes are being hibernated after idle timeout.
-3. **ETS table growth** — PubSub tracking, telemetry, Hammer rate limiter state, or other
-   tables growing without bounds.
-4. **Atoms table** — if anything dynamically creates atoms (e.g., `String.to_atom/1`).
-5. **Litestream memory footprint** — WAL reader for S3 replication. Previous investigation
-   (Feb 15) identified Litestream snapshots as a significant contributor; snapshot interval
-   was already reverted to 24h.
+A codebase investigation on Feb 18 identified multiple concrete sources of memory waste. The
+accumulation is not one root cause but a combination of: no LiveView process hibernation, large
+data held in process heaps indefinitely, a background S3 scan that spikes memory on demand, and
+every page (including read-only ones) implemented as LiveViews with long-lived processes.
 
-**Contributing**:
-- **65% bot traffic** on a 512MB machine — each request triggers a full LiveView dead render
-  (mount, preload, render). While individual requests are fast, the sustained volume
-  contributes to allocator fragmentation.
-- **No rate limiting on page routes** — only API routes have rate limiting. Bots can crawl
-  at unlimited speed.
+### 70 MiB step-function: most likely AuditCache S3 scan
+
+The `Images.AuditCache` GenServer (audit_cache.ex) auto-triggers a full S3 enumeration when
+its 1-hour TTL expires. The scan:
+
+1. Pages through all S3 objects via `Storage.list_gall_paths_recursive`, accumulating the
+   entire list using `acc ++ new_paths` (quadratic memory — copies the list on every page)
+2. Loads all image paths from the DB into a MapSet
+3. Loads all species IDs into another MapSet
+4. Stores the resulting orphan list permanently in the GenServer heap
+
+During the scan, memory holds all intermediate copies plus both MapSets plus the growing
+result list. After scan completion, the orphan list remains in the GenServer heap (no
+`hibernate_after` configured). A single scan is consistent with a discrete ~70 MiB step.
+
+The scan triggers automatically on any `AuditCache.get_count()` call when stale, including
+the admin image audit page mount. It also triggers on `get_orphans()`. No admin action is
+needed — the TTL expiry is sufficient if the page was visited in the previous hour.
+
+### Gradual accumulation: LiveView memory waste
+
+**Zero LiveView memory tuning exists in the codebase.** No `hibernate_after`, no socket
+compression, no timeout configuration in any config file or LiveView module.
+
+Specific findings:
+
+1. **No hibernate_after anywhere** — idle LiveView processes never hibernate, keeping their
+   full expanded heap indefinitely. Every open browser tab holds a process with all its
+   assigns in hot memory.
+
+2. **ExploreLive stores 3 trees × 2 copies** — `mount/3` loads galls_tree, undescribed_tree,
+   and hosts_tree, then stores each one again as `*_filtered` assigns. Six copies of full
+   taxonomy tree data per open `/explore` tab.
+
+3. **Admin index pages load unbounded result sets** — `Admin.GallLive.Index`,
+   `Admin.HostLive.Index`, `Admin.TaxonomyLive.Index` all call `Repo.all()` with no LIMIT,
+   storing thousands of records in assigns for client-side pagination.
+
+4. **Every page is a LiveView** — including read-only display pages (species detail, explore,
+   home) that don't need server-driven interactivity. Each page visit spawns a LiveView
+   process, runs mount twice (dead render + WebSocket), and keeps the process alive. Bots
+   don't connect WebSockets, but the dead render still allocates and the BEAM allocator may
+   not return memory to the OS promptly.
+
+5. **No connected?(socket) gating on expensive mounts** — `ExploreLive` and admin index pages
+   load all data unconditionally on both dead render and live mount. `HomeLive` does this
+   correctly (gates behind `connected?`) but it's the exception.
+
+### ETS tables: bounded, not a concern
+
+- **`:glossary_terms`** (markdown.ex) — single entry, 15-min TTL. Negligible.
+- **Hammer.Backend.ETS** — rate limiter buckets, 1-hour expiry, swept every 10 minutes.
+  Only covers API routes currently, so limited entries.
+- **Phoenix.PubSub** — uses `:pg` (process groups), cleaned up on subscriber death. Bounded.
+
+### Previous suspects ruled out or downgraded
+
+- **BEAM allocator fragmentation** — still a contributing factor from bot traffic volume, but
+  the concrete findings above explain the majority of memory usage without needing to invoke
+  fragmentation as a primary cause.
+- **Atoms table** — no `String.to_atom/1` usage found in the codebase. Not a factor.
+- **Litestream** — snapshot interval already at 24h. sync-interval 5s has minimal memory
+  footprint. Not the step-function source.
 
 ## Actions Taken
 
@@ -191,6 +238,18 @@ The exact source of the accumulation is unknown and requires profiling (see matt
 - [x] **Add matter `1edb`** — "Investigate BEAM memory accumulation causing OOM" added to top
   of docket.
 
+### Planned (from codebase investigation)
+
+- [ ] **Matter 8ae6: LiveView memory tuning** — Add `hibernate_after: 5_000` to LiveView
+  socket config (one-line change in endpoint.ex). Add server-side pagination to admin index
+  pages (GallLive.Index, HostLive.Index, TaxonomyLive.Index).
+- [ ] **Matter ee67: AuditCache rework** — Remove auto-trigger on TTL expiry; make S3 scan
+  on-demand only (explicit admin button click). Add `hibernate_after` to the GenServer. Fix
+  quadratic `acc ++ new_paths` list accumulation in `Storage.list_gall_paths_recursive`.
+- [ ] **Matter 9ad7: Audit LiveView usage** — Evaluate converting read-only pages (species
+  detail, explore, home) from LiveViews to controller + dead template. Species detail pages
+  are likely the highest-impact conversion given bot crawl volume.
+
 ### Deferred (not effective for this issue)
 
 - **Bot detection middleware** — considered and rejected. Analysis showed individual requests
@@ -203,16 +262,19 @@ The exact source of the accumulation is unknown and requires profiling (see matt
 
 ## What We Still Don't Know
 
-1. **What exactly is accumulating** — we can see memory growing but don't know what's holding
-   it. Needs `:erlang.memory/0` telemetry, process inspection, ETS table profiling.
-2. **What caused the 70 MiB step-function** — a single large allocation 5 hours after restart
-   suggests something specific (Litestream snapshot? large query result? ETS table rebuild?)
-   rather than gradual fragmentation.
-3. **Whether the Fly HTTP Response Time chart includes WebSocket duration** — Fly docs don't
+1. **Exact memory breakdown on the live system** — the codebase investigation identified
+   concrete sources, but we haven't confirmed with `:erlang.memory/0` on production. Adding
+   `:recon` as a dependency would allow `fly ssh console` inspection. The telemetry poller
+   in `telemetry.ex` already runs every 10s with an empty measurement list — wiring up
+   `:erlang.memory/0` reporting there would give continuous visibility.
+2. **Whether the Fly HTTP Response Time chart includes WebSocket duration** — Fly docs don't
    specify. The baseline p90 at 10-15s in the "HTTP Response Times" chart could be WebSocket
    connection duration or could be something else. We have no proof either way.
-4. **Time to next OOM** — at 87% utilization 5 hours post-restart, the machine will likely
-   OOM again today unless the robots.txt changes reduce traffic enough to slow accumulation.
+3. **How much memory the AuditCache scan actually uses** — the scan already logs start and
+   completion. Adding `:erlang.memory(:total)` before/after would confirm whether it's the
+   70 MiB source. This is the single most valuable diagnostic to add.
+4. **How many LiveView processes are typically alive** — need process count data from
+   production to understand the per-process × count contribution.
 
 ## Relationship to Feb 15 Incident
 
@@ -241,5 +303,11 @@ on its own within ~18-24 hours of uptime.
   OOM, 3 days prior. Same underlying issue, different trigger.
 - [Matter 1edb](../../.mull/matters/1edb-investigate-beam-memory-accumulation-causing-oom.md) —
   Docket item for root cause investigation of memory accumulation.
+- [Matter 8ae6](../../.mull/matters/8ae6-liveview-memory-tuning-hibernate-after-server-side-pagination.md) —
+  LiveView memory tuning (hibernate_after + server-side pagination).
+- [Matter ee67](../../.mull/matters/ee67-auditcache-performance-rework-lazy-scan-hibernate.md) —
+  AuditCache performance rework (lazy scan + hibernate).
+- [Matter 9ad7](../../.mull/matters/9ad7-audit-liveview-usage-convert-read-only-pages-to-controllers.md) —
+  Audit LiveView usage — convert read-only pages to controllers.
 - [Matter 220d](../../.mull/matters/220d-rate-limiting-for-all-routes.md) — Rate limiting
   expansion to page routes.
