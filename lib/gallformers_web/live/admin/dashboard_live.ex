@@ -128,6 +128,8 @@ defmodule GallformersWeb.Admin.DashboardLive do
               href="/admin/image-audit"
               icon="ph-detective"
               accent="green"
+              disabled={true}
+              disabled_message="Disabled for a bit while Jeff looks into performance issues related to it."
             />
           </div>
         </div>
@@ -156,6 +158,13 @@ defmodule GallformersWeb.Admin.DashboardLive do
               label="Filter Terms"
               href="/admin/filter-terms"
               icon="ph-funnel"
+              accent="slate"
+              small
+            />
+            <.action_card
+              label="Live Dashboard"
+              href="/admin/dashboard"
+              icon="ph-chart-line"
               accent="slate"
               small
             />
@@ -226,6 +235,8 @@ defmodule GallformersWeb.Admin.DashboardLive do
   attr :icon, :string, required: true
   attr :accent, :string, default: "maroon"
   attr :small, :boolean, default: false
+  attr :disabled, :boolean, default: false
+  attr :disabled_message, :string, default: "Temporarily disabled"
 
   @accent_styles %{
     "maroon" => %{
@@ -254,6 +265,26 @@ defmodule GallformersWeb.Admin.DashboardLive do
       icon_text: "text-slate-500 group-hover:text-slate-700"
     }
   }
+
+  defp action_card(%{disabled: true} = assigns) do
+    ~H"""
+    <div class={[
+      "flex items-center rounded-lg border border-gray-200 border-l-4 border-l-gray-300 bg-gray-50",
+      "opacity-60 cursor-not-allowed",
+      if(@small, do: "gap-2 p-3", else: "gap-3 p-4")
+    ]}>
+      <div class={["rounded-lg flex-shrink-0 bg-gray-100", if(@small, do: "p-1.5", else: "p-2")]}>
+        <.icon name={@icon} class={[if(@small, do: "h-4 w-4", else: "h-5 w-5"), "text-gray-400"]} />
+      </div>
+      <div class="flex flex-col">
+        <span class={["font-medium text-gray-400", if(@small, do: "text-sm", else: "text-lg")]}>
+          {@label}
+        </span>
+        <span class="text-xs text-gray-400">{@disabled_message}</span>
+      </div>
+    </div>
+    """
+  end
 
   defp action_card(assigns) do
     style = @accent_styles[assigns.accent]
