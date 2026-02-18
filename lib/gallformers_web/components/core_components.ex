@@ -53,7 +53,7 @@ defmodule GallformersWeb.CoreComponents do
     <Phoenix.Component.form
       for={@for}
       as={@as}
-      onkeydown="if(event.key === 'Enter' && event.target.tagName !== 'BUTTON') event.preventDefault()"
+      onkeydown="if(event.key === 'Enter' && !['BUTTON','TEXTAREA'].includes(event.target.tagName)) event.preventDefault()"
       {@rest}
     >
       {render_slot(@inner_block)}
