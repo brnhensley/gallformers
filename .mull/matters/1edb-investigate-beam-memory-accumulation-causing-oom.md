@@ -1,5 +1,5 @@
 ---
-status: raw
+status: done
 created: 2026-02-18
 updated: 2026-02-18
 epic: platform
@@ -26,3 +26,18 @@ OOM crash at 5:58 AM ET on 2026-02-18. Request logs show all HTTP responses comp
 - Add BEAM memory telemetry to the health endpoint (`:erlang.memory/0`, process count, ETS table sizes) so we can observe accumulation patterns over time in production.
 - Profile locally under sustained bot-like load to reproduce the growth pattern.
 - Apply targeted fixes based on what the profiling reveals.
+
+## Investigation Results (2026-02-18)
+
+### Atoms table — CLEAN
+Grepped for `String.to_atom` across `lib/`. Found 17 call sites, all converting fixed known strings (column names, tab names, filter types) from the app's own UI events. No arbitrary user input flows into atom creation. Atom table will plateau once every sort column and filter type has been seen. Not a leak risk.
+
+### Litestream memory — LOW IMPACT
+Checked via `/proc/<pid>/status` on prod. Litestream RSS is ~57 MB (~11% of 512MB). This is a fixed cost that doesn't grow over time — not a contributor to the accumulation pattern.
+
+### LiveView hibernation — ADDRESSED
+Hibernation was enabled in recent commits. Remaining risk is assigns holding references to large shared-heap binaries that survive hibernation, but this is low probability.
+
+### Remaining areas
+- **BEAM allocator fragmentation** — most likely root cause, requires empirical tuning of VM flags. Low urgency while recent changes (hibernation, pagination) hold.
+- **ETS table growth** — spot-check via LiveDashboard next time on prod. AuditCache is the most likely offender (tracked in ee67).

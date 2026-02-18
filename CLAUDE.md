@@ -125,6 +125,7 @@ These rules are **non-negotiable** and exist because of a production incident:
 - **Always check machine state first** — `fly machine list` before SSH/SFTP operations.
 - **Always get user approval** before machine stop/start/update operations.
 - **Execute ONE step at a time** — verify success before proceeding to the next step.
+- **NEVER query the production database directly** — no `fly ssh console` with `rpc` or `eval` for database queries. A local copy of the prod DB is available at `priv/gallformers.sqlite` and can be refreshed anytime with `make download-db`.
 
 # Gallformers Project Overview
 
