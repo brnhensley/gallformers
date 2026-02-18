@@ -1,7 +1,9 @@
 ---
 status: raw
 created: 2026-02-15
-updated: 2026-02-15
+updated: 2026-02-17
+epic: platform
+blocks: [4389]
 ---
 
 # Real-time updates (PubSub)

@@ -1,9 +1,9 @@
 ---
 status: refined
 created: 2026-02-13
-updated: 2026-02-14
+updated: 2026-02-17
+epic: platform
 relates: [1501, 9ca2]
-epic: 1-foundation
 ---
 
 # PostgreSQL migration

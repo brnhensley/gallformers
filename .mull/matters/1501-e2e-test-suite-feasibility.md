@@ -1,9 +1,9 @@
 ---
 status: raw
 created: 2026-02-13
-updated: 2026-02-13
+updated: 2026-02-17
+epic: platform
 relates: [4474]
-epic: 1-foundation
 ---
 
 # E2E test suite feasibility

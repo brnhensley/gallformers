@@ -1,7 +1,8 @@
 ---
 status: raw
 created: 2026-02-14
-updated: 2026-02-16
+updated: 2026-02-17
+epic: cynipid
 docs: [docs/plans/2026-02-16-cynipid-phenology-product-vision.md]
 relates: [85c0]
 ---

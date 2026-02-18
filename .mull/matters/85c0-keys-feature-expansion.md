@@ -1,9 +1,10 @@
 ---
 status: refined
 created: 2026-02-13
-updated: 2026-02-16
-epic: 1-foundation
+updated: 2026-02-17
+epic: identification
 relates: [439a]
+blocks: [0f79]
 ---
 
 # Keys feature expansion

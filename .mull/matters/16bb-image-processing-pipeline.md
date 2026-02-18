@@ -1,7 +1,10 @@
 ---
 status: raw
 created: 2026-02-15
-updated: 2026-02-15
+updated: 2026-02-17
+epic: images
+blocks: [e7bb]
+needs: [60e6]
 ---
 
 # Image processing pipeline

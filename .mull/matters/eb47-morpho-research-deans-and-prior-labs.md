@@ -1,7 +1,8 @@
 ---
 status: raw
 created: 2026-02-14
-updated: 2026-02-14
+updated: 2026-02-17
+epic: idea-bucket
 ---
 
 # Morpho research - Deans and Prior Labs

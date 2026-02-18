@@ -1,9 +1,11 @@
 ---
 status: raw
 created: 2026-02-16
-updated: 2026-02-16
-epic: 1-foundation
+updated: 2026-02-17
+epic: taxonomy
 relates: [5b3d, ede2]
+blocks: [f49a]
+needs: [5b3d]
 ---
 
 # Species merge and split operations

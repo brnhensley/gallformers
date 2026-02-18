@@ -1,11 +1,10 @@
 ---
 status: raw
 created: 2026-02-13
-updated: 2026-02-13
+updated: 2026-02-17
+epic: geo-expansion
 relates: [ccee, 1374]
-blocks: [bf97]
-needs: [4143, 5b3d]
-epic: 2-hemisphere
+needs: [4143, 5b3d, 7932]
 ---
 
 # Western Hemisphere expansion

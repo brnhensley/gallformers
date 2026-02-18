@@ -14,25 +14,55 @@ defmodule GallformersWeb.RobotsController do
     # Gallformers Robots.txt
     # https://gallformers.org
 
+    # --- Block SEO crawlers that provide no value to the site ---
+
+    User-agent: AhrefsBot
+    Disallow: /
+
+    User-agent: SemrushBot
+    Disallow: /
+
+    User-agent: SERankingBacklinksBot
+    Disallow: /
+
+    User-agent: MJ12bot
+    Disallow: /
+
+    User-agent: DotBot
+    Disallow: /
+
+    # --- Default rules for all other crawlers ---
+
     User-agent: *
+    Crawl-delay: 10
 
-    # Allow all public pages
-    Allow: /
+    # Interactive tools - not useful for indexing
+    Disallow: /id
+    Disallow: /globalsearch
 
-    # Disallow admin routes (if any are added in the future)
+    # Admin area
     Disallow: /admin/
     Disallow: /admin
 
     # Allow API documentation for discovery by AI agents
     Allow: /api/docs/
 
-    # Disallow other API routes (use the API programmatically, not for crawling)
+    # API - use programmatically, not for crawling
     Disallow: /api/
     Disallow: /api
 
-    # Disallow dev routes
+    # Auth flows
+    Disallow: /auth
+
+    # Health checks
+    Disallow: /health
+
+    # Dev routes
     Disallow: /dev/
     Disallow: /dev
+
+    # Allow everything else (galls, hosts, species, sources, places, etc.)
+    Allow: /
 
     # Sitemap location
     Sitemap: https://gallformers.org/sitemap.xml

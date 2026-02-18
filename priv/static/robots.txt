@@ -1,17 +1,41 @@
-# See https://www.robotstxt.org/robotstxt.html for documentation on how to use the robots.txt file
+# Gallformers Robots.txt
+# https://gallformers.org
+
+# --- Block SEO crawlers that provide no value to the site ---
+
+User-agent: AhrefsBot
+Disallow: /
+
+User-agent: SemrushBot
+Disallow: /
+
+User-agent: SERankingBacklinksBot
+Disallow: /
+
+User-agent: MJ12bot
+Disallow: /
+
+User-agent: DotBot
+Disallow: /
+
+# --- Default rules for all other crawlers ---
 
 User-agent: *
+Crawl-delay: 10
+
 # Interactive tools - not useful for indexing
 Disallow: /id
 Disallow: /globalsearch
 
 # Admin area
+Disallow: /admin/
 Disallow: /admin
 
 # Allow API documentation for discovery by AI agents
 Allow: /api/docs/
 
 # API - use programmatically, not for crawling
+Disallow: /api/
 Disallow: /api
 
 # Auth flows
@@ -19,6 +43,10 @@ Disallow: /auth
 
 # Health checks
 Disallow: /health
+
+# Dev routes
+Disallow: /dev/
+Disallow: /dev
 
 # Allow everything else (galls, hosts, species, sources, places, etc.)
 Allow: /

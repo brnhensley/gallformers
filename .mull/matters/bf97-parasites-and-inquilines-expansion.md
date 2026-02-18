@@ -1,10 +1,9 @@
 ---
 status: raw
 created: 2026-02-13
-updated: 2026-02-13
+updated: 2026-02-17
+epic: organism-expansion
 relates: [e29c]
-needs: [1db6]
-epic: 3-associates
 ---
 
 # Parasites and inquilines expansion
