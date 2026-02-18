@@ -1,9 +1,10 @@
 ---
 status: raw
+effort: 1 day
 created: 2026-02-15
-updated: 2026-02-17
+updated: 2026-02-18
 epic: images
-blocks: [16bb]
+blocks: [16bb, 85c0]
 ---
 
 # Unify article and species image management

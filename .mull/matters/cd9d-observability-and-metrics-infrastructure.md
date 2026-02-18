@@ -1,5 +1,6 @@
 ---
 status: raw
+effort: 2 days
 created: 2026-02-18
 updated: 2026-02-18
 epic: platform

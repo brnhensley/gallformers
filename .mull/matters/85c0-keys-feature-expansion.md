@@ -1,10 +1,11 @@
 ---
 status: refined
 created: 2026-02-13
-updated: 2026-02-17
+updated: 2026-02-18
 epic: identification
 relates: [439a]
 blocks: [0f79]
+needs: [60e6]
 ---
 
 # Keys feature expansion
@@ -23,3 +24,5 @@ Open questions:
 - Import formats (survey actual sources)
 - Multi-access keys vs path-based
 - MVP scope
+
+Effort: ongoing — driven by paper collaboration and post-publication feedback cycles. Biggest remaining gap is how images will work in keys.

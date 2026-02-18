@@ -1,5 +1,5 @@
 ---
-status: planned
+status: done
 created: 2026-02-18
 updated: 2026-02-18
 epic: images

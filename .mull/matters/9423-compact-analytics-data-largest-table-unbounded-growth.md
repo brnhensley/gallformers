@@ -1,5 +1,6 @@
 ---
 status: planned
+effort: 1 day
 created: 2026-02-18
 updated: 2026-02-18
 epic: platform

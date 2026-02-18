@@ -1,7 +1,8 @@
 ---
 status: raw
+effort: 3-5 days
 created: 2026-02-14
-updated: 2026-02-17
+updated: 2026-02-18
 epic: idea-bucket
 ---
 

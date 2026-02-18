@@ -1,7 +1,8 @@
 ---
 status: raw
+effort: 2 hours
 created: 2026-02-13
-updated: 2026-02-17
+updated: 2026-02-18
 epic: platform
 relates: [4474]
 ---
