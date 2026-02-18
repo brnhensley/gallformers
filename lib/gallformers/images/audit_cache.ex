@@ -34,7 +34,8 @@ defmodule Gallformers.Images.AuditCache do
             orphan_count: 0,
             last_scanned: nil,
             scanning?: false,
-            scan_error: nil
+            scan_error: nil,
+            ttl_ms: :timer.hours(1)
 
   # =============================================================================
   # Client API
@@ -45,7 +46,7 @@ defmodule Gallformers.Images.AuditCache do
   """
   def start_link(opts \\ []) do
     name = Keyword.get(opts, :name, __MODULE__)
-    GenServer.start_link(__MODULE__, opts, name: name)
+    GenServer.start_link(__MODULE__, opts, name: name, hibernate_after: 15_000)
   end
 
   @doc """
@@ -53,8 +54,7 @@ defmodule Gallformers.Images.AuditCache do
 
   Returns `{orphan_list, total_count, stale?}`.
 
-  If the cache is empty or stale, triggers a background refresh and returns
-  current (possibly empty/stale) data immediately.
+  Returns cached data only — call `refresh/0` to trigger a new scan.
 
   Options:
   - :page - page number (default 1)
@@ -101,6 +101,16 @@ defmodule Gallformers.Images.AuditCache do
     GenServer.cast(__MODULE__, :refresh)
   end
 
+  @doc """
+  Removes a single path from the cached orphan list.
+
+  Use after deleting or assigning an orphan to avoid a full re-scan.
+  """
+  @spec remove_path(String.t()) :: :ok
+  def remove_path(path) do
+    GenServer.cast(__MODULE__, {:remove_path, path})
+  end
+
   # =============================================================================
   # GenServer Callbacks
   # =============================================================================
@@ -108,12 +118,7 @@ defmodule Gallformers.Images.AuditCache do
   @impl true
   def init(opts) do
     ttl = Keyword.get(opts, :ttl_ms, @default_ttl_ms)
-    state = %__MODULE__{}
-
-    # Store TTL in process dictionary for easy access
-    Process.put(:ttl_ms, ttl)
-
-    {:ok, state}
+    {:ok, %__MODULE__{ttl_ms: ttl}}
   end
 
   @impl true
@@ -121,12 +126,7 @@ defmodule Gallformers.Images.AuditCache do
     page = Keyword.get(opts, :page, 1)
     per_page = Keyword.get(opts, :per_page, 50)
 
-    # Check if we need to refresh
     stale? = stale?(state)
-
-    if (stale? or state.orphan_paths == []) and not state.scanning? do
-      trigger_async_scan(self())
-    end
 
     # Paginate the cached results
     offset = (page - 1) * per_page
@@ -142,11 +142,6 @@ defmodule Gallformers.Images.AuditCache do
   @impl true
   def handle_call(:get_count, _from, state) do
     stale? = stale?(state)
-
-    if (stale? or state.last_scanned == nil) and not state.scanning? do
-      trigger_async_scan(self())
-    end
-
     {:reply, {state.orphan_count, stale?}, state}
   end
 
@@ -174,6 +169,13 @@ defmodule Gallformers.Images.AuditCache do
   end
 
   @impl true
+  def handle_cast({:remove_path, path}, state) do
+    updated_paths = Enum.reject(state.orphan_paths, &(&1.key == path))
+
+    {:noreply, %{state | orphan_paths: updated_paths, orphan_count: length(updated_paths)}}
+  end
+
+  @impl true
   def handle_info({:scan_started}, state) do
     {:noreply, %{state | scanning?: true, scan_error: nil}}
   end
@@ -191,6 +193,8 @@ defmodule Gallformers.Images.AuditCache do
         scan_error: nil
     }
 
+    Phoenix.PubSub.broadcast(Gallformers.PubSub, "image_audit", :scan_complete)
+
     {:noreply, new_state}
   end
 
@@ -207,8 +211,7 @@ defmodule Gallformers.Images.AuditCache do
 
   defp stale?(%{last_scanned: nil}), do: true
 
-  defp stale?(%{last_scanned: last_scanned}) do
-    ttl_ms = Process.get(:ttl_ms, @default_ttl_ms)
+  defp stale?(%{last_scanned: last_scanned, ttl_ms: ttl_ms}) do
     age_ms = DateTime.diff(DateTime.utc_now(), last_scanned, :millisecond)
     age_ms > ttl_ms
   end

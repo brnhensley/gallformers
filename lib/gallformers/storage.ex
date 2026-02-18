@@ -352,7 +352,7 @@ defmodule Gallformers.Storage do
           |> Enum.filter(&original_gall_image?/1)
           |> Enum.map(&extract_s3_object_info/1)
 
-        all_paths = acc ++ new_paths
+        all_paths = new_paths ++ acc
 
         # Check for more pages
         if body[:is_truncated] == "true" && body[:next_continuation_token] do

@@ -64,18 +64,24 @@ defmodule Gallformers.Images.Audit do
 
   Returns a list of orphan paths with metadata.
   """
+  # SQLite SQLITE_MAX_VARIABLE_NUMBER defaults to 999
+  @chunk_size 500
+
   @spec find_orphan_paths([map()]) :: [map()]
   def find_orphan_paths(s3_objects) when is_list(s3_objects) do
-    # Get all paths for batch DB query
     paths = Enum.map(s3_objects, & &1.key)
 
-    # Query DB for existing image paths
+    # Query DB for existing image paths in chunks to stay under SQLite variable limit
     existing_paths =
-      from(i in ImageSchema, where: i.path in ^paths, select: i.path)
-      |> Repo.all()
-      |> MapSet.new()
+      paths
+      |> Enum.chunk_every(@chunk_size)
+      |> Enum.reduce(MapSet.new(), fn chunk, acc ->
+        from(i in ImageSchema, where: i.path in ^chunk, select: i.path)
+        |> Repo.all()
+        |> Enum.into(acc)
+      end)
 
-    # Get all valid species IDs
+    # Get all valid species IDs (no parameters, no chunking needed)
     valid_species_ids =
       from(s in Species, select: s.id)
       |> Repo.all()

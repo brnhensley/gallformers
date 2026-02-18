@@ -27,6 +27,10 @@ defmodule GallformersWeb.Admin.ImageAuditLive do
   def mount(_params, session, socket) do
     current_user = session["current_user"]
 
+    if connected?(socket) do
+      Phoenix.PubSub.subscribe(Gallformers.PubSub, "image_audit")
+    end
+
     socket =
       socket
       |> assign(:current_user, current_user)
@@ -309,7 +313,7 @@ defmodule GallformersWeb.Admin.ImageAuditLive do
     >
       <div
         :for={orphan <- @orphans}
-        id={"orphan-#{Base.encode16(:crypto.hash(:md5, orphan.key), case: :lower) |> binary_part(0, 8)}"}
+        id={"orphan-#{:erlang.phash2(orphan.key)}"}
         class="relative group bg-white rounded-lg border border-gray-200 overflow-hidden"
       >
         <img
@@ -727,9 +731,7 @@ defmodule GallformersWeb.Admin.ImageAuditLive do
   @impl true
   def handle_event("refresh_cache", _params, socket) do
     AuditCache.refresh()
-    # Reload after a brief delay to show scanning state
-    Process.send_after(self(), :reload_orphans, 500)
-    {:noreply, put_flash(socket, :info, "Refreshing cache...")}
+    {:noreply, put_flash(socket, :info, "Scanning S3...")}
   catch
     :exit, _ ->
       {:noreply, put_flash(socket, :error, "Cache not available. Please restart the server.")}
@@ -750,10 +752,8 @@ defmodule GallformersWeb.Admin.ImageAuditLive do
   def handle_event("delete_orphan", %{"path" => path}, socket) do
     case Audit.delete_s3_orphan(path) do
       :ok ->
-        # Refresh the cache in background (for future page loads)
-        AuditCache.refresh()
+        AuditCache.remove_path(path)
 
-        # Optimistically remove from current view immediately
         updated_orphans = Enum.reject(socket.assigns.orphans, &(&1.key == path))
         new_count = socket.assigns.orphan_count - 1
 
@@ -866,10 +866,8 @@ defmodule GallformersWeb.Admin.ImageAuditLive do
 
     case Audit.create_image_from_orphan(path, species_id, attrs) do
       {:ok, _image} ->
-        # Refresh cache in background (for future page loads)
-        AuditCache.refresh()
+        AuditCache.remove_path(path)
 
-        # Optimistically remove from current view immediately
         updated_orphans = Enum.reject(socket.assigns.orphans, &(&1.key == path))
         new_count = socket.assigns.orphan_count - 1
 
@@ -1064,8 +1062,8 @@ defmodule GallformersWeb.Admin.ImageAuditLive do
   end
 
   @impl true
-  def handle_info(:reload_orphans, socket) do
-    {:noreply, load_data(socket)}
+  def handle_info(:scan_complete, socket) do
+    {:noreply, socket |> load_data() |> put_flash(:info, "Scan complete")}
   end
 
   # Helper Functions
