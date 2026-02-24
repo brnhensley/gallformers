@@ -91,8 +91,10 @@ defmodule GallformersWeb.IDLive do
        texture_focused: false,
        # Results
        results: [],
+       filtered_results: [],
        summaries: %{},
        total_count: 0,
+       name_filter: "",
        show_advanced: false
      )}
   end
@@ -601,6 +603,24 @@ defmodule GallformersWeb.IDLive do
     {:noreply, socket}
   end
 
+  @impl true
+  def handle_event("filter_by_name", %{"value" => value}, socket) do
+    filtered =
+      if value == "" do
+        socket.assigns.results
+      else
+        term = String.downcase(value)
+        Enum.filter(socket.assigns.results, &String.contains?(String.downcase(&1.name), term))
+      end
+
+    {:noreply, assign(socket, name_filter: value, filtered_results: filtered)}
+  end
+
+  @impl true
+  def handle_event("clear_name_filter", _params, socket) do
+    {:noreply, assign(socket, name_filter: "", filtered_results: socket.assigns.results)}
+  end
+
   defp update_filter(socket, key, value) do
     filters = Map.put(socket.assigns.filters, key, value)
     assign(socket, filters: filters)
@@ -678,7 +698,7 @@ defmodule GallformersWeb.IDLive do
     if socket.assigns.selected_host || socket.assigns.selected_genus do
       load_results(socket)
     else
-      assign(socket, results: [], summaries: %{})
+      assign(socket, results: [], filtered_results: [], summaries: %{}, name_filter: "")
     end
   end
 
@@ -690,9 +710,20 @@ defmodule GallformersWeb.IDLive do
     summaries = generate_summaries_for_imageless(results)
 
     if socket.assigns.filters == default_filters() do
-      assign(socket, results: results, summaries: summaries, total_count: length(results))
+      assign(socket,
+        results: results,
+        filtered_results: results,
+        summaries: summaries,
+        total_count: length(results),
+        name_filter: ""
+      )
     else
-      assign(socket, results: results, summaries: summaries)
+      assign(socket,
+        results: results,
+        filtered_results: results,
+        summaries: summaries,
+        name_filter: ""
+      )
     end
   end
 
@@ -947,9 +978,11 @@ defmodule GallformersWeb.IDLive do
 
         <%!-- Results Grid --%>
         <.results_grid
-          results={@results}
+          results={@filtered_results}
           summaries={@summaries}
           total_count={@total_count}
+          filter_count={length(@results)}
+          name_filter={@name_filter}
           has_selection={@selected_host != nil or @selected_genus != nil}
           selected_host={@selected_host}
           show_non_galls={@filters.show_non_galls}
@@ -1220,6 +1253,8 @@ defmodule GallformersWeb.IDLive do
   attr :has_selection, :boolean, required: true
   attr :selected_host, :any, required: true
   attr :total_count, :integer, required: true
+  attr :filter_count, :integer, required: true
+  attr :name_filter, :string, required: true
   attr :show_non_galls, :boolean, required: true
 
   defp results_grid(assigns) do
@@ -1238,11 +1273,38 @@ defmodule GallformersWeb.IDLive do
           </div>
         <% end %>
 
-        <p class="text-sm text-gray-600 mb-3">
-          Showing <span class="font-semibold">{length(@results)}</span>
-          <span :if={length(@results) != @total_count}>of {@total_count}</span>
-          {if @show_non_galls, do: "species", else: "galls"}:
-        </p>
+        <div class="flex items-center justify-between gap-4 mb-3">
+          <p class="text-sm text-gray-600">
+            Showing <span class="font-semibold">{length(@results)}</span>
+            <span :if={length(@results) != @filter_count}>of {@filter_count}</span>
+            <span :if={@filter_count != @total_count}>
+              (<span class="font-semibold">{@total_count}</span> unfiltered)
+            </span>
+            {if @show_non_galls, do: "species", else: "galls"}
+          </p>
+          <div :if={@filter_count > 0} class="relative">
+            <input
+              type="text"
+              value={@name_filter}
+              placeholder="Filter by name..."
+              phx-keyup="filter_by_name"
+              phx-debounce="200"
+              class="text-sm border border-gray-300 rounded-md pl-7 pr-7 py-1 w-48 focus:ring-1 focus:ring-gf-maroon focus:border-gf-maroon"
+            />
+            <.icon
+              name="ph-magnifying-glass"
+              class="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400"
+            />
+            <button
+              :if={@name_filter != ""}
+              type="button"
+              phx-click="clear_name_filter"
+              class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            >
+              <.icon name="ph-x" class="h-4 w-4" />
+            </button>
+          </div>
+        </div>
 
         <%= if length(@results) == 0 do %>
           <div class="p-4 bg-blue-50 border border-blue-200 rounded text-sm">
