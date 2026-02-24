@@ -1,5 +1,5 @@
 defmodule Gallformers.Repo.Migrations.CreateAnalyticsSummaryTables do
-  use Ecto.Migration
+  use Gallformers.Migration
 
   def change do
     create table(:daily_stats) do

@@ -137,8 +137,7 @@ defmodule Gallformers.Analytics.Rollup do
   end
 
   defp date_bounds(date) do
-    {NaiveDateTime.new!(date, ~T[00:00:00]),
-     NaiveDateTime.new!(Date.add(date, 1), ~T[00:00:00])}
+    {NaiveDateTime.new!(date, ~T[00:00:00]), NaiveDateTime.new!(Date.add(date, 1), ~T[00:00:00])}
   end
 
   defp rollup_daily_stats(base_query, date_str) do

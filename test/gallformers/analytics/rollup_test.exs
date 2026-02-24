@@ -16,9 +16,27 @@ defmodule Gallformers.Analytics.RollupTest do
   describe "rollup_day/1" do
     test "aggregates page views into all 5 summary tables" do
       insert_page_views(@today, [
-        %{path: "/", visitor_hash: "aaa", referrer_host: nil, browser: "Chrome", device_type: "desktop"},
-        %{path: "/", visitor_hash: "bbb", referrer_host: "google.com", browser: "Chrome", device_type: "mobile"},
-        %{path: "/gall/1", visitor_hash: "aaa", referrer_host: "google.com", browser: "Firefox", device_type: "desktop"}
+        %{
+          path: "/",
+          visitor_hash: "aaa",
+          referrer_host: nil,
+          browser: "Chrome",
+          device_type: "desktop"
+        },
+        %{
+          path: "/",
+          visitor_hash: "bbb",
+          referrer_host: "google.com",
+          browser: "Chrome",
+          device_type: "mobile"
+        },
+        %{
+          path: "/gall/1",
+          visitor_hash: "aaa",
+          referrer_host: "google.com",
+          browser: "Firefox",
+          device_type: "desktop"
+        }
       ])
 
       assert :ok = Rollup.rollup_day(@today)
@@ -72,7 +90,13 @@ defmodule Gallformers.Analytics.RollupTest do
 
     test "is idempotent — running twice does not duplicate data" do
       insert_page_views(@today, [
-        %{path: "/", visitor_hash: "aaa", referrer_host: nil, browser: "Chrome", device_type: "desktop"}
+        %{
+          path: "/",
+          visitor_hash: "aaa",
+          referrer_host: nil,
+          browser: "Chrome",
+          device_type: "desktop"
+        }
       ])
 
       assert :ok = Rollup.rollup_day(@today)
@@ -84,16 +108,24 @@ defmodule Gallformers.Analytics.RollupTest do
                ])
 
       assert %{num_rows: 1} =
-               Repo.query!("SELECT * FROM daily_page_stats WHERE date = ?", [Date.to_iso8601(@today)])
+               Repo.query!("SELECT * FROM daily_page_stats WHERE date = ?", [
+                 Date.to_iso8601(@today)
+               ])
 
       assert %{num_rows: 1} =
-               Repo.query!("SELECT * FROM daily_referrer_stats WHERE date = ?", [Date.to_iso8601(@today)])
+               Repo.query!("SELECT * FROM daily_referrer_stats WHERE date = ?", [
+                 Date.to_iso8601(@today)
+               ])
 
       assert %{num_rows: 1} =
-               Repo.query!("SELECT * FROM daily_device_stats WHERE date = ?", [Date.to_iso8601(@today)])
+               Repo.query!("SELECT * FROM daily_device_stats WHERE date = ?", [
+                 Date.to_iso8601(@today)
+               ])
 
       assert %{num_rows: 1} =
-               Repo.query!("SELECT * FROM daily_browser_stats WHERE date = ?", [Date.to_iso8601(@today)])
+               Repo.query!("SELECT * FROM daily_browser_stats WHERE date = ?", [
+                 Date.to_iso8601(@today)
+               ])
     end
 
     test "does nothing for a day with no data" do
@@ -108,11 +140,23 @@ defmodule Gallformers.Analytics.RollupTest do
     test "rolls up past days that have raw data but no summary" do
       # Insert data for two days
       insert_page_views(@yesterday, [
-        %{path: "/", visitor_hash: "aaa", referrer_host: nil, browser: "Chrome", device_type: "desktop"}
+        %{
+          path: "/",
+          visitor_hash: "aaa",
+          referrer_host: nil,
+          browser: "Chrome",
+          device_type: "desktop"
+        }
       ])
 
       insert_page_views(@today, [
-        %{path: "/gall/1", visitor_hash: "bbb", referrer_host: "bing.com", browser: "Firefox", device_type: "mobile"}
+        %{
+          path: "/gall/1",
+          visitor_hash: "bbb",
+          referrer_host: "bing.com",
+          browser: "Firefox",
+          device_type: "mobile"
+        }
       ])
 
       # Manually roll up today only — yesterday should be "missing"
@@ -134,11 +178,23 @@ defmodule Gallformers.Analytics.RollupTest do
       recent_date = Date.add(Date.utc_today(), -10)
 
       insert_page_views(old_date, [
-        %{path: "/old", visitor_hash: "aaa", referrer_host: nil, browser: "Chrome", device_type: "desktop"}
+        %{
+          path: "/old",
+          visitor_hash: "aaa",
+          referrer_host: nil,
+          browser: "Chrome",
+          device_type: "desktop"
+        }
       ])
 
       insert_page_views(recent_date, [
-        %{path: "/recent", visitor_hash: "bbb", referrer_host: nil, browser: "Firefox", device_type: "mobile"}
+        %{
+          path: "/recent",
+          visitor_hash: "bbb",
+          referrer_host: nil,
+          browser: "Firefox",
+          device_type: "mobile"
+        }
       ])
 
       assert {1, nil} = Rollup.prune_old_page_views(90)
@@ -146,7 +202,8 @@ defmodule Gallformers.Analytics.RollupTest do
       # Old data is gone
       assert Repo.all(from pv in PageView, where: pv.path == "/old") == []
       # Recent data remains
-      assert [%PageView{path: "/recent"}] = Repo.all(from pv in PageView, where: pv.path == "/recent")
+      assert [%PageView{path: "/recent"}] =
+               Repo.all(from pv in PageView, where: pv.path == "/recent")
     end
   end
 
