@@ -44,8 +44,7 @@ defmodule GallformersWeb.AnalyticsLive do
     {:noreply, socket}
   end
 
-  def handle_event("referrer_page", %{"page" => page}, socket) do
-    page = String.to_integer(page)
+  def handle_event("referrer_page", %{"page" => page}, socket) when is_integer(page) do
     {:noreply, assign_referrer_page(socket, socket.assigns.all_referrers, page)}
   end
 
