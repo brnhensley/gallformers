@@ -31,6 +31,7 @@ defmodule Gallformers.AnalyticsTest do
       refute Analytics.should_track?("/favicon.ico", nil)
       refute Analytics.should_track?("/robots.txt", nil)
       refute Analytics.should_track?("/sitemap.xml", nil)
+      refute Analytics.should_track?("/analytics", nil)
     end
 
     test "returns false for bot user agents" do
@@ -240,6 +241,20 @@ defmodule Gallformers.AnalyticsTest do
   end
 
   describe "track_page_view/1" do
+    import ExUnit.CaptureLog
+
+    test "logs warning on insert failure" do
+      # Missing required visitor_hash field should fail changeset validation
+      attrs = %{path: "/test"}
+
+      log =
+        capture_log([level: :warning], fn ->
+          Analytics.track_page_view(attrs)
+        end)
+
+      assert log =~ "Analytics: failed to insert page view"
+    end
+
     test "returns :ok immediately" do
       attrs = %{
         path: "/async/test",
@@ -420,6 +435,41 @@ defmodule Gallformers.AnalyticsTest do
       # Days with no data should have zero counts
       zero_days = Enum.filter(daily_stats, &(&1.page_views == 0))
       assert length(zero_days) == 3
+    end
+
+    test "top_referrers distinguishes direct, internal, and external" do
+      today = Date.utc_today()
+
+      # Direct visit (nil referrer)
+      Repo.insert(%PageView{
+        path: "/page1",
+        visitor_hash: "visitor1",
+        referrer_host: nil,
+        inserted_at: NaiveDateTime.new!(today, ~T[10:00:00])
+      })
+
+      # Internal navigation (LiveView)
+      Repo.insert(%PageView{
+        path: "/page2",
+        visitor_hash: "visitor1",
+        referrer_host: "(internal)",
+        inserted_at: NaiveDateTime.new!(today, ~T[10:01:00])
+      })
+
+      # External referrer
+      Repo.insert(%PageView{
+        path: "/page3",
+        visitor_hash: "visitor2",
+        referrer_host: "google.com",
+        inserted_at: NaiveDateTime.new!(today, ~T[10:02:00])
+      })
+
+      referrers = Analytics.top_referrers(today, today)
+
+      labels = Enum.map(referrers, & &1.referrer) |> MapSet.new()
+      assert "Direct" in labels
+      assert "Internal" in labels
+      assert "google.com" in labels
     end
 
     test "orders results chronologically" do

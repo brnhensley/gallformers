@@ -9,12 +9,14 @@ defmodule Gallformers.Analytics do
 
   import Ecto.Query
 
+  require Logger
+
   alias Gallformers.Analytics.PageView
   alias Gallformers.Repo
 
   # Paths to exclude from tracking
   @excluded_path_prefixes ["/admin", "/api", "/assets", "/images", "/dev", "/health", "/auth"]
-  @excluded_paths ["/favicon.ico", "/robots.txt", "/sitemap.xml"]
+  @excluded_paths ["/favicon.ico", "/robots.txt", "/sitemap.xml", "/analytics"]
 
   # Bot user agent patterns (case-insensitive)
   @bot_patterns ~w(bot spider crawl slurp feedfetcher facebookexternalhit twitterbot linkedinbot)
@@ -28,9 +30,15 @@ defmodule Gallformers.Analytics do
   @spec track_page_view(map()) :: :ok
   def track_page_view(attrs) do
     Gallformers.Async.run(fn ->
-      %PageView{}
-      |> PageView.changeset(attrs)
-      |> Repo.insert()
+      case %PageView{} |> PageView.changeset(attrs) |> Repo.insert() do
+        {:ok, _} ->
+          :ok
+
+        {:error, changeset} ->
+          Logger.warning(
+            "Analytics: failed to insert page view for #{attrs[:path]}: #{inspect(changeset.errors)}"
+          )
+      end
     end)
   end
 
@@ -146,17 +154,24 @@ defmodule Gallformers.Analytics do
   # Query Functions
   # =================================================================
 
+  # Converts a date range to NaiveDateTime bounds using half-open interval [from, to).
+  # The upper bound is midnight of the day AFTER to_date, ensuring all timestamps
+  # on the last day are included regardless of sub-second precision.
+  defp date_bounds(from_date, to_date) do
+    {NaiveDateTime.new!(from_date, ~T[00:00:00]),
+     NaiveDateTime.new!(Date.add(to_date, 1), ~T[00:00:00])}
+  end
+
   @doc """
   Returns page view stats for a date range.
   """
   @spec stats(Date.t(), Date.t()) :: map()
   def stats(from_date, to_date) do
-    from_datetime = DateTime.new!(from_date, ~T[00:00:00], "Etc/UTC")
-    to_datetime = DateTime.new!(to_date, ~T[23:59:59], "Etc/UTC")
+    {from_dt, to_dt} = date_bounds(from_date, to_date)
 
     query =
       from(pv in PageView,
-        where: pv.inserted_at >= ^from_datetime and pv.inserted_at <= ^to_datetime,
+        where: pv.inserted_at >= ^from_dt and pv.inserted_at < ^to_dt,
         select: %{
           page_views: count(pv.id),
           unique_visitors: count(pv.visitor_hash, :distinct)
@@ -174,13 +189,11 @@ defmodule Gallformers.Analytics do
   """
   @spec daily_stats(Date.t(), Date.t()) :: [map()]
   def daily_stats(from_date, to_date) do
-    # Query for days that have data
-    from_datetime = NaiveDateTime.new!(from_date, ~T[00:00:00])
-    to_datetime = NaiveDateTime.new!(to_date, ~T[23:59:59])
+    {from_dt, to_dt} = date_bounds(from_date, to_date)
 
     stats_with_data =
       from(pv in PageView,
-        where: pv.inserted_at >= ^from_datetime and pv.inserted_at <= ^to_datetime,
+        where: pv.inserted_at >= ^from_dt and pv.inserted_at < ^to_dt,
         group_by: fragment("date(?)", pv.inserted_at),
         select: %{
           date: fragment("date(?)", pv.inserted_at),
@@ -223,11 +236,10 @@ defmodule Gallformers.Analytics do
   """
   @spec top_pages(Date.t(), Date.t(), integer()) :: [map()]
   def top_pages(from_date, to_date, limit \\ 20) do
-    from_datetime = DateTime.new!(from_date, ~T[00:00:00], "Etc/UTC")
-    to_datetime = DateTime.new!(to_date, ~T[23:59:59], "Etc/UTC")
+    {from_dt, to_dt} = date_bounds(from_date, to_date)
 
     from(pv in PageView,
-      where: pv.inserted_at >= ^from_datetime and pv.inserted_at <= ^to_datetime,
+      where: pv.inserted_at >= ^from_dt and pv.inserted_at < ^to_dt,
       group_by: pv.path,
       select: %{
         path: pv.path,
@@ -243,24 +255,29 @@ defmodule Gallformers.Analytics do
   @doc """
   Returns top referrers for a date range.
   """
-  @spec top_referrers(Date.t(), Date.t(), integer()) :: [map()]
-  def top_referrers(from_date, to_date, limit \\ 20) do
-    from_datetime = DateTime.new!(from_date, ~T[00:00:00], "Etc/UTC")
-    to_datetime = DateTime.new!(to_date, ~T[23:59:59], "Etc/UTC")
+  @spec top_referrers(Date.t(), Date.t()) :: [map()]
+  def top_referrers(from_date, to_date) do
+    {from_dt, to_dt} = date_bounds(from_date, to_date)
 
     from(pv in PageView,
-      where: pv.inserted_at >= ^from_datetime and pv.inserted_at <= ^to_datetime,
+      where: pv.inserted_at >= ^from_dt and pv.inserted_at < ^to_dt,
       group_by: pv.referrer_host,
       select: %{
         referrer: pv.referrer_host,
         views: count(pv.id)
       },
-      order_by: [desc: count(pv.id)],
-      limit: ^limit
+      order_by: [desc: count(pv.id)]
     )
     |> Repo.all()
     |> Enum.map(fn row ->
-      %{row | referrer: row.referrer || "Direct"}
+      label =
+        case row.referrer do
+          nil -> "Direct"
+          "(internal)" -> "Internal"
+          host -> host
+        end
+
+      %{row | referrer: label}
     end)
   end
 
@@ -269,11 +286,10 @@ defmodule Gallformers.Analytics do
   """
   @spec device_breakdown(Date.t(), Date.t()) :: [map()]
   def device_breakdown(from_date, to_date) do
-    from_datetime = DateTime.new!(from_date, ~T[00:00:00], "Etc/UTC")
-    to_datetime = DateTime.new!(to_date, ~T[23:59:59], "Etc/UTC")
+    {from_dt, to_dt} = date_bounds(from_date, to_date)
 
     from(pv in PageView,
-      where: pv.inserted_at >= ^from_datetime and pv.inserted_at <= ^to_datetime,
+      where: pv.inserted_at >= ^from_dt and pv.inserted_at < ^to_dt,
       group_by: pv.device_type,
       select: %{
         device_type: pv.device_type,
@@ -292,11 +308,10 @@ defmodule Gallformers.Analytics do
   """
   @spec browser_breakdown(Date.t(), Date.t()) :: [map()]
   def browser_breakdown(from_date, to_date) do
-    from_datetime = DateTime.new!(from_date, ~T[00:00:00], "Etc/UTC")
-    to_datetime = DateTime.new!(to_date, ~T[23:59:59], "Etc/UTC")
+    {from_dt, to_dt} = date_bounds(from_date, to_date)
 
     from(pv in PageView,
-      where: pv.inserted_at >= ^from_datetime and pv.inserted_at <= ^to_datetime,
+      where: pv.inserted_at >= ^from_dt and pv.inserted_at < ^to_dt,
       group_by: pv.browser,
       select: %{
         browser: pv.browser,
