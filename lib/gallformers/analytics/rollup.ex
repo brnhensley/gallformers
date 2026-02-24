@@ -45,11 +45,14 @@ defmodule Gallformers.Analytics.Rollup do
     if count == 0 do
       :noop
     else
-      rollup_daily_stats(base_query, date_str)
-      rollup_daily_page_stats(base_query, date_str)
-      rollup_daily_referrer_stats(base_query, date_str)
-      rollup_daily_device_stats(base_query, date_str)
-      rollup_daily_browser_stats(base_query, date_str)
+      Repo.transaction(fn ->
+        rollup_daily_stats(base_query, date_str)
+        rollup_daily_page_stats(base_query, date_str)
+        rollup_daily_referrer_stats(base_query, date_str)
+        rollup_daily_device_stats(base_query, date_str)
+        rollup_daily_browser_stats(base_query, date_str)
+      end)
+
       :ok
     end
   end
@@ -69,9 +72,11 @@ defmodule Gallformers.Analytics.Rollup do
     %{rows: existing_rows} = Repo.query!("SELECT date FROM daily_stats", [])
     existing_dates = MapSet.new(existing_rows, fn [d] -> d end)
 
+    today_str = Date.to_iso8601(Date.utc_today())
+
     missing =
       raw_dates
-      |> Enum.reject(&MapSet.member?(existing_dates, &1))
+      |> Enum.reject(&(&1 == today_str or MapSet.member?(existing_dates, &1)))
       |> Enum.sort()
 
     for date_str <- missing do

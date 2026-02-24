@@ -333,32 +333,29 @@ defmodule Gallformers.Analytics do
   """
   @spec top_pages(Date.t(), Date.t(), integer()) :: [map()]
   def top_pages(from_date, to_date, limit \\ 20) do
-    rows =
-      case split_range(from_date, to_date) do
-        {:raw_only, from, to} ->
-          raw_top_pages(from, to, limit)
+    case split_range(from_date, to_date) do
+      {:raw_only, from, to} ->
+        raw_top_pages(from, to, limit)
 
-        {:summary_only, from, to} ->
-          summary_top_pages(from, to, limit)
+      {:summary_only, from, to} ->
+        summary_top_pages(from, to, limit)
 
-        {:mixed, from, summary_end, today} ->
-          merge_by_key(
-            summary_top_pages(from, summary_end, :unlimited),
-            raw_top_pages(today, today, :unlimited),
-            :path,
-            fn a, b ->
-              %{
-                path: a.path,
-                views: a.views + b.views,
-                unique_visitors: a.unique_visitors + b.unique_visitors
-              }
-            end
-          )
-          |> Enum.sort_by(& &1.views, :desc)
-          |> Enum.take(limit)
-      end
-
-    rows
+      {:mixed, from, summary_end, today} ->
+        merge_by_key(
+          summary_top_pages(from, summary_end, :unlimited),
+          raw_top_pages(today, today, :unlimited),
+          :path,
+          fn a, b ->
+            %{
+              path: a.path,
+              views: a.views + b.views,
+              unique_visitors: a.unique_visitors + b.unique_visitors
+            }
+          end
+        )
+        |> Enum.sort_by(& &1.views, :desc)
+        |> Enum.take(limit)
+    end
   end
 
   defp raw_top_pages(from_date, to_date, limit) do
