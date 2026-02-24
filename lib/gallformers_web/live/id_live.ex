@@ -315,12 +315,20 @@ defmodule GallformersWeb.IDLive do
   def handle_event("search_host", %{"value" => query}, socket) do
     results =
       if String.length(query) >= 2 do
-        Plants.search_hosts(query, 10)
+        Plants.search_hosts(query, 50)
       else
         []
       end
 
-    {:noreply, assign(socket, host_query: query, host_results: results)}
+    {:noreply,
+     assign(socket,
+       host_query: query,
+       host_results: results,
+       # Clear genus when typing in host (mutually exclusive)
+       selected_genus: nil,
+       genus_query: "",
+       genus_results: []
+     )}
   end
 
   @impl true
@@ -364,7 +372,15 @@ defmodule GallformersWeb.IDLive do
         []
       end
 
-    {:noreply, assign(socket, genus_query: query, genus_results: results)}
+    {:noreply,
+     assign(socket,
+       genus_query: query,
+       genus_results: results,
+       # Clear host when typing in genus (mutually exclusive)
+       selected_host: nil,
+       host_query: "",
+       host_results: []
+     )}
   end
 
   @impl true
