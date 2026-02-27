@@ -29,7 +29,7 @@ defmodule Mix.Tasks.Gallformers.Wcvp.BuildDb do
   @default_output "priv/data/wcvp.sqlite"
 
   @s3_bucket "gallformers-backups"
-  @s3_key "wcvp/wcvp.sqlite"
+  @s3_key "public/wcvp.sqlite"
 
   @impl Mix.Task
   def run(args) do

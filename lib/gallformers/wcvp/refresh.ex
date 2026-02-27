@@ -7,8 +7,7 @@ defmodule Gallformers.Wcvp.Refresh do
 
   require Logger
 
-  @s3_bucket "gallformers-backups"
-  @s3_key "wcvp/wcvp.sqlite"
+  @download_url "https://gallformers-backups.s3.amazonaws.com/public/wcvp.sqlite"
 
   def refresh do
     db_path = Application.get_env(:gallformers, Repo.WCVP)[:database]
@@ -41,16 +40,20 @@ defmodule Gallformers.Wcvp.Refresh do
   end
 
   defp download(dest_path) do
-    Logger.info("Downloading WCVP database from S3...")
+    Logger.info("Downloading WCVP database from #{@download_url}...")
     File.mkdir_p!(Path.dirname(dest_path))
 
-    case ExAws.S3.get_object(@s3_bucket, @s3_key) |> Gallformers.S3.request() do
-      {:ok, %{body: body}} ->
-        File.write!(dest_path, body)
+    case Req.get(@download_url, into: File.stream!(dest_path)) do
+      {:ok, %Req.Response{status: 200}} ->
         :ok
 
+      {:ok, %Req.Response{status: status}} ->
+        File.rm(dest_path)
+        {:error, {:download_failed, status}}
+
       {:error, reason} ->
-        {:error, {:s3_download_failed, reason}}
+        File.rm(dest_path)
+        {:error, {:download_failed, reason}}
     end
   end
 

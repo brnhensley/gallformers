@@ -59,6 +59,31 @@ cd "$BACKUP_DIR"
 ls -t pre-migrate-*.sqlite 2>/dev/null | tail -n +$((MAX_BACKUPS + 1)) | xargs -r rm -f 2>/dev/null || echo "WARNING: Could not clean up all old backups — continuing"
 cd /app
 
+# Download data files from public S3 if not already on the volume
+S3_BASE="https://gallformers-backups.s3.amazonaws.com/public"
+
+if [ ! -f /data/boundaries.pmtiles ]; then
+  echo "Downloading boundaries.pmtiles from S3..."
+  if curl -fSL -o /data/boundaries.pmtiles "$S3_BASE/boundaries.pmtiles"; then
+    chown gallformers:gallformers /data/boundaries.pmtiles
+    echo "boundaries.pmtiles downloaded."
+  else
+    echo "WARNING: Failed to download boundaries.pmtiles — maps will not work"
+    rm -f /data/boundaries.pmtiles
+  fi
+fi
+
+if [ ! -f /data/wcvp.sqlite ]; then
+  echo "Downloading wcvp.sqlite from S3..."
+  if curl -fSL -o /data/wcvp.sqlite "$S3_BASE/wcvp.sqlite"; then
+    chown gallformers:gallformers /data/wcvp.sqlite
+    echo "wcvp.sqlite downloaded."
+  else
+    echo "WARNING: Failed to download wcvp.sqlite — WCVP lookups will not be available"
+    rm -f /data/wcvp.sqlite
+  fi
+fi
+
 # Symlink boundaries PMTiles from volume into static assets
 if [ -f /data/boundaries.pmtiles ]; then
   mkdir -p /app/lib/gallformers-0.1.0/priv/static/data

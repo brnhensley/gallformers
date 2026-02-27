@@ -55,7 +55,8 @@ FROM alpine:3.20 AS runtime
 
 # Runtime dependencies + aws-cli for database reset workflow
 # vips is needed for image processing (resizing variants)
-RUN apk add --no-cache libstdc++ openssl ncurses-libs sqlite su-exec aws-cli vips
+# curl is needed for downloading data files from S3 on first boot
+RUN apk add --no-cache libstdc++ openssl ncurses-libs sqlite su-exec aws-cli vips curl
 
 # Install Litestream for continuous SQLite replication
 ADD https://github.com/benbjohnson/litestream/releases/download/v0.3.13/litestream-v0.3.13-linux-amd64.tar.gz /tmp/litestream.tar.gz

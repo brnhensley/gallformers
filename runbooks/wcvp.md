@@ -16,7 +16,7 @@ Two supporting files work alongside the database:
 ```
 Wcvp.Lookup          — search/get queries against Repo.WCVP (wcvp.sqlite)
 Wcvp.Tdwg            — TDWG-to-places mapping (reads tdwg_to_places.json)
-Wcvp.Refresh         — downloads wcvp.sqlite from S3, hot-swaps the repo
+Wcvp.Refresh         — downloads wcvp.sqlite from public S3, hot-swaps the repo
 Wcvp.Matcher         — three-pass name matching (exact, fuzzy, synonym)
 Wcvp.Reader          — streams raw WCVP CSV files (pipe-delimited)
 Repo.WCVP            — read-only Ecto repo for the secondary database
@@ -50,16 +50,18 @@ mix gallformers.wcvp.build_db --upload
 
 | Item | Details |
 |------|---------|
-| **wcvp.sqlite** | `/app/data/wcvp.sqlite` — copied from build context during Docker build |
+| **wcvp.sqlite** | `/app/data/wcvp.sqlite` — downloaded from public S3 during Docker build |
 | **tdwg_to_places.json** | Bundled in release at `<release>/lib/gallformers-<vsn>/priv/repo/data/` |
 | **Config** | `fly.preview.toml` sets `WCVP_DATABASE_PATH = "/app/data/wcvp.sqlite"` |
 | **Repo startup** | Same `File.exists?` check — starts because the file is baked into the image |
 
 **How the DB gets into the image** (`Dockerfile.preview`):
-1. Builder stage: `COPY priv priv` brings in `priv/data/wcvp.sqlite` from the local build context
-2. Runtime stage: `COPY --from=builder /app/priv/data/wcvp.sqlite /app/data/wcvp.sqlite`
+```dockerfile
+curl -fSL -o /app/data/wcvp.sqlite \
+  https://gallformers-backups.s3.amazonaws.com/public/wcvp.sqlite
+```
 
-This means the preview WCVP data matches whatever is in your local `priv/data/wcvp.sqlite` at build time. To update it, rebuild locally first (`mix gallformers.wcvp.build_db`), then redeploy preview.
+The file is downloaded from public S3 at build time (no AWS credentials needed). To update preview: rebuild the WCVP database locally, upload to S3 (`mix gallformers.wcvp.build_db --upload`), then redeploy preview.
 
 ### Production (gallformers.fly.dev)
 
@@ -74,8 +76,13 @@ This means the preview WCVP data matches whatever is in your local `priv/data/wc
 
 The WCVP database is **not** baked into the production Docker image. It lives on the persistent Fly volume and is managed via:
 
-1. **Initial setup**: Upload from local via `mix gallformers.wcvp.build_db --upload`, then use `Wcvp.Refresh.refresh/0` from a remote console to download from S3
-2. **Updates**: Call `Wcvp.Refresh.refresh/0` which downloads from `s3://gallformers-backups/wcvp/wcvp.sqlite`, stops the repo, swaps the file, and restarts
+1. **First boot**: `docker-entrypoint.sh` checks if `/data/wcvp.sqlite` exists. If missing, it downloads automatically from public S3:
+   ```
+   https://gallformers-backups.s3.amazonaws.com/public/wcvp.sqlite
+   ```
+2. **Updates**: Call `Wcvp.Refresh.refresh/0` which downloads from the same public S3 URL, stops the repo, swaps the file, and restarts. Can also upload a new build via `mix gallformers.wcvp.build_db --upload` and then trigger refresh, or SFTP directly to `/data/wcvp.sqlite`.
+
+Once on the volume, the file persists across deploys.
 
 **If the DB is missing on production**, WCVP features degrade gracefully:
 - `Repo.WCVP` is not started (no crash)
@@ -95,6 +102,37 @@ end
 
 This is intentionally in `runtime.exs` because `prod.exs` is evaluated at compile time during `mix release`. Environment variables set in `fly.toml` / `fly.preview.toml` are only available at runtime.
 
+## Updating WCVP Data
+
+When WCVP source data needs to be refreshed (new Kew release, corrections, etc.):
+
+```bash
+# 1. Download latest CSV files from Kew
+mix gallformers.wcvp.download
+
+# 2. Build filtered SQLite database
+mix gallformers.wcvp.build_db
+
+# 3. Upload to public S3
+mix gallformers.wcvp.build_db --upload
+
+# 4. Update production (choose one):
+
+# Option A: Trigger refresh from admin UI (stops/swaps/restarts Repo.WCVP)
+# Navigate to any host's admin page → "Refresh from POWO-WCVP"
+# Or from remote console:
+# Gallformers.Wcvp.Refresh.refresh()
+
+# Option B: Upload directly to the volume
+echo "put priv/data/wcvp.sqlite /data/wcvp.sqlite" | fly ssh sftp shell
+fly machine restart
+```
+
+## Git and Docker Status
+
+- `.gitignore`: `priv/data/` — WCVP databases not committed (build artifacts)
+- `.dockerignore`: `priv/data/wcvp.sqlite`, `priv/repo/data/wcvp/` — excluded from build context
+
 ## File Path Resolution
 
 `Wcvp.Tdwg.load/0` reads `tdwg_to_places.json` using `Application.app_dir/2`:
@@ -106,6 +144,24 @@ Application.app_dir(:gallformers, "priv/repo/data/tdwg_to_places.json")
 This resolves correctly in both dev (project root) and releases (inside the release lib directory). **Do not use relative paths like `"priv/..."` directly** — they break in releases where the CWD is `/app/` but priv files are nested under `/app/lib/gallformers-<version>/priv/`.
 
 ## Troubleshooting
+
+### WCVP database missing on production
+
+1. Check if the file exists on the volume:
+   ```bash
+   fly ssh console -C "ls -lh /data/wcvp.sqlite"
+   ```
+
+2. If missing, restart the machine (triggers auto-download from S3):
+   ```bash
+   fly machine restart
+   ```
+
+3. Or upload directly:
+   ```bash
+   echo "put priv/data/wcvp.sqlite /data/wcvp.sqlite" | fly ssh sftp shell
+   fly machine restart
+   ```
 
 ### WCVP button not showing in admin
 

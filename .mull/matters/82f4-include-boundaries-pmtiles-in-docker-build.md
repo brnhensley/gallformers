@@ -1,5 +1,5 @@
 ---
-status: raw
+status: done
 created: 2026-02-27
 updated: 2026-02-27
 epic: geo-expansion

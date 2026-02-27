@@ -28,7 +28,15 @@ erl_crash.dump
 /priv/data/wcvp_test.sqlite-*
 
 # Volume-backed data files (served via symlink from /data volume)
-/priv/static/data/boundaries*.pmtiles
+/priv/static/data/
+
+# Large reference/import data not needed at runtime
+/priv/repo/data/wcvp/
+/priv/repo/data/reconciliation/
+
+# WCVP databases (downloaded from S3 at build/boot time)
+/priv/data/wcvp.sqlite
+/priv/data/wcvp.sqlite-*
 
 # Dev logs
 /priv/logs/

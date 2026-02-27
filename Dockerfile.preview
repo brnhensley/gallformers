@@ -28,7 +28,7 @@ RUN mkdir config
 COPY config/config.exs config/${MIX_ENV}.exs config/
 RUN mix deps.compile
 
-# Copy application code (priv/data excluded via .dockerignore to skip 183MB wcvp.sqlite)
+# Copy application code
 COPY lib lib
 COPY priv priv
 COPY assets assets
@@ -73,13 +73,14 @@ RUN addgroup -g 1000 gallformers && \
 # Copy release from builder
 COPY --from=builder --chown=gallformers:gallformers /app/_build/prod/rel/gallformers ./
 
-# Download database snapshot from public S3 (daily backup, no auth needed)
+# Download data files from public S3 (no auth needed)
 RUN mkdir -p /app/data && \
     curl -fSL -o /app/data/gallformers.sqlite \
-      https://gallformers-backups.s3.amazonaws.com/public/gallformers.sqlite
-
-# Copy WCVP database directly from build context
-COPY --chown=gallformers:gallformers priv/data/wcvp.sqlite /app/data/wcvp.sqlite
+      https://gallformers-backups.s3.amazonaws.com/public/gallformers.sqlite && \
+    curl -fSL -o /app/data/wcvp.sqlite \
+      https://gallformers-backups.s3.amazonaws.com/public/wcvp.sqlite && \
+    curl -fSL -o /app/data/boundaries.pmtiles \
+      https://gallformers-backups.s3.amazonaws.com/public/boundaries.pmtiles
 
 RUN chown -R gallformers:gallformers /app/data
 
