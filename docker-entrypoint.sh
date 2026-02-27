@@ -59,6 +59,12 @@ cd "$BACKUP_DIR"
 ls -t pre-migrate-*.sqlite 2>/dev/null | tail -n +$((MAX_BACKUPS + 1)) | xargs -r rm -f 2>/dev/null || echo "WARNING: Could not clean up all old backups — continuing"
 cd /app
 
+# Symlink boundaries PMTiles from volume into static assets
+if [ -f /data/boundaries.pmtiles ]; then
+  mkdir -p /app/lib/gallformers-0.1.0/priv/static/data
+  ln -sf /data/boundaries.pmtiles /app/lib/gallformers-0.1.0/priv/static/data/boundaries.pmtiles
+fi
+
 # Run database migrations
 # Note: release_command doesn't work with SQLite volumes on Fly.io because
 # the release machine gets a forked snapshot that doesn't persist changes

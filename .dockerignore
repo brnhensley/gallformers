@@ -27,6 +27,9 @@ erl_crash.dump
 /priv/data/wcvp_test.sqlite
 /priv/data/wcvp_test.sqlite-*
 
+# Volume-backed data files (served via symlink from /data volume)
+/priv/static/data/boundaries*.pmtiles
+
 # Dev logs
 /priv/logs/
 
