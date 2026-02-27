@@ -49,6 +49,7 @@ defmodule GallformersWeb.Router do
 
     get "/refindex", RedirectController, :articles
     get "/ref/:slug", RedirectController, :article
+    get "/places", RedirectController, :places
   end
 
   # Auth routes (login/logout via Auth0)
@@ -128,10 +129,8 @@ defmodule GallformersWeb.Router do
   scope "/admin", GallformersWeb do
     pipe_through [:browser, :superadmin]
 
-    # Place admin (superadmin only)
-    live "/places", Admin.PlaceLive.Index, :index
-    live "/places/new", Admin.PlaceLive.Form, :new
-    live "/places/:id", Admin.PlaceLive.Form, :edit
+    # Reconciliation reports (superadmin only)
+    live "/reconciliation", Admin.ReconciliationLive
 
     # Filter terms admin (superadmin only)
     live "/filter-terms", Admin.FilterTermsLive.Index, :index
@@ -149,6 +148,7 @@ defmodule GallformersWeb.Router do
     live_session :public,
       on_mount: [
         {GallformersWeb.Live.UserAuth, :fetch_current_user},
+        {GallformersWeb.Live.ContinentScope, :default},
         {GallformersWeb.Analytics.TrackPageView, :default}
       ] do
       # Home
@@ -179,7 +179,7 @@ defmodule GallformersWeb.Router do
       live "/genus/:id", GenusLive
       live "/source/:id", SourceLive
       live "/section/:id", SectionLive
-      live "/place/:id", PlaceLive
+      live "/place/:code", PlaceLive
 
       # User profiles
       live "/user/:nickname", UserProfileLive

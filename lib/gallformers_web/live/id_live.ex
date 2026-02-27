@@ -9,6 +9,7 @@ defmodule GallformersWeb.IDLive do
 
   alias Gallformers.{Galls, Places, Taxonomy}
   alias Gallformers.Plants
+  alias GallformersWeb.Live.ContinentScope
 
   # URL parameter keys (short codes for compact URLs)
   @url_params %{
@@ -57,7 +58,6 @@ defmodule GallformersWeb.IDLive do
   @impl true
   def mount(_params, _session, socket) do
     filter_options = Galls.get_filter_options()
-    places = Places.list_places()
 
     # Add "leaf (anywhere)" virtual option to plant_parts, sorted alphabetically
     plant_parts_with_virtual = add_leaf_anywhere_option(filter_options.plant_parts)
@@ -73,7 +73,6 @@ defmodule GallformersWeb.IDLive do
        page_json_ld: nil,
        page_noindex: true,
        filter_options: filter_options,
-       places: places,
        families: [],
        # Current filter selections
        filters: default_filters(),
@@ -84,6 +83,9 @@ defmodule GallformersWeb.IDLive do
        genus_query: "",
        genus_results: [],
        selected_genus: nil,
+       place_query: "",
+       place_results: [],
+       selected_place: nil,
        # Multi-select typeahead state
        plant_part_query: "",
        plant_part_focused: false,
@@ -95,7 +97,8 @@ defmodule GallformersWeb.IDLive do
        summaries: %{},
        total_count: 0,
        name_filter: "",
-       show_advanced: false
+       show_advanced: false,
+       default_continent_code: socket.assigns[:continent_code]
      )}
   end
 
@@ -218,33 +221,33 @@ defmodule GallformersWeb.IDLive do
   defp apply_url_filters(socket, filters, params) do
     selected_host = load_host_from_params(params)
     selected_genus = load_genus_from_params(params)
+    selected_place = load_place_from_params(filters)
     families = load_families_for_selection(selected_host, selected_genus)
 
-    # V1 URLs used place names ("Quebec"); V2 uses codes ("QC"). Resolve name → code.
-    filters = resolve_place_name(filters, socket.assigns.places)
+    # Normalize place filter to code (V1 URLs used names like "Quebec")
+    filters = normalize_place_filter(filters, selected_place)
 
     socket
     |> assign(filters: filters)
     |> assign(selected_host: selected_host)
     |> assign(selected_genus: selected_genus)
+    |> assign(selected_place: selected_place)
     |> assign(families: families)
     |> maybe_load_results()
   end
 
-  defp resolve_place_name(%{place: nil} = filters, _places), do: filters
+  defp load_place_from_params(%{place: nil}), do: nil
 
-  defp resolve_place_name(%{place: place_value} = filters, places) do
-    if Enum.any?(places, &(&1.code == place_value)) do
-      # Already a valid code
-      filters
-    else
-      # Try matching by name (case-insensitive for V1 compatibility)
-      case Enum.find(places, &(String.downcase(&1.name) == String.downcase(place_value))) do
-        nil -> filters
-        place -> %{filters | place: place.code}
-      end
+  defp load_place_from_params(%{place: place_value}) do
+    # Try as code first, then as name (V1 compatibility)
+    case Places.get_place_by_code(place_value) do
+      nil -> Places.get_place_by_name(place_value)
+      place -> place
     end
   end
+
+  defp normalize_place_filter(filters, nil), do: %{filters | place: nil}
+  defp normalize_place_filter(filters, place), do: %{filters | place: place.code}
 
   defp load_host_from_params(params) do
     case decode_url_param(params[@url_params.host]) do
@@ -589,8 +592,61 @@ defmodule GallformersWeb.IDLive do
   end
 
   @impl true
+  def handle_event("search_place", %{"value" => query}, socket) do
+    results =
+      if String.length(query) >= 2 do
+        Places.search_places_grouped(query, 10, socket.assigns[:continent_code])
+      else
+        []
+      end
+
+    {:noreply, assign(socket, place_query: query, place_results: results)}
+  end
+
+  @impl true
+  def handle_event("select_place", %{"id" => id_str}, socket) do
+    place_id = String.to_integer(id_str)
+    place = Places.get_place(place_id)
+
+    socket =
+      socket
+      |> assign(selected_place: place, place_query: "", place_results: [])
+      |> update_filter(:place, place && place.code)
+      |> push_filter_patch()
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("clear_place", _params, socket) do
+    socket =
+      socket
+      |> assign(selected_place: nil, place_query: "", place_results: [])
+      |> update_filter(:place, nil)
+      |> push_filter_patch()
+
+    {:noreply, socket}
+  end
+
+  @impl true
   def handle_event("toggle_advanced", _params, socket) do
     {:noreply, assign(socket, show_advanced: !socket.assigns.show_advanced)}
+  end
+
+  @impl true
+  def handle_event("change_region", %{"code" => code}, socket) do
+    {continent_code, continent_name} =
+      case code do
+        "" -> {nil, nil}
+        code -> {code, ContinentScope.continent_names()[code]}
+      end
+
+    socket =
+      socket
+      |> assign(continent_code: continent_code, continent_name: continent_name)
+      |> push_filter_patch()
+
+    {:noreply, socket}
   end
 
   @impl true
@@ -754,6 +810,14 @@ defmodule GallformersWeb.IDLive do
     # Expand "leaf (anywhere)" to actual leaf plant part IDs
     expanded_plant_parts = expand_plant_part_ids(filters.plant_parts)
 
+    # Use explicit place if selected, otherwise fall back to continent scope
+    place_codes =
+      cond do
+        filters.place -> [filters.place]
+        socket.assigns[:continent_code] -> [socket.assigns[:continent_code]]
+        true -> nil
+      end
+
     %{
       host_ids: wrap_in_list(socket.assigns.selected_host, & &1.id),
       genus_id: maybe_get(socket.assigns.selected_genus, :id),
@@ -765,7 +829,7 @@ defmodule GallformersWeb.IDLive do
       texture_logic: filters.texture_logic,
       alignment_ids: wrap_value(filters.alignment),
       detachable: parse_detachable(filters.detachable),
-      place_codes: wrap_value(filters.place),
+      place_codes: place_codes,
       family_id: filters.family,
       form_ids: wrap_value(filters.form),
       walls_ids: wrap_value(filters.walls),
@@ -835,6 +899,13 @@ defmodule GallformersWeb.IDLive do
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} current_user={@current_user}>
+      <:subheader>
+        <.region_scope
+          continent_code={@continent_code}
+          continent_name={@continent_name}
+          default_continent_code={@default_continent_code}
+        />
+      </:subheader>
       <div class="py-4">
         <%!-- Host/Genus Pickers --%>
         <div class="mb-2">
@@ -915,7 +986,32 @@ defmodule GallformersWeb.IDLive do
               />
             </div>
             <.detachable_filter value={@filters.detachable} />
-            <.place_filter places={@places} value={@filters.place} />
+            <div>
+              <.typeahead
+                id="place-filter"
+                label="Region"
+                placeholder="Search regions..."
+                search_event="search_place"
+                select_event="select_place"
+                clear_event="clear_place"
+                query={@place_query}
+                results={@place_results}
+                selected={@selected_place}
+                display_fn={
+                  fn place ->
+                    type = Map.get(place, :type)
+                    parent = Map.get(place, :parent_name)
+
+                    if type in ["state", "province"] and parent not in [nil, ""] do
+                      "#{place.name} — #{parent}"
+                    else
+                      place.name
+                    end
+                  end
+                }
+                group_key={:group}
+              />
+            </div>
             <.family_filter families={@families} value={@filters.family} />
           </div>
 
@@ -1031,25 +1127,6 @@ defmodule GallformersWeb.IDLive do
         label="Detachable"
         prompt="Any"
         options={[{"Integral", "integral"}, {"Detachable", "detachable"}, {"Both", "both"}]}
-        value={@value}
-      />
-    </form>
-    """
-  end
-
-  # Component: Place Filter
-  attr :places, :list, required: true
-  attr :value, :string, required: true
-
-  defp place_filter(assigns) do
-    ~H"""
-    <form phx-change="change_filter" phx-value-filter="place">
-      <.input
-        type="select"
-        name="value"
-        label="Region"
-        prompt="Any Region"
-        options={Enum.map(@places, &{&1.name, &1.code})}
         value={@value}
       />
     </form>
@@ -1364,7 +1441,10 @@ defmodule GallformersWeb.IDLive do
           </p>
         </div>
       </.link>
-      <div :if={@gall.undescribed || @gall.non_gall} class="flex flex-wrap gap-1 px-2 pb-2">
+      <div
+        :if={@gall.undescribed || @gall.non_gall || @gall[:place_match] == :country_level}
+        class="flex flex-wrap gap-1 px-2 pb-2"
+      >
         <span
           :if={@gall.undescribed}
           class="inline-flex items-center px-1.5 py-0.5 text-xs font-medium rounded bg-red-100 text-red-700 cursor-help"
@@ -1378,6 +1458,13 @@ defmodule GallformersWeb.IDLive do
           title="This is not a true gall but a different type of plant growth or damage caused by an organism that is often mistaken for a gall."
         >
           Non-gall
+        </span>
+        <span
+          :if={@gall[:place_match] == :country_level}
+          class="inline-flex items-center px-1.5 py-0.5 text-xs font-medium rounded bg-blue-100 text-blue-700 cursor-help"
+          title="This gall occurs on hosts with country-level range records — state-level data unavailable for your selected region."
+        >
+          Country-level
         </span>
       </div>
     </div>

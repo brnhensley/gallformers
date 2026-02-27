@@ -12,6 +12,7 @@ defmodule Gallformers.Plants do
 
   import Ecto.Query
 
+  alias Gallformers.Plants.HostTraits
   alias Gallformers.Ranges
   alias Gallformers.Repo
   alias Gallformers.Species.{Abundance, Species}
@@ -311,6 +312,42 @@ defmodule Gallformers.Plants do
   end
 
   # ============================================
+  # Host Traits
+  # ============================================
+
+  @doc """
+  Gets host traits for a species.
+
+  Returns `nil` if no host traits record exists for the given species.
+  """
+  @spec get_host_traits(integer()) :: HostTraits.t() | nil
+  def get_host_traits(species_id) do
+    Repo.get(HostTraits, species_id)
+  end
+
+  @doc """
+  Creates or updates host traits for a species.
+
+  If no record exists for the species_id, inserts a new one.
+  If one exists, updates it with the given attrs.
+  """
+  @spec upsert_host_traits(integer(), map()) ::
+          {:ok, HostTraits.t()} | {:error, Ecto.Changeset.t()}
+  def upsert_host_traits(species_id, attrs) do
+    case Repo.get(HostTraits, species_id) do
+      nil ->
+        %HostTraits{species_id: species_id}
+        |> HostTraits.changeset(attrs)
+        |> Repo.insert()
+
+      existing ->
+        existing
+        |> HostTraits.changeset(attrs)
+        |> Repo.update()
+    end
+  end
+
+  # ============================================
   # PubSub
   # ============================================
 
@@ -500,6 +537,8 @@ defmodule Gallformers.Plants do
           save_alias_changes(host.id, aliases_to_add, aliases_to_remove)
           save_place_changes(host.id, params.place_changes)
           maybe_update_section(params.section_update)
+          maybe_upsert_host_traits(host.id, params[:host_traits])
+          Gallformers.Species.touch(host.id)
           updated_host
 
         {:error, changeset} ->
@@ -519,20 +558,28 @@ defmodule Gallformers.Plants do
   end
 
   defp save_place_changes(host_id, %{
-         original_places: original_places,
-         current_places: current_places,
+         original_exact_places: original_exact,
+         original_country_places: original_country,
+         exact_places: exact_places,
+         country_places: country_places,
          all_places: all_places
        }) do
     place_code_to_id = Map.new(all_places, &{&1.code, &1.id})
 
-    original_set = MapSet.new(original_places)
-    current_set = MapSet.new(current_places)
+    original_set = MapSet.new(original_exact ++ original_country)
+    current_set = MapSet.new(exact_places ++ country_places)
 
     if original_set != current_set do
-      place_ids =
-        Enum.map(current_places, &Map.get(place_code_to_id, &1)) |> Enum.reject(&is_nil/1)
+      entries =
+        Enum.map(exact_places, fn code ->
+          {Map.get(place_code_to_id, code), "exact"}
+        end) ++
+          Enum.map(country_places, fn code ->
+            {Map.get(place_code_to_id, code), "country"}
+          end)
 
-      Ranges.update_host_places(host_id, place_ids)
+      entries = Enum.reject(entries, fn {id, _} -> is_nil(id) end)
+      Ranges.update_host_places(host_id, entries)
     end
   end
 
@@ -547,6 +594,15 @@ defmodule Gallformers.Plants do
   end
 
   defp maybe_update_section(_), do: :ok
+
+  defp maybe_upsert_host_traits(_host_id, nil), do: :ok
+
+  defp maybe_upsert_host_traits(host_id, traits) do
+    case upsert_host_traits(host_id, traits) do
+      {:ok, _} -> :ok
+      {:error, changeset} -> Repo.rollback(changeset)
+    end
+  end
 
   # Updates the species→section link in species_taxonomy when section changes.
   defp update_species_section_link(_species_id, same, same), do: :ok

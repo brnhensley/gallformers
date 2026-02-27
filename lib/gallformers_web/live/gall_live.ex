@@ -7,7 +7,18 @@ defmodule GallformersWeb.GallLive do
   """
   use GallformersWeb, :live_view
 
-  alias Gallformers.{GallHosts, Galls, Glossaries, Markdown, Ranges, Sources, Species, Taxonomy}
+  alias Gallformers.{
+    GallHosts,
+    Galls,
+    Glossaries,
+    Markdown,
+    Places,
+    Ranges,
+    Sources,
+    Species,
+    Taxonomy
+  }
+
   alias Gallformers.Images.Image
   alias GallformersWeb.SEO
 
@@ -84,8 +95,11 @@ defmodule GallformersWeb.GallLive do
         sources = Sources.get_sources_for_species(gall_id)
         aliases = Species.get_aliases_for_species(gall_id)
         taxonomy = get_taxonomy_info(gall_id)
-        range = Ranges.get_places_for_gall(gall_id) |> MapSet.new()
-        excluded_range = Ranges.get_excluded_places_for_gall(gall_id) |> MapSet.new()
+        range_data = Ranges.get_display_range_for_gall(gall_id)
+        range = range_data.in_range
+        inherited_range = range_data.inherited_range
+        excluded_range = range_data.excluded_range
+        range_bounds = Places.get_bounds_for_codes(range ++ inherited_range)
         gall_filters = Galls.get_gall_filter_values(gall_id)
         related_galls = Galls.get_related_galls(gall)
 
@@ -137,7 +151,9 @@ defmodule GallformersWeb.GallLive do
            sources: sources,
            taxonomy: taxonomy,
            range: range,
+           inherited_range: inherited_range,
            excluded_range: excluded_range,
+           range_bounds: range_bounds,
            related_galls: related_galls,
            common_names: common_names,
            scientific_aliases: scientific_aliases,
@@ -268,6 +284,11 @@ defmodule GallformersWeb.GallLive do
   @impl true
   def handle_event("expand_sources", _params, socket) do
     {:noreply, assign(socket, sources_expanded: true)}
+  end
+
+  @impl true
+  def handle_event("navigate_to_place", %{"code" => code}, socket) do
+    {:noreply, push_navigate(socket, to: "/place/#{code}")}
   end
 
   defp paginated_aliases(aliases, current_page, page_size) do
@@ -491,9 +512,15 @@ defmodule GallformersWeb.GallLive do
                   </div>
                   <.range_map
                     id="gall-range-map"
-                    in_range={MapSet.to_list(@range)}
-                    excluded_range={MapSet.to_list(@excluded_range)}
+                    in_range={@range}
+                    inherited_range={@inherited_range}
+                    excluded_range={[]}
+                    bounds={@range_bounds}
+                    navigable
                   />
+                  <div :if={@inherited_range != []} class="mt-1">
+                    <.range_map_legend mode={:public} />
+                  </div>
                 </div>
               </div>
 

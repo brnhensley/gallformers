@@ -19,20 +19,24 @@ defmodule GallformersWeb.Admin.GallHostLive do
   alias Gallformers.GallHosts
   alias Gallformers.Places
   alias Gallformers.Ranges
-  alias Gallformers.Repo
   alias Gallformers.Species
   alias GallformersWeb.Admin.DeferredChanges
+  alias GallformersWeb.Admin.ExclusionDrillDown
 
   @impl true
   def mount(_params, session, socket) do
     current_user = session["current_user"]
-    all_places = Places.list_places()
+    all_places = Places.list_all_places()
+    place_by_code = Map.new(all_places, &{&1.code, &1})
+    place_by_id = Map.new(all_places, &{&1.id, &1})
 
     socket =
       socket
       |> assign(:current_user, current_user)
       |> assign(:page_title, "Gall-Host Mappings")
       |> assign(:all_places, all_places)
+      |> assign(:place_by_code, place_by_code)
+      |> assign(:place_by_id, place_by_id)
       # Gall selection state
       |> assign(:gall_search_query, "")
       |> assign(:gall_search_results, [])
@@ -44,10 +48,13 @@ defmodule GallformersWeb.Admin.GallHostLive do
       |> assign(:host_dropdown_open, false)
       # Range/exclusion state (manual tracking)
       |> assign(:host_places, [])
+      |> assign(:host_ranges, [])
       |> assign(:original_excluded_place_ids, [])
       |> assign(:excluded_place_ids, [])
       |> assign(:excluded_places, [])
       |> assign(:in_range, [])
+      |> assign(:inherited_range, [])
+      |> assign(:range_bounds, nil)
       # Form state
       |> init_form_state()
 
@@ -114,7 +121,12 @@ defmodule GallformersWeb.Admin.GallHostLive do
       |> assign(DeferredChanges.init(:hosts, []))
       |> assign(:original_excluded_place_ids, [])
       |> assign(:excluded_place_ids, [])
-      |> assign_range_data([], [])
+      |> assign(:host_ranges, [])
+      |> assign(:host_places, [])
+      |> assign(:excluded_places, [])
+      |> assign(:in_range, [])
+      |> assign(:inherited_range, [])
+      |> assign(:range_bounds, nil)
       |> assign(:page_title, "Gall-Host Mappings")
       |> reset_dirty()
 
@@ -175,7 +187,8 @@ defmodule GallformersWeb.Admin.GallHostLive do
             |> assign(:host_search_query, "")
             |> assign(:host_search_results, [])
             |> assign(:host_dropdown_open, false)
-            |> recompute_host_places_and_range()
+            |> recompute_range()
+            |> push_range_update()
             |> mark_dirty()
 
           {:noreply, socket}
@@ -196,7 +209,8 @@ defmodule GallformersWeb.Admin.GallHostLive do
         socket =
           socket
           |> DeferredChanges.remove_pending(:hosts, relation_id, id_field: :host_relation_id)
-          |> recompute_host_places_and_range()
+          |> recompute_range()
+          |> push_range_update()
           |> mark_dirty()
 
         {:noreply, socket}
@@ -213,73 +227,34 @@ defmodule GallformersWeb.Admin.GallHostLive do
   @impl true
   def handle_event("toggle_region", %{"code" => code}, socket) do
     with %{id: _gall_id} <- socket.assigns.selected_gall,
-         %{id: place_id} <- Enum.find(socket.assigns.all_places, &(&1.code == code)),
+         %{id: place_id} <- Map.get(socket.assigns.place_by_code, code),
          true <- code in socket.assigns.host_places do
-      # Toggle in local excluded_place_ids list
-      excluded_place_ids = socket.assigns.excluded_place_ids
-
-      new_excluded_place_ids =
-        if place_id in excluded_place_ids do
-          List.delete(excluded_place_ids, place_id)
-        else
-          [place_id | excluded_place_ids]
-        end
-
-      excluded_places = place_ids_to_codes(socket.assigns.all_places, new_excluded_place_ids)
-
-      socket =
-        socket
-        |> assign(:excluded_place_ids, new_excluded_place_ids)
-        |> assign_range_data(socket.assigns.host_places, excluded_places)
-        |> push_range_update()
-        |> mark_dirty()
-
-      {:noreply, socket}
+      {:noreply, toggle_exclusion(socket, place_id)}
     else
       _ -> {:noreply, socket}
     end
   end
 
   @impl true
-  def handle_event("select_all_places", _params, socket) do
-    gall = socket.assigns.selected_gall
+  def handle_event("toggle_country", %{"code" => code}, socket) do
+    with %{id: _gall_id} <- socket.assigns.selected_gall,
+         %{id: place_id} = place <- Places.get_place_by_code(code) do
+      leaf_ids = Places.leaf_descendant_ids(place_id)
 
-    if gall do
-      # Select all = remove all exclusions (all host places are in range)
-      socket =
-        socket
-        |> assign(:excluded_place_ids, [])
-        |> assign_range_data(socket.assigns.host_places, [])
-        |> push_range_update()
-        |> mark_dirty()
+      if leaf_ids == [place_id] do
+        # Leaf country (no subdivisions): toggle exclusion directly
+        {:noreply, toggle_exclusion(socket, place_id)}
+      else
+        # Country with subdivisions: open drill-down panel
+        send_update(ExclusionDrillDown,
+          id: "exclusion-drill-down",
+          action: {:open, place}
+        )
 
-      {:noreply, socket}
+        {:noreply, push_event(socket, "range-zoom-to-country", %{code: code})}
+      end
     else
-      {:noreply, socket}
-    end
-  end
-
-  @impl true
-  def handle_event("deselect_all_places", _params, socket) do
-    gall = socket.assigns.selected_gall
-
-    if gall do
-      # Deselect all = exclude all host places
-      all_host_place_ids =
-        place_codes_to_ids(socket.assigns.all_places, socket.assigns.host_places)
-
-      excluded_places = socket.assigns.host_places
-
-      socket =
-        socket
-        |> assign(:excluded_place_ids, all_host_place_ids)
-        |> assign_range_data(socket.assigns.host_places, excluded_places)
-        |> push_range_update()
-        |> mark_dirty()
-
-      {:noreply, socket}
-    else
-      {:noreply, socket}
+      _ -> {:noreply, socket}
     end
   end
 
@@ -292,38 +267,17 @@ defmodule GallformersWeb.Admin.GallHostLive do
     gall = socket.assigns.selected_gall
 
     if gall do
-      # Compute host changes
       {hosts_to_add, hosts_to_remove} =
         DeferredChanges.compute_changes(socket, :hosts, id_field: :host_relation_id)
 
-      # Wrap in transaction
-      result =
-        Repo.transaction(fn ->
-          # Remove hosts
-          for relation_id <- hosts_to_remove do
-            GallHosts.remove_host_from_gall(relation_id)
-          end
-
-          # Add hosts
-          for host <- hosts_to_add do
-            GallHosts.add_host_to_gall(gall.id, host.host_species_id)
-          end
-
-          # Set exclusions (replaces existing)
-          Ranges.set_range_exclusions_for_gall(gall.id, socket.assigns.excluded_place_ids)
-
-          :ok
-        end)
-
-      case result do
+      case GallHosts.save_gall_host_changes(
+             gall.id,
+             hosts_to_add,
+             hosts_to_remove,
+             socket.assigns.excluded_place_ids
+           ) do
         {:ok, :ok} ->
-          # Refresh state from DB
-          socket =
-            socket
-            |> load_gall(gall.id)
-            |> put_flash(:info, "Changes saved")
-
-          {:noreply, socket}
+          {:noreply, socket |> load_gall(gall.id) |> put_flash(:info, "Changes saved")}
 
         {:error, _reason} ->
           {:noreply, put_flash(socket, :error, "Failed to save changes")}
@@ -337,6 +291,66 @@ defmodule GallformersWeb.Admin.GallHostLive do
   def handle_event(event, params, socket)
       when event in ~w(request_cancel cancel_discard confirm_discard) do
     handle_form_event(event, params, socket)
+  end
+
+  # =================================================================
+  # ExclusionDrillDown callbacks
+  # =================================================================
+
+  @impl true
+  def handle_info({ExclusionDrillDown, {:toggle_exclusion, code}}, socket) do
+    case Map.get(socket.assigns.place_by_code, code) do
+      %{id: place_id} ->
+        {:noreply, toggle_exclusion(socket, place_id)}
+
+      nil ->
+        {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_info({ExclusionDrillDown, {:include_all, codes}}, socket) do
+    place_by_code = socket.assigns.place_by_code
+
+    place_ids_to_remove =
+      codes
+      |> Enum.map(&Map.get(place_by_code, &1))
+      |> Enum.reject(&is_nil/1)
+      |> Enum.map(& &1.id)
+
+    new_excluded = Enum.reject(socket.assigns.excluded_place_ids, &(&1 in place_ids_to_remove))
+
+    {:noreply,
+     socket
+     |> assign(:excluded_place_ids, new_excluded)
+     |> recompute_range_from_assigns()
+     |> push_range_update()
+     |> mark_dirty()}
+  end
+
+  @impl true
+  def handle_info({ExclusionDrillDown, {:exclude_all, codes}}, socket) do
+    place_by_code = socket.assigns.place_by_code
+
+    place_ids_to_add =
+      codes
+      |> Enum.map(&Map.get(place_by_code, &1))
+      |> Enum.reject(&is_nil/1)
+      |> Enum.map(& &1.id)
+
+    new_excluded = Enum.uniq(socket.assigns.excluded_place_ids ++ place_ids_to_add)
+
+    {:noreply,
+     socket
+     |> assign(:excluded_place_ids, new_excluded)
+     |> recompute_range_from_assigns()
+     |> push_range_update()
+     |> mark_dirty()}
+  end
+
+  @impl true
+  def handle_info({ExclusionDrillDown, :zoom_out}, socket) do
+    {:noreply, push_event(socket, "range-zoom-out", %{})}
   end
 
   # ============================================
@@ -353,76 +367,113 @@ defmodule GallformersWeb.Admin.GallHostLive do
           put_flash(socket, :error, "Selected species is not a gall")
         else
           hosts = GallHosts.get_hosts_for_gall(gall_id)
-          host_places = Ranges.get_places_for_gall(gall_id)
           excluded_place_ids = Ranges.get_excluded_place_ids_for_gall(gall_id)
-          excluded_places = place_ids_to_codes(socket.assigns.all_places, excluded_place_ids)
 
           socket
           |> assign(:selected_gall, gall)
           |> assign(DeferredChanges.init(:hosts, hosts))
           |> assign(:original_excluded_place_ids, excluded_place_ids)
           |> assign(:excluded_place_ids, excluded_place_ids)
-          |> assign_range_data(host_places, excluded_places)
+          |> recompute_range()
           |> assign(:page_title, "Gall-Host Mappings - #{gall.name}")
           |> reset_dirty()
         end
     end
   end
 
-  # Convert list of place IDs to list of place codes
-  defp place_ids_to_codes(all_places, place_ids) do
-    place_id_set = MapSet.new(place_ids)
+  # Recompute range from current hosts and exclusions (hits DB for host ranges).
+  # Called when hosts change or when loading a gall from DB.
+  defp recompute_range(socket) do
+    host_species_ids = Enum.map(socket.assigns.hosts, & &1.host_species_id)
+    host_ranges = Ranges.get_host_ranges_with_precision_for_species_ids(host_species_ids)
 
-    all_places
-    |> Enum.filter(&MapSet.member?(place_id_set, &1.id))
-    |> Enum.map(& &1.code)
-  end
+    excluded_codes = ids_to_codes(socket.assigns.place_by_id, socket.assigns.excluded_place_ids)
 
-  # Convert list of place codes to list of place IDs
-  defp place_codes_to_ids(all_places, codes) do
-    code_set = MapSet.new(codes)
+    # Clean up excluded_place_ids that no longer apply (host was removed).
+    # Compute the full set of leaf codes from host_ranges to check validity.
+    display = Ranges.compute_display_range(host_ranges, excluded_codes)
 
-    all_places
-    |> Enum.filter(&MapSet.member?(code_set, &1.code))
-    |> Enum.map(& &1.id)
-  end
+    all_host_codes =
+      Enum.uniq(display.in_range ++ display.inherited_range ++ display.excluded_range)
 
-  # Compute host places from local hosts list and update range data
-  defp recompute_host_places_and_range(socket) do
-    hosts = socket.assigns.hosts
-    host_species_ids = Enum.map(hosts, & &1.host_species_id)
-    host_places = Ranges.get_places_for_host_species_ids(host_species_ids)
+    valid_excluded_codes = Enum.filter(excluded_codes, &(&1 in all_host_codes))
 
-    # Clean up excluded_place_ids that no longer apply (host was removed)
-    excluded_place_ids = socket.assigns.excluded_place_ids
-    excluded_places = place_ids_to_codes(socket.assigns.all_places, excluded_place_ids)
-    valid_exclusions = Enum.filter(excluded_places, &(&1 in host_places))
+    valid_excluded_place_ids =
+      codes_to_ids(socket.assigns.place_by_code, valid_excluded_codes)
 
-    # Update excluded_place_ids to only include valid ones
-    valid_excluded_place_ids = place_codes_to_ids(socket.assigns.all_places, valid_exclusions)
+    # Recompute with cleaned exclusions if any were removed
+    display =
+      if length(valid_excluded_codes) != length(excluded_codes),
+        do: Ranges.compute_display_range(host_ranges, valid_excluded_codes),
+        else: display
+
+    range_bounds = Places.get_bounds_for_codes(display.in_range ++ display.inherited_range)
 
     socket
+    |> assign(:host_ranges, host_ranges)
+    |> assign(:host_places, all_host_codes)
     |> assign(:excluded_place_ids, valid_excluded_place_ids)
-    |> assign_range_data(host_places, valid_exclusions)
+    |> assign(:excluded_places, valid_excluded_codes)
+    |> assign(:in_range, display.in_range)
+    |> assign(:inherited_range, display.inherited_range)
+    |> assign(:range_bounds, range_bounds)
+  end
+
+  # Toggle a place's exclusion status (no DB query, uses cached host_ranges)
+  defp toggle_exclusion(socket, place_id) do
+    excluded_place_ids = socket.assigns.excluded_place_ids
+
+    new_excluded =
+      if place_id in excluded_place_ids,
+        do: List.delete(excluded_place_ids, place_id),
+        else: [place_id | excluded_place_ids]
+
+    socket
+    |> assign(:excluded_place_ids, new_excluded)
+    |> recompute_range_from_assigns()
     |> push_range_update()
+    |> mark_dirty()
+  end
+
+  # Recompute range from cached host_ranges (no DB query)
+  defp recompute_range_from_assigns(socket) do
+    excluded_codes = ids_to_codes(socket.assigns.place_by_id, socket.assigns.excluded_place_ids)
+    display = Ranges.compute_display_range(socket.assigns.host_ranges, excluded_codes)
+
+    all_host_codes =
+      Enum.uniq(display.in_range ++ display.inherited_range ++ display.excluded_range)
+
+    range_bounds = Places.get_bounds_for_codes(display.in_range ++ display.inherited_range)
+
+    socket
+    |> assign(:host_places, all_host_codes)
+    |> assign(:excluded_places, excluded_codes)
+    |> assign(:in_range, display.in_range)
+    |> assign(:inherited_range, display.inherited_range)
+    |> assign(:range_bounds, range_bounds)
   end
 
   # Push range data update to the RangeMap hook
   defp push_range_update(socket) do
     push_event(socket, "range-update", %{
       in_range: socket.assigns.in_range,
-      excluded_range: socket.assigns.excluded_places
+      excluded_range: socket.assigns.excluded_places,
+      inherited_range: socket.assigns.inherited_range
     })
   end
 
-  # Assigns host_places, excluded_places, and computed in_range together
-  defp assign_range_data(socket, host_places, excluded_places) do
-    in_range = Enum.reject(host_places, &(&1 in excluded_places))
+  defp ids_to_codes(place_by_id, place_ids) do
+    place_ids
+    |> Enum.map(&Map.get(place_by_id, &1))
+    |> Enum.reject(&is_nil/1)
+    |> Enum.map(& &1.code)
+  end
 
-    socket
-    |> assign(:host_places, host_places)
-    |> assign(:excluded_places, excluded_places)
-    |> assign(:in_range, in_range)
+  defp codes_to_ids(place_by_code, codes) do
+    codes
+    |> Enum.map(&Map.get(place_by_code, &1))
+    |> Enum.reject(&is_nil/1)
+    |> Enum.map(& &1.id)
   end
 
   @impl true
@@ -538,69 +589,33 @@ defmodule GallformersWeb.Admin.GallHostLive do
                   <%!-- Legend and Actions --%>
                   <div class="col-span-1">
                     <div class="text-sm font-medium text-gray-700 mb-2">Legend:</div>
-                    <div class="space-y-1 mb-4">
-                      <div class="flex items-center gap-2">
-                        <div class="w-4 h-4 rounded border border-gray-400 bg-green-700"></div>
-                        <span class="text-xs text-gray-600">Gall & Host</span>
-                      </div>
-                      <div class="flex items-center gap-2">
-                        <div class="w-4 h-4 rounded border border-gray-400 bg-red-300"></div>
-                        <span class="text-xs text-gray-600">Host Only</span>
-                      </div>
-                      <div class="flex items-center gap-2">
-                        <div class="w-4 h-4 rounded border border-gray-300 bg-white"></div>
-                        <span class="text-xs text-gray-600">Neither</span>
-                      </div>
-                    </div>
-
-                    <div class="text-sm font-medium text-gray-700 mb-2">Map Actions:</div>
-                    <div class="space-y-2">
-                      <button
-                        type="button"
-                        phx-click="select_all_places"
-                        disabled={@selected_gall == nil}
-                        class={[
-                          "block w-full px-2 py-1 text-xs border border-gray-300 rounded",
-                          if(@selected_gall,
-                            do: "bg-gray-100 hover:bg-gray-200",
-                            else: "bg-gray-50 text-gray-400 cursor-not-allowed"
-                          )
-                        ]}
-                      >
-                        Select All
-                      </button>
-                      <button
-                        type="button"
-                        phx-click="deselect_all_places"
-                        disabled={@selected_gall == nil}
-                        class={[
-                          "block w-full px-2 py-1 text-xs border border-gray-300 rounded",
-                          if(@selected_gall,
-                            do: "bg-gray-100 hover:bg-gray-200",
-                            else: "bg-gray-50 text-gray-400 cursor-not-allowed"
-                          )
-                        ]}
-                      >
-                        De-select All
-                      </button>
+                    <div class="mb-4">
+                      <.range_map_legend mode={:gall_admin} />
                     </div>
                   </div>
 
-                  <%!-- Map --%>
+                  <%!-- Map + Drill-down panel --%>
                   <div class="col-span-5">
                     <%= if @selected_gall do %>
-                      <div
-                        id="gallhost-range-map"
-                        phx-hook="RangeMap"
-                        phx-update="ignore"
-                        data-in-range={Jason.encode!(@in_range)}
-                        data-excluded-range={Jason.encode!(@excluded_places)}
-                        data-editable="true"
-                        class="border border-gray-300 rounded bg-gray-50 min-h-[350px]"
-                      >
-                        <div class="flex items-center justify-center h-64 text-gray-400">
-                          Loading map...
+                      <div class="flex">
+                        <div class="flex-1">
+                          <.range_map
+                            id="gallhost-range-map"
+                            in_range={@in_range}
+                            excluded_range={@excluded_places}
+                            inherited_range={@inherited_range}
+                            bounds={@range_bounds}
+                            editable
+                            class="border border-gray-300 rounded bg-gray-50 min-h-[350px]"
+                          />
                         </div>
+                        <.live_component
+                          module={ExclusionDrillDown}
+                          id="exclusion-drill-down"
+                          excluded_place_ids={@excluded_place_ids}
+                          host_places={@host_places}
+                          all_places={@all_places}
+                        />
                       </div>
                     <% else %>
                       <div class="border border-gray-300 rounded bg-gray-100 min-h-[350px] flex items-center justify-center">
@@ -615,9 +630,9 @@ defmodule GallformersWeb.Admin.GallHostLive do
             <%!-- Range Info --%>
             <div :if={@selected_gall} class="text-sm text-gray-600 mb-4">
               <span class="font-medium">Range summary:</span>
-              {length(@in_range)} places in range, {length(@excluded_places)} excluded, {length(
-                @host_places
-              )} total from hosts
+              {length(@in_range)} confirmed, {length(@inherited_range)} country-level, {length(
+                @excluded_places
+              )} excluded, {length(@host_places)} total from hosts
             </div>
 
             <%!-- Actions --%>

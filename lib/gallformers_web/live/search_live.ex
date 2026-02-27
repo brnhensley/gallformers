@@ -13,6 +13,7 @@ defmodule GallformersWeb.SearchLive do
   use GallformersWeb, :live_view
 
   alias Gallformers.Search
+  alias GallformersWeb.Live.ContinentScope
 
   @valid_sort_columns ~w(type name relevance)
   @page_size 50
@@ -36,7 +37,8 @@ defmodule GallformersWeb.SearchLive do
        sort_by: :relevance,
        sort_dir: :asc,
        selected_index: -1,
-       loading: false
+       loading: false,
+       default_continent_code: socket.assigns[:continent_code]
      )}
   end
 
@@ -147,6 +149,22 @@ defmodule GallformersWeb.SearchLive do
     {:noreply, assign(socket, selected_index: index)}
   end
 
+  @impl true
+  def handle_event("change_region", %{"code" => code}, socket) do
+    {continent_code, continent_name} =
+      case code do
+        "" -> {nil, nil}
+        code -> {code, ContinentScope.continent_names()[code]}
+      end
+
+    socket =
+      socket
+      |> assign(continent_code: continent_code, continent_name: continent_name)
+      |> perform_search(socket.assigns.query)
+
+    {:noreply, socket}
+  end
+
   defp perform_search(socket, query) do
     trimmed = String.trim(query)
 
@@ -158,7 +176,7 @@ defmodule GallformersWeb.SearchLive do
         selected_index: -1
       )
     else
-      grouped = Search.global_search(trimmed)
+      grouped = Search.global_search(trimmed, socket.assigns[:continent_code])
       results = flatten_results(grouped)
 
       assign(socket,
@@ -235,9 +253,10 @@ defmodule GallformersWeb.SearchLive do
   }
 
   defp result_link(%{type: "glossary", name: name}), do: ~p"/glossary##{String.downcase(name)}"
+  defp result_link(%{type: "place", code: code}), do: "/place/#{code}"
   defp result_link(%{type: type, id: id}), do: build_entity_link(type, id)
 
-  defp build_entity_link(type, id) when type in ~w(gall host source genus family section place) do
+  defp build_entity_link(type, id) when type in ~w(gall host source genus family section) do
     "/#{type}/#{id}"
   end
 
@@ -299,6 +318,13 @@ defmodule GallformersWeb.SearchLive do
 
     ~H"""
     <Layouts.app flash={@flash} current_user={@current_user}>
+      <:subheader>
+        <.region_scope
+          continent_code={@continent_code}
+          continent_name={@continent_name}
+          default_continent_code={@default_continent_code}
+        />
+      </:subheader>
       <div id="search-container" phx-window-keydown="keydown">
         <form id="search-form" phx-submit="search" phx-change="search_input" class="mb-6">
           <.search_input
