@@ -7,20 +7,24 @@ defmodule Gallformers.Application do
 
   @impl true
   def start(_type, _args) do
-    children = [
-      GallformersWeb.Telemetry,
-      Gallformers.Repo,
-      {Ecto.Migrator,
-       repos: Application.fetch_env!(:gallformers, :ecto_repos), skip: skip_migrations?()},
-      {DNSCluster, query: Application.get_env(:gallformers, :dns_cluster_query) || :ignore},
-      {Phoenix.PubSub, name: Gallformers.PubSub},
-      # Image audit cache for orphan detection
-      Gallformers.Images.AuditCache,
-      # Nightly analytics rollup and pruning
-      Gallformers.Analytics.Rollup,
-      # Start to serve requests, typically the last entry
-      GallformersWeb.Endpoint
-    ]
+    children =
+      [
+        GallformersWeb.Telemetry,
+        Gallformers.Repo,
+        {Ecto.Migrator,
+         repos: Application.fetch_env!(:gallformers, :ecto_repos), skip: skip_migrations?()}
+      ] ++
+        wcvp_repo_child_spec() ++
+        [
+          {DNSCluster, query: Application.get_env(:gallformers, :dns_cluster_query) || :ignore},
+          {Phoenix.PubSub, name: Gallformers.PubSub},
+          # Image audit cache for orphan detection
+          Gallformers.Images.AuditCache,
+          # Nightly analytics rollup and pruning
+          Gallformers.Analytics.Rollup,
+          # Start to serve requests, typically the last entry
+          GallformersWeb.Endpoint
+        ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
@@ -38,6 +42,16 @@ defmodule Gallformers.Application do
   def config_change(changed, _new, removed) do
     GallformersWeb.Endpoint.config_change(changed, removed)
     :ok
+  end
+
+  defp wcvp_repo_child_spec do
+    db_path = Application.get_env(:gallformers, Gallformers.Repo.WCVP)[:database]
+
+    if db_path && File.exists?(db_path) do
+      [Gallformers.Repo.WCVP]
+    else
+      []
+    end
   end
 
   defp skip_migrations? do

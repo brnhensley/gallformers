@@ -70,6 +70,100 @@ defmodule Gallformers.PlantsTest do
     end
   end
 
+  describe "host_traits" do
+    setup do
+      {:ok, family} =
+        Taxonomy.create_taxonomy(%{
+          name: "TestHostTraitsFamily",
+          type: "family",
+          description: "Plant"
+        })
+
+      {:ok, genus} =
+        Taxonomy.create_taxonomy(%{
+          name: "Testhosttraitsgenus",
+          type: "genus",
+          parent_id: family.id
+        })
+
+      {:ok, species} =
+        Repo.insert(%Species{name: "Testhosttraitsgenus testhost", taxoncode: "plant"})
+
+      Taxonomy.link_species_to_taxonomy(species.id, genus.id)
+
+      {:ok, species: species}
+    end
+
+    test "creates host_traits with WCVP and POWO IDs", %{species: species} do
+      {:ok, traits} =
+        Repo.insert(%Gallformers.Plants.HostTraits{
+          species_id: species.id,
+          wcvp_id: "12345",
+          powo_id: "urn:lsid:ipni.org:names:12345-1"
+        })
+
+      assert traits.species_id == species.id
+      assert traits.wcvp_id == "12345"
+      assert traits.powo_id == "urn:lsid:ipni.org:names:12345-1"
+    end
+
+    test "species can preload host_traits", %{species: species} do
+      {:ok, _} =
+        Repo.insert(%Gallformers.Plants.HostTraits{
+          species_id: species.id,
+          wcvp_id: "99999"
+        })
+
+      loaded = Repo.get!(Species, species.id) |> Repo.preload(:host_traits)
+      assert loaded.host_traits.wcvp_id == "99999"
+    end
+  end
+
+  describe "host_traits management" do
+    setup do
+      {:ok, family} =
+        Taxonomy.create_taxonomy(%{
+          name: "Testaceae HT Mgmt",
+          type: "family",
+          description: "Plant"
+        })
+
+      {:ok, genus} =
+        Taxonomy.create_taxonomy(%{name: "Testus HT Mgmt", type: "genus", parent_id: family.id})
+
+      {:ok, species} =
+        Repo.insert(%Species{name: "Testus htmgmt", taxoncode: "plant"})
+
+      Taxonomy.link_species_to_taxonomy(species.id, genus.id)
+
+      {:ok, species: species}
+    end
+
+    test "upsert_host_traits/2 creates traits for a host", %{species: species} do
+      {:ok, traits} =
+        Plants.upsert_host_traits(species.id, %{wcvp_id: "12345", powo_id: "powo-12345"})
+
+      assert traits.wcvp_id == "12345"
+      assert traits.powo_id == "powo-12345"
+    end
+
+    test "upsert_host_traits/2 updates existing traits", %{species: species} do
+      {:ok, _} = Plants.upsert_host_traits(species.id, %{wcvp_id: "12345"})
+      {:ok, traits} = Plants.upsert_host_traits(species.id, %{wcvp_id: "99999"})
+
+      assert traits.wcvp_id == "99999"
+    end
+
+    test "get_host_traits/1 returns traits or nil", %{species: species} do
+      assert Plants.get_host_traits(species.id) == nil
+
+      {:ok, _} = Plants.upsert_host_traits(species.id, %{wcvp_id: "12345"})
+      traits = Plants.get_host_traits(species.id)
+
+      assert traits.wcvp_id == "12345"
+    end
+  end
+
   describe "update_host_with_associations/2" do
     setup do
       {:ok, family} =
@@ -103,8 +197,10 @@ defmodule Gallformers.PlantsTest do
         species_attrs: %{"datacomplete" => true},
         alias_changes: {[], []},
         place_changes: %{
-          original_places: [],
-          current_places: [],
+          original_exact_places: [],
+          original_country_places: [],
+          exact_places: [],
+          country_places: [],
           all_places: []
         },
         section_update: %{
@@ -128,8 +224,10 @@ defmodule Gallformers.PlantsTest do
         species_attrs: %{},
         alias_changes: {[], []},
         place_changes: %{
-          original_places: [],
-          current_places: [place.code],
+          original_exact_places: [],
+          original_country_places: [],
+          exact_places: [place.code],
+          country_places: [],
           all_places: all_places
         },
         section_update: %{
@@ -151,8 +249,10 @@ defmodule Gallformers.PlantsTest do
         species_attrs: %{"name" => ""},
         alias_changes: {[], []},
         place_changes: %{
-          original_places: [],
-          current_places: [],
+          original_exact_places: [],
+          original_country_places: [],
+          exact_places: [],
+          country_places: [],
           all_places: []
         },
         section_update: %{

@@ -7,7 +7,7 @@ defmodule GallformersWeb.HostLive do
   """
   use GallformersWeb, :live_view
 
-  alias Gallformers.{GallHosts, Markdown, Ranges, Sources, Species, Taxonomy}
+  alias Gallformers.{GallHosts, Markdown, Places, Ranges, Sources, Species, Taxonomy}
   alias Gallformers.Images.Image
   alias Gallformers.Plants
   alias GallformersWeb.SEO
@@ -74,7 +74,10 @@ defmodule GallformersWeb.HostLive do
         sources = Sources.get_sources_for_species(host_id)
         aliases = Species.get_aliases_for_species(host_id)
         taxonomy = get_taxonomy_info(host_id)
-        range = Ranges.get_places_for_host(host_id) |> MapSet.new()
+        range_data = Ranges.get_display_range_for_host(host_id)
+        range = range_data.in_range
+        inherited_range = range_data.inherited_range
+        range_bounds = Places.get_bounds_for_codes(range ++ inherited_range)
 
         # Check if Gallformers notes exist for this species
         gallformers_notes = Enum.find(sources, fn s -> s.id == @gallformers_notes_source_id end)
@@ -108,6 +111,8 @@ defmodule GallformersWeb.HostLive do
            sources: sources,
            taxonomy: taxonomy,
            range: range,
+           inherited_range: inherited_range,
+           range_bounds: range_bounds,
            has_gallformers_notes: has_gallformers_notes,
            notes_alert_dismissed: false,
            current_page: 1,
@@ -249,6 +254,11 @@ defmodule GallformersWeb.HostLive do
     {:noreply, assign(socket, synonymy_page: page)}
   end
 
+  @impl true
+  def handle_event("navigate_to_place", %{"code" => code}, socket) do
+    {:noreply, push_navigate(socket, to: "/place/#{code}")}
+  end
+
   defp sorted_galls(galls, sort_by, sort_dir) do
     sorted =
       case sort_by do
@@ -318,9 +328,10 @@ defmodule GallformersWeb.HostLive do
         <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">{@error}</div>
       <% else %>
         <%= if @host do %>
-          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <%!-- Details column (wider) --%>
-            <div class="md:col-span-1 lg:col-span-2 space-y-3">
+          <%!-- Main grid: left column (header + galls), right column (map) --%>
+          <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+            <%!-- Left column: header info + galls table --%>
+            <div class="lg:col-span-2 space-y-3">
               <div class="flex items-start justify-between gap-4">
                 <div class="flex items-center gap-2">
                   <h2 class="text-2xl font-bold">
@@ -408,42 +419,11 @@ defmodule GallformersWeb.HostLive do
                 </span>
               </div>
 
-              <%!-- Synonymy (Scientific Names) --%>
-              <% synonyms = get_scientific_synonyms(@host.aliases) %>
-              <div :if={length(synonyms) > 0} class="mt-4">
-                <h3 class="font-semibold text-gray-800 mb-2">
-                  Synonymy ({length(synonyms)})
-                </h3>
-                <div class="bg-white rounded border border-gray-200 overflow-hidden">
-                  <table class="gf-table gf-table-compact">
-                    <thead>
-                      <tr>
-                        <th>Name</th>
-                        <th>Notes</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr :for={
-                        s <- paginated_synonyms(synonyms, @synonymy_page, @synonymy_page_size)
-                      }>
-                        <td><.taxon_name name={s.name} /></td>
-                        <td class="text-gray-600">{s.description || "—"}</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-                <.pagination
-                  :if={synonymy_total_pages(synonyms, @synonymy_page_size) > 1}
-                  page={@synonymy_page}
-                  total_pages={synonymy_total_pages(synonyms, @synonymy_page_size)}
-                  total_items={length(synonyms)}
-                  page_size={@synonymy_page_size}
-                  on_page_change={fn page -> JS.push("synonymy_page", value: %{page: page}) end}
-                  class="mt-4"
-                />
-              </div>
-
+              <%!-- Galls table --%>
               <div class="pt-2">
+                <h3 class="font-semibold text-gray-800 mb-2">
+                  Associated Galls ({length(@host.galls)})
+                </h3>
                 <%= if length(@host.galls) > 0 do %>
                   <div class="overflow-hidden rounded border border-gray-200">
                     <table class="gf-table gf-table-compact">
@@ -553,8 +533,63 @@ defmodule GallformersWeb.HostLive do
               </div>
             </div>
 
-            <%!-- Images and range column --%>
-            <div class="md:col-span-1 lg:col-span-1 border rounded p-2 flex flex-col gap-4">
+            <%!-- Right column: range map --%>
+            <div class="lg:col-span-3 flex flex-col min-h-0">
+              <h3 class="font-semibold text-gray-800 mb-2">Range</h3>
+              <.range_map
+                id="host-range-map"
+                class="flex-1"
+                in_range={@range}
+                inherited_range={@inherited_range}
+                bounds={@range_bounds}
+                navigable
+              />
+              <div :if={@inherited_range != []} class="mt-1">
+                <.range_map_legend mode={:public} />
+              </div>
+            </div>
+          </div>
+
+          <%!-- Synonymy and photos row --%>
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+            <%!-- Synonymy --%>
+            <% synonyms = get_scientific_synonyms(@host.aliases) %>
+            <div :if={length(synonyms) > 0}>
+              <h3 class="font-semibold text-gray-800 mb-2">
+                Synonymy ({length(synonyms)})
+              </h3>
+              <div class="bg-white rounded border border-gray-200 overflow-hidden">
+                <table class="gf-table gf-table-compact">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Notes</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr :for={s <- paginated_synonyms(synonyms, @synonymy_page, @synonymy_page_size)}>
+                      <td><.taxon_name name={s.name} /></td>
+                      <td class="text-gray-600">{s.description || "—"}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <.pagination
+                :if={synonymy_total_pages(synonyms, @synonymy_page_size) > 1}
+                page={@synonymy_page}
+                total_pages={synonymy_total_pages(synonyms, @synonymy_page_size)}
+                total_items={length(synonyms)}
+                page_size={@synonymy_page_size}
+                on_page_change={fn page -> JS.push("synonymy_page", value: %{page: page}) end}
+                class="mt-4"
+              />
+            </div>
+
+            <%!-- Photos (compact) --%>
+            <div :if={length(@images) > 0}>
+              <h3 class="font-semibold text-gray-800 mb-2">
+                Photos ({length(@images)})
+              </h3>
               <.image_gallery
                 images={@images}
                 id="host-images"
@@ -562,11 +597,6 @@ defmodule GallformersWeb.HostLive do
                 current_user={@current_user}
                 no_image_src="/images/noimagehost.jpg"
               />
-
-              <div class="mt-auto">
-                <div class="mb-1"><strong>Range:</strong></div>
-                <.range_map id="host-range-map" in_range={MapSet.to_list(@range)} />
-              </div>
             </div>
           </div>
 

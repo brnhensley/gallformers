@@ -31,6 +31,13 @@ import SortableImages from "./hooks/sortable_images"
 import ArticleImageUpload from "./hooks/article_image_upload"
 import DailyChart from "./hooks/daily_chart"
 
+// Tri-state checkbox: sets the indeterminate DOM property from data attribute
+// (HTML has no attribute for indeterminate — it's JS-only)
+const IndeterminateCheckbox = {
+  mounted() { this.el.indeterminate = this.el.dataset.indeterminate === "true" },
+  updated() { this.el.indeterminate = this.el.dataset.indeterminate === "true" }
+}
+
 // Custom hooks for UI components
 const Tabs = {
   mounted() {
@@ -407,6 +414,7 @@ const Typeahead = {
 
   getResults() {
     if (!this.resultsContainer) return []
+    // Only return selectable items — skip group headers (role="presentation")
     return Array.from(this.resultsContainer.querySelectorAll("[data-typeahead-option]"))
   },
 
@@ -566,11 +574,77 @@ const AdminNav = {
   }
 }
 
+// RegionScope hook for the per-page region scope widget
+const RegionScope = {
+  mounted() {
+    const toggle = this.el.querySelector("[data-region-toggle]")
+    const dropdown = this.el.querySelector("[data-region-dropdown]")
+
+    if (toggle && dropdown) {
+      toggle.addEventListener("click", (e) => {
+        e.stopPropagation()
+        dropdown.classList.toggle("hidden")
+      })
+
+      // Close on click-away
+      document.addEventListener("click", (e) => {
+        if (!this.el.contains(e.target)) {
+          dropdown.classList.add("hidden")
+        }
+      })
+    }
+
+    // Use event delegation for "Set as default" since the button is conditionally
+    // rendered (only appears after an override) and won't exist at mount time
+    this.el.addEventListener("click", (e) => {
+      const saveBtn = e.target.closest("[data-region-save]")
+      if (!saveBtn) return
+
+      const active = this.el.querySelector("[data-region-code].font-bold")
+      const currentCode = active ? active.dataset.regionCode : ""
+      if (currentCode === "") {
+        localStorage.removeItem("gf_continent")
+      } else {
+        localStorage.setItem("gf_continent", currentCode)
+      }
+      localStorage.setItem("gf_continent_dismissed", "true")
+      // Reload to propagate the new default across the session
+      window.location.reload()
+    })
+  }
+}
+
+// RegionPrompt hook for the contextual first-visit modal on scoped pages
+const RegionPrompt = {
+  mounted() {
+    const hasContinent = localStorage.getItem("gf_continent")
+    const dismissed = localStorage.getItem("gf_continent_dismissed")
+
+    if (!hasContinent && !dismissed) {
+      this.el.classList.remove("hidden")
+    }
+
+    // Selection from the prompt saves to localStorage and dismisses
+    this.el.querySelectorAll("[data-prompt-code]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const code = btn.dataset.promptCode
+        if (code === "") {
+          localStorage.setItem("gf_continent_dismissed", "true")
+        } else {
+          localStorage.setItem("gf_continent", code)
+          localStorage.setItem("gf_continent_dismissed", "true")
+        }
+        this.el.classList.add("hidden")
+      })
+    })
+  }
+}
+
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
-  params: {_csrf_token: csrfToken},
-  hooks: {Tabs, ImageGallery, RangeMap, ImageUpload, SortableImages, AutoDismiss, Typeahead, ArticleImageUpload, CopyToClipboard, DailyChart, InputEvent, ScrollToCouplet, AdminNav},
+  params: () => ({_csrf_token: csrfToken, continent: localStorage.getItem("gf_continent")}),
+  hooks: {Tabs, ImageGallery, RangeMap, ImageUpload, SortableImages, AutoDismiss, Typeahead, ArticleImageUpload, CopyToClipboard, DailyChart, InputEvent, ScrollToCouplet, AdminNav, RegionScope, RegionPrompt, IndeterminateCheckbox},
 })
 
 // Show progress bar on live navigation and form submits

@@ -103,17 +103,85 @@ INSERT INTO gallhost (id, host_species_id, gall_species_id, inserted_at, updated
   (2, 8, 100, '2026-01-01T00:00:00', '2026-01-01T00:00:00'),  -- gall 100 → M. arvensis (GenusBeta) — cross-genus!
   (3, 7, 101, '2026-01-01T00:00:00', '2026-01-01T00:00:00');   -- gall 101 → T. serpyllum (GenusAlpha only)
 
--- Places
-INSERT INTO place (id, name, code, type) VALUES
-  (1, 'Alberta', 'AB', 'province'),
-  (2, 'California', 'CA', 'state');
+-- =============================================================================
+-- Places and Hierarchy (ISO 3166-2 codes)
+-- =============================================================================
+-- The global migration inserts places with auto-generated IDs.
+-- We clear everything and re-insert with controlled IDs for test assertions.
 
--- Host ranges: which hosts occur in which places
-INSERT INTO host_range (species_id, place_id) VALUES
-  (6, 2),   -- T. alpinus in California
-  (8, 1),   -- M. arvensis in Alberta
-  (8, 2),   -- M. arvensis in California
-  (7, 2);   -- T. serpyllum in California
+DELETE FROM host_range;
+DELETE FROM gall_range_exclusion;
+DELETE FROM place_hierarchy;
+DELETE FROM place;
+
+-- Hierarchy structure: Continents → countries → subdivisions (no region level)
+INSERT INTO place (id, name, code, type) VALUES
+  (901, 'North America', 'XN', 'continent'),
+  (902, 'United States', 'US', 'country'),
+  (903, 'Canada', 'CA', 'country'),
+  (904, 'Mexico', 'MX', 'country'),
+  (905, 'Caribbean', 'XB', 'continent'),
+  (906, 'Bahamas', 'BS', 'country'),
+  (907, 'Europe', 'XE', 'continent'),
+  (908, 'Romania', 'RO', 'country');
+
+-- Test subdivisions (ISO 3166-2 codes)
+INSERT INTO place (id, name, code, type) VALUES
+  (1, 'Alberta', 'CA-AB', 'province'),
+  (2, 'California', 'US-CA', 'state'),
+  (3, 'Jalisco', 'MX-JAL', 'state'),
+  (4, 'Bucharest', 'RO-B', 'state');
+
+-- Hierarchy links (continents are top-level, no region)
+INSERT INTO place_hierarchy (place_id, parent_id) VALUES
+  (902, 901),  -- United States → North America
+  (903, 901),  -- Canada → North America
+  (904, 901),  -- Mexico → North America
+  (906, 905),  -- Bahamas → Caribbean
+  (908, 907),  -- Romania → Europe
+  (1, 903),    -- Alberta → Canada
+  (2, 902),    -- California → United States
+  (3, 904),    -- Jalisco → Mexico
+  (4, 908);    -- Bucharest → Romania
+
+-- Host ranges: which hosts occur in which places (with precision)
+INSERT INTO host_range (species_id, place_id, precision) VALUES
+  (6, 2, 'exact'),      -- T. alpinus in California (exact)
+  (8, 1, 'exact'),      -- M. arvensis in Alberta (exact)
+  (8, 2, 'exact'),      -- M. arvensis in California (exact)
+  (7, 2, 'exact'),      -- T. serpyllum in California (exact)
+  (8, 902, 'country');   -- M. arvensis in United States (country-level)
+
+-- European host + gall data for continent-scoping tests
+INSERT INTO species (id, name, taxoncode, datacomplete, abundance_id) VALUES
+  (9, 'Quercus robur', 'plant', 0, 1);
+
+INSERT INTO species_fts (species_id, name, aliases) VALUES
+  (9, 'Quercus robur', '');
+
+INSERT INTO host_range (species_id, place_id, precision) VALUES
+  (9, 4, 'exact');     -- Q. robur in Bucharest (RO-B) — European host
+
+-- European gall linked to European host
+INSERT INTO species (id, name, taxoncode, datacomplete, abundance_id) VALUES
+  (103, 'Cynips quercusfolii', 'gall', 0, 1);
+
+INSERT INTO gall_traits (species_id, detachable, undescribed) VALUES
+  (103, 'detachable', 0);
+
+INSERT INTO species_fts (species_id, name, aliases) VALUES
+  (103, 'Cynips quercusfolii', '');
+
+INSERT INTO gallhost (id, host_species_id, gall_species_id, inserted_at, updated_at) VALUES
+  (4, 9, 103, '2026-01-01T00:00:00', '2026-01-01T00:00:00');  -- gall 103 → Q. robur (Europe)
+
+-- =============================================================================
+-- Gall range exclusions (gall 100 excludes Jalisco from its range)
+-- =============================================================================
+
+INSERT INTO gall_range_exclusion (species_id, place_id, precision)
+VALUES
+  (100, 3, 'exact');   -- Gall 100 excludes Jalisco (MX-JAL)
 
 -- =============================================================================
 -- Articles

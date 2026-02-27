@@ -16,6 +16,11 @@ import Config
 #
 # Alternatively, you can use `mix phx.gen.release` to generate a `bin/server`
 # script that automatically sets the env var above.
+if System.get_env("PREVIEW_DEPLOY") do
+  config :gallformers, :preview_deploy, true
+  config :gallformers, :request_logger_enabled, false
+end
+
 if System.get_env("PHX_SERVER") do
   config :gallformers, GallformersWeb.Endpoint, server: true
 end
@@ -58,6 +63,11 @@ end
 # Existing images in the DB still resolve from their original paths
 if s3_image_prefix = System.get_env("S3_IMAGE_PREFIX") do
   config :gallformers, :s3_image_prefix, s3_image_prefix
+end
+
+# WCVP secondary database (optional — app handles missing gracefully)
+if wcvp_path = System.get_env("WCVP_DATABASE_PATH") do
+  config :gallformers, Gallformers.Repo.WCVP, database: wcvp_path
 end
 
 if config_env() == :prod do

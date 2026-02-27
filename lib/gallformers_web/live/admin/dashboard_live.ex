@@ -7,6 +7,7 @@ defmodule GallformersWeb.Admin.DashboardLive do
 
   alias Gallformers.{Galls, Images, Sources}
   alias Gallformers.Plants
+  alias Gallformers.Wcvp.Reports
 
   @impl true
   def mount(_params, session, socket) do
@@ -148,13 +149,6 @@ defmodule GallformersWeb.Admin.DashboardLive do
               small
             />
             <.action_card
-              label="Create a New Place"
-              href="/admin/places/new"
-              icon="ph-map-pin"
-              accent="slate"
-              small
-            />
-            <.action_card
               label="Filter Terms"
               href="/admin/filter-terms"
               icon="ph-funnel"
@@ -165,6 +159,14 @@ defmodule GallformersWeb.Admin.DashboardLive do
               label="Live Dashboard"
               href="/admin/dashboard"
               icon="ph-chart-line"
+              accent="slate"
+              small
+            />
+            <.action_card
+              :if={@reconciliation}
+              label="WCVP Reconciliation"
+              href="/admin/reconciliation"
+              icon="ph-arrows-clockwise"
               accent="slate"
               small
             />
@@ -321,6 +323,16 @@ defmodule GallformersWeb.Admin.DashboardLive do
       image_count: Images.count_images()
     }
 
-    assign(socket, :stats, stats)
+    reconciliation =
+      if Gallformers.Accounts.superadmin?(socket.assigns.current_user) do
+        case Reports.list_runs() do
+          [latest | _] -> Reports.summary(latest)
+          [] -> nil
+        end
+      end
+
+    socket
+    |> assign(:stats, stats)
+    |> assign(:reconciliation, reconciliation)
   end
 end

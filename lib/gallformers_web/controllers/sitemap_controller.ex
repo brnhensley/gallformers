@@ -119,11 +119,11 @@ defmodule GallformersWeb.SitemapController do
   # All place pages
   defp place_urls do
     from(p in "place",
-      select: p.id
+      select: p.code
     )
     |> Repo.all()
-    |> Enum.map(fn id ->
-      %{loc: "#{@base_url}/place/#{id}", changefreq: "monthly", priority: "0.5"}
+    |> Enum.map(fn code ->
+      %{loc: "#{@base_url}/place/#{code}", changefreq: "monthly", priority: "0.5"}
     end)
   end
 

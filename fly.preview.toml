@@ -16,6 +16,8 @@ kill_timeout = "30s"
   PHX_HOST = "gallformers-preview.fly.dev"
   PORT = "4000"
   S3_IMAGE_PREFIX = "preview"
+  PREVIEW_DEPLOY = "true"
+  WCVP_DATABASE_PATH = "/app/data/wcvp.sqlite"
 
 [http_service]
   internal_port = 4000
@@ -30,6 +32,6 @@ kill_timeout = "30s"
     soft_limit = 200
 
 [[vm]]
-  memory = "512mb"
+  memory = "1gb"
   cpu_kind = "shared"
   cpus = 1

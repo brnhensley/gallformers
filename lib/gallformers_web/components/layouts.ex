@@ -28,12 +28,17 @@ defmodule GallformersWeb.Layouts do
     default: nil,
     doc: "the currently logged in user, if any"
 
+  slot :subheader,
+    doc: "optional content rendered between header and main (e.g., region scope widget)"
+
   slot :inner_block, required: true
 
   def app(assigns) do
     ~H"""
     <div class="flex min-h-screen flex-col">
       <.site_header current_user={@current_user} />
+
+      {render_slot(@subheader)}
 
       <main class="flex-1 pb-32">
         <div class="px-6 sm:px-10 lg:px-16 py-8">
@@ -137,15 +142,7 @@ defmodule GallformersWeb.Layouts do
                 aria-expanded="false"
                 aria-haspopup="true"
               >
-                Resources
-                <svg class="ml-1 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M19 9l-7 7-7-7"
-                  />
-                </svg>
+                Resources <.icon name="ph-caret-down" class="ml-1 h-4 w-4" />
               </button>
               <div
                 id="resources-menu"

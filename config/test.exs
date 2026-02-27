@@ -18,6 +18,9 @@ config :gallformers, Gallformers.Repo,
   # Override ecto_sqlite3's default of -64000 (62.5 MB per connection)
   cache_size: -2000
 
+config :gallformers, Gallformers.Repo.WCVP,
+  database: Path.expand("../priv/data/wcvp_test.sqlite", __DIR__)
+
 # Server is disabled by default for fast unit tests.
 # E2E tests enable the server via GALLFORMERS_E2E=1 environment variable (in runtime.exs).
 config :gallformers, GallformersWeb.Endpoint,
@@ -32,7 +35,19 @@ config :wallaby,
   screenshot_dir: "test/screenshots",
   screenshot_on_failure: true,
   chromedriver: [
-    headless: System.get_env("E2E_HEADED") != "1"
+    headless: System.get_env("E2E_HEADED") != "1",
+    capabilities: %{
+      chromeOptions: %{
+        args: [
+          "--no-sandbox",
+          "window-size=1280,800",
+          "--fullscreen",
+          "--disable-features=MacAppCodeSignClone",
+          "--enable-unsafe-swiftshader",
+          "--user-agent=Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36"
+        ]
+      }
+    }
   ]
 
 # In test we don't send emails

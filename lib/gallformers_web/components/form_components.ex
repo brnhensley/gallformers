@@ -159,12 +159,17 @@ defmodule GallformersWeb.FormComponents do
   attr :label, :string, default: nil, doc: "optional label"
   attr :disabled, :boolean, default: false, doc: "whether the toggle is disabled"
   attr :class, :any, default: nil, doc: "additional CSS classes"
+
+  attr :form, :string,
+    default: nil,
+    doc: "form id to associate with, or arbitrary value to disassociate from parent form"
+
   attr :rest, :global
 
   def toggle(assigns) do
     ~H"""
     <label class={["inline-flex items-center cursor-pointer", @disabled && "opacity-50", @class]}>
-      <input type="hidden" name={@name} value="false" />
+      <input type="hidden" name={@name} value="false" form={@form} />
       <div class="relative">
         <input
           type="checkbox"
@@ -174,6 +179,7 @@ defmodule GallformersWeb.FormComponents do
           checked={@checked}
           disabled={@disabled}
           class="sr-only peer"
+          form={@form}
           {@rest}
         />
         <div class="gf-toggle-track peer peer-checked:bg-gf-maroon peer-focus:ring-2 peer-focus:ring-gf-maroon/50 peer-checked:after:translate-x-full peer-checked:after:border-white">
@@ -627,6 +633,10 @@ defmodule GallformersWeb.FormComponents do
   attr :target, :any, default: nil, doc: "phx-target for events (use @myself for LiveComponents)"
   attr :required, :boolean, default: false, doc: "whether this field is required"
 
+  attr :group_key, :atom,
+    default: nil,
+    doc: "Key in result maps to group by. When set, inserts non-selectable group headers."
+
   slot :result, doc: "optional slot for custom result item rendering" do
     attr :item, :any
   end
@@ -709,23 +719,32 @@ defmodule GallformersWeb.FormComponents do
             class="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto"
             role="listbox"
           >
-            <%!-- Existing results --%>
-            <button
-              :for={item <- @results}
-              type="button"
-              data-typeahead-option
-              phx-click={@select_event}
-              phx-target={@target}
-              phx-value-id={item.id}
-              class="w-full text-left px-3 py-2 text-base hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
-              role="option"
-            >
-              <%= if @result != [] do %>
-                {render_slot(@result, item)}
-              <% else %>
-                <span class="italic">{@display_fn.(item)}</span>
+            <%!-- Existing results with optional group headers --%>
+            <%= for {item, index} <- Enum.with_index(@results) do %>
+              <%= if @group_key && show_group_header?(item, index, @results, @group_key) do %>
+                <div
+                  class="px-3 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wider"
+                  role="presentation"
+                >
+                  {Map.get(item, @group_key)}
+                </div>
               <% end %>
-            </button>
+              <button
+                type="button"
+                data-typeahead-option
+                phx-click={@select_event}
+                phx-target={@target}
+                phx-value-id={item.id}
+                class="w-full text-left px-3 py-2 text-base hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
+                role="option"
+              >
+                <%= if @result != [] do %>
+                  {render_slot(@result, item)}
+                <% else %>
+                  <span class="italic">{@display_fn.(item)}</span>
+                <% end %>
+              </button>
+            <% end %>
             <%!-- Create new option (shown when no results and allow_new is true) --%>
             <button
               :if={@show_create_option}
@@ -885,6 +904,63 @@ defmodule GallformersWeb.FormComponents do
             {Map.get(opt, @option_label)}
           </div>
         </div>
+      </div>
+    </div>
+    """
+  end
+
+  @doc """
+  Renders a slide-in drill-down panel for country subdivision editing.
+
+  Used by both CountryDrillDown and ExclusionDrillDown. Provides the
+  panel chrome (slide-in transition, header, close button) and slots for
+  custom content.
+
+  ## Example
+
+      <.drill_down_panel
+        open={@open}
+        country_name={@country.name}
+        on_close="close"
+        target={@myself}
+      >
+        <:header_extra>
+          <p class="text-xs text-gray-500 mb-3">Help text here.</p>
+        </:header_extra>
+        <ul>...</ul>
+      </.drill_down_panel>
+  """
+  attr :open, :boolean, required: true
+  attr :country_name, :string, default: nil
+  attr :on_close, :string, required: true
+  attr :target, :any, required: true
+
+  slot :header_extra,
+    doc: "Content after the header, before the list (e.g., toggles, bulk buttons)"
+
+  slot :inner_block, required: true, doc: "The subdivision list content"
+
+  def drill_down_panel(assigns) do
+    ~H"""
+    <div class={[
+      "transition-all duration-300 overflow-hidden",
+      if(@open, do: "w-80 border-l border-gray-200", else: "w-0")
+    ]}>
+      <div :if={@open} class="p-4 h-full overflow-y-auto">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-lg font-semibold text-gray-900">{@country_name}</h3>
+          <button
+            type="button"
+            phx-click={@on_close}
+            phx-target={@target}
+            class="text-gray-400 hover:text-gray-600"
+            aria-label="Close panel"
+          >
+            <.icon name="ph-x" class="size-5" />
+          </button>
+        </div>
+        {render_slot(@header_extra)}
+        {render_slot(@inner_block)}
       </div>
     </div>
     """
@@ -1411,4 +1487,15 @@ defmodule GallformersWeb.FormComponents do
 
   defp rename_collision_species_path("gall", id), do: "/gall/#{id}"
   defp rename_collision_species_path(_taxoncode, id), do: "/host/#{id}"
+
+  # Typeahead grouping helpers
+
+  defp show_group_header?(_result, 0, _results, _group_key) do
+    true
+  end
+
+  defp show_group_header?(result, index, results, group_key) do
+    prev = Enum.at(results, index - 1)
+    Map.get(result, group_key) != Map.get(prev, group_key)
+  end
 end

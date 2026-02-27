@@ -30,7 +30,7 @@ defmodule GallformersWeb.DataDisplayComponents do
       <.taxon_name name="Ichneumonoidea" rank="auto" />
   """
   attr :name, :string, required: true
-  attr :rank, :string, default: "species"
+  attr :rank, :any, default: "species"
   attr :class, :any, default: nil
 
   def taxon_name(assigns) do
@@ -956,18 +956,57 @@ defmodule GallformersWeb.DataDisplayComponents do
   end
 
   @doc """
+  Renders a legend for the range map.
+
+  ## Modes
+
+  - `:public` — Documented, Country-level (for gall and host detail pages)
+  - `:host_admin` — Documented, Country-level, Out of Range
+  - `:gall_admin` — Gall & Host, Country-level, Host Only, Neither
+  """
+  attr :mode, :atom, required: true, values: [:public, :host_admin, :gall_admin]
+
+  def range_map_legend(assigns) do
+    ~H"""
+    <div class="space-y-1">
+      <div class="flex items-center gap-2">
+        <div class="w-4 h-4 rounded border border-gray-400 bg-[#228B22]"></div>
+        <span class="text-xs text-gray-600">
+          {if @mode == :gall_admin, do: "Gall & Host", else: "Documented"}
+        </span>
+      </div>
+      <div class="flex items-center gap-2">
+        <div class="w-4 h-4 rounded border border-gray-400 bg-[#90EE90]"></div>
+        <span class="text-xs text-gray-600">Country-level record only</span>
+      </div>
+      <div :if={@mode == :gall_admin} class="flex items-center gap-2">
+        <div class="w-4 h-4 rounded border border-gray-400 bg-red-300"></div>
+        <span class="text-xs text-gray-600">Host Only</span>
+      </div>
+      <div :if={@mode in [:host_admin, :gall_admin]} class="flex items-center gap-2">
+        <div class="w-4 h-4 rounded border border-gray-300 bg-white"></div>
+        <span class="text-xs text-gray-600">
+          {if @mode == :gall_admin, do: "Neither", else: "Out of Range"}
+        </span>
+      </div>
+    </div>
+    """
+  end
+
+  @doc """
   Renders a geographic range map showing US and Canadian states/provinces.
 
-  Uses D3.js for SVG-based choropleth rendering. Displays regions in green if
-  in range, coral if excluded, and white otherwise.
+  Uses MapLibre GL JS with PMTiles for WebGL-based choropleth rendering.
+  Shows countries at wide zoom, subdivisions when zoomed in.
+  Displays regions in green if in range, coral if excluded, and white otherwise.
 
   ## Examples
 
-      <.range_map in_range={["CA", "TX", "NY"]} />
+      <.range_map in_range={["US-CA", "US-TX", "US-NY"]} />
 
-      <.range_map in_range={["CA", "TX"]} excluded_range={["AZ"]} />
+      <.range_map in_range={["US-CA", "US-TX"]} excluded_range={["US-AZ"]} />
 
-      <.range_map in_range={@places} editable on_toggle={JS.push("toggle_region")} />
+      <.range_map in_range={@places} editable />
   """
   attr :in_range, :list,
     required: true,
@@ -977,9 +1016,21 @@ defmodule GallformersWeb.DataDisplayComponents do
     default: [],
     doc: "list of postal codes explicitly excluded"
 
+  attr :inherited_range, :list,
+    default: [],
+    doc: "list of postal codes with country/continent-level range (shown lighter green)"
+
   attr :editable, :boolean,
     default: false,
     doc: "whether regions are clickable for editing"
+
+  attr :navigable, :boolean,
+    default: false,
+    doc: "whether clicking a region navigates to its place page"
+
+  attr :place_mode, :boolean,
+    default: false,
+    doc: "when true, uses blue highlights and skips host-range labels (for place detail pages)"
 
   attr :id, :string,
     default: "range-map",
@@ -989,24 +1040,51 @@ defmodule GallformersWeb.DataDisplayComponents do
     default: nil,
     doc: "additional CSS classes"
 
+  attr :tiles_url, :string,
+    default: "/data/boundaries.pmtiles",
+    doc: "URL to PMTiles boundary file"
+
+  attr :empty_text, :string,
+    default: "No range data available",
+    doc: "text shown when no range data exists"
+
+  attr :max_bounds, :any,
+    default: nil,
+    doc: "JSON-encodable [[west, south], [east, north]] max bounds for the map"
+
+  attr :bounds, :any,
+    default: nil,
+    doc: "JSON-encodable [[west, south], [east, north]] initial bounds to fit"
+
   def range_map(assigns) do
     in_range_json = Jason.encode!(assigns.in_range)
     excluded_range_json = Jason.encode!(assigns.excluded_range)
+    inherited_range_json = Jason.encode!(assigns.inherited_range)
 
     assigns =
       assigns
       |> assign(:in_range_json, in_range_json)
       |> assign(:excluded_range_json, excluded_range_json)
+      |> assign(:inherited_range_json, inherited_range_json)
+      |> assign(:max_bounds_json, if(assigns.max_bounds, do: Jason.encode!(assigns.max_bounds)))
+      |> assign(:bounds_json, if(assigns.bounds, do: Jason.encode!(assigns.bounds)))
 
     ~H"""
     <div
       id={@id}
-      class={["relative", @class]}
+      class={["relative min-h-[400px]", @class]}
       phx-hook="RangeMap"
       phx-update="ignore"
       data-in-range={@in_range_json}
       data-excluded-range={@excluded_range_json}
+      data-inherited-range={@inherited_range_json}
       data-editable={to_string(@editable)}
+      data-navigable={to_string(@navigable)}
+      data-place-mode={to_string(@place_mode)}
+      data-tiles-url={@tiles_url}
+      data-empty-text={@empty_text}
+      data-max-bounds={@max_bounds_json}
+      data-bounds={@bounds_json}
     >
       <div class="flex items-center justify-center p-8 text-gray-500">
         <.icon name="ph-map-trifold" class="size-8 animate-pulse" />

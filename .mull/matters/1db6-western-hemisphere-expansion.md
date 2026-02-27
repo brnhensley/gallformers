@@ -1,10 +1,10 @@
 ---
-status: raw
+status: done
 effort: 10-12 days
 created: 2026-02-13
-updated: 2026-02-18
+updated: 2026-02-23
 epic: geo-expansion
-relates: [ccee, 1374]
+relates: [ccee, 1374, 9005, 8900]
 needs: [4143, 7932, 95d7]
 ---
 
@@ -170,3 +170,20 @@ open questions requiring design exploration and engineering prototyping.
 - Eastern Hemisphere expansion
 - Bulk import (may revisit if workflow improvements prove insufficient)
 - Admin user provisioning/deprovisioning (captured in separate document)
+
+## Status Update (2026-02-19)
+
+Infrastructure complete. All code/data prerequisites delivered on maps-rework branch:
+- Place table expanded to 567 entries with full hierarchy (95d7 — done)
+- MapLibre GL + PMTiles map rendering (4143 — done)
+- Precision-aware range editing and display
+- Public places browse page and detail page (554e — done)
+- Admin places UI removed, data managed via migrations (67e0 — done)
+- Hierarchical place search in ID tool
+- Navigable range maps on all public pages
+
+Remaining blocker: 7932 (host plant data sourcing for Central/South America). No code work needed — purely a content/research effort to populate host ranges for the new regions.
+
+## Status Update (2026-02-23)
+
+Superseded by 8900 (global expansion). Western Hemisphere scope expanded to worldwide. All WH infrastructure work is now part of the global expansion. Marking as done — remaining work (continent scoping, data sourcing, branding) tracked under 8900.

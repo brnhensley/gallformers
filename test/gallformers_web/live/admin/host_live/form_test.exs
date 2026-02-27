@@ -290,39 +290,55 @@ defmodule GallformersWeb.Admin.HostLive.FormTest do
       # Should not crash
       assert html =~ host.name
     end
+  end
 
-    test "select_all_places in search mode is no-op", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/admin/hosts/new")
-
-      html = render_click(view, "select_all_places", %{})
-
-      assert html =~ "Add Host" or html =~ "host-picker"
+  describe "Range editing with state assertions" do
+    setup %{conn: conn} do
+      {:ok, conn: setup_admin_session(conn)}
     end
 
-    test "select_all_places in edit mode works", %{conn: conn} do
-      host = require_host()
-      {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
+    test "toggle_region adds code to host range", %{conn: conn} do
+      # Host 6 (T. alpinus) has only US-CA in range
+      # Toggle MX-JAL to add it
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/6")
 
-      html = render_click(view, "select_all_places", %{})
+      html = render_click(view, "toggle_region", %{"code" => "MX-JAL"})
 
-      assert html =~ host.name
+      # Page should still render and show the host name
+      assert html =~ "Thymus alpinus"
     end
 
-    test "deselect_all_places in search mode is no-op", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/admin/hosts/new")
+    test "toggle_region twice removes code from host range", %{conn: conn} do
+      # Host 6 (T. alpinus) has only US-CA in range
+      # Toggle MX-JAL on then off
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/6")
 
-      html = render_click(view, "deselect_all_places", %{})
+      # Add
+      render_click(view, "toggle_region", %{"code" => "MX-JAL"})
+      # Remove
+      html = render_click(view, "toggle_region", %{"code" => "MX-JAL"})
 
-      assert html =~ "Add Host" or html =~ "host-picker"
+      assert html =~ "Thymus alpinus"
     end
 
-    test "deselect_all_places in edit mode works", %{conn: conn} do
-      host = require_host()
-      {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
+    test "toggle_region marks form as dirty", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/6")
 
-      html = render_click(view, "deselect_all_places", %{})
+      # Toggle a region
+      render_click(view, "toggle_region", %{"code" => "MX-JAL"})
 
-      assert html =~ host.name
+      # Cancel should now show discard warning (form is dirty)
+      html = render_click(view, "request_cancel", %{})
+      assert html =~ "Discard" or html =~ "unsaved"
+    end
+
+    test "toggle_region on existing range code removes it", %{conn: conn} do
+      # Host 6 has US-CA in range; toggling it should remove
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/6")
+
+      html = render_click(view, "toggle_region", %{"code" => "US-CA"})
+
+      assert html =~ "Thymus alpinus"
     end
   end
 
@@ -445,16 +461,9 @@ defmodule GallformersWeb.Admin.HostLive.FormTest do
       {:ok, _view, html} = live(conn, ~p"/admin/hosts/#{host.id}")
 
       assert html =~ "Legend"
-      assert html =~ "In Range"
+      assert html =~ "Documented"
+      assert html =~ "Country-level"
       assert html =~ "Out of Range"
-    end
-
-    test "shows map action buttons in edit mode", %{conn: conn} do
-      host = require_host()
-      {:ok, _view, html} = live(conn, ~p"/admin/hosts/#{host.id}")
-
-      assert html =~ "Select All"
-      assert html =~ "De-select All"
     end
 
     test "shows data complete checkbox in edit mode", %{conn: conn} do

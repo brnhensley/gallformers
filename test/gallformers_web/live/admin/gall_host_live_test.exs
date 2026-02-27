@@ -358,52 +358,6 @@ defmodule GallformersWeb.Admin.GallHostLiveTest do
       end
     end
 
-    test "select_all_places clears exclusions", %{conn: conn} do
-      gall = find_gall_with_hosts()
-
-      if gall do
-        {:ok, view, _html} = live(conn, ~p"/admin/gallhost?id=#{gall.id}")
-
-        # Click select all
-        html = render_click(view, "select_all_places", %{})
-
-        # Should show range summary with 0 excluded
-        assert html =~ "0 excluded" or html =~ "excluded"
-      end
-    end
-
-    test "deselect_all_places excludes all host places", %{conn: conn} do
-      gall = find_gall_with_hosts()
-
-      if gall do
-        {:ok, view, _html} = live(conn, ~p"/admin/gallhost?id=#{gall.id}")
-
-        # Click deselect all
-        html = render_click(view, "deselect_all_places", %{})
-
-        # Should show range summary with places excluded
-        assert html =~ "excluded" or html =~ "total from hosts"
-      end
-    end
-
-    test "select_all without gall selected is no-op", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/admin/gallhost")
-
-      html = render_click(view, "select_all_places", %{})
-
-      # Should not crash
-      assert html =~ "Select a gall" or html =~ "Gall - Host Mappings"
-    end
-
-    test "deselect_all without gall selected is no-op", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/admin/gallhost")
-
-      html = render_click(view, "deselect_all_places", %{})
-
-      # Should not crash
-      assert html =~ "Select a gall" or html =~ "Gall - Host Mappings"
-    end
-
     test "range summary is displayed when gall selected", %{conn: conn} do
       gall = find_gall_with_hosts()
 
@@ -412,6 +366,63 @@ defmodule GallformersWeb.Admin.GallHostLiveTest do
 
         assert html =~ "Range summary" or html =~ "places in range"
       end
+    end
+  end
+
+  describe "Range exclusion workflow" do
+    setup %{conn: conn} do
+      {:ok, conn: setup_admin_session(conn)}
+    end
+
+    test "toggle_region for code in host range adds exclusion", %{conn: conn} do
+      # Gall 100 has hosts 6 (US-CA) and 8 (CA-AB, US-CA, US)
+      # US-CA is in host range. There's already a seed exclusion for US-CA,
+      # so first toggle removes it, second toggle re-adds it.
+      {:ok, view, _html} = live(conn, ~p"/admin/gallhost?id=100")
+
+      # First toggle removes the existing exclusion (US-CA was excluded in seeds)
+      html = render_click(view, "toggle_region", %{"code" => "US-CA"})
+
+      # After removing exclusion, US-CA should NOT appear as excluded
+      # The range summary should change
+      assert html =~ "Andricus quercuscalifornicus"
+
+      # Second toggle re-adds the exclusion
+      html = render_click(view, "toggle_region", %{"code" => "US-CA"})
+      assert html =~ "Andricus quercuscalifornicus"
+    end
+
+    test "toggle_region for code NOT in host range is no-op", %{conn: conn} do
+      # Gall 100's hosts don't have MX-JAL in range
+      {:ok, view, _html} = live(conn, ~p"/admin/gallhost?id=100")
+
+      # Toggle a code that's not in the host range - should be silently ignored
+      html = render_click(view, "toggle_region", %{"code" => "MX-JAL"})
+
+      # Page still renders, no crash
+      assert html =~ "Andricus quercuscalifornicus"
+    end
+
+    test "toggle_region without gall selected is no-op", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/admin/gallhost")
+
+      html = render_click(view, "toggle_region", %{"code" => "US-CA"})
+
+      # Should not crash, still show page
+      assert html =~ "Gall - Host Mappings" or html =~ "Search for a gall"
+    end
+
+    test "toggle_region for CA-AB toggles exclusion for gall 100", %{conn: conn} do
+      # CA-AB is in gall 100's host range (via host 8) but not excluded in seeds
+      {:ok, view, _html} = live(conn, ~p"/admin/gallhost?id=100")
+
+      # Toggle CA-AB on (add exclusion)
+      html = render_click(view, "toggle_region", %{"code" => "CA-AB"})
+      assert html =~ "Andricus quercuscalifornicus"
+
+      # Toggle CA-AB off (remove exclusion)
+      html = render_click(view, "toggle_region", %{"code" => "CA-AB"})
+      assert html =~ "Andricus quercuscalifornicus"
     end
   end
 
@@ -489,18 +500,6 @@ defmodule GallformersWeb.Admin.GallHostLiveTest do
 
         assert has_element?(view, "#host-picker-input")
       end
-    end
-
-    test "select all button is present", %{conn: conn} do
-      {:ok, _view, html} = live(conn, ~p"/admin/gallhost")
-
-      assert html =~ "Select All"
-    end
-
-    test "deselect all button is present", %{conn: conn} do
-      {:ok, _view, html} = live(conn, ~p"/admin/gallhost")
-
-      assert html =~ "De-select All"
     end
 
     test "cancel button present for navigation", %{conn: conn} do
