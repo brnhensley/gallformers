@@ -205,6 +205,8 @@ defmodule GallformersWeb.ProdDataE2E.ReclassifyTest do
     |> push_to_component("reclassify_search_family", %{value: family_name})
     |> assert_has(css("#reclassify-family-picker-results"))
     |> click(css("#reclassify-family-picker-results button", count: :any, at: 0))
+    # Wait for LiveView to process the selection before proceeding
+    |> assert_has(css("#reclassify-family-picker-selected"))
   end
 
   # Type into the genus typeahead in the reclassify modal and select a result.
@@ -215,6 +217,8 @@ defmodule GallformersWeb.ProdDataE2E.ReclassifyTest do
     |> push_to_component("reclassify_search_genus", %{value: genus_name})
     |> assert_has(css("#reclassify-genus-picker-results"))
     |> click(css("#reclassify-genus-picker-results button", count: :any, at: 0))
+    # Wait for LiveView to process the selection before proceeding
+    |> assert_has(css("#reclassify-genus-picker-selected"))
   end
 
   # Set the epithet value by pushing the event directly to the component.
