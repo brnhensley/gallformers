@@ -2,9 +2,9 @@
 status: raw
 effort: 5-7 days
 created: 2026-02-16
-updated: 2026-02-18
+updated: 2026-02-28
 epic: taxonomy
-relates: [5b3d, ede2]
+relates: [5b3d, ede2, cdfd]
 blocks: [f49a]
 needs: [5b3d]
 ---
