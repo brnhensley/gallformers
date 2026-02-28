@@ -2,7 +2,7 @@
 status: done
 effort: 3-5 days
 created: 2026-02-13
-updated: 2026-02-18
+updated: 2026-02-28
 epic: geo-expansion
 blocks: [1db6, 95d7]
 ---
