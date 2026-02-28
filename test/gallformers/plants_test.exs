@@ -57,6 +57,45 @@ defmodule Gallformers.PlantsTest do
       assert hd(aliases).name == "Test common name"
     end
 
+    test "creates host with section linked when section is selected", %{
+      family: family,
+      genus: genus
+    } do
+      {:ok, section} =
+        Taxonomy.create_taxonomy(%{
+          name: "Testsection",
+          type: "section",
+          parent_id: genus.id
+        })
+
+      # Mirror save_host(:new) in form.ex — selected_section_id is passed separately,
+      # and parent_id falls through to family when section is selected
+      selected_section_id = section.id
+
+      params = %{
+        species_attrs: %{
+          "name" => "Testplantgenus sectionhost",
+          "taxoncode" => "plant",
+          "datacomplete" => false
+        },
+        taxonomy: %Lineage{
+          genus: %Genus{id: genus.id, name: genus.name},
+          section: nil
+        },
+        genus_is_new: false,
+        parent_id: selected_section_id || family.id,
+        selected_section_id: selected_section_id,
+        aliases: []
+      }
+
+      assert {:ok, host} = Plants.create_host_with_associations(params)
+
+      taxonomy = Taxonomy.get_taxonomy_for_species(host.id)
+      assert taxonomy.genus.id == genus.id
+      assert taxonomy.section != nil, "section should be linked but was nil"
+      assert taxonomy.section.id == section.id
+    end
+
     test "rolls back on invalid species attrs" do
       params = %{
         species_attrs: %{"taxoncode" => "plant"},

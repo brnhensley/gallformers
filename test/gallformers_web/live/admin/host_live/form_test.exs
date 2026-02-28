@@ -495,6 +495,57 @@ defmodule GallformersWeb.Admin.HostLive.FormTest do
     end
   end
 
+  describe "Section persistence on new host" do
+    setup %{conn: conn} do
+      # Create a plant family, genus, and section for testing.
+      # Family must have description "Plant" to be recognized as a plant family.
+      {:ok, family} =
+        Gallformers.Taxonomy.create_taxonomy(%{
+          name: "Sectionaceae",
+          type: "family",
+          description: "Plant"
+        })
+
+      {:ok, genus} =
+        Gallformers.Taxonomy.create_taxonomy(%{
+          name: "Sectionus",
+          type: "genus",
+          parent_id: family.id
+        })
+
+      {:ok, section} =
+        Gallformers.Taxonomy.create_taxonomy(%{
+          name: "TestSection",
+          type: "section",
+          parent_id: genus.id
+        })
+
+      {:ok, conn: setup_admin_session(conn), section: section, genus: genus}
+    end
+
+    test "section selection persists when creating a new host", %{conn: conn, section: section} do
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/new")
+
+      # Create a host with genus Sectionus (name must start with the genus name)
+      render_click(view, "create_host", %{"name" => "Sectionus newspecies"})
+
+      # Select the section from the dropdown
+      render_click(view, "select_section", %{"section_id" => to_string(section.id)})
+
+      # Submit the form
+      render_click(view, "save", %{"species" => %{}})
+
+      # push_navigate triggers a redirect
+      {path, _flash} = assert_redirect(view, 200)
+
+      # Verify at the data level that section was persisted
+      host_id = path |> String.split("/") |> List.last() |> String.to_integer()
+      taxonomy = Gallformers.Taxonomy.get_taxonomy_for_species(host_id)
+      assert taxonomy.section != nil, "section should be linked but was nil"
+      assert taxonomy.section.id == section.id
+    end
+  end
+
   describe "Access control" do
     test "page requires admin session", %{conn: _conn} do
       conn_without_admin = build_conn()

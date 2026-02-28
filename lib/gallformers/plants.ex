@@ -493,23 +493,30 @@ defmodule Gallformers.Plants do
     Repo.transaction(fn ->
       case create_host(params.species_attrs) do
         {:ok, host} ->
-          Taxonomy.link_species_taxonomy(
-            host.id,
-            params.taxonomy,
-            params.genus_is_new,
-            params.parent_id
-          )
-
-          for a <- params.aliases do
-            create_alias_for_host(host.id, %{name: a.name, type: a.type})
-          end
-
+          link_new_host_taxonomy(host.id, params)
           host
 
         {:error, changeset} ->
           Repo.rollback(changeset)
       end
     end)
+  end
+
+  defp link_new_host_taxonomy(host_id, params) do
+    Taxonomy.link_species_taxonomy(
+      host_id,
+      params.taxonomy,
+      params.genus_is_new,
+      params.parent_id
+    )
+
+    if section_id = params[:selected_section_id] do
+      Taxonomy.link_species_to_taxonomy(host_id, section_id)
+    end
+
+    for a <- params.aliases do
+      create_alias_for_host(host_id, %{name: a.name, type: a.type})
+    end
   end
 
   @doc """
