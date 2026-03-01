@@ -17,11 +17,12 @@ defmodule Gallformers.Taxonomy.Taxonomy do
           name: String.t() | nil,
           description: String.t() | nil,
           type: String.t() | nil,
+          rank: String.t() | nil,
           parent_id: integer() | nil,
           is_placeholder: boolean()
         }
 
-  @taxonomy_types ~w(family genus section)
+  @taxonomy_types ~w(family genus intermediate section)
 
   schema "taxonomy" do
     field :name, :string
@@ -29,6 +30,7 @@ defmodule Gallformers.Taxonomy.Taxonomy do
     # or classification type (e.g., "Plant" vs "Wasp" for families)
     field :description, :string
     field :type, :string
+    field :rank, :string
     field :is_placeholder, :boolean, default: false
 
     belongs_to :parent, __MODULE__
@@ -53,12 +55,13 @@ defmodule Gallformers.Taxonomy.Taxonomy do
   """
   def changeset(taxonomy, attrs) do
     taxonomy
-    |> cast(attrs, [:name, :description, :type, :parent_id, :is_placeholder])
+    |> cast(attrs, [:name, :description, :type, :rank, :parent_id, :is_placeholder])
     |> validate_required(@required_fields)
     |> validate_inclusion(:type, @taxonomy_types)
     |> validate_length(:name, min: 1, max: 255)
     |> maybe_require_family_type()
     |> maybe_require_parent()
+    |> maybe_require_rank()
     |> unique_constraint([:name, :parent_id],
       name: :taxonomy_name_parent_id_index,
       message: "already exists for this parent"
@@ -75,8 +78,16 @@ defmodule Gallformers.Taxonomy.Taxonomy do
   end
 
   defp maybe_require_parent(changeset) do
-    if get_field(changeset, :type) in ["genus", "section"] do
+    if get_field(changeset, :type) in ["genus", "intermediate", "section"] do
       validate_required(changeset, [:parent_id], message: "is required")
+    else
+      changeset
+    end
+  end
+
+  defp maybe_require_rank(changeset) do
+    if get_field(changeset, :type) == "intermediate" do
+      validate_required(changeset, [:rank], message: "is required for intermediate ranks")
     else
       changeset
     end

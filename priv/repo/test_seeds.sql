@@ -184,6 +184,36 @@ VALUES
   (100, 3, 'exact');   -- Gall 100 excludes Jalisco (MX-JAL)
 
 -- =============================================================================
+-- Intermediate taxonomy ranks (subfamily, tribe)
+-- =============================================================================
+
+-- Gall family with intermediate ranks for testing
+INSERT INTO taxonomy (id, name, description, type, rank, parent_id, is_placeholder, inserted_at, updated_at) VALUES
+  (30, 'Cynipidae', 'Wasp', 'family', NULL, NULL, 0, '2026-01-01T00:00:00', '2026-01-01T00:00:00'),
+  (31, 'Cynipinae', NULL, 'intermediate', 'Subfamily', 30, 0, '2026-01-01T00:00:00', '2026-01-01T00:00:00'),
+  (32, 'Cynipini', NULL, 'intermediate', 'Tribe', 31, 0, '2026-01-01T00:00:00', '2026-01-01T00:00:00'),
+  (33, 'Andricus', 'test genus under tribe', 'genus', NULL, 32, 0, '2026-01-01T00:00:00', '2026-01-01T00:00:00'),
+  (34, 'Cynips', 'test genus under tribe', 'genus', NULL, 32, 0, '2026-01-01T00:00:00', '2026-01-01T00:00:00'),
+  (35, 'Unknown', NULL, 'genus', NULL, 30, 1, '2026-01-01T00:00:00', '2026-01-01T00:00:00');
+
+-- Species under intermediate-parented genera
+INSERT INTO species (id, name, taxoncode, datacomplete, abundance_id) VALUES
+  (200, 'Andricus crystallinus', 'gall', 0, 1),
+  (201, 'Cynips quercus', 'gall', 0, 2);
+
+INSERT INTO gall_traits (species_id, detachable, undescribed) VALUES
+  (200, 'integral', 0),
+  (201, 'unknown', 0);
+
+INSERT INTO species_fts (species_id, name, aliases) VALUES
+  (200, 'Andricus crystallinus', ''),
+  (201, 'Cynips quercus', '');
+
+INSERT INTO species_taxonomy (species_id, taxonomy_id) VALUES
+  (200, 33),  -- A. crystallinus → Andricus (under Cynipini tribe)
+  (201, 34);  -- C. quercus → Cynips (under Cynipini tribe)
+
+-- =============================================================================
 -- Articles
 -- =============================================================================
 -- Note: Article tests use Ecto sandbox and create their own test data.

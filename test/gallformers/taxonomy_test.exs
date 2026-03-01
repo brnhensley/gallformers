@@ -9,6 +9,7 @@ defmodule Gallformers.TaxonomyTest do
   alias Gallformers.Species.Species
   alias Gallformers.Taxonomy
   alias Gallformers.Taxonomy.{Family, Genus, Lineage, Section}
+  alias Gallformers.Taxonomy.Taxonomy, as: TaxonomySchema
 
   describe "update_taxonomy/2 genus rename" do
     setup do
@@ -2062,6 +2063,96 @@ defmodule Gallformers.TaxonomyTest do
       assert Map.has_key?(impact, :sections)
       assert Map.has_key?(impact, :sections_count)
       assert Map.has_key?(impact, :species_count)
+    end
+  end
+
+  describe "intermediate taxonomy changeset" do
+    setup do
+      {:ok, family} =
+        Taxonomy.create_taxonomy(%{
+          name: "TestFamilyIntermediate",
+          type: "family",
+          description: "Wasp"
+        })
+
+      {:ok, family: family}
+    end
+
+    test "valid intermediate changeset with name, type, parent_id, and rank", %{family: family} do
+      changeset =
+        TaxonomySchema.changeset(%TaxonomySchema{}, %{
+          name: "Cynipinae",
+          type: "intermediate",
+          parent_id: family.id,
+          rank: "Subfamily"
+        })
+
+      assert changeset.valid?
+    end
+
+    test "invalid intermediate changeset missing rank", %{family: family} do
+      changeset =
+        TaxonomySchema.changeset(%TaxonomySchema{}, %{
+          name: "Cynipinae",
+          type: "intermediate",
+          parent_id: family.id
+        })
+
+      refute changeset.valid?
+      assert {"is required for intermediate ranks", _} = changeset.errors[:rank]
+    end
+
+    test "invalid intermediate changeset missing parent_id" do
+      changeset =
+        TaxonomySchema.changeset(%TaxonomySchema{}, %{
+          name: "Cynipinae",
+          type: "intermediate",
+          rank: "Subfamily"
+        })
+
+      refute changeset.valid?
+      assert {"is required", _} = changeset.errors[:parent_id]
+    end
+
+    test "existing family changeset still works (rank ignored)" do
+      changeset =
+        TaxonomySchema.changeset(%TaxonomySchema{}, %{
+          name: "Testidae",
+          type: "family",
+          description: "Plant"
+        })
+
+      assert changeset.valid?
+    end
+
+    test "existing genus changeset still works (rank ignored)", %{family: family} do
+      changeset =
+        TaxonomySchema.changeset(%TaxonomySchema{}, %{
+          name: "Testgenus",
+          type: "genus",
+          parent_id: family.id
+        })
+
+      assert changeset.valid?
+    end
+
+    test "taxonomy_types includes intermediate" do
+      assert "intermediate" in TaxonomySchema.taxonomy_types()
+    end
+
+    test "create_taxonomy persists intermediate with rank", %{family: family} do
+      {:ok, intermediate} =
+        Taxonomy.create_taxonomy(%{
+          name: "Cynipinae",
+          type: "intermediate",
+          parent_id: family.id,
+          rank: "Subfamily"
+        })
+
+      assert intermediate.name == "Cynipinae"
+      assert intermediate.type == "intermediate"
+      assert intermediate.rank == "Subfamily"
+      assert intermediate.parent_id == family.id
     end
   end
 end
