@@ -14,15 +14,16 @@ defmodule Gallformers.Taxonomy.Lineage do
   Lineage models where the species sits in the tree (structured data with IDs).
   """
 
-  alias Gallformers.Taxonomy.{Family, Genus, Section, TaxonName}
+  alias Gallformers.Taxonomy.{Family, Genus, Intermediate, Section, TaxonName}
   alias Gallformers.Taxonomy.Taxonomy, as: TaxonomySchema
 
-  defstruct [:species_id, :species_name, :family, :genus, :section]
+  defstruct [:species_id, :species_name, :family, :genus, :section, intermediates: []]
 
   @type t :: %__MODULE__{
           species_id: integer() | nil,
           species_name: String.t() | nil,
           family: Family.t() | nil,
+          intermediates: [Intermediate.t()],
           genus: Genus.t(),
           section: Section.t() | nil
         }
@@ -124,6 +125,50 @@ defmodule Gallformers.Taxonomy.Lineage do
         description: genus_result[:genus_description]
       },
       family: family,
+      section: section
+    }
+  end
+
+  @doc """
+  Build a Lineage from a list of taxonomy path nodes (as returned by
+  `Tree.get_taxonomy_path/1`), ordered root-to-leaf.
+
+  Partitions nodes by type: family, intermediates (sorted by path order),
+  genus, section.
+  """
+  @spec from_path([TaxonomySchema.t()]) :: t()
+  def from_path(path_nodes) do
+    family_node = Enum.find(path_nodes, &(&1.type == "family"))
+    genus_node = Enum.find(path_nodes, &(&1.type == "genus"))
+    section_node = Enum.find(path_nodes, &(&1.type == "section"))
+
+    intermediates =
+      path_nodes
+      |> Enum.filter(&(&1.type == "intermediate"))
+      |> Enum.map(fn t ->
+        %Intermediate{id: t.id, name: t.name, rank: t.rank, description: t.description}
+      end)
+
+    family =
+      if family_node,
+        do: %Family{id: family_node.id, name: family_node.name, description: family_node.description}
+
+    genus =
+      if genus_node,
+        do: %Genus{id: genus_node.id, name: genus_node.name, description: genus_node.description}
+
+    section =
+      if section_node,
+        do: %Section{
+          id: section_node.id,
+          name: section_node.name,
+          description: section_node.description
+        }
+
+    %__MODULE__{
+      family: family,
+      intermediates: intermediates,
+      genus: genus,
       section: section
     }
   end

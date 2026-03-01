@@ -8,7 +8,7 @@ defmodule Gallformers.TaxonomyTest do
   alias Gallformers.Species.Alias
   alias Gallformers.Species.Species
   alias Gallformers.Taxonomy
-  alias Gallformers.Taxonomy.{Family, Genus, Lineage, Section}
+  alias Gallformers.Taxonomy.{Family, Genus, Intermediate, Lineage, Section}
   alias Gallformers.Taxonomy.Taxonomy, as: TaxonomySchema
 
   describe "update_taxonomy/2 genus rename" do
@@ -2153,6 +2153,110 @@ defmodule Gallformers.TaxonomyTest do
       assert intermediate.type == "intermediate"
       assert intermediate.rank == "Subfamily"
       assert intermediate.parent_id == family.id
+    end
+  end
+
+  describe "Lineage intermediates" do
+    test "Lineage struct includes intermediates field defaulting to []" do
+      lineage = %Lineage{genus: %Genus{name: "Test"}}
+      assert lineage.intermediates == []
+    end
+
+    test "from_path with no intermediates returns intermediates: []" do
+      path = [
+        %TaxonomySchema{id: 1, name: "Cynipidae", type: "family", description: "Wasp", rank: nil},
+        %TaxonomySchema{id: 2, name: "Andricus", type: "genus", description: nil, rank: nil}
+      ]
+
+      lineage = Lineage.from_path(path)
+      assert lineage.family.name == "Cynipidae"
+      assert lineage.genus.name == "Andricus"
+      assert lineage.intermediates == []
+    end
+
+    test "from_path with one intermediate (subfamily)" do
+      path = [
+        %TaxonomySchema{id: 1, name: "Cynipidae", type: "family", description: "Wasp", rank: nil},
+        %TaxonomySchema{
+          id: 2,
+          name: "Cynipinae",
+          type: "intermediate",
+          description: nil,
+          rank: "Subfamily"
+        },
+        %TaxonomySchema{id: 3, name: "Andricus", type: "genus", description: nil, rank: nil}
+      ]
+
+      lineage = Lineage.from_path(path)
+      assert lineage.family.name == "Cynipidae"
+      assert length(lineage.intermediates) == 1
+      assert [%Intermediate{name: "Cynipinae", rank: "Subfamily"}] = lineage.intermediates
+      assert lineage.genus.name == "Andricus"
+    end
+
+    test "from_path with two intermediates ordered root-to-leaf" do
+      path = [
+        %TaxonomySchema{id: 1, name: "Cynipidae", type: "family", description: "Wasp", rank: nil},
+        %TaxonomySchema{
+          id: 2,
+          name: "Cynipinae",
+          type: "intermediate",
+          description: nil,
+          rank: "Subfamily"
+        },
+        %TaxonomySchema{
+          id: 3,
+          name: "Cynipini",
+          type: "intermediate",
+          description: nil,
+          rank: "Tribe"
+        },
+        %TaxonomySchema{id: 4, name: "Andricus", type: "genus", description: nil, rank: nil}
+      ]
+
+      lineage = Lineage.from_path(path)
+      assert length(lineage.intermediates) == 2
+      assert [%Intermediate{rank: "Subfamily"}, %Intermediate{rank: "Tribe"}] = lineage.intermediates
+    end
+
+    test "from_section inherits intermediates: [] default" do
+      section = %TaxonomySchema{
+        id: 10,
+        name: "sect. Quercus",
+        type: "section",
+        description: nil,
+        rank: nil
+      }
+
+      genus = %TaxonomySchema{
+        id: 5,
+        name: "Quercus",
+        type: "genus",
+        description: nil,
+        rank: nil,
+        parent: %TaxonomySchema{
+          id: 1,
+          name: "Fagaceae",
+          type: "family",
+          description: "Plant",
+          rank: nil
+        }
+      }
+
+      lineage = Lineage.from_section(section, genus)
+      assert lineage.intermediates == []
+      assert lineage.section.name == "sect. Quercus"
+    end
+
+    test "new_genus has intermediates: []" do
+      lineage = Lineage.new_genus("Newgenus")
+      assert lineage.intermediates == []
+    end
+
+    test "from_query_result has intermediates: []" do
+      result = %{genus_id: 1, genus: "Andricus", family_id: 2, family: "Cynipidae"}
+      lineage = Lineage.from_query_result(result)
+      assert lineage.intermediates == []
     end
   end
 end
