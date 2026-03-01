@@ -2259,4 +2259,91 @@ defmodule Gallformers.TaxonomyTest do
       assert lineage.intermediates == []
     end
   end
+
+  describe "query changes for intermediates" do
+    # Test seed data (from test_seeds.sql):
+    # Cynipidae (family, id=30) → Cynipinae (subfamily, id=31) → Cynipini (tribe, id=32) → Andricus (genus, id=33), Cynips (genus, id=34)
+    # Species: 200 = Andricus crystallinus → genus 33, 201 = Cynips quercus → genus 34
+
+    test "get_taxonomy_for_species returns intermediates for species under intermediate-parented genus" do
+      # Species 200 is under Andricus (genus 33), which is under Cynipini (tribe) → Cynipinae (subfamily) → Cynipidae
+      lineage = Taxonomy.get_taxonomy_for_species(200)
+
+      assert lineage.family.name == "Cynipidae"
+      assert lineage.genus.name == "Andricus"
+      assert length(lineage.intermediates) == 2
+
+      assert [%Intermediate{name: "Cynipinae", rank: "Subfamily"}, %Intermediate{name: "Cynipini", rank: "Tribe"}] =
+               lineage.intermediates
+    end
+
+    test "get_taxonomy_for_species returns empty intermediates for species without intermediates" do
+      # Species 6 is under GenusAlpha (id=10) → FamilyAlpha (id=20), no intermediates
+      lineage = Taxonomy.get_taxonomy_for_species(6)
+
+      assert lineage.family.name == "FamilyAlpha"
+      assert lineage.genus.name == "GenusAlpha"
+      assert lineage.intermediates == []
+    end
+
+    test "get_genus_lineage with intermediates in chain" do
+      # Genus 33 (Andricus) is under Cynipini → Cynipinae → Cynipidae
+      {:ok, lineage} = Taxonomy.get_genus_lineage(33)
+
+      assert lineage.family.name == "Cynipidae"
+      assert lineage.genus.name == "Andricus"
+      assert length(lineage.intermediates) == 2
+    end
+
+    test "get_genus_lineage without intermediates" do
+      # Genus 10 (GenusAlpha) is directly under FamilyAlpha
+      {:ok, lineage} = Taxonomy.get_genus_lineage(10)
+
+      assert lineage.family.name == "FamilyAlpha"
+      assert lineage.genus.name == "GenusAlpha"
+      assert lineage.intermediates == []
+    end
+
+    test "build_taxonomy_from_genus with intermediates" do
+      genus = Repo.get!(TaxonomySchema, 33)
+      lineage = Gallformers.Taxonomy.Tree.build_taxonomy_from_genus(genus)
+
+      assert lineage.family.name == "Cynipidae"
+      assert lineage.genus.name == "Andricus"
+      assert length(lineage.intermediates) == 2
+    end
+
+    test "get_taxonomy_for_species_batch resolves family correctly through intermediates" do
+      result = Taxonomy.get_taxonomy_for_species_batch([200, 201, 6])
+
+      assert result[200].genus == "Andricus"
+      assert result[200].family == "Cynipidae"
+      assert result[201].genus == "Cynips"
+      assert result[201].family == "Cynipidae"
+      assert result[6].genus == "GenusAlpha"
+      assert result[6].family == "FamilyAlpha"
+    end
+
+    test "get_species_ids_for_family finds species through intermediates" do
+      # Family 30 (Cynipidae) has genera under intermediates
+      species_ids = Taxonomy.get_species_ids_for_family(30)
+
+      assert 200 in species_ids
+      assert 201 in species_ids
+    end
+
+    test "list_genera_for_select resolves family through intermediates" do
+      genera = Taxonomy.list_genera_for_select()
+
+      andricus = Enum.find(genera, &(&1.name == "Andricus"))
+      assert andricus, "Andricus should be in genera list"
+      assert andricus.family_id == 30
+    end
+
+    test "search_genera resolves family_name through intermediates" do
+      results = Taxonomy.search_genera("Andri")
+
+      assert [%{name: "Andricus", family_name: "Cynipidae"}] = results
+    end
+  end
 end

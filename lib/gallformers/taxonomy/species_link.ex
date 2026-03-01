@@ -12,7 +12,7 @@ defmodule Gallformers.Taxonomy.SpeciesLink do
   import Ecto.Query
   alias Gallformers.Repo
   alias Gallformers.Species.Species
-  alias Gallformers.Taxonomy.{Genus, Lineage, TaxonName, Taxonomy, Tree}
+  alias Gallformers.Taxonomy.{Genus, Lineage, Section, TaxonName, Taxonomy, Tree}
 
   # =====================================================================
   # Genus Name Extraction
@@ -365,24 +365,14 @@ defmodule Gallformers.Taxonomy.SpeciesLink do
   """
   @spec get_taxonomy_for_species(integer()) :: Lineage.t() | nil
   def get_taxonomy_for_species(species_id) do
-    # Hierarchy: Family → Genus → Section (optional).
-    # A genus's parent is always a family, so we only need one join level up.
+    # Get the genus ID for this species
     genus_query =
       from st in "species_taxonomy",
         join: g in Taxonomy,
         on: st.taxonomy_id == g.id and g.type == "genus",
-        left_join: family in Taxonomy,
-        on: g.parent_id == family.id,
         where: st.species_id == ^species_id,
         limit: 1,
-        select: %{
-          genus: g.name,
-          genus_id: g.id,
-          genus_description: g.description,
-          family: family.name,
-          family_id: family.id,
-          family_description: family.description
-        }
+        select: g.id
 
     # Get the section link (if any) — species may be directly linked to a section
     section_query =
@@ -401,9 +391,28 @@ defmodule Gallformers.Taxonomy.SpeciesLink do
       nil ->
         nil
 
-      genus_result ->
-        section_result = Repo.one(section_query)
-        Lineage.from_query_result(genus_result, section_result)
+      genus_id ->
+        # Walk the full path from genus to root (handles intermediates)
+        lineage =
+          genus_id
+          |> Tree.get_taxonomy_path()
+          |> Lineage.from_path()
+
+        # Patch in section if present
+        case Repo.one(section_query) do
+          nil ->
+            lineage
+
+          section_result ->
+            %{
+              lineage
+              | section: %Section{
+                  id: section_result.section_id,
+                  name: section_result.section,
+                  description: section_result[:section_description]
+                }
+            }
+        end
     end
   end
 
@@ -416,16 +425,47 @@ defmodule Gallformers.Taxonomy.SpeciesLink do
   def get_taxonomy_for_species_batch([]), do: %{}
 
   def get_taxonomy_for_species_batch(species_ids) do
-    from(st in "species_taxonomy",
-      join: g in Taxonomy,
-      on: st.taxonomy_id == g.id and g.type == "genus",
-      left_join: family in Taxonomy,
-      on: g.parent_id == family.id,
-      where: st.species_id in ^species_ids,
-      select: {st.species_id, %{genus: g.name, family: family.name}}
+    # Use a recursive CTE to walk from each genus up to its ancestor family,
+    # handling intermediate ranks between genus and family.
+    placeholders = Enum.map_join(1..length(species_ids), ", ", &"?#{&1}")
+
+    query = """
+    WITH RECURSIVE genus_ancestors AS (
+      -- Base case: start with each genus linked to a species
+      SELECT st.species_id, t.id, t.name, t.type, t.parent_id
+      FROM species_taxonomy st
+      JOIN taxonomy t ON st.taxonomy_id = t.id AND t.type = 'genus'
+      WHERE st.species_id IN (#{placeholders})
+
+      UNION ALL
+
+      -- Walk up through intermediates to find the family
+      SELECT ga.species_id, t.id, t.name, t.type, t.parent_id
+      FROM taxonomy t
+      JOIN genus_ancestors ga ON t.id = ga.parent_id
+      WHERE ga.type != 'family'
     )
-    |> Repo.all()
-    |> Enum.into(%{})
+    SELECT
+      ga_genus.species_id,
+      ga_genus.name as genus_name,
+      ga_family.name as family_name
+    FROM genus_ancestors ga_genus
+    LEFT JOIN genus_ancestors ga_family
+      ON ga_genus.species_id = ga_family.species_id AND ga_family.type = 'family'
+    WHERE ga_genus.type = 'genus'
+    """
+
+    case Repo.query(query, species_ids) do
+      {:ok, %{rows: rows}} ->
+        rows
+        |> Enum.map(fn [species_id, genus, family] ->
+          {species_id, %{genus: genus, family: family}}
+        end)
+        |> Enum.into(%{})
+
+      {:error, _} ->
+        %{}
+    end
   end
 
   @doc """
@@ -462,13 +502,26 @@ defmodule Gallformers.Taxonomy.SpeciesLink do
   """
   @spec get_species_ids_for_family(integer()) :: [integer()]
   def get_species_ids_for_family(family_id) do
-    from(st in "species_taxonomy",
-      join: g in Taxonomy,
-      on: st.taxonomy_id == g.id,
-      where: g.parent_id == ^family_id,
-      select: st.species_id
+    # Use CTE to find all descendant genera (through intermediates) of the family
+    query = """
+    WITH RECURSIVE family_descendants AS (
+      SELECT id, type FROM taxonomy WHERE id = ?1
+
+      UNION ALL
+
+      SELECT t.id, t.type
+      FROM taxonomy t
+      JOIN family_descendants fd ON t.parent_id = fd.id
     )
-    |> Repo.all()
+    SELECT st.species_id
+    FROM species_taxonomy st
+    JOIN family_descendants fd ON st.taxonomy_id = fd.id AND fd.type = 'genus'
+    """
+
+    case Repo.query(query, [family_id]) do
+      {:ok, %{rows: rows}} -> Enum.map(rows, fn [id] -> id end)
+      {:error, _} -> []
+    end
   end
 
   @doc """

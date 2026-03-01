@@ -8,10 +8,9 @@ defmodule Gallformers.Taxonomy.Tree do
 
   require Logger
   import Ecto.Query
-  alias Gallformers.GallHosts.GallHost
   alias Gallformers.Repo
   alias Gallformers.Species.Species
-  alias Gallformers.Taxonomy.{Family, Lineage, TaxonName, Taxonomy}
+  alias Gallformers.Taxonomy.{Family, Lineage, Section, TaxonName, Taxonomy}
 
   # =====================================================================
   # CRUD
@@ -209,9 +208,10 @@ defmodule Gallformers.Taxonomy.Tree do
   """
   @spec get_genus_lineage(integer()) :: {:ok, Lineage.t()} | {:error, :not_found}
   def get_genus_lineage(id) do
-    case Repo.get(Taxonomy, id) |> Repo.preload(:parent) do
-      %Taxonomy{type: "genus"} = genus ->
-        {:ok, Lineage.from_genus(genus)}
+    case Repo.get(Taxonomy, id) do
+      %Taxonomy{type: "genus"} ->
+        path = get_taxonomy_path(id)
+        {:ok, Lineage.from_path(path)}
 
       _ ->
         {:error, :not_found}
@@ -225,8 +225,17 @@ defmodule Gallformers.Taxonomy.Tree do
   def get_section_lineage(id) do
     case Repo.get(Taxonomy, id) do
       %Taxonomy{type: "section", parent_id: genus_id} = section when not is_nil(genus_id) ->
-        genus = Repo.get!(Taxonomy, genus_id) |> Repo.preload(:parent)
-        {:ok, Lineage.from_section(section, genus)}
+        # Get the full path from the genus up to the root (includes intermediates)
+        genus_path = get_taxonomy_path(genus_id)
+        lineage = Lineage.from_path(genus_path)
+
+        section_struct = %Section{
+          id: section.id,
+          name: section.name,
+          description: section.description
+        }
+
+        {:ok, %{lineage | section: section_struct}}
 
       _ ->
         {:error, :not_found}
@@ -346,10 +355,9 @@ defmodule Gallformers.Taxonomy.Tree do
 
   @doc false
   @spec build_taxonomy_from_genus(Taxonomy.t()) :: Lineage.t()
-  def build_taxonomy_from_genus(genus) do
-    genus
-    |> Repo.preload(:parent)
-    |> Lineage.from_genus()
+  def build_taxonomy_from_genus(%Taxonomy{id: id}) do
+    path = get_taxonomy_path(id)
+    Lineage.from_path(path)
   end
 
   # =====================================================================
@@ -411,7 +419,7 @@ defmodule Gallformers.Taxonomy.Tree do
     query = """
     WITH RECURSIVE taxonomy_path AS (
       -- Base case: start with the given taxonomy
-      SELECT id, name, description, type, parent_id, is_placeholder,
+      SELECT id, name, description, type, rank, parent_id, is_placeholder,
              inserted_at, updated_at, 0 as depth
       FROM taxonomy
       WHERE id = ?1
@@ -419,12 +427,12 @@ defmodule Gallformers.Taxonomy.Tree do
       UNION ALL
 
       -- Recursive case: add parent taxonomies
-      SELECT t.id, t.name, t.description, t.type, t.parent_id, t.is_placeholder,
+      SELECT t.id, t.name, t.description, t.type, t.rank, t.parent_id, t.is_placeholder,
              t.inserted_at, t.updated_at, tp.depth + 1
       FROM taxonomy t
       INNER JOIN taxonomy_path tp ON t.id = tp.parent_id
     )
-    SELECT id, name, description, type, parent_id, is_placeholder, inserted_at, updated_at
+    SELECT id, name, description, type, rank, parent_id, is_placeholder, inserted_at, updated_at
     FROM taxonomy_path
     ORDER BY depth DESC
     """
@@ -714,48 +722,43 @@ defmodule Gallformers.Taxonomy.Tree do
   """
   @spec list_genera_for_select(atom()) :: [map()]
   def list_genera_for_select(filter \\ :all) do
-    base =
-      from(g in Taxonomy,
-        left_join: p in Taxonomy,
-        on: g.parent_id == p.id,
-        left_join: gp in Taxonomy,
-        on: p.parent_id == gp.id,
-        where: g.type == "genus" and g.name != "Unknown",
-        order_by: g.name,
-        select: %{
-          id: g.id,
-          name: g.name,
-          # If parent is a section, grandparent is the family
-          # If parent is a family, that's the family
-          family_id:
-            fragment(
-              "CASE WHEN ? = 'section' THEN ? ELSE ? END",
-              p.type,
-              gp.id,
-              p.id
-            )
-        }
-      )
+    # Use a CTE to walk from each genus up to its ancestor family,
+    # handling intermediates and sections in the parent chain.
+    type_filter =
+      case filter do
+        :plant -> "AND f.description = 'Plant'"
+        :all -> ""
+      end
 
-    case filter do
-      :plant ->
-        from([g, p, gp] in base,
-          join: f in Taxonomy,
-          on:
-            f.id ==
-              fragment(
-                "CASE WHEN ? = 'section' THEN ? ELSE ? END",
-                p.type,
-                gp.id,
-                p.id
-              ),
-          where: f.description == "Plant"
-        )
+    query = """
+    WITH RECURSIVE genus_to_family AS (
+      SELECT g.id as genus_id, g.name as genus_name, g.parent_id as current_parent_id
+      FROM taxonomy g
+      WHERE g.type = 'genus' AND g.name != 'Unknown'
 
-      :all ->
-        base
+      UNION ALL
+
+      SELECT gf.genus_id, gf.genus_name, t.parent_id
+      FROM genus_to_family gf
+      JOIN taxonomy t ON t.id = gf.current_parent_id
+      WHERE t.type != 'family'
+    )
+    SELECT gf.genus_id as id, gf.genus_name as name, f.id as family_id
+    FROM genus_to_family gf
+    JOIN taxonomy f ON f.id = gf.current_parent_id AND f.type = 'family'
+    #{type_filter}
+    ORDER BY gf.genus_name
+    """
+
+    case Repo.query(query, []) do
+      {:ok, %{rows: rows}} ->
+        Enum.map(rows, fn [id, name, family_id] ->
+          %{id: id, name: name, family_id: family_id}
+        end)
+
+      {:error, _} ->
+        []
     end
-    |> Repo.all()
   end
 
   # =====================================================================
@@ -892,24 +895,38 @@ defmodule Gallformers.Taxonomy.Tree do
   """
   @spec list_gall_families_for_host(integer()) :: [map()]
   def list_gall_families_for_host(host_id) do
-    from(f in Taxonomy,
-      join: g in Taxonomy,
-      on: g.parent_id == f.id,
-      join: st in "species_taxonomy",
-      on: st.taxonomy_id == g.id,
-      join: s in Species,
-      on: st.species_id == s.id,
-      join: h in GallHost,
-      on: h.gall_species_id == s.id,
-      where: s.taxoncode == "gall" and f.type == "family" and h.host_species_id == ^host_id,
-      group_by: [f.id, f.name],
-      order_by: f.name,
-      select: %{
-        id: f.id,
-        name: f.name
-      }
+    # Use CTE to walk from gall genera up to their ancestor families,
+    # handling intermediate ranks in the parent chain.
+    query = """
+    WITH RECURSIVE genus_to_family AS (
+      SELECT st.taxonomy_id as genus_id, t.parent_id as current_parent_id, t.type as current_type
+      FROM species_taxonomy st
+      JOIN taxonomy t ON st.taxonomy_id = t.id AND t.type = 'genus'
+      JOIN species s ON st.species_id = s.id AND s.taxoncode = 'gall'
+      JOIN gallhost h ON h.gall_species_id = s.id
+      WHERE h.host_species_id = ?1
+
+      UNION ALL
+
+      SELECT gf.genus_id, t.parent_id, t.type
+      FROM genus_to_family gf
+      JOIN taxonomy t ON t.id = gf.current_parent_id
+      WHERE gf.current_type != 'family'
     )
-    |> Repo.all()
+    SELECT DISTINCT f.id, f.name
+    FROM genus_to_family gf
+    JOIN taxonomy f ON f.id = gf.current_parent_id AND f.type = 'family'
+    WHERE gf.current_type != 'family'
+    ORDER BY f.name
+    """
+
+    case Repo.query(query, [host_id]) do
+      {:ok, %{rows: rows}} ->
+        Enum.map(rows, fn [id, name] -> %{id: id, name: name} end)
+
+      {:error, _} ->
+        []
+    end
   end
 
   @doc """
@@ -917,27 +934,39 @@ defmodule Gallformers.Taxonomy.Tree do
   """
   @spec list_gall_families_for_host_genus(integer()) :: [map()]
   def list_gall_families_for_host_genus(host_genus_id) do
-    from(f in Taxonomy,
-      join: galler_genus in Taxonomy,
-      on: galler_genus.parent_id == f.id,
-      join: st in "species_taxonomy",
-      on: st.taxonomy_id == galler_genus.id,
-      join: s in Species,
-      on: st.species_id == s.id,
-      join: h in GallHost,
-      on: h.gall_species_id == s.id,
-      join: host in Species,
-      on: h.host_species_id == host.id,
-      join: host_tax in "species_taxonomy",
-      on: host_tax.species_id == host.id,
-      where:
-        s.taxoncode == "gall" and f.type == "family" and
-          host_tax.taxonomy_id == ^host_genus_id,
-      group_by: [f.id, f.name],
-      order_by: f.name,
-      select: %{id: f.id, name: f.name}
+    # Use CTE to walk from gall genera up to their ancestor families,
+    # handling intermediate ranks in the parent chain.
+    query = """
+    WITH RECURSIVE genus_to_family AS (
+      SELECT galler_st.taxonomy_id as genus_id, gt.parent_id as current_parent_id, gt.type as current_type
+      FROM species_taxonomy host_st
+      JOIN gallhost h ON h.host_species_id = host_st.species_id
+      JOIN species s ON h.gall_species_id = s.id AND s.taxoncode = 'gall'
+      JOIN species_taxonomy galler_st ON galler_st.species_id = s.id
+      JOIN taxonomy gt ON galler_st.taxonomy_id = gt.id AND gt.type = 'genus'
+      WHERE host_st.taxonomy_id = ?1
+
+      UNION ALL
+
+      SELECT gf.genus_id, t.parent_id, t.type
+      FROM genus_to_family gf
+      JOIN taxonomy t ON t.id = gf.current_parent_id
+      WHERE gf.current_type != 'family'
     )
-    |> Repo.all()
+    SELECT DISTINCT f.id, f.name
+    FROM genus_to_family gf
+    JOIN taxonomy f ON f.id = gf.current_parent_id AND f.type = 'family'
+    WHERE gf.current_type != 'family'
+    ORDER BY f.name
+    """
+
+    case Repo.query(query, [host_genus_id]) do
+      {:ok, %{rows: rows}} ->
+        Enum.map(rows, fn [id, name] -> %{id: id, name: name} end)
+
+      {:error, _} ->
+        []
+    end
   end
 
   @doc """

@@ -33,23 +33,41 @@ defmodule Gallformers.Taxonomy.Search do
         select: %{id: f.id, name: f.name}
       )
 
-    base =
-      if taxoncode do
-        from(f in base,
-          join: g in Taxonomy,
-          on: g.parent_id == f.id and g.type == "genus",
-          join: st in "species_taxonomy",
-          on: st.taxonomy_id == g.id,
-          join: s in Gallformers.Species.Species,
-          on: st.species_id == s.id,
-          where: s.taxoncode == ^taxoncode,
-          distinct: true
-        )
-      else
-        base
-      end
+    if taxoncode do
+      # Use CTE to find genera that are descendants of matching families
+      # (handles intermediate ranks between family and genus)
+      name_pattern_for_sql = "#{String.downcase(query)}%"
 
-    Repo.all(base)
+      sql = """
+      WITH RECURSIVE family_descendants AS (
+        SELECT f.id, f.id as family_id, f.name as family_name, f.type
+        FROM taxonomy f
+        WHERE f.type = 'family' AND lower(f.name) LIKE ?1
+
+        UNION ALL
+
+        SELECT t.id, fd.family_id, fd.family_name, t.type
+        FROM taxonomy t
+        JOIN family_descendants fd ON t.parent_id = fd.id
+      )
+      SELECT DISTINCT fd.family_id as id, fd.family_name as name
+      FROM family_descendants fd
+      JOIN species_taxonomy st ON st.taxonomy_id = fd.id AND fd.type = 'genus'
+      JOIN species s ON st.species_id = s.id AND s.taxoncode = ?2
+      ORDER BY fd.family_name
+      LIMIT ?3
+      """
+
+      case Repo.query(sql, [name_pattern_for_sql, taxoncode, limit]) do
+        {:ok, %{rows: rows}} ->
+          Enum.map(rows, fn [id, name] -> %{id: id, name: name} end)
+
+        {:error, _} ->
+          []
+      end
+    else
+      Repo.all(base)
+    end
   end
 
   @doc """
@@ -69,45 +87,75 @@ defmodule Gallformers.Taxonomy.Search do
     taxoncode = Keyword.get(opts, :taxoncode)
     limit = Keyword.get(opts, :limit, 20)
 
-    base =
-      from(g in Taxonomy,
-        left_join: f in Taxonomy,
-        on: g.parent_id == f.id,
-        where: g.type == "genus",
-        where: fragment("lower(?) LIKE ?", g.name, ^name_pattern),
-        order_by: g.name,
-        limit: ^limit,
-        select: %{
-          id: g.id,
-          name: g.name,
-          family_name: f.name,
-          family_id: f.id,
-          is_placeholder: g.is_placeholder
-        }
-      )
-
-    base =
-      if family_id do
-        from([g, f] in base, where: g.parent_id == ^family_id)
-      else
-        base
-      end
-
-    base =
+    # Build parameterized query — params are numbered ?1, ?2, etc.
+    # ?1 = name_pattern, ?2 = limit, then optional ?3 for taxoncode, ?4 for family_id
+    {taxoncode_filter, taxoncode_params, next_param} =
       if taxoncode do
-        from([g, ...] in base,
-          join: st in "species_taxonomy",
-          on: st.taxonomy_id == g.id,
-          join: s in Gallformers.Species.Species,
-          on: st.species_id == s.id,
-          where: s.taxoncode == ^taxoncode,
-          distinct: true
-        )
+        {"""
+         AND EXISTS (
+           SELECT 1 FROM species_taxonomy st
+           JOIN species s ON st.species_id = s.id AND s.taxoncode = ?3
+           WHERE st.taxonomy_id = g.id
+         )
+         """, [taxoncode], 4}
       else
-        base
+        {"", [], 3}
       end
 
-    Repo.all(base)
+    {family_filter, family_params} =
+      if family_id do
+        {"AND ancestors.family_id = ?#{next_param}", [family_id]}
+      else
+        {"", []}
+      end
+
+    sql = """
+    WITH RECURSIVE genus_ancestors AS (
+      SELECT g.id as genus_id, g.id as current_id, g.parent_id as current_parent_id, g.type as current_type
+      FROM taxonomy g
+      WHERE g.type = 'genus' AND lower(g.name) LIKE ?1
+      #{taxoncode_filter}
+
+      UNION ALL
+
+      SELECT ga.genus_id, t.id, t.parent_id, t.type
+      FROM taxonomy t
+      JOIN genus_ancestors ga ON t.id = ga.current_parent_id
+      WHERE ga.current_type != 'family'
+    ),
+    ancestors AS (
+      SELECT ga.genus_id, ga.current_id as family_id
+      FROM genus_ancestors ga
+      WHERE ga.current_type = 'family'
+    )
+    SELECT g.id, g.name, f.name as family_name, f.id as family_id, g.is_placeholder
+    FROM taxonomy g
+    LEFT JOIN ancestors ON ancestors.genus_id = g.id
+    LEFT JOIN taxonomy f ON f.id = ancestors.family_id
+    WHERE g.type = 'genus' AND lower(g.name) LIKE ?1
+    #{taxoncode_filter}
+    #{family_filter}
+    ORDER BY g.name
+    LIMIT ?2
+    """
+
+    params = [name_pattern, limit] ++ taxoncode_params ++ family_params
+
+    case Repo.query(sql, params) do
+      {:ok, %{rows: rows}} ->
+        Enum.map(rows, fn [id, name, family_name, fam_id, is_placeholder] ->
+          %{
+            id: id,
+            name: name,
+            family_name: family_name,
+            family_id: fam_id,
+            is_placeholder: is_placeholder == 1 || is_placeholder == true
+          }
+        end)
+
+      {:error, _} ->
+        []
+    end
   end
 
   @doc """
