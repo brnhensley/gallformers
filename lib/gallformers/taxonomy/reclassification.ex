@@ -192,6 +192,22 @@ defmodule Gallformers.Taxonomy.Reclassification do
     }
   end
 
+  def get_deletion_impact(%Taxonomy{id: id, type: "intermediate"} = taxonomy) do
+    children = Tree.get_children(id)
+
+    %{
+      taxonomy: taxonomy,
+      children: children,
+      children_count: length(children),
+      genera: [],
+      genera_count: 0,
+      sections: [],
+      sections_count: 0,
+      species_count: 0,
+      has_impact: children != []
+    }
+  end
+
   def get_deletion_impact(%Taxonomy{} = taxonomy) do
     %{
       taxonomy: taxonomy,
@@ -288,6 +304,27 @@ defmodule Gallformers.Taxonomy.Reclassification do
           sections_count: length(sections),
           species_count: species_count
         }
+      end)
+
+    log_cascade_result(result, taxonomy)
+    broadcast(result, :taxonomy_deleted)
+  end
+
+  def delete_taxonomy_cascade(%Taxonomy{id: id, type: "intermediate"} = taxonomy) do
+    Logger.info(
+      "Collapse-upward delete for intermediate #{taxonomy.name} (id=#{id})"
+    )
+
+    result =
+      Repo.transaction(fn ->
+        # Re-parent children to the intermediate's parent (collapse upward)
+        {count, _} =
+          from(t in Taxonomy, where: t.parent_id == ^id)
+          |> Repo.update_all(set: [parent_id: taxonomy.parent_id])
+
+        Logger.info("Re-parented #{count} children from #{taxonomy.name} to parent #{taxonomy.parent_id}")
+
+        Repo.delete!(taxonomy)
       end)
 
     log_cascade_result(result, taxonomy)

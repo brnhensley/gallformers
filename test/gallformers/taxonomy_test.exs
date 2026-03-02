@@ -2478,6 +2478,33 @@ defmodule Gallformers.TaxonomyTest do
     end
   end
 
+  describe "delete intermediate (collapse upward)" do
+    test "re-parents children to grandparent when intermediate is deleted" do
+      # Cynipini (tribe, id=32) has children Andricus (33) and Cynips (34)
+      # Its parent is Cynipinae (subfamily, id=31)
+      tribe = Taxonomy.get_taxonomy!(32)
+      assert tribe.type == "intermediate"
+
+      # Delete the tribe — children should move to its parent (Cynipinae)
+      {:ok, _deleted} = Taxonomy.delete_taxonomy_cascade(tribe)
+
+      # Andricus and Cynips should now be under Cynipinae (id=31)
+      andricus = Repo.get!(TaxonomySchema, 33)
+      cynips = Repo.get!(TaxonomySchema, 34)
+      assert andricus.parent_id == 31
+      assert cynips.parent_id == 31
+    end
+
+    test "get_deletion_impact for intermediate shows children" do
+      tribe = Taxonomy.get_taxonomy!(32)
+      impact = Taxonomy.get_deletion_impact(tribe)
+
+      assert impact.taxonomy.id == 32
+      assert impact.children_count == 2
+      assert impact.has_impact == true
+    end
+  end
+
   describe "admin index queries for intermediates" do
     test "list_taxonomies_with_parent includes rank for intermediates" do
       # Cynipinae (id=31) is a Subfamily intermediate in test seeds

@@ -655,6 +655,11 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Index do
     end
   end
 
+  # Handle intermediate delete (collapse upward - returns the deleted struct)
+  defp build_delete_success_message(%{type: "intermediate"} = taxonomy, %Taxonomy.Taxonomy{}) do
+    "Deleted intermediate \"#{taxonomy.name}\" — children re-parented to parent"
+  end
+
   # Handle simple taxonomy struct (for section delete - no cascade)
   defp build_delete_success_message(_taxonomy, %Taxonomy.Taxonomy{} = deleted) do
     "Deleted #{deleted.type} \"#{deleted.name}\""
