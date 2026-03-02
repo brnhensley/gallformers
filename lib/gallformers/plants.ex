@@ -393,10 +393,6 @@ defmodule Gallformers.Plants do
     {:ok, host}
   end
 
-  defp broadcast({:error, changeset}, _event) do
-    {:error, changeset}
-  end
-
   # ============================================
   # CRUD Operations
   # ============================================
