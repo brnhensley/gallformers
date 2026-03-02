@@ -1112,10 +1112,24 @@ defmodule Gallformers.Taxonomy.Tree do
   @spec list_children_with_counts(integer()) :: [map()]
   def list_children_with_counts(parent_id) do
     query = """
+    WITH RECURSIVE descendants AS (
+      -- Base: direct children of each child
+      SELECT child.id AS child_id, child.id AS descendant_id, child.type AS descendant_type
+      FROM taxonomy child
+      WHERE child.parent_id = ?1
+
+      UNION ALL
+
+      -- Recurse: walk down the tree from each child
+      SELECT d.child_id, t.id, t.type
+      FROM descendants d
+      INNER JOIN taxonomy t ON t.parent_id = d.descendant_id
+    )
     SELECT t.id, t.name, t.type, t.rank, t.description,
            COUNT(DISTINCT st.species_id) as species_count
     FROM taxonomy t
-    LEFT JOIN species_taxonomy st ON st.taxonomy_id = t.id AND t.type = 'genus'
+    LEFT JOIN descendants d ON d.child_id = t.id AND d.descendant_type = 'genus'
+    LEFT JOIN species_taxonomy st ON st.taxonomy_id = d.descendant_id
     WHERE t.parent_id = ?1
     GROUP BY t.id, t.name, t.type, t.rank, t.description
     ORDER BY t.type, t.name

@@ -492,7 +492,7 @@ defmodule Gallformers.Search do
   end
 
   @doc """
-  Searches taxonomy entries (genus, family, section) by name or description.
+  Searches taxonomy entries (genus, family, intermediate, section) by name or description.
 
   Excludes placeholder entries (is_placeholder = true) that have no children,
   since empty placeholders serve no purpose in search results. Placeholders
@@ -508,7 +508,7 @@ defmodule Gallformers.Search do
       on: st.taxonomy_id == t.id,
       # Exclude placeholders with no species (handle NULL/0 as false)
       where:
-        t.type in ["genus", "family", "section"] and
+        t.type in ["genus", "family", "intermediate", "section"] and
           (fragment("lower(?) LIKE ?", t.name, ^search_term) or
              fragment("lower(coalesce(?, '')) LIKE ?", t.description, ^search_term)) and
           not (fragment("coalesce(?, 0)", t.is_placeholder) == 1 and is_nil(st.species_id)),
@@ -518,8 +518,11 @@ defmodule Gallformers.Search do
         id: t.id,
         name: t.name,
         type: t.type,
+        rank: t.rank,
         description: t.description,
-        parent_name: parent.name
+        parent_name: parent.name,
+        parent_type: parent.type,
+        parent_rank: parent.rank
       }
     )
     |> Repo.all()

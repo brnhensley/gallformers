@@ -14,6 +14,7 @@ defmodule GallformersWeb.SearchLive do
 
   alias Gallformers.Search
   alias GallformersWeb.Live.ContinentScope
+  alias GallformersWeb.TaxonomyURL
 
   @valid_sort_columns ~w(type name relevance)
   @page_size 50
@@ -200,6 +201,7 @@ defmodule GallformersWeb.SearchLive do
           case t.type do
             "genus" -> "Genus"
             "family" -> "Family"
+            "intermediate" -> t.rank || "Taxonomy"
             "section" -> "Section"
             _ -> "Taxonomy"
           end
@@ -248,19 +250,21 @@ defmodule GallformersWeb.SearchLive do
     "source" => "gf-source",
     "genus" => "gf-taxon",
     "family" => "gf-taxon",
+    "intermediate" => "gf-taxon",
     "section" => "gf-taxon",
     "place" => "gf-place"
   }
 
   defp result_link(%{type: "glossary", name: name}), do: ~p"/glossary##{String.downcase(name)}"
   defp result_link(%{type: "place", code: code}), do: "/place/#{code}"
-  defp result_link(%{type: type, id: id}), do: build_entity_link(type, id)
 
-  defp build_entity_link(type, id) when type in ~w(gall host source genus family section) do
-    "/#{type}/#{id}"
+  defp result_link(%{type: type} = result)
+       when type in ~w(genus family intermediate section) do
+    TaxonomyURL.public_path(result) || "/"
   end
 
-  defp build_entity_link(_type, _id), do: "/"
+  defp result_link(%{type: type, id: id}) when type in ~w(gall host source), do: "/#{type}/#{id}"
+  defp result_link(_), do: "/"
 
   defp type_icon(type), do: Map.get(@type_icons, type, "ph-question")
 
@@ -268,27 +272,33 @@ defmodule GallformersWeb.SearchLive do
   defp search_result_icon_class("gall"), do: "w-10 h-8 text-gray-500"
   defp search_result_icon_class(_type), do: "w-6 h-6 text-gray-500"
 
-  defp format_name(result) do
-    case result.type do
-      "gall" -> result.name
-      "host" -> result.name
-      "genus" -> format_taxonomy_with_parent(result, "Genus", "Family")
-      "section" -> format_taxonomy_with_parent(result, "Section", "Genus")
-      "family" -> "Family #{result.name}"
-      "place" -> "#{result.name} - #{result.code}"
-      "source" -> format_source_name(result)
-      _ -> result.name
-    end
-  end
+  defp format_name(%{type: "place"} = result), do: "#{result.name} - #{result.code}"
+  defp format_name(%{type: "source"} = result), do: format_source_name(result)
 
-  defp format_taxonomy_with_parent(result, type_label, parent_type_label) do
+  defp format_name(%{type: type} = result) when type in ~w(genus section intermediate family),
+    do: format_taxonomy_with_parent(result, self_type_label(result))
+
+  defp format_name(result), do: result.name
+
+  defp self_type_label(%{type: "intermediate", rank: rank}) when is_binary(rank), do: rank
+  defp self_type_label(%{type: type}), do: String.capitalize(type)
+
+  defp format_taxonomy_with_parent(result, type_label) do
     base = "#{type_label} #{result.name}"
 
     case Map.get(result, :parent_name) do
       nil -> base
-      parent -> "#{base} - #{parent_type_label} #{parent}"
+      parent -> "#{base} - #{parent_type_label(result)} #{parent}"
     end
   end
+
+  defp parent_type_label(%{parent_type: "intermediate", parent_rank: rank}) when is_binary(rank),
+    do: rank
+
+  defp parent_type_label(%{parent_type: type}) when is_binary(type),
+    do: String.capitalize(type)
+
+  defp parent_type_label(_), do: ""
 
   defp format_source_name(result) do
     author = result[:author] || "Unknown"
