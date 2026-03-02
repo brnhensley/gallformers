@@ -353,10 +353,7 @@ defmodule Gallformers.Taxonomy.Reclassification do
       |> Repo.all()
 
     for species <- species_list do
-      case species.taxoncode do
-        "gall" -> Gallformers.Galls.delete_gall(species.id)
-        "plant" -> Gallformers.Plants.delete_host(species.id)
-      end
+      Gallformers.Species.delete_species(species)
     end
 
     :ok

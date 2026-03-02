@@ -493,6 +493,39 @@ defmodule Gallformers.SpeciesTest do
       assert nil == Repo.one(from gt in GallTraits, where: gt.species_id == 100)
     end
 
+    test "cleans up orphaned aliases after deletion" do
+      import Ecto.Query
+
+      # Species 2 is "Quercus rubra" (a host) — not used by other delete tests
+      species = Species.get_species!(2)
+
+      # Add an alias to this species
+      {:ok, new_alias} =
+        Species.create_alias_for_species(species.id, %{name: "Test Alias", type: "common"})
+
+      # Verify the alias and link exist
+      assert Repo.one(from a in "alias", where: a.id == ^new_alias.id, select: a.id) != nil
+
+      assert Repo.one(
+               from als in "alias_species",
+                 where: als.alias_id == ^new_alias.id and als.species_id == ^species.id,
+                 select: als.alias_id
+             ) != nil
+
+      # Delete the species
+      assert {:ok, _} = Species.delete_species(species)
+
+      # The alias_species link should be gone (cascade)
+      assert Repo.one(
+               from als in "alias_species",
+                 where: als.alias_id == ^new_alias.id,
+                 select: als.alias_id
+             ) == nil
+
+      # The alias record itself should also be gone (orphan cleanup)
+      assert Repo.one(from a in "alias", where: a.id == ^new_alias.id, select: a.id) == nil
+    end
+
     test "raises for non-existent species" do
       # Create a struct with a non-existent ID
       species = %Gallformers.Species.Species{id: 999_999_999, name: "Nonexistent"}

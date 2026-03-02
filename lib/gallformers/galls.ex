@@ -812,49 +812,6 @@ defmodule Gallformers.Galls do
     |> Repo.delete_all()
   end
 
-  @doc """
-  Deletes a gall species and all associations.
-
-  Performs a complete cleanup in the correct order:
-  1. Deletes S3 images (before DB cascade removes image paths)
-  2. Deletes gall_traits (cascades to filter associations)
-  3. Deletes FTS index entry
-  4. Deletes the species (cascades to image rows, host relations, etc.)
-
-  Returns {:ok, species} on success or {:error, reason} on failure.
-  """
-  @spec delete_gall(integer()) ::
-          {:ok, Species.t()} | {:error, :not_found | Ecto.Changeset.t() | term()}
-  def delete_gall(gall_id) do
-    case Repo.get(Species, gall_id) do
-      nil ->
-        {:error, :not_found}
-
-      %{taxoncode: "gall"} = gall ->
-        Repo.transaction(fn -> do_delete_gall(gall) end)
-
-      _not_a_gall ->
-        {:error, :not_a_gall}
-    end
-  end
-
-  defp do_delete_gall(gall) do
-    # 1. Delete S3 images first (before DB records are cascade deleted)
-    Gallformers.Images.delete_images_from_s3_for_species(gall.id)
-
-    # 2. Delete gall_traits (cascades to filter associations)
-    delete_gall_traits(gall.id)
-
-    # 3. Delete from FTS index
-    Gallformers.Species.delete_species_fts(gall.id)
-
-    # 4. Delete the species record (cascades to image rows, host relations, etc.)
-    case Repo.delete(gall) do
-      {:ok, deleted} -> deleted
-      {:error, changeset} -> Repo.rollback(changeset)
-    end
-  end
-
   # ============================================
   # Composite Save Operations
   # ============================================

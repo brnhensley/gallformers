@@ -296,14 +296,14 @@ defmodule Gallformers.HostsTest do
     end
   end
 
-  describe "delete_host/1" do
+  describe "host deletion via Species.delete_species/1" do
     test "deletes the host species" do
       # Species 1 is "Quercus alba" - a host plant
-      host = Plants.get_host(1)
-      assert host != nil
+      species = Species.get_species!(1)
+      assert species.taxoncode == "plant"
 
-      # Delete the host
-      assert {:ok, deleted} = Plants.delete_host(1)
+      # Delete via the canonical Species.delete_species path
+      assert {:ok, deleted} = Species.delete_species(species)
       assert deleted.id == 1
 
       # Verify host is gone
@@ -311,10 +311,6 @@ defmodule Gallformers.HostsTest do
 
       # Verify species is gone
       assert nil == Species.get_species(1)
-    end
-
-    test "returns error for non-existent host" do
-      assert {:error, :not_found} = Plants.delete_host(999_999_999)
     end
   end
 end

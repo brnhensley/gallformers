@@ -505,7 +505,17 @@ defmodule GallformersWeb.Admin.HostLive.Form do
 
   @impl true
   def handle_event("delete", _params, socket) do
-    case Plants.delete_host(socket.assigns.host.id) do
+    case Species.get_species(socket.assigns.host.id) do
+      nil ->
+        {:noreply, put_flash(socket, :error, "Host not found")}
+
+      species ->
+        do_delete_host(socket, species)
+    end
+  end
+
+  defp do_delete_host(socket, species) do
+    case Species.delete_species(species) do
       {:ok, _} ->
         {:noreply,
          socket

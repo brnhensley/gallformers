@@ -706,22 +706,19 @@ defmodule Gallformers.Species do
       # 1. Delete S3 images first (before DB records are cascade deleted)
       Gallformers.Images.delete_images_from_s3_for_species(species.id)
 
-      # 2. Delete the gall_traits record for this species
-      # This cascades to all filter associations (gall_shape, gall_texture, etc.)
-      Gallformers.Galls.delete_gall_traits(species.id)
-
-      # 3. Delete from FTS index
+      # 2. Delete from FTS index
       delete_species_fts(species.id)
 
-      # 4. Collect alias IDs before deletion (CASCADE will remove alias_species rows)
+      # 3. Collect alias IDs before deletion (CASCADE will remove alias_species rows)
       alias_ids =
         from(als in "alias_species", where: als.species_id == ^species.id, select: als.alias_id)
         |> Repo.all()
 
-      # 5. Delete the species record (cascades to image rows, hosts, alias_species, etc.)
+      # 4. Delete the species record (cascades to gall_traits, host_traits,
+      #    image rows, host relations, alias_species, etc.)
       case Repo.delete(species) do
         {:ok, deleted} ->
-          # 6. Clean up aliases that no longer have any species links
+          # 5. Clean up aliases that no longer have any species links
           delete_orphaned_aliases(alias_ids)
           deleted
 
