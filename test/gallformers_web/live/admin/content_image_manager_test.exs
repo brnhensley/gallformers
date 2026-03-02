@@ -145,9 +145,7 @@ defmodule GallformersWeb.Admin.ContentImageManagerTest do
   describe "rendering for key owner" do
     test "shows upload dropzone", %{conn: conn, key: key} do
       {:ok, _view, html} =
-        live_isolated(conn, TestLive,
-          session: %{"owner_type" => :key, "owner_id" => key.id}
-        )
+        live_isolated(conn, TestLive, session: %{"owner_type" => :key, "owner_id" => key.id})
 
       assert html =~ "data-content-image-manager"
     end
