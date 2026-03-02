@@ -468,11 +468,7 @@ defmodule GallformersWeb.Admin.TaxonomyLive.FormTest do
           parent_id: family.id
         })
 
-      {:ok,
-       conn: setup_admin_session(conn),
-       family: family,
-       genus1: genus1,
-       genus2: genus2}
+      {:ok, conn: setup_admin_session(conn), family: family, genus1: genus1, genus2: genus2}
     end
 
     test "shows children picker when parent is selected", %{

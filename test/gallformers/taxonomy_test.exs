@@ -2216,7 +2216,9 @@ defmodule Gallformers.TaxonomyTest do
 
       lineage = Lineage.from_path(path)
       assert length(lineage.intermediates) == 2
-      assert [%Intermediate{rank: "Subfamily"}, %Intermediate{rank: "Tribe"}] = lineage.intermediates
+
+      assert [%Intermediate{rank: "Subfamily"}, %Intermediate{rank: "Tribe"}] =
+               lineage.intermediates
     end
 
     test "from_section inherits intermediates: [] default" do
@@ -2273,7 +2275,10 @@ defmodule Gallformers.TaxonomyTest do
       assert lineage.genus.name == "Andricus"
       assert length(lineage.intermediates) == 2
 
-      assert [%Intermediate{name: "Cynipinae", rank: "Subfamily"}, %Intermediate{name: "Cynipini", rank: "Tribe"}] =
+      assert [
+               %Intermediate{name: "Cynipinae", rank: "Subfamily"},
+               %Intermediate{name: "Cynipini", rank: "Tribe"}
+             ] =
                lineage.intermediates
     end
 

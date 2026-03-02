@@ -384,7 +384,12 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Index do
                 type="select"
                 name="type"
                 prompt="All Types"
-                options={[{"Families", "family"}, {"Genera", "genus"}, {"Intermediates", "intermediate"}, {"Sections", "section"}]}
+                options={[
+                  {"Families", "family"},
+                  {"Genera", "genus"},
+                  {"Intermediates", "intermediate"},
+                  {"Sections", "section"}
+                ]}
                 value={@filter_type}
               />
             </form>

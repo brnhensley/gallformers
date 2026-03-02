@@ -673,7 +673,10 @@ defmodule GallformersWeb.DataDisplayComponents do
 
       <span :if={@section} class="flex items-center gap-1">
         <span
-          :if={@show_family && @family != nil || @show_genus && @genus != nil || (@intermediates || []) != []}
+          :if={
+            (@show_family && @family != nil) || (@show_genus && @genus != nil) ||
+              (@intermediates || []) != []
+          }
           class="mx-1 text-gray-400"
         >
           |

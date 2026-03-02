@@ -151,7 +151,11 @@ defmodule Gallformers.Taxonomy.Lineage do
 
     family =
       if family_node,
-        do: %Family{id: family_node.id, name: family_node.name, description: family_node.description}
+        do: %Family{
+          id: family_node.id,
+          name: family_node.name,
+          description: family_node.description
+        }
 
     genus =
       if genus_node,

@@ -122,7 +122,9 @@ defmodule Gallformers.Taxonomy.Tree do
           attrs
           |> Map.drop([:children_ids, "children_ids"])
           |> then(fn a ->
-            if Map.has_key?(a, :name), do: Map.put_new(a, :type, "intermediate"), else: Map.put_new(a, "type", "intermediate")
+            if Map.has_key?(a, :name),
+              do: Map.put_new(a, :type, "intermediate"),
+              else: Map.put_new(a, "type", "intermediate")
           end)
 
         case %Taxonomy{} |> Taxonomy.changeset(intermediate_attrs) |> Repo.insert() do

@@ -289,7 +289,10 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
         {:ok, intermediate} ->
           {:noreply,
            socket
-           |> put_flash(:info, "Created intermediate \"#{intermediate.name}\" (#{intermediate.rank})")
+           |> put_flash(
+             :info,
+             "Created intermediate \"#{intermediate.name}\" (#{intermediate.rank})"
+           )
            |> push_navigate(to: ~p"/admin/taxonomy")}
 
         {:error, %Ecto.Changeset{} = changeset} ->
@@ -567,7 +570,9 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
               <strong>Intermediates</strong>
               are ranks between family and genus (e.g., Subfamily, Tribe)
             </li>
-            <li><strong>Genera</strong> belong to families or intermediates (e.g., Andricus, Quercus)</li>
+            <li>
+              <strong>Genera</strong> belong to families or intermediates (e.g., Andricus, Quercus)
+            </li>
             <li>
               <strong>Sections</strong>
               are optional sub-groupings within genera (used primarily for Quercus oaks)

@@ -311,9 +311,7 @@ defmodule Gallformers.Taxonomy.Reclassification do
   end
 
   def delete_taxonomy_cascade(%Taxonomy{id: id, type: "intermediate"} = taxonomy) do
-    Logger.info(
-      "Collapse-upward delete for intermediate #{taxonomy.name} (id=#{id})"
-    )
+    Logger.info("Collapse-upward delete for intermediate #{taxonomy.name} (id=#{id})")
 
     result =
       Repo.transaction(fn ->
@@ -322,7 +320,9 @@ defmodule Gallformers.Taxonomy.Reclassification do
           from(t in Taxonomy, where: t.parent_id == ^id)
           |> Repo.update_all(set: [parent_id: taxonomy.parent_id])
 
-        Logger.info("Re-parented #{count} children from #{taxonomy.name} to parent #{taxonomy.parent_id}")
+        Logger.info(
+          "Re-parented #{count} children from #{taxonomy.name} to parent #{taxonomy.parent_id}"
+        )
 
         Repo.delete!(taxonomy)
       end)
