@@ -1,9 +1,10 @@
 ---
-status: raw
+status: planned
 created: 2026-03-02
 updated: 2026-03-02
 epic: geo-expansion
 relates: [d7d1, 8900]
+docket: true
 ---
 
 # Bulk WCVP range backfill for all hosts
@@ -186,4 +187,3 @@ This is a decision task, not a code task. Defer until after backfill is applied 
 Task 1 → Task 2 → Task 3 → Task 4 → (apply to prod) → Task 5
 
 Tasks 3 and 4 share a file but task 4 depends on task 3's check logic.
-
