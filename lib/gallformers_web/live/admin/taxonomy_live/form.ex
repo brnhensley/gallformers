@@ -159,11 +159,18 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
     socket =
       if params["type"] == "intermediate" and socket.assigns.live_action == :new do
         parent_id = params["parent_id"]
-        children = load_children_options(parent_id)
+        prev_parent_id = Ecto.Changeset.get_field(socket.assigns.form.source, :parent_id)
+        parent_changed? = to_string(parent_id) != to_string(prev_parent_id)
 
-        socket
-        |> assign(:children_options, children)
-        |> assign(:selected_children, [])
+        if parent_changed? do
+          children = load_children_options(parent_id)
+
+          socket
+          |> assign(:children_options, children)
+          |> assign(:selected_children, [])
+        else
+          socket
+        end
       else
         socket
       end
