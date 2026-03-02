@@ -1,8 +1,8 @@
 ---
-status: planned
+status: done
 effort: 1 day
 created: 2026-02-15
-updated: 2026-02-28
+updated: 2026-03-02
 epic: images
 blocks: [16bb, 85c0]
 ---
@@ -237,4 +237,3 @@ When rendering a key's couplets, collect all `content_image_id` values, bulk-loa
 - Couplet with valid content_image_id renders image URL
 - Couplet with deleted/invalid content_image_id renders placeholder
 - Multiple couplets with images bulk-load efficiently (1 query, not N)
-

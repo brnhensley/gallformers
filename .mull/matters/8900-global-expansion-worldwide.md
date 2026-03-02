@@ -1,10 +1,10 @@
 ---
 status: active
 created: 2026-02-23
-updated: 2026-03-01
+updated: 2026-03-02
 epic: geo-expansion
 docs: ['']
-relates: [1db6, b99b, 8166, 82f4, d9b6]
+relates: [1db6, b99b, 8166, 82f4, d9b6, d7d1]
 needs: [b99b]
 ---
 
