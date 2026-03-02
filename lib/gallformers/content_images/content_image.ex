@@ -68,8 +68,11 @@ defmodule Gallformers.ContentImages.ContentImage do
       {nil, nil} ->
         add_error(changeset, :article_id, "either article_id or key_id must be set")
 
-      {_, nil} -> changeset
-      {nil, _} -> changeset
+      {_, nil} ->
+        changeset
+
+      {nil, _} ->
+        changeset
 
       {_, _} ->
         add_error(changeset, :article_id, "cannot set both article_id and key_id")
