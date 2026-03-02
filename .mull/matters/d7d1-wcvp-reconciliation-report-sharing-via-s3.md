@@ -3,7 +3,7 @@ status: raw
 created: 2026-03-02
 updated: 2026-03-02
 epic: admin
-relates: [8900]
+relates: [8900, b9e5]
 ---
 
 # WCVP reconciliation report sharing via S3
@@ -42,4 +42,3 @@ Upload reconciliation reports to S3. The admin UI reads from S3 instead of the l
 - Use existing backups bucket or a dedicated path?
 - Cache S3 reads on server (ETS or filesystem) or fetch on every page load?
 - Keep local file writes too for dev convenience?
-
