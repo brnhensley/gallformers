@@ -603,6 +603,7 @@ defmodule GallformersWeb.DataDisplayComponents do
   attr :family, :map, default: nil, doc: "family data with :id, :name keys"
   attr :intermediates, :list, default: [], doc: "list of intermediates with :id, :name, :rank"
   attr :genus, :map, default: nil, doc: "genus data with :id, :name, :description keys"
+  attr :section, :map, default: nil, doc: "section data with :id, :name, :description keys"
   attr :species, :map, default: nil, doc: "species name (for display only)"
   attr :show_family, :boolean, default: true, doc: "whether to show family"
   attr :show_genus, :boolean, default: true, doc: "whether to show genus"
@@ -670,10 +671,30 @@ defmodule GallformersWeb.DataDisplayComponents do
         </span>
       </span>
 
+      <span :if={@section} class="flex items-center gap-1">
+        <span
+          :if={@show_family && @family != nil || @show_genus && @genus != nil || (@intermediates || []) != []}
+          class="mx-1 text-gray-400"
+        >
+          |
+        </span>
+        <strong>{gettext("Section:")}</strong>
+        <.link
+          :if={field(@section, :id)}
+          navigate={"/section/#{field(@section, :id)}"}
+          class="hover:underline"
+        >
+          <.taxon_name name={field(@section, :name)} rank="section" />
+        </.link>
+        <span :if={!field(@section, :id)}>
+          <.taxon_name name={field(@section, :name)} rank="section" />
+        </span>
+      </span>
+
       <span
         :if={
           ((@show_family && @family != nil) || (@show_genus && @genus != nil) ||
-             (@intermediates || []) != []) && @species != nil
+             (@intermediates || []) != [] || @section != nil) && @species != nil
         }
         class="mx-1 text-gray-400"
       >

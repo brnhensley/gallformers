@@ -192,18 +192,11 @@ defmodule GallformersWeb.GenusLive do
                 </div>
               </div>
 
-              <%!-- Family link --%>
-              <%= if @lineage.family do %>
-                <div class="text-gray-700">
-                  <span class="font-semibold">Family:</span>
-                  <.link href={"/family/#{@lineage.family.id}"} class="hover:underline">
-                    <.taxon_name name={@lineage.family.name} rank="family" />
-                  </.link>
-                  <span :if={@lineage.family.description} class="text-gray-600">
-                    ({@lineage.family.description})
-                  </span>
-                </div>
-              <% end %>
+              <.taxonomy_breadcrumb
+                family={@lineage.family}
+                intermediates={@lineage.intermediates}
+                show_genus={false}
+              />
             </div>
 
             <%!-- Species list --%>

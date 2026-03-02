@@ -162,26 +162,11 @@ defmodule GallformersWeb.SectionLive do
                 </div>
               </div>
 
-              <%!-- Parent breadcrumbs --%>
-              <div class="text-gray-700 flex items-center gap-1">
-                <%= if @lineage.family do %>
-                  <span class="font-semibold">Family:</span>
-                  <.link href={"/family/#{@lineage.family.id}"} class="hover:underline">
-                    <.taxon_name name={@lineage.family.name} rank="family" />
-                  </.link>
-                  <span :if={@lineage.family.description} class="text-gray-600">
-                    ({@lineage.family.description})
-                  </span>
-                  <span class="text-gray-400 mx-1">/</span>
-                <% end %>
-                <span class="font-semibold">Genus:</span>
-                <.link href={"/genus/#{@lineage.genus.id}"} class="hover:underline">
-                  <.taxon_name name={@lineage.genus.name} rank="genus" />
-                </.link>
-                <span :if={@lineage.genus.description} class="text-gray-600">
-                  ({@lineage.genus.description})
-                </span>
-              </div>
+              <.taxonomy_breadcrumb
+                family={@lineage.family}
+                intermediates={@lineage.intermediates}
+                genus={@lineage.genus}
+              />
             </div>
 
             <%!-- Species list --%>

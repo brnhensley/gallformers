@@ -428,39 +428,12 @@ defmodule GallformersWeb.GallLive do
 
               <div class="flex flex-col md:flex-row md:items-start gap-4">
                 <div class="flex-1 space-y-2">
-                  <p :if={@taxonomy}>
-                    <span :if={@taxonomy.family}>
-                      <strong>Family:</strong>
-                      <.link
-                        href={"/family/#{@taxonomy.family.id}"}
-                        class="hover:underline"
-                      >
-                        {@taxonomy.family.name}
-                      </.link>
-                      <span
-                        :if={@taxonomy.family.description not in [nil, ""]}
-                        class="text-gray-600"
-                      >
-                        ({@taxonomy.family.description})
-                      </span>
-                    </span>
-                    <span :if={@taxonomy.family && @taxonomy.genus} class="mx-1">|</span>
-                    <span :if={@taxonomy.genus}>
-                      <strong>Genus:</strong>
-                      <.link
-                        href={"/genus/#{@taxonomy.genus.id}"}
-                        class="hover:underline"
-                      >
-                        <.taxon_name name={@taxonomy.genus.name} rank="genus" />
-                      </.link>
-                      <span
-                        :if={@taxonomy.genus.description not in [nil, ""]}
-                        class="text-gray-600"
-                      >
-                        ({@taxonomy.genus.description})
-                      </span>
-                    </span>
-                  </p>
+                  <.taxonomy_breadcrumb
+                    :if={@taxonomy}
+                    family={@taxonomy.family}
+                    intermediates={@taxonomy.intermediates}
+                    genus={@taxonomy.genus}
+                  />
 
                   <div :if={@gall.hosts && length(@gall.hosts) > 0} class="flex items-center gap-1">
                     <div>

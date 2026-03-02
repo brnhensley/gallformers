@@ -358,55 +358,13 @@ defmodule GallformersWeb.HostLive do
                 />
               </div>
 
-              <p :if={@taxonomy}>
-                <span :if={@taxonomy.family}>
-                  <strong>Family:</strong>
-                  <.link
-                    href={"/family/#{@taxonomy.family.id}"}
-                    class="hover:underline"
-                  >
-                    {@taxonomy.family.name}
-                  </.link>
-                  <span
-                    :if={@taxonomy.family.description not in [nil, ""]}
-                    class="text-gray-600"
-                  >
-                    ({@taxonomy.family.description})
-                  </span>
-                </span>
-                <span :if={@taxonomy.section}>
-                  <span :if={@taxonomy.family} class="mx-1">|</span>
-                  <strong>Section:</strong>
-                  <.link
-                    href={"/section/#{@taxonomy.section.id}"}
-                    class="hover:underline"
-                  >
-                    <.taxon_name name={@taxonomy.section.name} rank="section" />
-                  </.link>
-                  <span
-                    :if={@taxonomy.section.description not in [nil, ""]}
-                    class="text-gray-600"
-                  >
-                    ({@taxonomy.section.description})
-                  </span>
-                </span>
-                <span :if={@taxonomy.genus}>
-                  <span :if={@taxonomy.family || @taxonomy.section} class="mx-1">|</span>
-                  <strong>Genus:</strong>
-                  <.link
-                    href={"/genus/#{@taxonomy.genus.id}"}
-                    class="hover:underline"
-                  >
-                    <.taxon_name name={@taxonomy.genus.name} rank="genus" />
-                  </.link>
-                  <span
-                    :if={@taxonomy.genus.description not in [nil, ""]}
-                    class="text-gray-600"
-                  >
-                    ({@taxonomy.genus.description})
-                  </span>
-                </span>
-              </p>
+              <.taxonomy_breadcrumb
+                :if={@taxonomy}
+                family={@taxonomy.family}
+                intermediates={@taxonomy.intermediates}
+                genus={@taxonomy.genus}
+                section={@taxonomy.section}
+              />
 
               <p :if={@host.abundance_name}><strong>Abundance:</strong> {@host.abundance_name}</p>
 
