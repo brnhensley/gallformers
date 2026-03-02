@@ -1,10 +1,10 @@
 ---
 status: planned
 created: 2026-02-18
-updated: 2026-02-25
+updated: 2026-03-02
 epic: platform
 docs: ['']
-relates: [9ad7]
+relates: [9ad7, 74de]
 ---
 
 # Codebase refactoring analysis
