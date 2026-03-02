@@ -601,6 +601,7 @@ defmodule GallformersWeb.DataDisplayComponents do
       <.taxonomy_breadcrumb family={@family} genus={@genus} species={@species} />
   """
   attr :family, :map, default: nil, doc: "family data with :id, :name keys"
+  attr :intermediates, :list, default: [], doc: "list of intermediates with :id, :name, :rank"
   attr :genus, :map, default: nil, doc: "genus data with :id, :name, :description keys"
   attr :species, :map, default: nil, doc: "species name (for display only)"
   attr :show_family, :boolean, default: true, doc: "whether to show family"
@@ -624,7 +625,30 @@ defmodule GallformersWeb.DataDisplayComponents do
         </span>
       </span>
 
-      <span :if={@show_family && @family && @show_genus && @genus} class="mx-1 text-gray-400">|</span>
+      <span :for={intermediate <- @intermediates || []} class="flex items-center gap-1">
+        <span class="mx-1 text-gray-400">|</span>
+        <strong>{intermediate[:rank] || intermediate["rank"]}:</strong>
+        <.link
+          :if={intermediate[:id] || intermediate["id"]}
+          navigate={"/taxonomy/#{intermediate[:id] || intermediate["id"]}"}
+          class="hover:underline"
+        >
+          {intermediate[:name] || intermediate["name"]}
+        </.link>
+        <span :if={!(intermediate[:id] || intermediate["id"])}>
+          {intermediate[:name] || intermediate["name"]}
+        </span>
+      </span>
+
+      <span
+        :if={
+          ((@show_family && @family != nil) || (@intermediates || []) != []) &&
+            @show_genus && @genus != nil
+        }
+        class="mx-1 text-gray-400"
+      >
+        |
+      </span>
 
       <span :if={@show_genus && @genus} class="flex items-center gap-1">
         <strong>{gettext("Genus:")}</strong>
@@ -647,7 +671,10 @@ defmodule GallformersWeb.DataDisplayComponents do
       </span>
 
       <span
-        :if={((@show_family && @family) || (@show_genus && @genus)) && @species}
+        :if={
+          ((@show_family && @family != nil) || (@show_genus && @genus != nil) ||
+             (@intermediates || []) != []) && @species != nil
+        }
         class="mx-1 text-gray-400"
       >
         |
