@@ -212,6 +212,12 @@ defmodule GallformersWeb.Admin.KeyLive.Form do
     end
   end
 
+  # Content image manager notifications (component manages its own state)
+  @impl true
+  def handle_info({:image_uploaded, _image}, socket), do: {:noreply, socket}
+  def handle_info({:image_deleted, _id}, socket), do: {:noreply, socket}
+  def handle_info({:images_reordered, _order}, socket), do: {:noreply, socket}
+
   @impl true
   def handle_info({:file_uploaded, json_text}, socket) do
     # Reuse the json_changed handler logic
@@ -415,6 +421,18 @@ defmodule GallformersWeb.Admin.KeyLive.Form do
             <.form_actions form_dirty={@form_dirty} mode={@mode} create_label="Create Key" />
           </div>
         </.form>
+
+        <%!-- Content Image Manager (edit mode only) --%>
+        <div :if={@mode == :edit} class="mt-8 pt-6 border-t border-gray-200">
+          <h3 class="text-lg font-semibold text-gray-700 mb-3">Key Images</h3>
+          <.live_component
+            module={GallformersWeb.Admin.ContentImageManager}
+            id="key-content-images"
+            owner_type={:key}
+            owner_id={@key.id}
+            current_user={@current_user}
+          />
+        </div>
 
         <.discard_confirm_modal show={@show_discard_confirm} />
       </Layouts.admin_edit_layout>

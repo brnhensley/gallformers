@@ -470,6 +470,12 @@ defmodule GallformersWeb.Admin.ArticleLive.Form do
     {:noreply, socket}
   end
 
+  # Content image manager notifications (component manages its own state)
+  @impl true
+  def handle_info({:image_uploaded, _image}, socket), do: {:noreply, socket}
+  def handle_info({:image_deleted, _id}, socket), do: {:noreply, socket}
+  def handle_info({:images_reordered, _order}, socket), do: {:noreply, socket}
+
   @impl true
   def render(assigns) do
     ~H"""
@@ -745,6 +751,18 @@ defmodule GallformersWeb.Admin.ArticleLive.Form do
             </div>
           <% end %>
         <% end %>
+
+        <%!-- Content Image Manager (edit mode only) --%>
+        <div :if={@mode == :edit} class="mt-8 pt-6 border-t border-gray-200">
+          <h3 class="text-lg font-semibold text-gray-700 mb-3">Content Images</h3>
+          <.live_component
+            module={GallformersWeb.Admin.ContentImageManager}
+            id="article-content-images"
+            owner_type={:article}
+            owner_id={@article.id}
+            current_user={@current_user}
+          />
+        </div>
 
         <.discard_confirm_modal show={@show_discard_confirm} />
       </Layouts.admin_edit_layout>
