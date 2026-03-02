@@ -24,7 +24,7 @@ defmodule GallformersWeb.HomeLiveTest do
 
       assert html =~ ~s(href="/id")
       assert html =~ ~s(href="/articles")
-      assert html =~ ~s(href="/explore")
+      assert html =~ ~s(href="/galls")
     end
 
     test "contains external links", %{conn: conn} do

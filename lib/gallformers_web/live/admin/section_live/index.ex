@@ -136,7 +136,7 @@ defmodule GallformersWeb.Admin.SectionLive.Index do
                 </td>
                 <td>
                   <%= if section.genus_name do %>
-                    <.link navigate={~p"/genus/#{section.genus_id}"} class="hover:underline">
+                    <.link navigate={~p"/genus/#{section.genus_name}"} class="hover:underline">
                       <.taxon_name name={section.genus_name} rank="genus" />
                     </.link>
                   <% else %>
@@ -159,7 +159,7 @@ defmodule GallformersWeb.Admin.SectionLive.Index do
                     <.action_button
                       icon="ph-arrow-square-out"
                       label="View"
-                      navigate={~p"/section/#{section.id}"}
+                      navigate={~p"/section/#{section.name}"}
                     />
                     <.action_button
                       icon="ph-trash"

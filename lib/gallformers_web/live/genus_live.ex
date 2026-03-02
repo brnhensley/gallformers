@@ -11,23 +11,29 @@ defmodule GallformersWeb.GenusLive do
   alias Gallformers.Taxonomy.Lineage
 
   @impl true
-  def mount(%{"id" => id}, _session, socket) do
-    case Integer.parse(id) do
-      {genus_id, ""} ->
-        load_genus(socket, genus_id)
+  def mount(%{"name" => name}, _session, socket) do
+    if numeric?(name) do
+      redirect_by_id(socket, name)
+    else
+      case Taxonomy.get_taxonomy_by_name(name, "genus") do
+        nil ->
+          {:ok, assign_genus_not_found(socket, "Genus not found")}
+
+        %{id: genus_id} ->
+          load_genus(socket, genus_id)
+      end
+    end
+  end
+
+  defp numeric?(s), do: Regex.match?(~r/^\d+$/, s)
+
+  defp redirect_by_id(socket, id_str) do
+    case Taxonomy.get_taxonomy(String.to_integer(id_str)) do
+      %{type: "genus", name: name} ->
+        {:ok, push_navigate(socket, to: "/genus/#{name}", replace: true)}
 
       _ ->
-        {:ok,
-         assign(socket,
-           page_title: "Genus Not Found",
-           page_description: "The requested taxonomic genus was not found on Gallformers.",
-           page_url: nil,
-           page_image: nil,
-           page_json_ld: nil,
-           page_noindex: true,
-           lineage: nil,
-           error: "Invalid genus ID"
-         )}
+        {:ok, assign_genus_not_found(socket, "Genus not found")}
     end
   end
 
@@ -83,7 +89,7 @@ defmodule GallformersWeb.GenusLive do
       page_title: "Genus #{lineage.genus.name}",
       page_description:
         "#{lineage.genus.name} - A taxonomic genus documented on Gallformers with #{length(species)} species.",
-      page_url: "/genus/#{genus_id}",
+      page_url: "/genus/#{lineage.genus.name}",
       page_image: nil,
       page_json_ld: nil,
       page_noindex: is_empty_unknown,

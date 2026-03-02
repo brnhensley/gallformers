@@ -234,7 +234,7 @@ defmodule GallformersWeb.Admin.SectionLive.Form do
       flash={@flash}
       current_user={@current_user}
       page_title={@page_title}
-      public_url={if @mode == :edit, do: ~p"/section/#{@section.id}"}
+      public_url={if @mode == :edit, do: ~p"/section/#{@section.name}"}
     >
       <Layouts.admin_edit_layout
         back_path={~p"/admin/section"}

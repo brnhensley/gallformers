@@ -54,7 +54,7 @@ defmodule GallformersWeb.DataDisplayComponentsTest do
       assert html =~ "Andricus"
     end
 
-    test "intermediate links point to /taxonomy/:id" do
+    test "intermediate links use rank-based semantic URLs" do
       html =
         render_component(&DataDisplayComponents.taxonomy_breadcrumb/1,
           family: %{id: 1, name: "Cynipidae"},
@@ -62,7 +62,42 @@ defmodule GallformersWeb.DataDisplayComponentsTest do
           genus: %{id: 3, name: "Andricus", description: nil}
         )
 
-      assert html =~ "/taxonomy/42"
+      assert html =~ "/subfamily/Cynipinae"
+      refute html =~ "/taxonomy/42"
+    end
+
+    test "family links use name-based URLs" do
+      html =
+        render_component(&DataDisplayComponents.taxonomy_breadcrumb/1,
+          family: %{id: 1, name: "Cynipidae"},
+          genus: %{id: 2, name: "Andricus", description: nil}
+        )
+
+      assert html =~ "/family/Cynipidae"
+      refute html =~ "/family/1"
+    end
+
+    test "genus links use name-based URLs" do
+      html =
+        render_component(&DataDisplayComponents.taxonomy_breadcrumb/1,
+          family: %{id: 1, name: "Cynipidae"},
+          genus: %{id: 2, name: "Andricus", description: nil}
+        )
+
+      assert html =~ "/genus/Andricus"
+      refute html =~ "/genus/2"
+    end
+
+    test "section links use name-based URLs" do
+      html =
+        render_component(&DataDisplayComponents.taxonomy_breadcrumb/1,
+          family: %{id: 1, name: "Cynipidae"},
+          genus: %{id: 2, name: "Andricus", description: nil},
+          section: %{id: 5, name: "Cerris", description: nil}
+        )
+
+      assert html =~ "/section/Cerris"
+      refute html =~ "/section/5"
     end
 
     test "renders identically to before when intermediates is nil or empty" do

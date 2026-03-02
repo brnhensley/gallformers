@@ -11,46 +11,61 @@ defmodule GallformersWeb.IntermediateLive do
   alias Gallformers.Taxonomy.Lineage
 
   @impl true
-  def mount(%{"id" => id}, _session, socket) do
-    case Integer.parse(id) do
-      {taxonomy_id, ""} ->
-        load_intermediate(socket, taxonomy_id)
+  def mount(%{"name" => name}, _session, socket) do
+    if numeric?(name) do
+      redirect_by_id(socket, name)
+    else
+      expected_rank =
+        socket.assigns.live_action
+        |> Atom.to_string()
+        |> String.capitalize()
 
-      _ ->
-        {:ok, assign_not_found(socket, "Invalid taxonomy ID")}
+      case Taxonomy.get_taxonomy_by_name(name, "intermediate") do
+        %{rank: ^expected_rank} = taxonomy ->
+          load_intermediate(socket, taxonomy)
+
+        _ ->
+          {:ok, assign_not_found(socket, "Taxonomy not found")}
+      end
     end
   end
 
-  defp load_intermediate(socket, taxonomy_id) do
-    case Taxonomy.get_taxonomy(taxonomy_id) do
-      %{type: "intermediate"} = taxonomy ->
-        path = Taxonomy.get_taxonomy_path(taxonomy_id)
-        lineage = Lineage.from_path(path)
-        children = Taxonomy.list_children_with_counts(taxonomy_id)
+  defp numeric?(s), do: Regex.match?(~r/^\d+$/, s)
 
-        {:ok,
-         assign(socket,
-           page_title: "#{taxonomy.rank}: #{taxonomy.name}",
-           page_description:
-             "#{taxonomy.name} - A taxonomic #{String.downcase(taxonomy.rank || "group")} documented on Gallformers.",
-           page_url: "/taxonomy/#{taxonomy_id}",
-           page_image: nil,
-           page_json_ld: nil,
-           page_noindex: false,
-           taxonomy: taxonomy,
-           lineage: lineage,
-           children: children,
-           filtered_children: children,
-           total_children_count: length(children),
-           search_query: "",
-           sort_by: :name,
-           sort_dir: :asc,
-           error: nil
-         )}
+  defp redirect_by_id(socket, id_str) do
+    case Taxonomy.get_taxonomy(String.to_integer(id_str)) do
+      %{type: "intermediate", rank: rank, name: name} when rank not in [nil, ""] ->
+        {:ok, push_navigate(socket, to: "/#{String.downcase(rank)}/#{name}", replace: true)}
 
       _ ->
         {:ok, assign_not_found(socket, "Taxonomy not found")}
     end
+  end
+
+  defp load_intermediate(socket, taxonomy) do
+    path = Taxonomy.get_taxonomy_path(taxonomy.id)
+    lineage = Lineage.from_path(path)
+    children = Taxonomy.list_children_with_counts(taxonomy.id)
+
+    {:ok,
+     assign(socket,
+       page_title: "#{taxonomy.rank}: #{taxonomy.name}",
+       page_description:
+         "#{taxonomy.name} - A taxonomic #{String.downcase(taxonomy.rank || "group")} documented on Gallformers.",
+       page_url: "/#{String.downcase(taxonomy.rank)}/#{taxonomy.name}",
+       page_image: nil,
+       page_json_ld: nil,
+       page_noindex: false,
+       taxonomy: taxonomy,
+       lineage: lineage,
+       children: children,
+       filtered_children: children,
+       total_children_count: length(children),
+       search_query: "",
+       sort_by: :name,
+       sort_dir: :asc,
+       error: nil
+     )}
   end
 
   defp assign_not_found(socket, error) do
@@ -73,9 +88,12 @@ defmodule GallformersWeb.IntermediateLive do
     )
   end
 
-  defp child_url(%{type: "genus", id: id}), do: "/genus/#{id}"
-  defp child_url(%{type: "intermediate", id: id}), do: "/taxonomy/#{id}"
-  defp child_url(%{type: "section", id: id}), do: "/section/#{id}"
+  defp child_url(%{type: "genus", name: name}), do: "/genus/#{name}"
+
+  defp child_url(%{type: "intermediate", rank: rank, name: name}),
+    do: "/#{String.downcase(rank)}/#{name}"
+
+  defp child_url(%{type: "section", name: name}), do: "/section/#{name}"
   defp child_url(_), do: nil
 
   @impl true

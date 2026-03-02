@@ -33,11 +33,68 @@ defmodule GallformersWeb.RedirectController do
   end
 
   @doc """
-  Redirects /places to /explore?tab=places
+  Redirects old /taxonomy/:id URLs to name-based routes.
+
+  Maps each taxonomy type to its canonical URL:
+  - family → /family/:name
+  - genus → /genus/:name
+  - section → /section/:name
+  - intermediate → /:rank/:name (e.g., /subfamily/Cynipinae)
   """
-  def places(conn, _params) do
+  def taxonomy(conn, %{"id" => id_str}) do
+    case Integer.parse(id_str) do
+      {id, ""} ->
+        case Gallformers.Taxonomy.get_taxonomy(id) do
+          nil ->
+            conn
+            |> put_status(:not_found)
+            |> put_view(GallformersWeb.ErrorHTML)
+            |> render(:"404")
+
+          %{type: "intermediate", rank: rank, name: name} when rank not in [nil, ""] ->
+            conn
+            |> put_status(:moved_permanently)
+            |> redirect(to: "/#{String.downcase(rank)}/#{name}")
+
+          %{type: type, name: name} when type in ["family", "genus", "section"] ->
+            conn
+            |> put_status(:moved_permanently)
+            |> redirect(to: "/#{type}/#{name}")
+
+          _ ->
+            conn
+            |> put_status(:not_found)
+            |> put_view(GallformersWeb.ErrorHTML)
+            |> render(:"404")
+        end
+
+      _ ->
+        conn
+        |> put_status(:not_found)
+        |> put_view(GallformersWeb.ErrorHTML)
+        |> render(:"404")
+    end
+  end
+
+  @doc """
+  Redirects /explore to the appropriate new browse page.
+
+  Maps old tab params to new routes:
+  - /explore or /explore?tab=galls -> /galls
+  - /explore?tab=undescribed -> /galls
+  - /explore?tab=hosts -> /hosts
+  - /explore?tab=places -> /places
+  """
+  def explore(conn, params) do
+    path =
+      case params["tab"] do
+        "hosts" -> "/hosts"
+        "places" -> "/places"
+        _other -> "/galls"
+      end
+
     conn
     |> put_status(:moved_permanently)
-    |> redirect(to: "/explore?tab=places")
+    |> redirect(to: path)
   end
 end

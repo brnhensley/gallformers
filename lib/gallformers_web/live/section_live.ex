@@ -11,24 +11,43 @@ defmodule GallformersWeb.SectionLive do
   alias Gallformers.Taxonomy
 
   @impl true
-  def mount(%{"id" => id}, _session, socket) do
-    case Integer.parse(id) do
-      {section_id, ""} ->
-        load_section(socket, section_id)
+  def mount(%{"name" => name}, _session, socket) do
+    if numeric?(name) do
+      redirect_by_id(socket, name)
+    else
+      case Taxonomy.get_taxonomy_by_name(name, "section") do
+        nil ->
+          {:ok, assign_section_not_found(socket)}
+
+        %{id: section_id} ->
+          load_section(socket, section_id)
+      end
+    end
+  end
+
+  defp numeric?(s), do: Regex.match?(~r/^\d+$/, s)
+
+  defp redirect_by_id(socket, id_str) do
+    case Taxonomy.get_taxonomy(String.to_integer(id_str)) do
+      %{type: "section", name: name} ->
+        {:ok, push_navigate(socket, to: "/section/#{name}", replace: true)}
 
       _ ->
-        {:ok,
-         assign(socket,
-           page_title: "Section Not Found",
-           page_description: "The requested taxonomic section was not found on Gallformers.",
-           page_url: nil,
-           page_image: nil,
-           page_json_ld: nil,
-           page_noindex: true,
-           lineage: nil,
-           error: "Invalid section ID"
-         )}
+        {:ok, assign_section_not_found(socket)}
     end
+  end
+
+  defp assign_section_not_found(socket) do
+    assign(socket,
+      page_title: "Section Not Found",
+      page_description: "The requested taxonomic section was not found on Gallformers.",
+      page_url: nil,
+      page_image: nil,
+      page_json_ld: nil,
+      page_noindex: true,
+      lineage: nil,
+      error: "Section not found"
+    )
   end
 
   defp load_section(socket, section_id) do
@@ -44,7 +63,7 @@ defmodule GallformersWeb.SectionLive do
            page_title: "Section #{lineage.section.name}",
            page_description:
              "#{lineage.section.name} - A taxonomic section documented on Gallformers with #{length(species)} species.",
-           page_url: "/section/#{section_id}",
+           page_url: "/section/#{lineage.section.name}",
            page_image: nil,
            page_json_ld: nil,
            page_noindex: false,
@@ -59,17 +78,7 @@ defmodule GallformersWeb.SectionLive do
          )}
 
       {:error, :not_found} ->
-        {:ok,
-         assign(socket,
-           page_title: "Section Not Found",
-           page_description: "The requested taxonomic section was not found on Gallformers.",
-           page_url: nil,
-           page_image: nil,
-           page_json_ld: nil,
-           page_noindex: true,
-           lineage: nil,
-           error: "Section not found"
-         )}
+        {:ok, assign_section_not_found(socket)}
     end
   end
 

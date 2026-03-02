@@ -509,10 +509,13 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
     "Deleted #{deleted.type} \"#{deleted.name}\""
   end
 
-  defp taxonomy_public_url(%{type: "family", id: id}), do: ~p"/family/#{id}"
-  defp taxonomy_public_url(%{type: "genus", id: id}), do: ~p"/genus/#{id}"
-  defp taxonomy_public_url(%{type: "intermediate", id: id}), do: ~p"/taxonomy/#{id}"
-  defp taxonomy_public_url(%{type: "section", id: id}), do: ~p"/section/#{id}"
+  defp taxonomy_public_url(%{type: "family", name: name}), do: ~p"/family/#{name}"
+  defp taxonomy_public_url(%{type: "genus", name: name}), do: ~p"/genus/#{name}"
+
+  defp taxonomy_public_url(%{type: "intermediate", rank: rank, name: name}),
+    do: "/#{String.downcase(rank)}/#{name}"
+
+  defp taxonomy_public_url(%{type: "section", name: name}), do: ~p"/section/#{name}"
   defp taxonomy_public_url(_), do: nil
 
   defp validate_unique_name_parent(changeset, taxonomy) do
@@ -622,9 +625,10 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
           <div :if={HtmlForm.input_value(@form, :type) == "intermediate"} class="mb-3">
             <.input
               field={@form[:rank]}
-              type="text"
+              type="select"
               label="Rank"
-              placeholder="e.g. Subfamily, Tribe, Subtribe"
+              prompt="Select rank"
+              options={Taxonomy.Taxonomy.valid_ranks()}
               required={true}
             />
             <p class="mt-1 text-xs text-gray-500">

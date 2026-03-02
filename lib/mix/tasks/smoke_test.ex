@@ -67,13 +67,13 @@ defmodule Mix.Tasks.SmokeTest do
         &discover_host_id/1
       )
 
-    {results, genus_id} =
+    {results, genus_name} =
       run_and_accumulate_with_value(
         results,
         client,
-        "Discover genus ID",
+        "Discover genus name",
         "/api/v2/families",
-        &discover_genus_id(client, &1)
+        &discover_genus_name(client, &1)
       )
 
     # Phase 3: Public pages
@@ -94,12 +94,12 @@ defmodule Mix.Tasks.SmokeTest do
       end
 
     results =
-      if genus_id do
+      if genus_name do
         run_and_accumulate(
           results,
           client,
           "Genus page",
-          "/genus/#{genus_id}",
+          "/genus/#{genus_name}",
           &check_genus_page/1
         )
       else
@@ -234,16 +234,16 @@ defmodule Mix.Tasks.SmokeTest do
 
   defp discover_host_id(_), do: {:error, "response is not JSON"}
 
-  defp discover_genus_id(client, body) when is_list(body) do
+  defp discover_genus_name(client, body) when is_list(body) do
     case body do
-      [%{"genera" => [%{"id" => genus_id} | _]} | _] when is_integer(genus_id) ->
-        {:ok, genus_id}
+      [%{"genera" => [%{"name" => genus_name} | _]} | _] when is_binary(genus_name) ->
+        {:ok, genus_name}
 
       [%{"id" => family_id} | _] when is_integer(family_id) ->
         # First family has no genera, try fetching genera endpoint
         case Req.get(client, url: "/api/v2/genera?family_id=#{family_id}") do
-          {:ok, %{status: 200, body: [%{"id" => genus_id} | _]}} when is_integer(genus_id) ->
-            {:ok, genus_id}
+          {:ok, %{status: 200, body: [%{"name" => genus_name} | _]}} when is_binary(genus_name) ->
+            {:ok, genus_name}
 
           _ ->
             {:error, "could not fetch genus from family #{family_id}"}
@@ -254,7 +254,7 @@ defmodule Mix.Tasks.SmokeTest do
     end
   end
 
-  defp discover_genus_id(_, _), do: {:error, "response is not JSON"}
+  defp discover_genus_name(_, _), do: {:error, "response is not JSON"}
 
   defp check_home(body) when is_binary(body) do
     if String.contains?(body, "Gallformers") do

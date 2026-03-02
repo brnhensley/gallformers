@@ -39,6 +39,7 @@ defmodule GallformersWeb.SitemapController do
       family_urls() ++
       genus_urls() ++
       section_urls() ++
+      intermediate_urls() ++
       place_urls() ++
       source_urls()
   end
@@ -52,7 +53,9 @@ defmodule GallformersWeb.SitemapController do
       %{loc: "#{@base_url}/glossary", changefreq: "weekly", priority: "0.8"},
       %{loc: "#{@base_url}/filterguide", changefreq: "monthly", priority: "0.7"},
       %{loc: "#{@base_url}/articles", changefreq: "weekly", priority: "0.7"},
-      %{loc: "#{@base_url}/explore", changefreq: "weekly", priority: "0.8"}
+      %{loc: "#{@base_url}/galls", changefreq: "weekly", priority: "0.8"},
+      %{loc: "#{@base_url}/hosts", changefreq: "weekly", priority: "0.8"},
+      %{loc: "#{@base_url}/places", changefreq: "weekly", priority: "0.7"}
     ]
   end
 
@@ -84,11 +87,11 @@ defmodule GallformersWeb.SitemapController do
   defp family_urls do
     from(t in "taxonomy",
       where: t.type == "family",
-      select: t.id
+      select: t.name
     )
     |> Repo.all()
-    |> Enum.map(fn id ->
-      %{loc: "#{@base_url}/family/#{id}", changefreq: "monthly", priority: "0.6"}
+    |> Enum.map(fn name ->
+      %{loc: "#{@base_url}/family/#{name}", changefreq: "monthly", priority: "0.6"}
     end)
   end
 
@@ -96,11 +99,11 @@ defmodule GallformersWeb.SitemapController do
   defp genus_urls do
     from(t in "taxonomy",
       where: t.type == "genus",
-      select: t.id
+      select: t.name
     )
     |> Repo.all()
-    |> Enum.map(fn id ->
-      %{loc: "#{@base_url}/genus/#{id}", changefreq: "monthly", priority: "0.6"}
+    |> Enum.map(fn name ->
+      %{loc: "#{@base_url}/genus/#{name}", changefreq: "monthly", priority: "0.6"}
     end)
   end
 
@@ -108,11 +111,24 @@ defmodule GallformersWeb.SitemapController do
   defp section_urls do
     from(t in "taxonomy",
       where: t.type == "section",
-      select: t.id
+      select: t.name
     )
     |> Repo.all()
-    |> Enum.map(fn id ->
-      %{loc: "#{@base_url}/section/#{id}", changefreq: "monthly", priority: "0.5"}
+    |> Enum.map(fn name ->
+      %{loc: "#{@base_url}/section/#{name}", changefreq: "monthly", priority: "0.5"}
+    end)
+  end
+
+  # All intermediate taxonomy pages (subfamily, tribe, etc.)
+  defp intermediate_urls do
+    from(t in "taxonomy",
+      where: t.type == "intermediate",
+      select: {t.name, t.rank}
+    )
+    |> Repo.all()
+    |> Enum.map(fn {name, rank} ->
+      rank_path = String.downcase(rank || "intermediate")
+      %{loc: "#{@base_url}/#{rank_path}/#{name}", changefreq: "monthly", priority: "0.5"}
     end)
   end
 

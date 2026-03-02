@@ -86,8 +86,8 @@ INSERT INTO species (id, name, taxoncode, datacomplete, abundance_id) VALUES
 
 -- Synthetic families and genera (unique names to avoid collisions)
 INSERT INTO taxonomy (id, name, description, type, parent_id, is_placeholder, inserted_at, updated_at) VALUES
-  (20, 'FamilyAlpha', 'test family alpha', 'family', NULL, 0, '2026-01-01T00:00:00', '2026-01-01T00:00:00'),
-  (21, 'FamilyBeta', 'test family beta', 'family', NULL, 0, '2026-01-01T00:00:00', '2026-01-01T00:00:00'),
+  (20, 'FamilyAlpha', 'Plant', 'family', NULL, 0, '2026-01-01T00:00:00', '2026-01-01T00:00:00'),
+  (21, 'FamilyBeta', 'Plant', 'family', NULL, 0, '2026-01-01T00:00:00', '2026-01-01T00:00:00'),
   (10, 'GenusAlpha', 'test genus alpha', 'genus', 20, 0, '2026-01-01T00:00:00', '2026-01-01T00:00:00'),
   (11, 'GenusBeta', 'test genus beta', 'genus', 21, 0, '2026-01-01T00:00:00', '2026-01-01T00:00:00');
 

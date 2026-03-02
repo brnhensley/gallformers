@@ -616,7 +616,7 @@ defmodule GallformersWeb.DataDisplayComponents do
         <strong>{gettext("Family:")}</strong>
         <.link
           :if={field(@family, :id)}
-          navigate={"/family/#{field(@family, :id)}"}
+          navigate={"/family/#{field(@family, :name)}"}
           class="hover:underline"
         >
           {field(@family, :name)}
@@ -631,7 +631,7 @@ defmodule GallformersWeb.DataDisplayComponents do
         <strong>{field(intermediate, :rank)}:</strong>
         <.link
           :if={field(intermediate, :id)}
-          navigate={"/taxonomy/#{field(intermediate, :id)}"}
+          navigate={"/#{String.downcase(field(intermediate, :rank) || "intermediate")}/#{field(intermediate, :name)}"}
           class="hover:underline"
         >
           {field(intermediate, :name)}
@@ -655,7 +655,7 @@ defmodule GallformersWeb.DataDisplayComponents do
         <strong>{gettext("Genus:")}</strong>
         <.link
           :if={field(@genus, :id)}
-          navigate={"/genus/#{field(@genus, :id)}"}
+          navigate={"/genus/#{field(@genus, :name)}"}
           class="hover:underline"
         >
           <.taxon_name name={field(@genus, :name)} rank="genus" />
@@ -684,7 +684,7 @@ defmodule GallformersWeb.DataDisplayComponents do
         <strong>{gettext("Section:")}</strong>
         <.link
           :if={field(@section, :id)}
-          navigate={"/section/#{field(@section, :id)}"}
+          navigate={"/section/#{field(@section, :name)}"}
           class="hover:underline"
         >
           <.taxon_name name={field(@section, :name)} rank="section" />

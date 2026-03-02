@@ -14,10 +14,42 @@ defmodule GallformersWeb.FamilyLive do
   @max_children_per_node 5
 
   @impl true
-  def mount(%{"id" => id}, _session, socket) do
-    case Integer.parse(id) do
-      {family_id, ""} ->
-        load_family(socket, family_id)
+  def mount(%{"name" => name}, _session, socket) do
+    if numeric?(name) do
+      redirect_by_id(socket, name, "family")
+    else
+      case Taxonomy.get_taxonomy_by_name(name, "family") do
+        nil ->
+          {:ok,
+           assign(socket,
+             page_title: "Family Not Found",
+             page_description: "The requested taxonomic family was not found on Gallformers.",
+             page_url: nil,
+             page_image: nil,
+             page_json_ld: nil,
+             page_noindex: true,
+             family: nil,
+             error: "Family not found"
+           )}
+
+        taxonomy ->
+          family = %Family{
+            id: taxonomy.id,
+            name: taxonomy.name,
+            description: taxonomy.description
+          }
+
+          load_family(socket, family)
+      end
+    end
+  end
+
+  defp numeric?(s), do: Regex.match?(~r/^\d+$/, s)
+
+  defp redirect_by_id(socket, id_str, type) do
+    case Taxonomy.get_taxonomy(String.to_integer(id_str)) do
+      %{type: ^type, name: name} ->
+        {:ok, push_navigate(socket, to: "/#{type}/#{name}", replace: true)}
 
       _ ->
         {:ok,
@@ -29,50 +61,34 @@ defmodule GallformersWeb.FamilyLive do
            page_json_ld: nil,
            page_noindex: true,
            family: nil,
-           error: "Invalid family ID"
+           error: "Family not found"
          )}
     end
   end
 
-  defp load_family(socket, family_id) do
-    case Taxonomy.get_family(family_id) do
-      nil ->
-        {:ok,
-         assign(socket,
-           page_title: "Family Not Found",
-           page_description: "The requested taxonomic family was not found on Gallformers.",
-           page_url: nil,
-           page_image: nil,
-           page_json_ld: nil,
-           page_noindex: true,
-           family: nil,
-           error: "Family not found"
-         )}
+  defp load_family(socket, %Family{} = family) do
+    # Get all direct children (intermediates + genera)
+    children = Taxonomy.get_children(family.id)
 
-      %Family{} = family ->
-        # Get all direct children (intermediates + genera)
-        children = Taxonomy.get_children(family_id)
+    # Build tree data recursively (handles intermediates and genera)
+    tree_data = build_tree_data(children)
 
-        # Build tree data recursively (handles intermediates and genera)
-        tree_data = build_tree_data(children)
-
-        {:ok,
-         assign(socket,
-           page_title: family.name,
-           page_description:
-             "#{family.name} - A taxonomic family documented on Gallformers with genera and species.",
-           page_url: "/family/#{family_id}",
-           page_image: nil,
-           page_json_ld: nil,
-           page_noindex: false,
-           family: family,
-           tree_data: tree_data,
-           filtered_tree: tree_data,
-           expanded_keys: MapSet.new(),
-           search_query: "",
-           error: nil
-         )}
-    end
+    {:ok,
+     assign(socket,
+       page_title: family.name,
+       page_description:
+         "#{family.name} - A taxonomic family documented on Gallformers with genera and species.",
+       page_url: "/family/#{family.name}",
+       page_image: nil,
+       page_json_ld: nil,
+       page_noindex: false,
+       family: family,
+       tree_data: tree_data,
+       filtered_tree: tree_data,
+       expanded_keys: MapSet.new(),
+       search_query: "",
+       error: nil
+     )}
   end
 
   defp build_tree_data(children) do
@@ -99,7 +115,7 @@ defmodule GallformersWeb.FamilyLive do
           label: "#{rank_label}: #{format_label(intermediate.name, intermediate.description)}",
           name: intermediate.name,
           rank: "intermediate",
-          url: "/taxonomy/#{intermediate.id}",
+          url: "/#{String.downcase(intermediate.rank || "intermediate")}/#{intermediate.name}",
           nodes: sub_tree
         }
       end)
@@ -119,7 +135,7 @@ defmodule GallformersWeb.FamilyLive do
           label: format_label(genus.name, genus.description),
           name: genus.name,
           rank: "genus",
-          url: "/genus/#{genus.id}",
+          url: "/genus/#{genus.name}",
           nodes:
             Enum.map(species, fn s ->
               %{

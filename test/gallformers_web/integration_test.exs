@@ -36,8 +36,18 @@ defmodule GallformersWeb.IntegrationTest do
       assert is_binary(html)
     end
 
-    test "explore page loads successfully", %{conn: conn} do
-      {:ok, _view, html} = live(conn, ~p"/explore")
+    test "galls browse page loads successfully", %{conn: conn} do
+      {:ok, _view, html} = live(conn, ~p"/galls")
+      assert is_binary(html)
+    end
+
+    test "hosts browse page loads successfully", %{conn: conn} do
+      {:ok, _view, html} = live(conn, ~p"/hosts")
+      assert is_binary(html)
+    end
+
+    test "places browse page loads successfully", %{conn: conn} do
+      {:ok, _view, html} = live(conn, ~p"/places")
       assert is_binary(html)
     end
 
@@ -98,12 +108,12 @@ defmodule GallformersWeb.IntegrationTest do
       assert html =~ "Identify"
     end
 
-    test "can navigate from home to explore", %{conn: conn} do
+    test "can navigate from home to galls browse", %{conn: conn} do
       {:ok, _view, html} = live(conn, ~p"/")
 
-      # Verify explore link exists
-      assert html =~ ~s(href="/explore")
-      assert html =~ "Explore"
+      # Verify galls browse link exists
+      assert html =~ ~s(href="/galls")
+      assert html =~ "Browse Galls"
     end
 
     test "can navigate from gall to host", %{conn: conn} do

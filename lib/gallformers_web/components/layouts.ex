@@ -63,8 +63,13 @@ defmodule GallformersWeb.Layouts do
 
   def site_header(assigns) do
     nav_links = [
-      %{href: "/id", label: "Identify"},
-      %{href: "/explore", label: "Explore"}
+      %{href: "/id", label: "Identify"}
+    ]
+
+    browse_links = [
+      %{href: "/galls", label: "Galls"},
+      %{href: "/hosts", label: "Hosts"},
+      %{href: "/places", label: "Places"}
     ]
 
     resource_links = [
@@ -78,6 +83,7 @@ defmodule GallformersWeb.Layouts do
     assigns =
       assigns
       |> assign(:nav_links, nav_links)
+      |> assign(:browse_links, browse_links)
       |> assign(:resource_links, resource_links)
 
     ~H"""
@@ -113,6 +119,32 @@ defmodule GallformersWeb.Layouts do
             >
               {link.label}
             </a>
+
+            <%!-- Browse Dropdown --%>
+            <div class="relative">
+              <button
+                type="button"
+                phx-click={toggle_browse_menu()}
+                class="flex items-center px-2 text-lg font-medium hover:underline"
+                aria-expanded="false"
+                aria-haspopup="true"
+              >
+                Browse <.icon name="ph-caret-down" class="ml-1 h-4 w-4" />
+              </button>
+              <div
+                id="browse-menu"
+                phx-click-away={hide_browse_menu()}
+                class="hidden absolute right-0 z-10 mt-1 w-48 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5"
+              >
+                <a
+                  :for={link <- @browse_links}
+                  href={link.href}
+                  class="block px-4 py-2 text-lg hover:bg-gray-100"
+                >
+                  {link.label}
+                </a>
+              </div>
+            </div>
 
             <%!-- Search Form --%>
             <form action="/globalsearch" method="get" class="flex items-center">
@@ -204,6 +236,20 @@ defmodule GallformersWeb.Layouts do
               {link.label}
             </a>
 
+            <%!-- Mobile Browse --%>
+            <div class="border-t border-gf-maroon/30 pt-2">
+              <span class="block px-3 py-2 text-xs font-semibold uppercase tracking-wider text-gf-maroon/70">
+                Browse
+              </span>
+              <a
+                :for={link <- @browse_links}
+                href={link.href}
+                class="block rounded-md px-3 py-2 text-lg font-medium hover:bg-white/50"
+              >
+                {link.label}
+              </a>
+            </div>
+
             <%!-- Mobile Search --%>
             <form action="/globalsearch" method="get" class="px-3 py-2">
               <div class="flex">
@@ -247,6 +293,14 @@ defmodule GallformersWeb.Layouts do
 
   defp toggle_mobile_menu do
     JS.toggle(to: "#mobile-menu")
+  end
+
+  defp toggle_browse_menu do
+    JS.toggle(to: "#browse-menu")
+  end
+
+  defp hide_browse_menu do
+    JS.hide(to: "#browse-menu")
   end
 
   defp toggle_resources_menu do

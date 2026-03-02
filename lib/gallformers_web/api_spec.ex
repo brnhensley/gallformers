@@ -12,14 +12,14 @@ defmodule GallformersWeb.ApiSpec do
     %OpenApi{
       info: %Info{
         title: "Gallformers API",
-        version: "2.0.0",
+        version: "2.1.0",
         description: """
         Public API for accessing Gallformers data.
 
         The Gallformers API provides read-only access to:
         - Galls (plant growths caused by insects and other organisms)
         - Host plants
-        - Taxonomy (families, genera, sections)
+        - Taxonomy (families, genera, sections, intermediates)
         - Sources (scientific references)
         - Glossary terms
         - Geographic places

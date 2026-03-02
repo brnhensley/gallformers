@@ -94,7 +94,7 @@ defmodule Gallformers.Taxonomy.TreeBuilder do
         name: family.name,
         rank: "family",
         description: format_description(family.description),
-        url: "/family/#{family.id}",
+        url: "/family/#{family.name}",
         nodes: genus_nodes
       }
     end)
@@ -111,7 +111,7 @@ defmodule Gallformers.Taxonomy.TreeBuilder do
         name: genus.name,
         rank: "genus",
         description: format_description(genus.description),
-        url: "/genus/#{genus.id}",
+        url: "/genus/#{genus.name}",
         nodes: species_nodes
       }
     end)

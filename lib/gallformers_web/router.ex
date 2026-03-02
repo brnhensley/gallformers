@@ -49,7 +49,8 @@ defmodule GallformersWeb.Router do
 
     get "/refindex", RedirectController, :articles
     get "/ref/:slug", RedirectController, :article
-    get "/places", RedirectController, :places
+    get "/explore", RedirectController, :explore
+    get "/taxonomy/:id", RedirectController, :taxonomy
   end
 
   # Auth routes (login/logout via Auth0)
@@ -163,7 +164,9 @@ defmodule GallformersWeb.Router do
       live "/articles", ArticlesLive
       live "/articles/:slug", ArticleLive
       live "/globalsearch", SearchLive
-      live "/explore", ExploreLive
+      live "/galls", GallsBrowseLive
+      live "/hosts", HostsBrowseLive
+      live "/places", PlacesBrowseLive
 
       # ID Tool
       live "/id", IDLive
@@ -175,12 +178,19 @@ defmodule GallformersWeb.Router do
       # Entity pages
       live "/gall/:id", GallLive
       live "/host/:id", HostLive
-      live "/family/:id", FamilyLive
-      live "/genus/:id", GenusLive
+      live "/family/:name", FamilyLive
+      live "/genus/:name", GenusLive
       live "/source/:id", SourceLive
-      live "/section/:id", SectionLive
-      live "/taxonomy/:id", IntermediateLive
+      live "/section/:name", SectionLive
       live "/place/:code", PlaceLive
+
+      # Intermediate rank-typed routes (all point to IntermediateLive)
+      live "/subfamily/:name", IntermediateLive, :subfamily
+      live "/tribe/:name", IntermediateLive, :tribe
+      live "/subtribe/:name", IntermediateLive, :subtribe
+      live "/infratribe/:name", IntermediateLive, :infratribe
+      live "/supertribe/:name", IntermediateLive, :supertribe
+      live "/infrafamily/:name", IntermediateLive, :infrafamily
 
       # User profiles
       live "/user/:nickname", UserProfileLive
@@ -219,7 +229,9 @@ defmodule GallformersWeb.Router do
     get "/families", TaxonomyController, :families
     get "/families/:id", TaxonomyController, :family
     get "/genera/:id", TaxonomyController, :genus
+    get "/sections", TaxonomyController, :sections
     get "/sections/:id", TaxonomyController, :section
+    get "/intermediates/:id", TaxonomyController, :intermediate
 
     # Source endpoints
     get "/sources", SourceController, :index

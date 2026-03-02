@@ -203,10 +203,10 @@ defmodule GallformersWeb.HomeLive do
                   <.icon name="ph-article" class="size-5 mr-2" /> Articles
                 </.link>
                 <.link
-                  href="/explore"
+                  href="/galls"
                   class="inline-flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-full hover:bg-gray-200"
                 >
-                  <.icon name="ph-compass" class="size-5 mr-2" /> Explore
+                  <.icon name="ph-compass" class="size-5 mr-2" /> Browse Galls
                 </.link>
               </div>
             </.card>

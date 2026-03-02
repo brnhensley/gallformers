@@ -2136,6 +2136,56 @@ defmodule Gallformers.TaxonomyTest do
       assert changeset.valid?
     end
 
+    test "valid_ranks/0 returns all accepted rank values" do
+      ranks = TaxonomySchema.valid_ranks()
+      assert is_list(ranks)
+      assert "Subfamily" in ranks
+      assert "Tribe" in ranks
+      assert "Subtribe" in ranks
+      assert "Infrafamily" in ranks
+      assert "Supertribe" in ranks
+      assert "Infratribe" in ranks
+    end
+
+    test "changeset accepts each valid rank for intermediate type", %{family: family} do
+      for rank <- TaxonomySchema.valid_ranks() do
+        changeset =
+          TaxonomySchema.changeset(%TaxonomySchema{}, %{
+            name: "Test#{rank}",
+            type: "intermediate",
+            parent_id: family.id,
+            rank: rank
+          })
+
+        assert changeset.valid?, "expected rank #{inspect(rank)} to be valid"
+      end
+    end
+
+    test "changeset rejects invalid rank for intermediate type", %{family: family} do
+      changeset =
+        TaxonomySchema.changeset(%TaxonomySchema{}, %{
+          name: "Bogusinae",
+          type: "intermediate",
+          parent_id: family.id,
+          rank: "bogus"
+        })
+
+      refute changeset.valid?
+      assert {"is invalid", _} = changeset.errors[:rank]
+    end
+
+    test "changeset allows nil rank for non-intermediate types (family)" do
+      changeset =
+        TaxonomySchema.changeset(%TaxonomySchema{}, %{
+          name: "Testidae",
+          type: "family",
+          description: "Plant",
+          rank: nil
+        })
+
+      assert changeset.valid?
+    end
+
     test "taxonomy_types includes intermediate" do
       assert "intermediate" in TaxonomySchema.taxonomy_types()
     end

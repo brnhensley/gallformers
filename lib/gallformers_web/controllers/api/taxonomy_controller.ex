@@ -63,7 +63,7 @@ defmodule GallformersWeb.API.TaxonomyController do
   Lists all families with their genera.
   """
   def families(conn, _params) do
-    families = get_families_with_genera()
+    families = get_families_with_children()
     json(conn, families)
   end
 
@@ -81,23 +81,23 @@ defmodule GallformersWeb.API.TaxonomyController do
 
   @doc """
   GET /api/v2/families/:id
-  Gets a family by ID with its genera.
+  Gets a family by ID with its children (genera and intermediates).
   """
   def family(conn, %{"id" => id}) do
     with {:ok, id} <- parse_id(id),
          {:ok, family} <- fetch_taxonomy_by_type(id, "family") do
       empty_unknown_ids = MapSet.new(Taxonomy.empty_unknown_genus_ids())
 
-      genera =
+      children =
         Taxonomy.get_children(id)
-        |> Enum.reject(fn g -> MapSet.member?(empty_unknown_ids, g.id) end)
+        |> Enum.reject(fn c -> MapSet.member?(empty_unknown_ids, c.id) end)
 
       json(conn, %{
         id: family.id,
         name: family.name,
         type: family.type,
         description: family.description,
-        genera: Enum.map(genera, &taxonomy_to_map/1)
+        children: Enum.map(children, &child_to_map/1)
       })
     else
       {:error, :invalid_id} -> bad_request(conn, "Invalid family ID")
@@ -177,6 +177,62 @@ defmodule GallformersWeb.API.TaxonomyController do
     end
   end
 
+  operation(:intermediate,
+    summary: "Get an intermediate",
+    description: "Gets an intermediate taxonomy node by ID with its parent and children",
+    parameters: [
+      id: [in: :path, type: :integer, description: "Intermediate ID", required: true]
+    ],
+    responses: [
+      ok: {"Intermediate details", "application/json", %OpenApiSpex.Schema{type: :object}},
+      not_found: {"Intermediate not found", "application/json", Schemas.Error}
+    ]
+  )
+
+  @doc """
+  GET /api/v2/intermediates/:id
+  Gets an intermediate taxonomy node by ID with its parent and children.
+  """
+  def intermediate(conn, %{"id" => id}) do
+    with {:ok, id} <- parse_id(id),
+         {:ok, intermediate} <- fetch_taxonomy_by_type(id, "intermediate") do
+      parent = Taxonomy.get_parent(id)
+      children = Taxonomy.get_children(id)
+
+      json(conn, %{
+        id: intermediate.id,
+        name: intermediate.name,
+        type: intermediate.type,
+        rank: intermediate.rank,
+        description: intermediate.description,
+        parent: parent_with_type(parent),
+        children: Enum.map(children, &child_to_map/1)
+      })
+    else
+      {:error, :invalid_id} -> bad_request(conn, "Invalid intermediate ID")
+      {:error, :not_found} -> not_found(conn, "Intermediate not found")
+    end
+  end
+
+  operation(:sections,
+    summary: "List sections",
+    description: "Lists all sections with parent genus info and species count",
+    responses: [
+      ok:
+        {"List of sections", "application/json",
+         %OpenApiSpex.Schema{type: :array, items: %OpenApiSpex.Schema{type: :object}}}
+    ]
+  )
+
+  @doc """
+  GET /api/v2/sections
+  Lists all sections with parent genus info and species count.
+  """
+  def sections(conn, _params) do
+    sections = Taxonomy.list_sections_with_details()
+    json(conn, sections)
+  end
+
   # Private functions
 
   defp fetch_genera(nil, _limit, empty_unknown_ids) do
@@ -233,23 +289,42 @@ defmodule GallformersWeb.API.TaxonomyController do
   defp parent_to_map(nil), do: nil
   defp parent_to_map(parent), do: %{id: parent.id, name: parent.name}
 
-  defp get_families_with_genera do
+  defp parent_with_type(nil), do: nil
+  defp parent_with_type(parent), do: %{id: parent.id, name: parent.name, type: parent.type}
+
+  defp child_to_map(taxonomy) do
+    base = %{
+      id: taxonomy.id,
+      name: taxonomy.name,
+      type: taxonomy.type,
+      description: taxonomy.description,
+      parent_id: taxonomy.parent_id
+    }
+
+    if taxonomy.type == "intermediate" do
+      Map.put(base, :rank, taxonomy.rank)
+    else
+      base
+    end
+  end
+
+  defp get_families_with_children do
     families = Taxonomy.list_taxonomies_by_type("family")
     empty_unknown_ids = MapSet.new(Taxonomy.empty_unknown_genus_ids())
     family_ids = Enum.map(families, & &1.id)
     children_map = Taxonomy.get_children_for_parents(family_ids)
 
     Enum.map(families, fn family ->
-      genera =
+      children =
         Map.get(children_map, family.id, [])
-        |> Enum.reject(fn g -> MapSet.member?(empty_unknown_ids, g.id) end)
+        |> Enum.reject(fn c -> MapSet.member?(empty_unknown_ids, c.id) end)
 
       %{
         id: family.id,
         name: family.name,
         type: family.type,
         description: family.description,
-        genera: Enum.map(genera, &taxonomy_to_map/1)
+        children: Enum.map(children, &child_to_map/1)
       }
     end)
   end

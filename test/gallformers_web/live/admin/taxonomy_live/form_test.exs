@@ -430,7 +430,9 @@ defmodule GallformersWeb.Admin.TaxonomyLive.FormTest do
         |> render_change()
 
       assert html =~ "Rank"
-      assert html =~ "e.g. Subfamily, Tribe"
+      assert html =~ "Select rank"
+      assert html =~ "Subfamily"
+      assert html =~ "Tribe"
     end
 
     test "selecting intermediate type shows parent typeahead", %{conn: conn} do

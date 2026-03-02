@@ -1,52 +1,69 @@
 defmodule GallformersWeb.IntermediateLiveTest do
   @moduledoc """
-  Tests for the public intermediate taxonomy browse page.
+  Tests for the public intermediate taxonomy browse page with semantic URLs.
   """
   use GallformersWeb.ConnCase, async: false
   import Phoenix.LiveViewTest
 
-  describe "IntermediateLive" do
-    test "renders intermediate page with rank and name", %{conn: conn} do
+  describe "IntermediateLive with rank-typed URLs" do
+    test "renders subfamily page by name", %{conn: conn} do
       # Cynipinae is a Subfamily intermediate (id=31) in test seeds
-      {:ok, _view, html} = live(conn, "/taxonomy/31")
+      {:ok, _view, html} = live(conn, "/subfamily/Cynipinae")
 
       assert html =~ "Subfamily"
       assert html =~ "Cynipinae"
     end
 
-    test "shows breadcrumb with parent family", %{conn: conn} do
-      {:ok, _view, html} = live(conn, "/taxonomy/31")
+    test "renders tribe page by name", %{conn: conn} do
+      # Cynipini is a Tribe intermediate (id=32)
+      {:ok, _view, html} = live(conn, "/tribe/Cynipini")
+
+      assert html =~ "Tribe"
+      assert html =~ "Cynipini"
+    end
+
+    test "shows breadcrumb with parent family using names", %{conn: conn} do
+      {:ok, _view, html} = live(conn, "/subfamily/Cynipinae")
 
       assert html =~ "Cynipidae"
-      assert html =~ "/family/30"
+      assert html =~ "/family/Cynipidae"
+      refute html =~ "/family/30"
     end
 
     test "shows children with species counts", %{conn: conn} do
-      # Cynipini (tribe, id=32) is a child of Cynipinae (id=31)
-      {:ok, _view, html} = live(conn, "/taxonomy/31")
+      # Cynipini (tribe) is a child of Cynipinae (subfamily)
+      {:ok, _view, html} = live(conn, "/subfamily/Cynipinae")
 
       assert html =~ "Cynipini"
     end
 
     test "shows genera as children of tribe", %{conn: conn} do
-      # Cynipini (id=32) has Andricus and Cynips as children
-      {:ok, _view, html} = live(conn, "/taxonomy/32")
+      # Cynipini has Andricus and Cynips as children
+      {:ok, _view, html} = live(conn, "/tribe/Cynipini")
 
       assert html =~ "Andricus"
       assert html =~ "Cynips"
     end
 
-    test "returns not found for non-intermediate types", %{conn: conn} do
-      # Cynipidae (id=30) is a family, not an intermediate
-      {:ok, _view, html} = live(conn, "/taxonomy/30")
+    test "child URLs use names not IDs", %{conn: conn} do
+      {:ok, _view, html} = live(conn, "/subfamily/Cynipinae")
 
-      assert html =~ "not found" || html =~ "Not Found"
+      # Child intermediate should link by rank/name
+      assert html =~ "/tribe/Cynipini"
+      refute html =~ "/taxonomy/32"
     end
 
-    test "returns not found for invalid ID", %{conn: conn} do
-      {:ok, _view, html} = live(conn, "/taxonomy/999999")
+    test "returns not found when rank does not match", %{conn: conn} do
+      # Cynipinae is a Subfamily, not a Tribe
+      {:ok, _view, html} = live(conn, "/tribe/Cynipinae")
 
-      assert html =~ "not found" || html =~ "Not Found"
+      assert html =~ "not found" or html =~ "Not Found"
+    end
+
+    test "returns not found for nonexistent name", %{conn: conn} do
+      {:ok, _view, html} = live(conn, "/subfamily/Nonexistent")
+
+      assert html =~ "not found" or html =~ "Not Found"
     end
   end
 end

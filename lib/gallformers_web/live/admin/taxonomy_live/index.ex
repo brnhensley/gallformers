@@ -356,10 +356,13 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Index do
     end
   end
 
-  defp taxonomy_public_url(%{type: "family", id: id}), do: ~p"/family/#{id}"
-  defp taxonomy_public_url(%{type: "genus", id: id}), do: ~p"/genus/#{id}"
-  defp taxonomy_public_url(%{type: "intermediate", id: id}), do: ~p"/taxonomy/#{id}"
-  defp taxonomy_public_url(%{type: "section", id: id}), do: ~p"/section/#{id}"
+  defp taxonomy_public_url(%{type: "family", name: name}), do: ~p"/family/#{name}"
+  defp taxonomy_public_url(%{type: "genus", name: name}), do: ~p"/genus/#{name}"
+
+  defp taxonomy_public_url(%{type: "intermediate", rank: rank, name: name}),
+    do: "/#{String.downcase(rank)}/#{name}"
+
+  defp taxonomy_public_url(%{type: "section", name: name}), do: ~p"/section/#{name}"
   defp taxonomy_public_url(_), do: nil
 
   @impl true

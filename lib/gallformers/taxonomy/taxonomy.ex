@@ -23,6 +23,7 @@ defmodule Gallformers.Taxonomy.Taxonomy do
         }
 
   @taxonomy_types ~w(family genus intermediate section)
+  @valid_ranks ~w(Subfamily Infrafamily Supertribe Tribe Subtribe Infratribe)
 
   schema "taxonomy" do
     field :name, :string
@@ -87,7 +88,9 @@ defmodule Gallformers.Taxonomy.Taxonomy do
 
   defp maybe_require_rank(changeset) do
     if get_field(changeset, :type) == "intermediate" do
-      validate_required(changeset, [:rank], message: "is required for intermediate ranks")
+      changeset
+      |> validate_required([:rank], message: "is required for intermediate ranks")
+      |> validate_inclusion(:rank, @valid_ranks)
     else
       changeset
     end
@@ -116,4 +119,9 @@ defmodule Gallformers.Taxonomy.Taxonomy do
   Returns the list of valid taxonomy types.
   """
   def taxonomy_types, do: @taxonomy_types
+
+  @doc """
+  Returns the list of valid intermediate rank values.
+  """
+  def valid_ranks, do: @valid_ranks
 end

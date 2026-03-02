@@ -1079,11 +1079,12 @@ defmodule Gallformers.Taxonomy.Tree do
       left_join: st in "species_taxonomy",
       on: st.taxonomy_id == s.id,
       where: s.type == "section",
-      group_by: [s.id, s.name, s.description, g.id, g.name],
+      group_by: [s.id, s.name, s.type, s.description, g.id, g.name],
       order_by: [g.name, s.name],
       select: %{
         id: s.id,
         name: s.name,
+        type: s.type,
         description: s.description,
         genus_id: g.id,
         genus_name: g.name,
