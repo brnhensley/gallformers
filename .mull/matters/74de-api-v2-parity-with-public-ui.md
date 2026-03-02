@@ -3,7 +3,7 @@ status: refined
 created: 2026-03-02
 updated: 2026-03-02
 epic: platform
-relates: [8c5c]
+relates: [8c5c, a7e5]
 ---
 
 # API v2 parity with public UI
@@ -31,4 +31,3 @@ relates: [8c5c]
 - 4 controllers completely untested: Source, Glossary, Place, Stats
 - 3 taxonomy detail endpoints untested: families/:id, genera/:id, sections/:id
 - `?simple=true` param untested on host endpoints
-

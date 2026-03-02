@@ -201,4 +201,4 @@ Fix `GET /api/v2/families` list to include intermediate children in the per-fami
 - `GET /api/v2/families/:id` response includes both genera and intermediates with type discrimination
 - `GET /api/v2/families` list includes intermediates per family
 
-**Notes:** The family endpoint response format change (`genera` → `children`) is a breaking change for API consumers. Consider whether to version this (v3) or if v2 consumers can tolerate the change. The OpenAPI spec at `/api/docs/openapi.json` needs updating too.
+**Notes:** The family endpoint response format change (`genera` → `children`) is safe to make in v2. Request log analysis (Feb 2026) shows essentially zero API consumers — 10 total API hits across the month, all with null user-agent (likely health checks or dev testing). No versioning needed. The OpenAPI spec at `/api/docs/openapi.json` needs updating too.
