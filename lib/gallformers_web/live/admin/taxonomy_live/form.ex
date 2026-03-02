@@ -79,8 +79,9 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
   defp apply_action(socket, :new, _params) do
     socket
     |> apply_new_action(parent_options: load_parent_options(nil))
-    |> assign(:children_options, [])
+    |> assign(:children_options, %{unassigned: [], intermediate_groups: [], intermediates: []})
     |> assign(:selected_children, [])
+    |> assign(:expanded_intermediate_groups, MapSet.new())
     |> assign_parent_typeahead_defaults(nil, [])
   end
 
@@ -100,8 +101,9 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
       |> assign(:show_delete_modal, false)
       |> assign(:deletion_impact, nil)
       |> assign(:delete_confirmation, "")
-      |> assign(:children_options, [])
+      |> assign(:children_options, %{unassigned: [], intermediate_groups: [], intermediates: []})
       |> assign(:selected_children, [])
+      |> assign(:expanded_intermediate_groups, MapSet.new())
       |> assign_parent_typeahead_defaults(taxonomy, all_parent_options)
     else
       socket
@@ -158,16 +160,10 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
   # Custom validate handler to update parent_options when type changes
   @impl true
   def handle_event("validate", %{"taxonomy" => params}, socket) do
-    # Clear name and parent when type changes
     prev_type = HtmlForm.input_value(socket.assigns.form, :type)
     type_changed? = params["type"] != prev_type
 
-    params =
-      if type_changed? do
-        Map.merge(params, %{"name" => "", "parent_id" => "", "rank" => ""})
-      else
-        params
-      end
+    params = normalize_validate_params(params, type_changed?, socket)
 
     changeset =
       socket.assigns.taxonomy
@@ -175,51 +171,15 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
       |> validate_unique_name_parent(socket.assigns.taxonomy)
       |> Map.put(:action, :validate)
 
-    parent_options = load_parent_options(params["type"])
-
-    # Reload typeahead options and clear selection when type changes
     socket =
-      if type_changed? do
-        exclude_id = socket.assigns.taxonomy && socket.assigns.taxonomy.id
-
-        all_parent_options =
-          params["type"]
-          |> Taxonomy.list_parent_options_with_paths()
-          |> Enum.reject(&(&1.id == exclude_id))
-
-        socket
-        |> assign(:all_parent_options, all_parent_options)
-        |> assign(:selected_parent, nil)
-        |> assign(:parent_query, "")
-        |> assign(:parent_results, [])
-      else
-        socket
-      end
-
-    # Load children options when parent changes for intermediates (new mode only)
-    socket =
-      if params["type"] == "intermediate" and socket.assigns.live_action == :new do
-        parent_id = params["parent_id"]
-        prev_parent_id = Ecto.Changeset.get_field(socket.assigns.form.source, :parent_id)
-        parent_changed? = to_string(parent_id) != to_string(prev_parent_id)
-
-        if parent_changed? do
-          children = load_children_options(parent_id)
-
-          socket
-          |> assign(:children_options, children)
-          |> assign(:selected_children, [])
-        else
-          socket
-        end
-      else
-        socket
-      end
+      socket
+      |> maybe_reload_parent_options(params, type_changed?)
+      |> maybe_reload_children(params)
 
     {:noreply,
      socket
      |> assign(:form, to_form(changeset))
-     |> assign(:parent_options, parent_options)
+     |> assign(:parent_options, load_parent_options(params["type"]))
      |> mark_dirty()}
   end
 
@@ -275,6 +235,7 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
           socket
           |> assign(:children_options, children)
           |> assign(:selected_children, [])
+          |> assign(:expanded_intermediate_groups, MapSet.new())
         else
           socket
         end
@@ -310,8 +271,9 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
      |> assign(:selected_parent, nil)
      |> assign(:parent_query, "")
      |> assign(:parent_results, [])
-     |> assign(:children_options, [])
+     |> assign(:children_options, %{unassigned: [], intermediate_groups: [], intermediates: []})
      |> assign(:selected_children, [])
+     |> assign(:expanded_intermediate_groups, MapSet.new())
      |> assign(:form, to_form(changeset))
      |> mark_dirty()}
   end
@@ -333,13 +295,29 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
 
   @impl true
   def handle_event("select_all_children", _params, socket) do
-    all_ids = Enum.map(socket.assigns.children_options, & &1.id)
-    {:noreply, assign(socket, :selected_children, all_ids)}
+    # Only select unassigned genera — the safe default
+    unassigned_ids = Enum.map(socket.assigns.children_options.unassigned, & &1.id)
+    {:noreply, assign(socket, :selected_children, unassigned_ids)}
   end
 
   @impl true
   def handle_event("deselect_all_children", _params, socket) do
     {:noreply, assign(socket, :selected_children, [])}
+  end
+
+  @impl true
+  def handle_event("toggle_intermediate_group", %{"id" => id_str}, socket) do
+    id = String.to_integer(id_str)
+    expanded = socket.assigns.expanded_intermediate_groups
+
+    expanded =
+      if MapSet.member?(expanded, id) do
+        MapSet.delete(expanded, id)
+      else
+        MapSet.put(expanded, id)
+      end
+
+    {:noreply, assign(socket, :expanded_intermediate_groups, expanded)}
   end
 
   @impl true
@@ -424,6 +402,59 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
     handle_form_event(event, params, socket)
   end
 
+  # When type changes, clear name/parent/rank. Otherwise inject the parent_id from
+  # the typeahead selection — the typeahead doesn't generate a hidden form input, so
+  # params never includes parent_id on its own. Without this, non-typeahead form
+  # changes (e.g., checkbox clicks) would build a changeset that loses the parent.
+  defp normalize_validate_params(params, true = _type_changed?, _socket) do
+    Map.merge(params, %{"name" => "", "parent_id" => "", "rank" => ""})
+  end
+
+  defp normalize_validate_params(params, false, socket) do
+    case socket.assigns[:selected_parent] do
+      %{id: id} -> Map.put_new(params, "parent_id", to_string(id))
+      _ -> params
+    end
+  end
+
+  defp maybe_reload_parent_options(socket, params, true = _type_changed?) do
+    exclude_id = socket.assigns.taxonomy && socket.assigns.taxonomy.id
+
+    all_parent_options =
+      params["type"]
+      |> Taxonomy.list_parent_options_with_paths()
+      |> Enum.reject(&(&1.id == exclude_id))
+
+    socket
+    |> assign(:all_parent_options, all_parent_options)
+    |> assign(:selected_parent, nil)
+    |> assign(:parent_query, "")
+    |> assign(:parent_results, [])
+  end
+
+  defp maybe_reload_parent_options(socket, _params, false), do: socket
+
+  # Reload children when parent changes for intermediates in new mode.
+  defp maybe_reload_children(socket, params) do
+    if params["type"] == "intermediate" and socket.assigns.live_action == :new do
+      prev_parent_id = Ecto.Changeset.get_field(socket.assigns.form.source, :parent_id)
+
+      if to_string(params["parent_id"]) != to_string(prev_parent_id) do
+        children = load_children_options(params["parent_id"])
+
+        assign(socket,
+          children_options: children,
+          selected_children: [],
+          expanded_intermediate_groups: MapSet.new()
+        )
+      else
+        socket
+      end
+    else
+      socket
+    end
+  end
+
   defp inject_parent_id(params, socket) do
     if params["type"] in ["genus", "intermediate"] do
       case socket.assigns.selected_parent do
@@ -465,22 +496,58 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
     end
   end
 
-  defp load_children_options(parent_id) when parent_id in [nil, ""], do: []
+  defp load_children_options(parent_id) when parent_id in [nil, ""],
+    do: %{unassigned: [], intermediate_groups: [], intermediates: []}
 
   defp load_children_options(parent_id) do
-    parent_id
-    |> String.to_integer()
-    |> Taxonomy.get_children()
-    |> Enum.reject(&(&1.type == "section"))
-    |> Enum.map(fn t ->
-      label =
-        case t.type do
-          "intermediate" -> "#{t.name} (#{t.rank})"
-          _ -> "#{t.name} (#{t.type})"
-        end
+    direct_children =
+      parent_id
+      |> String.to_integer()
+      |> Taxonomy.get_children()
+      |> Enum.reject(&(&1.type == "section"))
 
-      %{id: t.id, name: t.name, type: t.type, label: label}
-    end)
+    {intermediates, genera} = Enum.split_with(direct_children, &(&1.type == "intermediate"))
+
+    # Get genera under each intermediate sibling
+    intermediate_ids = Enum.map(intermediates, & &1.id)
+
+    assigned_by_parent =
+      Taxonomy.Tree.get_children_for_parents(intermediate_ids)
+
+    intermediate_groups =
+      intermediates
+      |> Enum.map(fn int ->
+        children =
+          assigned_by_parent
+          |> Map.get(int.id, [])
+          |> Enum.filter(&(&1.type == "genus"))
+          |> Enum.map(fn g -> %{id: g.id, name: g.name, type: g.type, label: g.name} end)
+
+        %{
+          id: int.id,
+          name: int.name,
+          rank: int.rank,
+          label: "#{int.name} (#{int.rank})",
+          children: children
+        }
+      end)
+      |> Enum.reject(&(&1.children == []))
+
+    unassigned =
+      Enum.map(genera, fn g ->
+        %{id: g.id, name: g.name, type: g.type, label: g.name}
+      end)
+
+    intermediate_opts =
+      Enum.map(intermediates, fn t ->
+        %{id: t.id, name: t.name, type: t.type, label: "#{t.name} (#{t.rank})"}
+      end)
+
+    %{
+      unassigned: unassigned,
+      intermediate_groups: intermediate_groups,
+      intermediates: intermediate_opts
+    }
   end
 
   # Handle impact map (for family/genus cascade delete)
@@ -679,10 +746,13 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
             <% end %>
           </div>
 
+          <% has_children =
+            @children_options.unassigned != [] or @children_options.intermediate_groups != [] or
+              @children_options.intermediates != [] %>
           <div
             :if={
               HtmlForm.input_value(@form, :type) == "intermediate" and @mode == :new and
-                @children_options != []
+                has_children
             }
             class="mb-3"
           >
@@ -690,34 +760,108 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
               <label class="gf-label">Children to move under this intermediate:</label>
               <button
                 type="button"
-                phx-click={
-                  if length(@selected_children) == length(@children_options),
-                    do: "deselect_all_children",
-                    else: "select_all_children"
-                }
+                phx-click="select_all_children"
                 class="text-xs text-gf-maroon hover:underline"
               >
-                {if length(@selected_children) == length(@children_options),
-                  do: "Deselect all",
-                  else: "Select all"}
+                Select all unassigned
               </button>
             </div>
             <p class="mt-1 mb-2 text-xs text-gray-500">
-              Select which children of the parent should be re-parented under this new intermediate. At least one is required.
+              Select which children should be re-parented under this new intermediate. At least one is required.
             </p>
-            <div class="space-y-1 border border-gray-200 rounded-lg p-3 max-h-48 overflow-y-auto">
-              <div :for={child <- @children_options} class="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id={"child-#{child.id}"}
-                  checked={child.id in @selected_children}
-                  phx-click="toggle_child"
-                  phx-value-id={child.id}
-                  class="rounded border-gray-300 text-gf-maroon focus:ring-gf-maroon"
-                />
-                <label for={"child-#{child.id}"} class="text-sm">{child.label}</label>
+
+            <div class="space-y-3 border border-gray-200 rounded-lg p-3 max-h-64 overflow-y-auto">
+              <%!-- Unassigned genera section --%>
+              <div :if={@children_options.unassigned != []}>
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    Unassigned genera ({length(@children_options.unassigned)})
+                  </span>
+                </div>
+                <div class="space-y-1">
+                  <div :for={child <- @children_options.unassigned} class="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id={"child-#{child.id}"}
+                      checked={child.id in @selected_children}
+                      phx-click="toggle_child"
+                      phx-value-id={child.id}
+                      class="rounded border-gray-300 text-gf-maroon focus:ring-gf-maroon"
+                    />
+                    <label for={"child-#{child.id}"} class="text-sm">{child.label}</label>
+                  </div>
+                </div>
+              </div>
+
+              <%!-- Genera already under intermediate siblings --%>
+              <div :for={group <- @children_options.intermediate_groups}>
+                <% expanded = MapSet.member?(@expanded_intermediate_groups, group.id)
+
+                selected_count =
+                  Enum.count(group.children, &(&1.id in @selected_children)) %>
+                <div class="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    phx-click="toggle_intermediate_group"
+                    phx-value-id={group.id}
+                    class="flex items-center gap-1 text-xs font-semibold text-amber-700 hover:underline uppercase tracking-wider"
+                  >
+                    <span class="w-3 text-center">{if expanded, do: "▾", else: "▸"}</span>
+                    Under {group.label}
+                    <span class="font-normal text-gray-500">
+                      ({selected_count}/{length(group.children)})
+                    </span>
+                  </button>
+                </div>
+                <div :if={expanded} class="ml-5 mt-1 space-y-1">
+                  <div :for={child <- group.children} class="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id={"child-#{child.id}"}
+                      checked={child.id in @selected_children}
+                      phx-click="toggle_child"
+                      phx-value-id={child.id}
+                      class="rounded border-gray-300 text-amber-600 focus:ring-amber-500"
+                    />
+                    <label for={"child-#{child.id}"} class="text-sm text-amber-800">
+                      {child.label}
+                    </label>
+                  </div>
+                  <p class="text-xs text-amber-600 italic">
+                    Selecting these will move them from {group.name} to the new intermediate.
+                  </p>
+                </div>
+              </div>
+
+              <%!-- Intermediate siblings section --%>
+              <div :if={@children_options.intermediates != []}>
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                    Intermediates ({length(@children_options.intermediates)})
+                  </span>
+                </div>
+                <div class="space-y-1">
+                  <div
+                    :for={child <- @children_options.intermediates}
+                    class="flex items-center gap-2"
+                  >
+                    <input
+                      type="checkbox"
+                      id={"child-#{child.id}"}
+                      checked={child.id in @selected_children}
+                      phx-click="toggle_child"
+                      phx-value-id={child.id}
+                      class="rounded border-gray-300 text-gf-maroon focus:ring-gf-maroon"
+                    />
+                    <label for={"child-#{child.id}"} class="text-sm">{child.label}</label>
+                  </div>
+                </div>
+                <p class="mt-1 text-xs text-gray-500 italic">
+                  Moving an intermediate re-parents its entire subtree.
+                </p>
               </div>
             </div>
+
             <p :if={@selected_children == []} class="mt-1 text-xs text-amber-600">
               Select at least one child to continue.
             </p>

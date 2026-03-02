@@ -559,4 +559,223 @@ defmodule GallformersWeb.Admin.TaxonomyLive.FormTest do
       assert has_element?(view, "[role=alert]", "At least one child must be selected")
     end
   end
+
+  describe "grouped children in intermediate creation" do
+    setup %{conn: conn} do
+      # Family with: 2 direct genera + 1 subfamily containing 2 genera
+      {:ok, family} =
+        Taxonomy.create_taxonomy(%{
+          name: "GroupedChildFamily",
+          type: "family",
+          description: "Wasp"
+        })
+
+      {:ok, free_genus1} =
+        Taxonomy.create_taxonomy(%{
+          name: "FreeGenus1",
+          type: "genus",
+          parent_id: family.id
+        })
+
+      {:ok, free_genus2} =
+        Taxonomy.create_taxonomy(%{
+          name: "FreeGenus2",
+          type: "genus",
+          parent_id: family.id
+        })
+
+      # Create genera that will be assigned to the subfamily
+      {:ok, assigned_genus1} =
+        Taxonomy.create_taxonomy(%{
+          name: "AssignedGenus1",
+          type: "genus",
+          parent_id: family.id
+        })
+
+      {:ok, assigned_genus2} =
+        Taxonomy.create_taxonomy(%{
+          name: "AssignedGenus2",
+          type: "genus",
+          parent_id: family.id
+        })
+
+      # Create subfamily with these genera as children (re-parents them)
+      {:ok, subfamily} =
+        Taxonomy.create_intermediate(%{
+          "name" => "ExistingSubfamily",
+          "type" => "intermediate",
+          "rank" => "Subfamily",
+          "parent_id" => to_string(family.id),
+          "children_ids" => [assigned_genus1.id, assigned_genus2.id]
+        })
+
+      {:ok,
+       conn: setup_admin_session(conn),
+       family: family,
+       free_genus1: free_genus1,
+       free_genus2: free_genus2,
+       subfamily: subfamily,
+       assigned_genus1: assigned_genus1,
+       assigned_genus2: assigned_genus2}
+    end
+
+    test "shows unassigned genera in their own section", %{
+      conn: conn,
+      family: family,
+      free_genus1: free_genus1,
+      free_genus2: free_genus2
+    } do
+      {:ok, view, _html} = live(conn, ~p"/admin/taxonomy/new")
+
+      view
+      |> form("#taxonomy-form", taxonomy: %{type: "intermediate"})
+      |> render_change()
+
+      html = view |> render_click("select_parent", %{"id" => "#{family.id}"})
+
+      # Should show "Unassigned genera" section with the free genera
+      assert html =~ "Unassigned genera"
+      assert html =~ free_genus1.name
+      assert html =~ free_genus2.name
+    end
+
+    test "shows genera already under intermediates in grouped section", %{
+      conn: conn,
+      family: family,
+      subfamily: subfamily,
+      assigned_genus1: assigned_genus1,
+      assigned_genus2: assigned_genus2
+    } do
+      {:ok, view, _html} = live(conn, ~p"/admin/taxonomy/new")
+
+      view
+      |> form("#taxonomy-form", taxonomy: %{type: "intermediate"})
+      |> render_change()
+
+      html = view |> render_click("select_parent", %{"id" => "#{family.id}"})
+
+      # Should show the intermediate group header (collapsed)
+      assert html =~ subfamily.name
+
+      # Expand the group to reveal assigned genera
+      html = view |> render_click("toggle_intermediate_group", %{"id" => "#{subfamily.id}"})
+
+      assert html =~ assigned_genus1.name
+      assert html =~ assigned_genus2.name
+    end
+
+    test "select all only selects unassigned genera", %{
+      conn: conn,
+      family: family,
+      free_genus1: free_genus1,
+      free_genus2: free_genus2,
+      assigned_genus1: assigned_genus1,
+      assigned_genus2: assigned_genus2
+    } do
+      {:ok, view, _html} = live(conn, ~p"/admin/taxonomy/new")
+
+      view
+      |> form("#taxonomy-form", taxonomy: %{type: "intermediate"})
+      |> render_change()
+
+      view |> render_click("select_parent", %{"id" => "#{family.id}"})
+      view |> render_click("select_all_children", %{})
+
+      # Free genera should be checked
+      assert has_element?(view, "#child-#{free_genus1.id}[checked]")
+      assert has_element?(view, "#child-#{free_genus2.id}[checked]")
+
+      # Assigned genera should NOT be checked
+      refute has_element?(view, "#child-#{assigned_genus1.id}[checked]")
+      refute has_element?(view, "#child-#{assigned_genus2.id}[checked]")
+    end
+
+    test "can toggle assigned genera for reassignment", %{
+      conn: conn,
+      family: family,
+      subfamily: subfamily,
+      assigned_genus1: assigned_genus1
+    } do
+      {:ok, view, _html} = live(conn, ~p"/admin/taxonomy/new")
+
+      view
+      |> form("#taxonomy-form", taxonomy: %{type: "intermediate"})
+      |> render_change()
+
+      view |> render_click("select_parent", %{"id" => "#{family.id}"})
+
+      # Expand the intermediate group to reveal assigned genera
+      view |> render_click("toggle_intermediate_group", %{"id" => "#{subfamily.id}"})
+
+      # Toggle an assigned genus
+      view |> render_click("toggle_child", %{"id" => "#{assigned_genus1.id}"})
+
+      assert has_element?(view, "#child-#{assigned_genus1.id}[checked]")
+    end
+
+    test "creating intermediate with only unassigned genera works", %{
+      conn: conn,
+      family: family,
+      free_genus1: free_genus1
+    } do
+      {:ok, view, _html} = live(conn, ~p"/admin/taxonomy/new")
+
+      view
+      |> form("#taxonomy-form", taxonomy: %{type: "intermediate"})
+      |> render_change()
+
+      view |> render_click("select_parent", %{"id" => "#{family.id}"})
+      view |> render_click("toggle_child", %{"id" => "#{free_genus1.id}"})
+
+      view
+      |> form("#taxonomy-form",
+        taxonomy: %{
+          type: "intermediate",
+          name: "NewTribe",
+          rank: "Tribe"
+        }
+      )
+      |> render_submit()
+
+      {path, _flash} = assert_redirect(view)
+      assert path =~ ~r"/admin/taxonomy/\d+"
+
+      # Verify the genus was re-parented
+      updated = Repo.get!(TaxonomySchema, free_genus1.id)
+      refute updated.parent_id == family.id
+    end
+
+    test "creating intermediate with reassigned genera moves them", %{
+      conn: conn,
+      family: family,
+      subfamily: subfamily,
+      assigned_genus1: assigned_genus1
+    } do
+      {:ok, view, _html} = live(conn, ~p"/admin/taxonomy/new")
+
+      view
+      |> form("#taxonomy-form", taxonomy: %{type: "intermediate"})
+      |> render_change()
+
+      view |> render_click("select_parent", %{"id" => "#{family.id}"})
+      view |> render_click("toggle_child", %{"id" => "#{assigned_genus1.id}"})
+
+      view
+      |> form("#taxonomy-form",
+        taxonomy: %{
+          type: "intermediate",
+          name: "NewTribe",
+          rank: "Tribe"
+        }
+      )
+      |> render_submit()
+
+      {path, _flash} = assert_redirect(view)
+      assert path =~ ~r"/admin/taxonomy/\d+"
+
+      # Verify the genus was moved away from its old intermediate
+      updated = Repo.get!(TaxonomySchema, assigned_genus1.id)
+      refute updated.parent_id == subfamily.id
+    end
+  end
 end
