@@ -454,7 +454,7 @@ The primary value is the **data** — gall records, images, and references. Code
 All work tracking — ideas, plans, research, status — lives in **mull matters**. There are no separate plan documents committed to git.
 
 - `mull add "title" --epic <name>` to capture new work
-- `mull append <id> "text"` to add details as they emerge
+- `mull append <id> - <<'EOF'` to add body text (always pipe via stdin, never use inline text args)
 - `mull append <id> - --replace` to rewrite a matter's body (pipe via stdin)
 - `mull done <id>` when work is complete
 - `mull rm <id>` to permanently delete (done matters are purged periodically; git history preserves them)
