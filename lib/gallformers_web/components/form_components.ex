@@ -1481,6 +1481,127 @@ defmodule GallformersWeb.FormComponents do
     """
   end
 
+  @doc """
+  Renders a selectable tree with groups, tristate checkboxes, expand/collapse, and select/deselect all.
+
+  Each group has a tristate checkbox (all, none, or some selected) and can be expanded to show
+  individual items. Uses the `IndeterminateCheckbox` JS hook for tristate rendering.
+
+  ## Examples
+
+      <.selectable_tree
+        id="places-tree"
+        label="Native places"
+        groups={@grouped_places}
+        selected={@selected_places}
+        expanded={@expanded_groups}
+        toggle_item_event="toggle_place"
+        toggle_group_event="toggle_country"
+        expand_group_event="expand_country"
+        select_all_event="select_all_places"
+        deselect_all_event="deselect_all_places"
+      />
+  """
+  attr :id, :string, required: true
+  attr :label, :string, required: true
+
+  attr :groups, :list,
+    required: true,
+    doc: "list of %{id: term, label: String.t(), items: [%{id: term, label: String.t()}]}"
+
+  attr :selected, :any, required: true, doc: "MapSet of selected item IDs"
+  attr :expanded, :any, required: true, doc: "MapSet of expanded group IDs"
+  attr :toggle_item_event, :string, required: true
+  attr :toggle_group_event, :string, required: true
+  attr :expand_group_event, :string, required: true
+  attr :select_all_event, :string, required: true
+  attr :deselect_all_event, :string, required: true
+  attr :container_class, :string, default: "border border-gray-200 rounded-lg p-3"
+  attr :text_class, :string, default: "text-gray-700"
+  attr :heading_class, :string, default: "text-gray-700"
+  attr :checkbox_class, :string, default: "text-gf-maroon focus:ring-gf-maroon"
+
+  slot :group_footer, doc: "optional per-group content rendered when group is expanded"
+
+  def selectable_tree(assigns) do
+    total_items = Enum.reduce(assigns.groups, 0, fn g, acc -> acc + length(g.items) end)
+
+    all_item_ids =
+      assigns.groups
+      |> Enum.flat_map(& &1.items)
+      |> MapSet.new(& &1.id)
+
+    all_selected = total_items > 0 and MapSet.subset?(all_item_ids, assigns.selected)
+
+    assigns =
+      assigns
+      |> assign(:total_items, total_items)
+      |> assign(:all_selected, all_selected)
+
+    ~H"""
+    <div id={@id} class={@container_class}>
+      <div class="flex items-center justify-between">
+        <span class={"font-medium #{@text_class}"}>
+          {@label} ({@total_items})
+        </span>
+        <button
+          type="button"
+          phx-click={if @all_selected, do: @deselect_all_event, else: @select_all_event}
+          class={"text-xs #{@text_class} hover:underline"}
+        >
+          {if @all_selected, do: "Deselect all", else: "Select all"}
+        </button>
+      </div>
+      <div class="mt-2 max-h-96 overflow-y-auto space-y-1">
+        <div :for={group <- @groups}>
+          <% selected_count = Enum.count(group.items, &MapSet.member?(@selected, &1.id))
+          total_count = length(group.items)
+          all_group_selected = selected_count == total_count
+          none_selected = selected_count == 0
+          expanded = MapSet.member?(@expanded, group.id) %>
+          <div class="flex items-center gap-1.5">
+            <input
+              id={"#{@id}-group-#{group.id}"}
+              type="checkbox"
+              checked={all_group_selected}
+              data-indeterminate={to_string(!all_group_selected and !none_selected)}
+              phx-hook="IndeterminateCheckbox"
+              phx-click={@toggle_group_event}
+              phx-value-group={to_string(group.id)}
+              class={"rounded border-gray-300 #{@checkbox_class}"}
+            />
+            <button
+              type="button"
+              phx-click={@expand_group_event}
+              phx-value-group={to_string(group.id)}
+              class={"flex items-center gap-1 text-xs font-medium #{@heading_class} hover:underline"}
+            >
+              <span class="w-3 text-center">{if expanded, do: "▾", else: "▸"}</span>
+              {group.label}
+              <span class="font-normal text-gray-500">
+                ({selected_count}/{total_count})
+              </span>
+            </button>
+          </div>
+          <div :if={expanded} class="ml-6 space-y-0.5 mt-0.5">
+            <label :for={item <- group.items} class="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={MapSet.member?(@selected, item.id)}
+                phx-click={@toggle_item_event}
+                phx-value-id={to_string(item.id)}
+                class={"rounded border-gray-300 #{@checkbox_class}"}
+              />
+              <span class="text-xs">{item.label}</span>
+            </label>
+            {render_slot(@group_footer, group)}
+          </div>
+        </div>
+      </div>
+    </div>
+    """
+  end
+
   defp rename_collision_type_label("common"), do: "common name"
   defp rename_collision_type_label("scientific"), do: "scientific synonym"
   defp rename_collision_type_label(other), do: other

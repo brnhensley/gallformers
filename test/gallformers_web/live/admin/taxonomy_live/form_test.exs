@@ -658,17 +658,20 @@ defmodule GallformersWeb.Admin.TaxonomyLive.FormTest do
       assert html =~ subfamily.name
 
       # Expand the group to reveal assigned genera
-      html = view |> render_click("toggle_intermediate_group", %{"id" => "#{subfamily.id}"})
+      html =
+        view
+        |> render_click("expand_children_group", %{"group" => "under-#{subfamily.id}"})
 
       assert html =~ assigned_genus1.name
       assert html =~ assigned_genus2.name
     end
 
-    test "select all only selects unassigned genera", %{
+    test "select all selects all items across all groups", %{
       conn: conn,
       family: family,
       free_genus1: free_genus1,
       free_genus2: free_genus2,
+      subfamily: subfamily,
       assigned_genus1: assigned_genus1,
       assigned_genus2: assigned_genus2
     } do
@@ -681,13 +684,15 @@ defmodule GallformersWeb.Admin.TaxonomyLive.FormTest do
       view |> render_click("select_parent", %{"id" => "#{family.id}"})
       view |> render_click("select_all_children", %{})
 
-      # Free genera should be checked
-      assert has_element?(view, "#child-#{free_genus1.id}[checked]")
-      assert has_element?(view, "#child-#{free_genus2.id}[checked]")
+      # Expand the intermediate group to check assigned genera too
+      view
+      |> render_click("expand_children_group", %{"group" => "under-#{subfamily.id}"})
 
-      # Assigned genera should NOT be checked
-      refute has_element?(view, "#child-#{assigned_genus1.id}[checked]")
-      refute has_element?(view, "#child-#{assigned_genus2.id}[checked]")
+      # All genera should be checked (free + assigned + intermediate itself)
+      assert has_element?(view, "input[phx-value-id=\"#{free_genus1.id}\"][checked]")
+      assert has_element?(view, "input[phx-value-id=\"#{free_genus2.id}\"][checked]")
+      assert has_element?(view, "input[phx-value-id=\"#{assigned_genus1.id}\"][checked]")
+      assert has_element?(view, "input[phx-value-id=\"#{assigned_genus2.id}\"][checked]")
     end
 
     test "can toggle assigned genera for reassignment", %{
@@ -705,12 +710,13 @@ defmodule GallformersWeb.Admin.TaxonomyLive.FormTest do
       view |> render_click("select_parent", %{"id" => "#{family.id}"})
 
       # Expand the intermediate group to reveal assigned genera
-      view |> render_click("toggle_intermediate_group", %{"id" => "#{subfamily.id}"})
+      view
+      |> render_click("expand_children_group", %{"group" => "under-#{subfamily.id}"})
 
       # Toggle an assigned genus
       view |> render_click("toggle_child", %{"id" => "#{assigned_genus1.id}"})
 
-      assert has_element?(view, "#child-#{assigned_genus1.id}[checked]")
+      assert has_element?(view, "input[phx-value-id=\"#{assigned_genus1.id}\"][checked]")
     end
 
     test "creating intermediate with only unassigned genera works", %{

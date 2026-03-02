@@ -153,6 +153,261 @@ defmodule GallformersWeb.FormComponentsTest do
     def handle_event("clear", _params, socket), do: {:noreply, socket}
   end
 
+  defmodule SelectableTreeTestLive do
+    use Phoenix.LiveView
+
+    def render(assigns) do
+      ~H"""
+      <FormComponents.selectable_tree
+        id="test-tree"
+        label="Places"
+        groups={@groups}
+        selected={@selected}
+        expanded={@expanded}
+        toggle_item_event="toggle_item"
+        toggle_group_event="toggle_group"
+        expand_group_event="expand_group"
+        select_all_event="select_all"
+        deselect_all_event="deselect_all"
+      />
+      """
+    end
+
+    def mount(_params, _session, socket) do
+      groups = [
+        %{
+          id: "US",
+          label: "United States",
+          items: [
+            %{id: "US-CA", label: "California (US-CA)"},
+            %{id: "US-NY", label: "New York (US-NY)"},
+            %{id: "US-TX", label: "Texas (US-TX)"}
+          ]
+        },
+        %{
+          id: "CA",
+          label: "Canada",
+          items: [
+            %{id: "CA-BC", label: "British Columbia (CA-BC)"},
+            %{id: "CA-ON", label: "Ontario (CA-ON)"}
+          ]
+        }
+      ]
+
+      {:ok,
+       assign(socket,
+         groups: groups,
+         selected: MapSet.new(["US-CA", "US-NY"]),
+         expanded: MapSet.new(["US"])
+       )}
+    end
+
+    def handle_event("toggle_item", %{"id" => id}, socket) do
+      selected =
+        if MapSet.member?(socket.assigns.selected, id),
+          do: MapSet.delete(socket.assigns.selected, id),
+          else: MapSet.put(socket.assigns.selected, id)
+
+      {:noreply, assign(socket, selected: selected)}
+    end
+
+    def handle_event("toggle_group", %{"group" => group_id}, socket) do
+      group = Enum.find(socket.assigns.groups, &(&1.id == group_id))
+      item_ids = MapSet.new(group.items, & &1.id)
+      selected_in_group = MapSet.intersection(socket.assigns.selected, item_ids)
+
+      selected =
+        if MapSet.equal?(selected_in_group, item_ids),
+          do: MapSet.difference(socket.assigns.selected, item_ids),
+          else: MapSet.union(socket.assigns.selected, item_ids)
+
+      {:noreply, assign(socket, selected: selected)}
+    end
+
+    def handle_event("expand_group", %{"group" => group_id}, socket) do
+      expanded =
+        if MapSet.member?(socket.assigns.expanded, group_id),
+          do: MapSet.delete(socket.assigns.expanded, group_id),
+          else: MapSet.put(socket.assigns.expanded, group_id)
+
+      {:noreply, assign(socket, expanded: expanded)}
+    end
+
+    def handle_event("select_all", _params, socket) do
+      all_ids =
+        socket.assigns.groups
+        |> Enum.flat_map(& &1.items)
+        |> MapSet.new(& &1.id)
+
+      {:noreply, assign(socket, selected: all_ids)}
+    end
+
+    def handle_event("deselect_all", _params, socket) do
+      {:noreply, assign(socket, selected: MapSet.new())}
+    end
+  end
+
+  defmodule SelectableTreeWithFooterTestLive do
+    use Phoenix.LiveView
+
+    def render(assigns) do
+      ~H"""
+      <FormComponents.selectable_tree
+        id="footer-tree"
+        label="Items"
+        groups={@groups}
+        selected={@selected}
+        expanded={@expanded}
+        toggle_item_event="toggle_item"
+        toggle_group_event="toggle_group"
+        expand_group_event="expand_group"
+        select_all_event="select_all"
+        deselect_all_event="deselect_all"
+      >
+        <:group_footer :let={group}>
+          <p :if={group.id == "special"} class="footer-note">Special note for this group</p>
+        </:group_footer>
+      </FormComponents.selectable_tree>
+      """
+    end
+
+    def mount(_params, _session, socket) do
+      {:ok,
+       assign(socket,
+         groups: [
+           %{id: "special", label: "Special Group", items: [%{id: "a", label: "Item A"}]},
+           %{id: "normal", label: "Normal Group", items: [%{id: "b", label: "Item B"}]}
+         ],
+         selected: MapSet.new(),
+         expanded: MapSet.new(["special", "normal"])
+       )}
+    end
+
+    def handle_event(_, _, socket), do: {:noreply, socket}
+  end
+
+  describe "selectable_tree/1" do
+    test "renders label with total item count", %{conn: conn} do
+      {:ok, _view, html} = live_isolated(conn, SelectableTreeTestLive)
+
+      # 5 total items across both groups
+      assert html =~ "Places (5)"
+    end
+
+    test "renders group headers with selected/total counts", %{conn: conn} do
+      {:ok, _view, html} = live_isolated(conn, SelectableTreeTestLive)
+
+      # US is expanded, has 2/3 selected
+      assert html =~ "United States"
+      assert html =~ "(2/3)"
+
+      # Canada is collapsed, has 0/2 selected
+      assert html =~ "Canada"
+      assert html =~ "(0/2)"
+    end
+
+    test "shows items in expanded groups", %{conn: conn} do
+      {:ok, _view, html} = live_isolated(conn, SelectableTreeTestLive)
+
+      # US is expanded — its items should be visible
+      assert html =~ "California (US-CA)"
+      assert html =~ "New York (US-NY)"
+      assert html =~ "Texas (US-TX)"
+
+      # Canada is collapsed — its items should not be visible
+      refute html =~ "British Columbia (CA-BC)"
+      refute html =~ "Ontario (CA-ON)"
+    end
+
+    test "expand_group event toggles group visibility", %{conn: conn} do
+      {:ok, view, _html} = live_isolated(conn, SelectableTreeTestLive)
+
+      # Expand Canada
+      html = render_click(view, "expand_group", %{"group" => "CA"})
+      assert html =~ "British Columbia (CA-BC)"
+      assert html =~ "Ontario (CA-ON)"
+
+      # Collapse US
+      html = render_click(view, "expand_group", %{"group" => "US"})
+      refute html =~ "California (US-CA)"
+    end
+
+    test "toggle_item event toggles individual selection", %{conn: conn} do
+      {:ok, view, _html} = live_isolated(conn, SelectableTreeTestLive)
+
+      # Deselect US-CA (was selected)
+      html = render_click(view, "toggle_item", %{"id" => "US-CA"})
+      # Now 1/3 selected in US
+      assert html =~ "(1/3)"
+
+      # Select US-TX (was not selected)
+      html = render_click(view, "toggle_item", %{"id" => "US-TX"})
+      # Now 2/3 selected in US
+      assert html =~ "(2/3)"
+    end
+
+    test "toggle_group event selects all items when not all selected", %{conn: conn} do
+      {:ok, view, _html} = live_isolated(conn, SelectableTreeTestLive)
+
+      # Toggle US group (2/3 selected → should select all 3)
+      html = render_click(view, "toggle_group", %{"group" => "US"})
+      assert html =~ "(3/3)"
+    end
+
+    test "toggle_group event deselects all items when all selected", %{conn: conn} do
+      {:ok, view, _html} = live_isolated(conn, SelectableTreeTestLive)
+
+      # First select all US
+      render_click(view, "toggle_group", %{"group" => "US"})
+      # Then toggle again — should deselect all
+      html = render_click(view, "toggle_group", %{"group" => "US"})
+      assert html =~ "(0/3)"
+    end
+
+    test "select_all selects everything", %{conn: conn} do
+      {:ok, view, _html} = live_isolated(conn, SelectableTreeTestLive)
+
+      html = render_click(view, "select_all")
+      assert html =~ "(3/3)"
+      assert html =~ "(2/2)"
+      assert html =~ "Deselect all"
+    end
+
+    test "deselect_all clears everything", %{conn: conn} do
+      {:ok, view, _html} = live_isolated(conn, SelectableTreeTestLive)
+
+      html = render_click(view, "deselect_all")
+      assert html =~ "(0/3)"
+      assert html =~ "(0/2)"
+      assert html =~ "Select all"
+    end
+
+    test "tristate checkbox uses IndeterminateCheckbox hook", %{conn: conn} do
+      {:ok, _view, html} = live_isolated(conn, SelectableTreeTestLive)
+
+      # US group has 2/3 selected — should be indeterminate
+      assert html =~ ~s(phx-hook="IndeterminateCheckbox")
+      assert html =~ ~s(data-indeterminate="true")
+    end
+
+    test "group_footer slot renders per-group content", %{conn: conn} do
+      {:ok, _view, html} = live_isolated(conn, SelectableTreeWithFooterTestLive)
+
+      assert html =~ "Special note for this group"
+    end
+
+    test "shows select all when not all selected, deselect all when all selected", %{conn: conn} do
+      {:ok, view, html} = live_isolated(conn, SelectableTreeTestLive)
+
+      # Initially not all selected
+      assert html =~ "Select all"
+
+      # Select everything
+      html = render_click(view, "select_all")
+      assert html =~ "Deselect all"
+    end
+  end
+
   describe "typeahead with group_key" do
     test "renders group headers between groups", %{conn: conn} do
       {:ok, _view, html} = live_isolated(conn, GroupedTypeaheadTestLive)
