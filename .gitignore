@@ -15,6 +15,7 @@ cspell.json
 
 # Git worktrees
 .worktrees/
+.claude/worktrees
 
 # Plan docs (ephemeral working documents, not committed)
 /docs/plans/
@@ -61,6 +62,9 @@ gallformers-*.tar
 # These have content hashes in filenames and .gz compressed versions
 /priv/static/**/*-????????????????????????????????.*
 /priv/static/**/*.gz
+
+# Elixir langage server
+.expert/
 
 # In case you use Node.js/npm, you want to ignore these.
 npm-debug.log
