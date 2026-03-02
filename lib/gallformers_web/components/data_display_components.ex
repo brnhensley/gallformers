@@ -614,29 +614,29 @@ defmodule GallformersWeb.DataDisplayComponents do
       <span :if={@show_family && @family} class="flex items-center gap-1">
         <strong>{gettext("Family:")}</strong>
         <.link
-          :if={@family[:id] || @family["id"]}
-          navigate={"/family/#{@family[:id] || @family["id"]}"}
+          :if={field(@family, :id)}
+          navigate={"/family/#{field(@family, :id)}"}
           class="hover:underline"
         >
-          {@family[:name] || @family["name"]}
+          {field(@family, :name)}
         </.link>
-        <span :if={!(@family[:id] || @family["id"])}>
-          {@family[:name] || @family["name"]}
+        <span :if={!field(@family, :id)}>
+          {field(@family, :name)}
         </span>
       </span>
 
       <span :for={intermediate <- @intermediates || []} class="flex items-center gap-1">
         <span class="mx-1 text-gray-400">|</span>
-        <strong>{intermediate[:rank] || intermediate["rank"]}:</strong>
+        <strong>{field(intermediate, :rank)}:</strong>
         <.link
-          :if={intermediate[:id] || intermediate["id"]}
-          navigate={"/taxonomy/#{intermediate[:id] || intermediate["id"]}"}
+          :if={field(intermediate, :id)}
+          navigate={"/taxonomy/#{field(intermediate, :id)}"}
           class="hover:underline"
         >
-          {intermediate[:name] || intermediate["name"]}
+          {field(intermediate, :name)}
         </.link>
-        <span :if={!(intermediate[:id] || intermediate["id"])}>
-          {intermediate[:name] || intermediate["name"]}
+        <span :if={!field(intermediate, :id)}>
+          {field(intermediate, :name)}
         </span>
       </span>
 
@@ -653,19 +653,19 @@ defmodule GallformersWeb.DataDisplayComponents do
       <span :if={@show_genus && @genus} class="flex items-center gap-1">
         <strong>{gettext("Genus:")}</strong>
         <.link
-          :if={@genus[:id] || @genus["id"]}
-          navigate={"/genus/#{@genus[:id] || @genus["id"]}"}
+          :if={field(@genus, :id)}
+          navigate={"/genus/#{field(@genus, :id)}"}
           class="hover:underline"
         >
-          <.taxon_name name={@genus[:name] || @genus["name"]} rank="genus" />
-          <span :if={@genus[:description] || @genus["description"]} class="text-gray-600">
-            - {@genus[:description] || @genus["description"]}
+          <.taxon_name name={field(@genus, :name)} rank="genus" />
+          <span :if={field(@genus, :description)} class="text-gray-600">
+            - {field(@genus, :description)}
           </span>
         </.link>
-        <span :if={!(@genus[:id] || @genus["id"])}>
-          <.taxon_name name={@genus[:name] || @genus["name"]} rank="genus" />
-          <span :if={@genus[:description] || @genus["description"]} class="text-gray-600">
-            - {@genus[:description] || @genus["description"]}
+        <span :if={!field(@genus, :id)}>
+          <.taxon_name name={field(@genus, :name)} rank="genus" />
+          <span :if={field(@genus, :description)} class="text-gray-600">
+            - {field(@genus, :description)}
           </span>
         </span>
       </span>
@@ -682,7 +682,7 @@ defmodule GallformersWeb.DataDisplayComponents do
 
       <span :if={@species} class="flex items-center gap-1">
         <strong>{gettext("Species:")}</strong>
-        <.taxon_name name={@species[:name] || @species["name"] || @species} />
+        <.taxon_name name={if is_binary(@species), do: @species, else: field(@species, :name)} />
       </span>
     </div>
     """
@@ -1120,4 +1120,9 @@ defmodule GallformersWeb.DataDisplayComponents do
     </div>
     """
   end
+
+  # Reads a field from a map or struct, supporting both atom and string keys.
+  defp field(data, key) when is_struct(data), do: Map.get(data, key)
+  defp field(data, key) when is_map(data), do: data[key] || data[to_string(key)]
+  defp field(_, _), do: nil
 end

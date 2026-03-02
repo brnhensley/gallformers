@@ -2505,6 +2505,30 @@ defmodule Gallformers.TaxonomyTest do
     end
   end
 
+  describe "list_children_with_counts/1" do
+    test "returns children of an intermediate with species counts" do
+      # Cynipini (tribe, id=32) has children Andricus (33) and Cynips (34)
+      children = Taxonomy.list_children_with_counts(32)
+      assert length(children) == 2
+
+      andricus = Enum.find(children, &(&1.name == "Andricus"))
+      assert andricus.type == "genus"
+      # Andricus has species 200 (Andricus crystallinus) in test seeds
+      assert andricus.species_count == 1
+
+      cynips = Enum.find(children, &(&1.name == "Cynips"))
+      assert cynips.type == "genus"
+      assert cynips.species_count == 1
+    end
+
+    test "returns intermediates and genera as children of a family" do
+      # Cynipidae (id=30) has Cynipinae (intermediate) and Unknown (genus) as direct children
+      children = Taxonomy.list_children_with_counts(30)
+      types = Enum.map(children, & &1.type)
+      assert "intermediate" in types || "genus" in types
+    end
+  end
+
   describe "admin index queries for intermediates" do
     test "list_taxonomies_with_parent includes rank for intermediates" do
       # Cynipinae (id=31) is a Subfamily intermediate in test seeds

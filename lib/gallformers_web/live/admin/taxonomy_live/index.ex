@@ -358,6 +358,7 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Index do
 
   defp taxonomy_public_url(%{type: "family", id: id}), do: ~p"/family/#{id}"
   defp taxonomy_public_url(%{type: "genus", id: id}), do: ~p"/genus/#{id}"
+  defp taxonomy_public_url(%{type: "intermediate", id: id}), do: ~p"/taxonomy/#{id}"
   defp taxonomy_public_url(%{type: "section", id: id}), do: ~p"/section/#{id}"
   defp taxonomy_public_url(_), do: nil
 

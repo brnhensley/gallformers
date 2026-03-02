@@ -179,6 +179,7 @@ defmodule GallformersWeb.Router do
       live "/genus/:id", GenusLive
       live "/source/:id", SourceLive
       live "/section/:id", SectionLive
+      live "/taxonomy/:id", IntermediateLive
       live "/place/:code", PlaceLive
 
       # User profiles

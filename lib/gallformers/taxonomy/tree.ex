@@ -1039,6 +1039,42 @@ defmodule Gallformers.Taxonomy.Tree do
     |> Repo.all()
   end
 
+  @doc """
+  Lists children of a taxonomy node with species counts.
+
+  For intermediate nodes, returns child intermediates and genera with
+  the count of species under each. Used by the public intermediate browse page.
+  """
+  @spec list_children_with_counts(integer()) :: [map()]
+  def list_children_with_counts(parent_id) do
+    query = """
+    SELECT t.id, t.name, t.type, t.rank, t.description,
+           COUNT(DISTINCT st.species_id) as species_count
+    FROM taxonomy t
+    LEFT JOIN species_taxonomy st ON st.taxonomy_id = t.id AND t.type = 'genus'
+    WHERE t.parent_id = ?1
+    GROUP BY t.id, t.name, t.type, t.rank, t.description
+    ORDER BY t.type, t.name
+    """
+
+    case Repo.query(query, [parent_id]) do
+      {:ok, %{rows: rows}} ->
+        Enum.map(rows, fn [id, name, type, rank, description, species_count] ->
+          %{
+            id: id,
+            name: name,
+            type: type,
+            rank: rank,
+            description: description,
+            species_count: species_count
+          }
+        end)
+
+      {:error, _} ->
+        []
+    end
+  end
+
   # =====================================================================
   # Private Helpers
   # =====================================================================
