@@ -1,9 +1,9 @@
 ---
 status: done
 created: 2026-02-28
-updated: 2026-03-01
+updated: 2026-03-02
 epic: taxonomy
-relates: [5c56]
+relates: [5c56, bbed]
 ---
 
 # Intermediate taxonomy ranks (subfamily, tribe, etc.)
