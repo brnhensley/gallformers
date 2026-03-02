@@ -54,17 +54,24 @@ defmodule GallformersWeb.Admin.GallLive.Index do
 
   @impl true
   def handle_event("delete", %{"id" => id}, socket) do
-    species = Species.get_species!(String.to_integer(id))
-
-    case Species.delete_species(species) do
-      {:ok, _} ->
+    case Species.get_species(String.to_integer(id)) do
+      nil ->
         {:noreply,
          socket
-         |> put_flash(:info, "Gall deleted successfully")
+         |> put_flash(:info, "Gall already deleted")
          |> load_galls()}
 
-      {:error, _changeset} ->
-        {:noreply, put_flash(socket, :error, "Failed to delete gall")}
+      species ->
+        case Species.delete_species(species) do
+          {:ok, _} ->
+            {:noreply,
+             socket
+             |> put_flash(:info, "Gall deleted successfully")
+             |> load_galls()}
+
+          {:error, _changeset} ->
+            {:noreply, put_flash(socket, :error, "Failed to delete gall")}
+        end
     end
   end
 

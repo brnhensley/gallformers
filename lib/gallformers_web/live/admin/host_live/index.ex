@@ -57,17 +57,24 @@ defmodule GallformersWeb.Admin.HostLive.Index do
 
   @impl true
   def handle_event("delete", %{"id" => id}, socket) do
-    species = Species.get_species!(String.to_integer(id))
-
-    case Species.delete_species(species) do
-      {:ok, _} ->
+    case Species.get_species(String.to_integer(id)) do
+      nil ->
         {:noreply,
          socket
-         |> put_flash(:info, "Host deleted successfully")
+         |> put_flash(:info, "Host already deleted")
          |> load_hosts()}
 
-      {:error, _} ->
-        {:noreply, put_flash(socket, :error, "Failed to delete host")}
+      species ->
+        case Species.delete_species(species) do
+          {:ok, _} ->
+            {:noreply,
+             socket
+             |> put_flash(:info, "Host deleted successfully")
+             |> load_hosts()}
+
+          {:error, _} ->
+            {:noreply, put_flash(socket, :error, "Failed to delete host")}
+        end
     end
   end
 
