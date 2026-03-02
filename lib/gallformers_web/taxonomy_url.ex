@@ -21,15 +21,18 @@ defmodule GallformersWeb.TaxonomyURL do
 
       iex> TaxonomyURL.public_path(%{type: "intermediate", rank: "Subfamily", name: "Cynipinae"})
       "/subfamily/Cynipinae"
+
+      iex> TaxonomyURL.public_path(%{type: "family", name: "Santalaceae (gall)"})
+      "/family/Santalaceae%20(gall)"
   """
   @spec public_path(map()) :: String.t() | nil
-  def public_path(%{type: "family", name: name}), do: "/family/#{name}"
-  def public_path(%{type: "genus", name: name}), do: "/genus/#{name}"
-  def public_path(%{type: "section", name: name}), do: "/section/#{name}"
+  def public_path(%{type: "family", name: name}), do: "/family/#{URI.encode(name)}"
+  def public_path(%{type: "genus", name: name}), do: "/genus/#{URI.encode(name)}"
+  def public_path(%{type: "section", name: name}), do: "/section/#{URI.encode(name)}"
 
   def public_path(%{type: "intermediate", rank: rank, name: name})
       when rank not in [nil, ""],
-      do: "/#{String.downcase(rank)}/#{name}"
+      do: "/#{String.downcase(rank)}/#{URI.encode(name)}"
 
   def public_path(_), do: nil
 

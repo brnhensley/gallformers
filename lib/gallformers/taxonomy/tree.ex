@@ -305,7 +305,8 @@ defmodule Gallformers.Taxonomy.Tree do
   @spec get_taxonomy_by_name(String.t(), String.t()) :: Taxonomy.t() | nil
   def get_taxonomy_by_name(name, type) do
     from(t in Taxonomy,
-      where: t.name == ^name and t.type == ^type
+      where: t.name == ^name and t.type == ^type,
+      limit: 1
     )
     |> Repo.one()
   end
@@ -835,11 +836,7 @@ defmodule Gallformers.Taxonomy.Tree do
   def list_genera_for_select(filter \\ :all) do
     # Use a CTE to walk from each genus up to its ancestor family,
     # handling intermediates and sections in the parent chain.
-    type_filter =
-      case filter do
-        :plant -> "AND f.description = 'Plant'"
-        :all -> ""
-      end
+    plant_only = if filter == :plant, do: 1, else: 0
 
     query = """
     WITH RECURSIVE genus_to_family AS (
@@ -857,11 +854,11 @@ defmodule Gallformers.Taxonomy.Tree do
     SELECT gf.genus_id as id, gf.genus_name as name, f.id as family_id
     FROM genus_to_family gf
     JOIN taxonomy f ON f.id = gf.current_parent_id AND f.type = 'family'
-    #{type_filter}
+    WHERE (?1 = 0 OR f.description = 'Plant')
     ORDER BY gf.genus_name
     """
 
-    case Repo.query(query, []) do
+    case Repo.query(query, [plant_only]) do
       {:ok, %{rows: rows}} ->
         Enum.map(rows, fn [id, name, family_id] ->
           %{id: id, name: name, family_id: family_id}

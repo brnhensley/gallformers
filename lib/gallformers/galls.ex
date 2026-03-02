@@ -72,38 +72,39 @@ defmodule Gallformers.Galls do
   end
 
   defp fetch_gall_tree_data(undescribed_only) do
-    undescribed_filter = if undescribed_only, do: "AND gt.undescribed = 1", else: ""
-
     # Use recursive CTE to walk from genus up through any intermediate ranks
     # (subfamily, tribe, etc.) to find the ancestor family. A direct parent_id
     # join only works when genus is an immediate child of family.
     {:ok, %{rows: rows}} =
-      Repo.query("""
-      WITH RECURSIVE genus_to_family AS (
-        SELECT g.id AS genus_id, g.name AS genus_name, g.description AS genus_description,
-               g.parent_id AS current_parent_id
-        FROM taxonomy g
-        WHERE g.type = 'genus'
+      Repo.query(
+        """
+        WITH RECURSIVE genus_to_family AS (
+          SELECT g.id AS genus_id, g.name AS genus_name, g.description AS genus_description,
+                 g.parent_id AS current_parent_id
+          FROM taxonomy g
+          WHERE g.type = 'genus'
 
-        UNION ALL
+          UNION ALL
 
-        SELECT gf.genus_id, gf.genus_name, gf.genus_description, t.parent_id
+          SELECT gf.genus_id, gf.genus_name, gf.genus_description, t.parent_id
+          FROM genus_to_family gf
+          JOIN taxonomy t ON t.id = gf.current_parent_id
+          WHERE t.type != 'family'
+        )
+        SELECT f.id, f.name, f.description,
+               gf.genus_id, gf.genus_name, gf.genus_description,
+               s.id, s.name, gt.undescribed
         FROM genus_to_family gf
-        JOIN taxonomy t ON t.id = gf.current_parent_id
-        WHERE t.type != 'family'
+        JOIN taxonomy f ON f.id = gf.current_parent_id AND f.type = 'family'
+        JOIN species_taxonomy st ON st.taxonomy_id = gf.genus_id
+        JOIN species s ON s.id = st.species_id AND s.taxoncode = 'gall'
+        JOIN gall_traits gt ON gt.species_id = s.id
+        WHERE f.description != 'Plant'
+          AND (?1 = 0 OR gt.undescribed = 1)
+        ORDER BY f.name, gf.genus_name, s.name
+        """,
+        [if(undescribed_only, do: 1, else: 0)]
       )
-      SELECT f.id, f.name, f.description,
-             gf.genus_id, gf.genus_name, gf.genus_description,
-             s.id, s.name, gt.undescribed
-      FROM genus_to_family gf
-      JOIN taxonomy f ON f.id = gf.current_parent_id AND f.type = 'family'
-      JOIN species_taxonomy st ON st.taxonomy_id = gf.genus_id
-      JOIN species s ON s.id = st.species_id AND s.taxoncode = 'gall'
-      JOIN gall_traits gt ON gt.species_id = s.id
-      WHERE f.description != 'Plant'
-      #{undescribed_filter}
-      ORDER BY f.name, gf.genus_name, s.name
-      """)
 
     Enum.map(rows, fn [fid, fname, fdesc, gid, gname, gdesc, sid, sname, undescribed] ->
       %{

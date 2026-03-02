@@ -243,15 +243,20 @@ defmodule Gallformers.ContentImagesTest do
     end
   end
 
-  describe "delete_images_from_s3_for_article/1" do
-    test "returns :ok for article with no images", %{article: article} do
-      assert :ok = ContentImages.delete_images_from_s3_for_article(article.id)
+  describe "collect and delete S3 paths for article" do
+    test "returns empty paths for article with no images", %{article: article} do
+      assert {[], []} = ContentImages.collect_s3_paths_for_article(article.id)
+    end
+
+    test "delete_collected_s3_paths handles empty paths" do
+      assert :ok = ContentImages.delete_collected_s3_paths({[], []})
     end
   end
 
-  describe "delete_images_from_s3_for_key/1" do
-    test "returns :ok for key with no images", %{key: key} do
-      assert :ok = ContentImages.delete_images_from_s3_for_key(key.id)
+  describe "collect and delete S3 paths for key" do
+    test "returns empty paths for key with no images", %{key: key} do
+      {paths, _sizes} = ContentImages.collect_s3_paths_for_key(key.id)
+      assert paths == []
     end
   end
 end

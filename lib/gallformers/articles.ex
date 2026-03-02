@@ -214,10 +214,16 @@ defmodule Gallformers.Articles do
   """
   @spec delete_article(Article.t()) :: {:ok, Article.t()} | {:error, Ecto.Changeset.t()}
   def delete_article(%Article{} = article) do
-    Gallformers.ContentImages.delete_images_from_s3_for_article(article.id)
+    s3_paths = Gallformers.ContentImages.collect_s3_paths_for_article(article.id)
 
-    Repo.delete(article)
-    |> broadcast(:article_deleted)
+    case Repo.delete(article) do
+      {:ok, deleted} ->
+        Gallformers.ContentImages.delete_collected_s3_paths(s3_paths)
+        {:ok, deleted} |> broadcast(:article_deleted)
+
+      error ->
+        error
+    end
   end
 
   @doc """

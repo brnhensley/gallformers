@@ -85,7 +85,7 @@ defmodule Gallformers.ContentImages do
       # For key images, prefer medium variant if available
       url =
         if String.contains?(path, "original") do
-          Storage.cdn_url() <> "/" <> String.replace(path, "original", "medium")
+          Storage.cdn_url() <> "/" <> String.replace(path, "original", "medium", global: false)
         else
           Storage.cdn_url() <> "/" <> path
         end
@@ -255,32 +255,26 @@ defmodule Gallformers.ContentImages do
   end
 
   @doc """
-  Deletes all S3 objects for an article's content images.
-
-  Called before article deletion so CASCADE can clean up DB rows.
+  Collects S3 paths for an article's content images, for cleanup after DB deletion.
   """
-  @spec delete_images_from_s3_for_article(integer()) :: :ok
-  def delete_images_from_s3_for_article(article_id) do
-    delete_images_from_s3(:article_id, article_id, [])
+  @spec collect_s3_paths_for_article(integer()) :: {[String.t()], [atom()]}
+  def collect_s3_paths_for_article(article_id) do
+    collect_s3_paths(:article_id, article_id, [])
   end
 
   @doc """
-  Deletes all S3 objects for a key's content images.
-
-  Called before key deletion so CASCADE can clean up DB rows.
+  Collects S3 paths for a key's content images, for cleanup after DB deletion.
   """
-  @spec delete_images_from_s3_for_key(integer()) :: :ok
-  def delete_images_from_s3_for_key(key_id) do
-    delete_images_from_s3(:key_id, key_id, @key_sizes)
+  @spec collect_s3_paths_for_key(integer()) :: {[String.t()], [atom()]}
+  def collect_s3_paths_for_key(key_id) do
+    collect_s3_paths(:key_id, key_id, @key_sizes)
   end
 
-  defp delete_images_from_s3(field, value, sizes) do
-    paths =
-      from(i in ContentImage, where: field(i, ^field) == ^value, select: i.path)
-      |> Repo.all()
-
-    size_names = Keyword.keys(sizes)
-
+  @doc """
+  Deletes S3 objects for previously collected paths. Call after successful DB deletion.
+  """
+  @spec delete_collected_s3_paths({[String.t()], [atom()]}) :: :ok
+  def delete_collected_s3_paths({paths, size_names}) do
     Enum.each(paths, fn path ->
       case Storage.delete_content_image(path, size_names) do
         :ok ->
@@ -294,6 +288,14 @@ defmodule Gallformers.ContentImages do
     :ok
   end
 
+  defp collect_s3_paths(field, value, sizes) do
+    paths =
+      from(i in ContentImage, where: field(i, ^field) == ^value, select: i.path)
+      |> Repo.all()
+
+    {paths, Keyword.keys(sizes)}
+  end
+
   # =============================================================================
   # Reorder
   # =============================================================================
@@ -304,12 +306,16 @@ defmodule Gallformers.ContentImages do
   Takes a list of image IDs in the desired order.
   """
   @spec reorder_images(:article | :key, integer(), [integer()]) :: :ok | {:error, term()}
-  def reorder_images(_owner_type, _owner_id, ordered_ids) when is_list(ordered_ids) do
+  def reorder_images(owner_type, owner_id, ordered_ids) when is_list(ordered_ids) do
+    {fk_field, fk_value} = owner_field(owner_type, owner_id)
+
     Repo.transaction(fn ->
       ordered_ids
       |> Enum.with_index()
       |> Enum.each(fn {image_id, index} ->
-        from(i in ContentImage, where: i.id == ^image_id)
+        from(i in ContentImage,
+          where: i.id == ^image_id and field(i, ^fk_field) == ^fk_value
+        )
         |> Repo.update_all(set: [sort_order: index])
       end)
     end)

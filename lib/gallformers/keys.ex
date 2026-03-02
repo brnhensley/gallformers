@@ -86,8 +86,16 @@ defmodule Gallformers.Keys do
   """
   @spec delete_key(Key.t()) :: {:ok, Key.t()} | {:error, Ecto.Changeset.t()}
   def delete_key(%Key{} = key) do
-    Gallformers.ContentImages.delete_images_from_s3_for_key(key.id)
-    Repo.delete(key)
+    s3_paths = Gallformers.ContentImages.collect_s3_paths_for_key(key.id)
+
+    case Repo.delete(key) do
+      {:ok, deleted} ->
+        Gallformers.ContentImages.delete_collected_s3_paths(s3_paths)
+        {:ok, deleted}
+
+      error ->
+        error
+    end
   end
 
   @doc """

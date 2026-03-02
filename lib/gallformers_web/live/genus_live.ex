@@ -12,16 +12,19 @@ defmodule GallformersWeb.GenusLive do
   alias GallformersWeb.TaxonomyURL
 
   @impl true
-  def mount(%{"name" => name}, _session, socket) do
+  def mount(%{"name" => name} = params, _session, socket) do
     if TaxonomyURL.numeric?(name) do
       redirect_by_id(socket, name)
     else
-      case Taxonomy.get_taxonomy_by_name(name, "genus") do
-        nil ->
+      case Taxonomy.get_genera_by_name(name) do
+        [] ->
           {:ok, assign_genus_not_found(socket, "Genus not found")}
 
-        %{id: genus_id} ->
+        [%{id: genus_id}] ->
           load_genus(socket, genus_id)
+
+        multiple ->
+          resolve_disambiguation(socket, name, params, multiple)
       end
     end
   end
@@ -55,7 +58,58 @@ defmodule GallformersWeb.GenusLive do
       page_json_ld: nil,
       page_noindex: true,
       lineage: nil,
+      disambiguation: nil,
       error: error
+    )
+  end
+
+  defp resolve_disambiguation(socket, name, params, genera) do
+    case find_genus_by_family_hint(genera, params["family"]) do
+      %{id: genus_id} -> load_genus(socket, genus_id)
+      nil -> {:ok, assign_disambiguation(socket, name, genera)}
+    end
+  end
+
+  defp find_genus_by_family_hint(_genera, nil), do: nil
+
+  defp find_genus_by_family_hint(genera, family_name) do
+    Enum.find(genera, fn genus ->
+      case Taxonomy.get_genus_lineage(genus.id) do
+        {:ok, lineage} -> lineage.family.name == family_name
+        _ -> false
+      end
+    end)
+  end
+
+  defp assign_disambiguation(socket, name, genera) do
+    # Resolve each genus's ancestor family for display context
+    options =
+      Enum.map(genera, fn genus ->
+        case Taxonomy.get_genus_lineage(genus.id) do
+          {:ok, lineage} ->
+            %{
+              genus: genus,
+              family_name: lineage.family.name,
+              family_description: lineage.family.description,
+              species_count: length(Taxonomy.get_species_ids_for_genus(genus.id))
+            }
+
+          {:error, _} ->
+            %{genus: genus, family_name: "Unknown", family_description: nil, species_count: 0}
+        end
+      end)
+
+    assign(socket,
+      page_title: "Genus #{name} — Disambiguation",
+      page_description:
+        "Multiple genera named #{name} exist on Gallformers under different families.",
+      page_url: nil,
+      page_image: nil,
+      page_json_ld: nil,
+      page_noindex: true,
+      lineage: nil,
+      disambiguation: options,
+      error: nil
     )
   end
 
@@ -93,6 +147,7 @@ defmodule GallformersWeb.GenusLive do
       page_json_ld: nil,
       page_noindex: is_empty_unknown,
       lineage: lineage,
+      disambiguation: nil,
       species: species,
       search_query: "",
       sort_by: :name,
@@ -174,6 +229,36 @@ defmodule GallformersWeb.GenusLive do
         <%= if @error do %>
           <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">{@error}</div>
         <% else %>
+          <%= if @disambiguation do %>
+            <div class="mb-6">
+              <h1 class="text-2xl font-bold text-gf-maroon mb-4">
+                Genus <.taxon_name name={hd(@disambiguation).genus.name} rank="genus" />
+              </h1>
+              <p class="text-gray-600 mb-6">
+                This genus name exists under multiple families. Select the one you're looking for:
+              </p>
+              <div class="grid gap-4 max-w-2xl">
+                <.link
+                  :for={option <- @disambiguation}
+                  navigate={"/genus/#{URI.encode(option.genus.name)}?family=#{URI.encode(option.family_name)}"}
+                  class="block p-4 bg-white border border-gray-200 rounded-lg hover:border-gf-maroon hover:bg-gf-cream transition-colors"
+                >
+                  <div class="font-semibold text-gf-maroon">
+                    <.taxon_name name={option.genus.name} rank="genus" />
+                    <span class="text-gray-500 font-normal">
+                      in Family {option.family_name}
+                      <span :if={option.family_description not in [nil, ""]}>
+                        ({option.family_description})
+                      </span>
+                    </span>
+                  </div>
+                  <div class="text-sm text-gray-500 mt-1">
+                    {option.species_count} species
+                  </div>
+                </.link>
+              </div>
+            </div>
+          <% end %>
           <%= if @lineage do %>
             <%!-- Header --%>
             <div class="mb-6">

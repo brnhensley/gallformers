@@ -41,6 +41,14 @@ defmodule GallformersWeb.TaxonomyURLTest do
       assert TaxonomyURL.public_path(%{type: "family", name: "Eriophyidae", extra: true}) ==
                "/family/Eriophyidae"
     end
+
+    test "encodes names with spaces and special characters" do
+      assert TaxonomyURL.public_path(%{type: "family", name: "Santalaceae (gall)"}) ==
+               "/family/Santalaceae%20(gall)"
+
+      assert TaxonomyURL.public_path(%{type: "genus", name: "Unknown (Cynipidae)"}) ==
+               "/genus/Unknown%20(Cynipidae)"
+    end
   end
 
   describe "numeric?/1" do
