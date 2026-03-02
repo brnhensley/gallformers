@@ -40,6 +40,11 @@ defmodule GallformersWeb.IntermediateLive do
            taxonomy: taxonomy,
            lineage: lineage,
            children: children,
+           filtered_children: children,
+           total_children_count: length(children),
+           search_query: "",
+           sort_by: :name,
+           sort_dir: :asc,
            error: nil
          )}
 
@@ -59,6 +64,11 @@ defmodule GallformersWeb.IntermediateLive do
       taxonomy: nil,
       lineage: nil,
       children: [],
+      filtered_children: [],
+      total_children_count: 0,
+      search_query: "",
+      sort_by: :name,
+      sort_dir: :asc,
       error: error
     )
   end
@@ -67,6 +77,61 @@ defmodule GallformersWeb.IntermediateLive do
   defp child_url(%{type: "intermediate", id: id}), do: "/taxonomy/#{id}"
   defp child_url(%{type: "section", id: id}), do: "/section/#{id}"
   defp child_url(_), do: nil
+
+  @impl true
+  def handle_event("search", %{"query" => query}, socket) do
+    {:noreply,
+     socket
+     |> assign(:search_query, query)
+     |> filter_children()}
+  end
+
+  @impl true
+  def handle_event("sort", %{"column" => column}, socket)
+      when column in ["name", "type", "species_count"] do
+    column_atom = String.to_atom(column)
+
+    {new_sort_by, new_sort_dir} =
+      if socket.assigns.sort_by == column_atom do
+        new_dir = if socket.assigns.sort_dir == :asc, do: :desc, else: :asc
+        {column_atom, new_dir}
+      else
+        {column_atom, :asc}
+      end
+
+    {:noreply, assign(socket, sort_by: new_sort_by, sort_dir: new_sort_dir)}
+  end
+
+  defp filter_children(socket) do
+    query = String.downcase(socket.assigns.search_query)
+
+    filtered =
+      if query == "" do
+        socket.assigns.children
+      else
+        Enum.filter(socket.assigns.children, fn c ->
+          String.contains?(String.downcase(c.name), query) ||
+            (c.description && String.contains?(String.downcase(c.description), query)) ||
+            (c.rank && String.contains?(String.downcase(c.rank), query))
+        end)
+      end
+
+    assign(socket, :filtered_children, filtered)
+  end
+
+  defp sorted_children(children, sort_by, sort_dir) do
+    sorted =
+      Enum.sort_by(children, fn c ->
+        case sort_by do
+          :name -> String.downcase(c.name || "")
+          :type -> String.downcase(c.rank || c.type || "")
+          :species_count -> c.species_count
+          _ -> String.downcase(c.name || "")
+        end
+      end)
+
+    if sort_dir == :desc, do: Enum.reverse(sorted), else: sorted
+  end
 
   @impl true
   def render(assigns) do
@@ -107,45 +172,98 @@ defmodule GallformersWeb.IntermediateLive do
 
             <%!-- Children list --%>
             <div class="mt-6">
-              <%= if @children != [] do %>
+              <%= if @total_children_count > 0 do %>
                 <h2 class="text-lg font-semibold text-gray-800 mb-3">
-                  Children ({length(@children)})
+                  Children ({@total_children_count})
                 </h2>
 
-                <div class="bg-white rounded border border-gray-200 overflow-hidden">
-                  <table class="gf-table">
-                    <thead>
-                      <tr>
-                        <th>Name</th>
-                        <th>Type</th>
-                        <th>Species</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr :for={child <- @children}>
-                        <td>
-                          <.link href={child_url(child)} class="hover:underline font-medium">
-                            <.taxon_name name={child.name} rank={child.type} />
-                          </.link>
-                          <span
-                            :if={child.description not in [nil, ""]}
-                            class="text-gray-500 text-sm ml-1"
-                          >
-                            ({child.description})
-                          </span>
-                        </td>
-                        <td>
-                          <span class="text-sm text-gray-600">
-                            {child.rank || child.type}
-                          </span>
-                        </td>
-                        <td class="text-gray-600">
-                          {child.species_count}
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
+                <%!-- Search box --%>
+                <div class="mb-4 max-w-md">
+                  <form phx-change="search" phx-submit="search" id="intermediate-search-form">
+                    <.search_input
+                      id="intermediate-search"
+                      name="query"
+                      value={@search_query}
+                      placeholder="Filter by name, type, or description..."
+                      phx-debounce="300"
+                    />
+                  </form>
                 </div>
+
+                <%= if Enum.empty?(@filtered_children) do %>
+                  <div class="bg-gray-50 rounded-lg p-8 text-center text-gray-600">
+                    <p>No children found matching "{@search_query}"</p>
+                  </div>
+                <% else %>
+                  <div class="bg-white rounded border border-gray-200 overflow-hidden">
+                    <table class="gf-table">
+                      <thead>
+                        <tr>
+                          <th class="sortable" phx-click="sort" phx-value-column="name">
+                            Name
+                            <span :if={@sort_by == :name} class="ml-1">
+                              {if @sort_dir == :asc, do: "↑", else: "↓"}
+                            </span>
+                          </th>
+                          <th
+                            class="sortable text-center"
+                            phx-click="sort"
+                            phx-value-column="type"
+                          >
+                            Type
+                            <span :if={@sort_by == :type} class="ml-1">
+                              {if @sort_dir == :asc, do: "↑", else: "↓"}
+                            </span>
+                          </th>
+                          <th
+                            class="sortable text-center"
+                            phx-click="sort"
+                            phx-value-column="species_count"
+                          >
+                            Species
+                            <span :if={@sort_by == :species_count} class="ml-1">
+                              {if @sort_dir == :asc, do: "↑", else: "↓"}
+                            </span>
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr :for={
+                          child <- sorted_children(@filtered_children, @sort_by, @sort_dir)
+                        }>
+                          <td>
+                            <.link href={child_url(child)} class="hover:underline font-medium">
+                              <.taxon_name name={child.name} rank={child.type} />
+                            </.link>
+                            <span
+                              :if={child.description not in [nil, ""]}
+                              class="text-gray-500 text-sm ml-1"
+                            >
+                              ({child.description})
+                            </span>
+                          </td>
+                          <td class="text-center">
+                            <span class="text-sm text-gray-600">
+                              {child.rank || child.type}
+                            </span>
+                          </td>
+                          <td class="text-center text-gray-600">
+                            {child.species_count}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <%!-- Filter status message --%>
+                  <div class="mt-4 text-sm text-gray-500">
+                    <%= if @search_query != "" do %>
+                      Filtering {length(@filtered_children)} of {@total_children_count} children
+                    <% else %>
+                      Showing {length(@filtered_children)} children
+                    <% end %>
+                  </div>
+                <% end %>
               <% else %>
                 <p class="text-gray-500 italic">No children found.</p>
               <% end %>

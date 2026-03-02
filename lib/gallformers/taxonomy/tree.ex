@@ -499,6 +499,58 @@ defmodule Gallformers.Taxonomy.Tree do
     |> then(&Repo.load(Taxonomy, &1))
   end
 
+  @doc """
+  Returns parent options for the taxonomy form typeahead, with full ancestry paths.
+
+  Each option is a map with `%{id, name, type, rank, path}`. Families show just their
+  name as the path. Intermediates show "Family / Rank: Name" (or deeper nesting).
+
+  The `type` parameter determines which parents are valid:
+  - `"genus"` or `"intermediate"` — returns families + intermediates
+  - anything else — returns `[]`
+  """
+  @spec list_parent_options_with_paths(String.t() | nil) :: [map()]
+  def list_parent_options_with_paths(type) when type in ["genus", "intermediate"] do
+    families =
+      from(t in Taxonomy,
+        where: t.type == "family" and t.is_placeholder == false,
+        order_by: t.name,
+        select: t
+      )
+      |> Repo.all()
+      |> Enum.map(fn f ->
+        %{id: f.id, name: f.name, type: "family", rank: nil, path: f.name}
+      end)
+
+    intermediates =
+      from(t in Taxonomy,
+        where: t.type == "intermediate",
+        order_by: t.name,
+        select: t
+      )
+      |> Repo.all()
+      |> Enum.map(fn t ->
+        path = build_parent_path(t)
+        %{id: t.id, name: t.name, type: "intermediate", rank: t.rank, path: path}
+      end)
+
+    families ++ intermediates
+  end
+
+  def list_parent_options_with_paths(_type), do: []
+
+  defp build_parent_path(taxonomy) do
+    ancestors = get_taxonomy_path(taxonomy.id)
+
+    Enum.map_join(ancestors, " / ", fn t ->
+      if t.type == "intermediate" do
+        "#{t.rank}: #{t.name}"
+      else
+        t.name
+      end
+    end)
+  end
+
   # =====================================================================
   # Lists
   # =====================================================================

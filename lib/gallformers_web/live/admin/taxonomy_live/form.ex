@@ -8,7 +8,7 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
   use GallformersWeb.Admin.FormHelpers, crud_helpers: true, include_delete: false
 
   import GallformersWeb.Admin.FormComponents, only: [form_actions: 1]
-  import GallformersWeb.FormComponents, only: [cascade_delete_modal: 1]
+  import GallformersWeb.FormComponents, only: [cascade_delete_modal: 1, typeahead: 1]
 
   alias Gallformers.Taxonomy
   alias Phoenix.HTML.Form, as: HtmlForm
@@ -80,6 +80,7 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
     |> apply_new_action(parent_options: load_parent_options(nil))
     |> assign(:children_options, [])
     |> assign(:selected_children, [])
+    |> assign_parent_typeahead_defaults(nil, [])
   end
 
   defp apply_action(socket, :edit, %{"id" => id}) do
@@ -88,6 +89,11 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
     taxonomy = socket.assigns[:taxonomy]
 
     if taxonomy do
+      all_parent_options =
+        taxonomy.type
+        |> Taxonomy.list_parent_options_with_paths()
+        |> Enum.reject(&(&1.id == taxonomy.id))
+
       socket
       |> assign(:parent_options, load_parent_options(taxonomy.type))
       |> assign(:show_delete_modal, false)
@@ -95,9 +101,23 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
       |> assign(:delete_confirmation, "")
       |> assign(:children_options, [])
       |> assign(:selected_children, [])
+      |> assign_parent_typeahead_defaults(taxonomy, all_parent_options)
     else
       socket
     end
+  end
+
+  defp assign_parent_typeahead_defaults(socket, taxonomy, all_parent_options) do
+    selected_parent =
+      if taxonomy && taxonomy.parent_id do
+        Enum.find(all_parent_options, &(&1.id == taxonomy.parent_id))
+      end
+
+    socket
+    |> assign(:parent_query, "")
+    |> assign(:parent_results, [])
+    |> assign(:selected_parent, selected_parent)
+    |> assign(:all_parent_options, all_parent_options)
   end
 
   defp load_parent_options(type) when type in [nil, ""] do
@@ -139,9 +159,10 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
   def handle_event("validate", %{"taxonomy" => params}, socket) do
     # Clear name and parent when type changes
     prev_type = HtmlForm.input_value(socket.assigns.form, :type)
+    type_changed? = params["type"] != prev_type
 
     params =
-      if params["type"] != prev_type do
+      if type_changed? do
         Map.merge(params, %{"name" => "", "parent_id" => "", "rank" => ""})
       else
         params
@@ -154,6 +175,25 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
       |> Map.put(:action, :validate)
 
     parent_options = load_parent_options(params["type"])
+
+    # Reload typeahead options and clear selection when type changes
+    socket =
+      if type_changed? do
+        exclude_id = socket.assigns.taxonomy && socket.assigns.taxonomy.id
+
+        all_parent_options =
+          params["type"]
+          |> Taxonomy.list_parent_options_with_paths()
+          |> Enum.reject(&(&1.id == exclude_id))
+
+        socket
+        |> assign(:all_parent_options, all_parent_options)
+        |> assign(:selected_parent, nil)
+        |> assign(:parent_query, "")
+        |> assign(:parent_results, [])
+      else
+        socket
+      end
 
     # Load children options when parent changes for intermediates (new mode only)
     socket =
@@ -188,6 +228,93 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
     {:noreply, socket}
   end
 
+  # Parent typeahead events
+  @impl true
+  def handle_event("search_parent", %{"value" => query}, socket) do
+    results =
+      if String.length(query) >= 2 do
+        query_lower = String.downcase(query)
+
+        socket.assigns.all_parent_options
+        |> Enum.filter(fn opt ->
+          String.contains?(String.downcase(opt.path), query_lower)
+        end)
+        |> Enum.take(20)
+      else
+        []
+      end
+
+    {:noreply, assign(socket, parent_query: query, parent_results: results)}
+  end
+
+  @impl true
+  def handle_event("select_parent", %{"id" => id}, socket) do
+    parent_id = String.to_integer(id)
+    parent = Enum.find(socket.assigns.all_parent_options, &(&1.id == parent_id))
+
+    if parent do
+      # Update the form changeset with the selected parent_id
+      params =
+        socket.assigns.form.source
+        |> Ecto.Changeset.apply_changes()
+        |> Map.from_struct()
+        |> Map.new(fn {k, v} -> {to_string(k), v} end)
+        |> Map.put("parent_id", to_string(parent_id))
+
+      changeset =
+        socket.assigns.taxonomy
+        |> Taxonomy.change_taxonomy(params)
+        |> Map.put(:action, :validate)
+
+      # Load children options for intermediates in new mode
+      socket =
+        if params["type"] == "intermediate" and socket.assigns.live_action == :new do
+          children = load_children_options(to_string(parent_id))
+
+          socket
+          |> assign(:children_options, children)
+          |> assign(:selected_children, [])
+        else
+          socket
+        end
+
+      {:noreply,
+       socket
+       |> assign(:selected_parent, parent)
+       |> assign(:parent_query, "")
+       |> assign(:parent_results, [])
+       |> assign(:form, to_form(changeset))
+       |> mark_dirty()}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_event("clear_parent", _params, socket) do
+    params =
+      socket.assigns.form.source
+      |> Ecto.Changeset.apply_changes()
+      |> Map.from_struct()
+      |> Map.new(fn {k, v} -> {to_string(k), v} end)
+      |> Map.put("parent_id", "")
+
+    changeset =
+      socket.assigns.taxonomy
+      |> Taxonomy.change_taxonomy(params)
+      |> Map.put(:action, :validate)
+
+    {:noreply,
+     socket
+     |> assign(:selected_parent, nil)
+     |> assign(:parent_query, "")
+     |> assign(:parent_results, [])
+     |> assign(:children_options, [])
+     |> assign(:selected_children, [])
+     |> assign(:form, to_form(changeset))
+     |> mark_dirty()}
+  end
+
   @impl true
   def handle_event("toggle_child", %{"id" => id_str}, socket) do
     id = String.to_integer(id_str)
@@ -216,6 +343,10 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
 
   @impl true
   def handle_event("save", %{"taxonomy" => taxonomy_params} = params, socket) do
+    # Inject parent_id from typeahead for types that use it
+    taxonomy_params = inject_parent_id(taxonomy_params, socket)
+    params = Map.put(params, "taxonomy", taxonomy_params)
+
     if taxonomy_params["type"] == "intermediate" and socket.assigns.live_action == :new do
       handle_save_intermediate(taxonomy_params, socket)
     else
@@ -292,6 +423,17 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
     handle_form_event(event, params, socket)
   end
 
+  defp inject_parent_id(params, socket) do
+    if params["type"] in ["genus", "intermediate"] do
+      case socket.assigns.selected_parent do
+        %{id: id} -> Map.put(params, "parent_id", to_string(id))
+        _ -> params
+      end
+    else
+      params
+    end
+  end
+
   defp handle_save_intermediate(params, socket) do
     children_ids = socket.assigns.selected_children
 
@@ -311,7 +453,7 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
              :info,
              "Created intermediate \"#{intermediate.name}\" (#{intermediate.rank})"
            )
-           |> push_navigate(to: ~p"/admin/taxonomy")}
+           |> push_navigate(to: ~p"/admin/taxonomy/#{intermediate.id}")}
 
         {:error, %Ecto.Changeset{} = changeset} ->
           {:noreply, assign(socket, :form, to_form(changeset))}
@@ -408,7 +550,7 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
       >
         <:intro>
           Taxonomy entries define the hierarchical classification of species:
-          Family → Genus → Section (optional). Species are linked to genera.
+          Family → (Intermediate ranks) → Genus → (Section). Species are linked to genera.
         </:intro>
 
         <div :if={@mode == :edit and @taxonomy.type == "section"} class="mb-4">
@@ -491,33 +633,51 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
           </div>
 
           <div class="mb-3">
-            <%= if @parent_options != [] do %>
-              <.input
-                field={@form[:parent_id]}
-                type="select"
-                label="Parent:"
-                prompt={
-                  case HtmlForm.input_value(@form, :type) do
-                    "section" -> "Select a genus"
-                    "intermediate" -> "Select a parent (family or intermediate)"
-                    _ -> "Select a family"
-                  end
-                }
-                options={@parent_options}
-                required={true}
-              />
-              <p class="mt-1 text-xs text-gray-500">
-                Genera belong to families or intermediates. Intermediates belong to families or other intermediates. Sections belong to genera.
-              </p>
-            <% else %>
-              <label class="gf-label">Parent:</label>
-              <p class="text-sm text-gray-500 italic px-3 py-2">
-                <%= if HtmlForm.input_value(@form, :type) == "family" do %>
+            <% current_type = HtmlForm.input_value(@form, :type) %>
+            <%= cond do %>
+              <% current_type in ["genus", "intermediate"] -> %>
+                <.typeahead
+                  id="parent-picker"
+                  label="Parent"
+                  placeholder="Search for a parent (family or intermediate)..."
+                  search_event="search_parent"
+                  select_event="select_parent"
+                  clear_event="clear_parent"
+                  query={@parent_query}
+                  results={@parent_results}
+                  selected={@selected_parent}
+                  display_fn={fn opt -> opt.path end}
+                  required={true}
+                />
+                <p class="mt-1 text-xs text-gray-500">
+                  <%= if current_type == "genus" do %>
+                    Genera belong to families or intermediates.
+                  <% else %>
+                    Intermediates belong to families or other intermediates.
+                  <% end %>
+                </p>
+              <% current_type == "section" and @parent_options != [] -> %>
+                <.input
+                  field={@form[:parent_id]}
+                  type="select"
+                  label="Parent:"
+                  prompt="Select a genus"
+                  options={@parent_options}
+                  required={true}
+                />
+                <p class="mt-1 text-xs text-gray-500">
+                  Sections belong to genera.
+                </p>
+              <% current_type == "family" -> %>
+                <label class="gf-label">Parent:</label>
+                <p class="text-sm text-gray-500 italic px-3 py-2">
                   Families are top-level entries and have no parent.
-                <% else %>
+                </p>
+              <% true -> %>
+                <label class="gf-label">Parent:</label>
+                <p class="text-sm text-gray-500 italic px-3 py-2">
                   Select a type to see available parent options.
-                <% end %>
-              </p>
+                </p>
             <% end %>
           </div>
 

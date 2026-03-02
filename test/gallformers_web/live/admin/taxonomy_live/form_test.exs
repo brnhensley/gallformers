@@ -433,7 +433,7 @@ defmodule GallformersWeb.Admin.TaxonomyLive.FormTest do
       assert html =~ "e.g. Subfamily, Tribe"
     end
 
-    test "selecting intermediate type shows parent picker with families", %{conn: conn} do
+    test "selecting intermediate type shows parent typeahead", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/admin/taxonomy/new")
 
       html =
@@ -441,7 +441,7 @@ defmodule GallformersWeb.Admin.TaxonomyLive.FormTest do
         |> form("#taxonomy-form", taxonomy: %{type: "intermediate"})
         |> render_change()
 
-      assert html =~ "Select a parent (family or intermediate)"
+      assert html =~ "Search for a parent (family or intermediate)"
     end
   end
 
@@ -478,16 +478,15 @@ defmodule GallformersWeb.Admin.TaxonomyLive.FormTest do
     } do
       {:ok, view, _html} = live(conn, ~p"/admin/taxonomy/new")
 
-      # First select the type to reveal the parent picker
+      # First select the type to reveal the parent typeahead
       view
       |> form("#taxonomy-form", taxonomy: %{type: "intermediate"})
       |> render_change()
 
-      # Then select a parent to load children
+      # Then select a parent via the typeahead
       html =
         view
-        |> form("#taxonomy-form", taxonomy: %{type: "intermediate", parent_id: family.id})
-        |> render_change()
+        |> render_click("select_parent", %{"id" => "#{family.id}"})
 
       # Should show children of the selected parent
       assert html =~ genus1.name
@@ -506,10 +505,8 @@ defmodule GallformersWeb.Admin.TaxonomyLive.FormTest do
       |> form("#taxonomy-form", taxonomy: %{type: "intermediate"})
       |> render_change()
 
-      # Step 2: Select parent
-      view
-      |> form("#taxonomy-form", taxonomy: %{type: "intermediate", parent_id: family.id})
-      |> render_change()
+      # Step 2: Select parent via typeahead
+      view |> render_click("select_parent", %{"id" => "#{family.id}"})
 
       # Step 3: Toggle child selection
       view |> render_click("toggle_child", %{"id" => "#{genus1.id}"})
@@ -520,14 +517,14 @@ defmodule GallformersWeb.Admin.TaxonomyLive.FormTest do
         taxonomy: %{
           type: "intermediate",
           name: "FormTestSubfamily",
-          rank: "Subfamily",
-          parent_id: family.id
+          rank: "Subfamily"
         }
       )
       |> render_submit()
 
-      # Should redirect
-      assert_redirect(view, "/admin/taxonomy")
+      # Should redirect to the new intermediate's edit page
+      {path, _flash} = assert_redirect(view)
+      assert path =~ ~r"/admin/taxonomy/\d+"
 
       # Verify the genus was re-parented
       updated_genus = Repo.get!(TaxonomySchema, genus1.id)
@@ -542,10 +539,8 @@ defmodule GallformersWeb.Admin.TaxonomyLive.FormTest do
       |> form("#taxonomy-form", taxonomy: %{type: "intermediate"})
       |> render_change()
 
-      # Select parent
-      view
-      |> form("#taxonomy-form", taxonomy: %{type: "intermediate", parent_id: family.id})
-      |> render_change()
+      # Select parent via typeahead
+      view |> render_click("select_parent", %{"id" => "#{family.id}"})
 
       # Submit without selecting any children
       view
@@ -553,8 +548,7 @@ defmodule GallformersWeb.Admin.TaxonomyLive.FormTest do
         taxonomy: %{
           type: "intermediate",
           name: "NoChildrenSubfamily",
-          rank: "Subfamily",
-          parent_id: family.id
+          rank: "Subfamily"
         }
       )
       |> render_submit()

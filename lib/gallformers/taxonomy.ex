@@ -57,6 +57,7 @@ defmodule Gallformers.Taxonomy do
   defdelegate list_sections_for_genus(genus_id), to: Tree
   defdelegate list_families_for_select(filter \\ :all), to: Tree
   defdelegate list_genera_for_select(filter \\ :all), to: Tree
+  defdelegate list_parent_options_with_paths(type), to: Tree
 
   # =====================================================================
   # Delegated to Taxonomy.Tree — Unknown/Placeholder Management
