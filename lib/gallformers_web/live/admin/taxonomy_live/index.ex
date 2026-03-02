@@ -309,6 +309,7 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Index do
           name: t.name,
           description: t.description,
           type: t.type,
+          rank: t.rank,
           parent_id: t.parent_id,
           parent_name: parent && parent.name,
           parent_type: parent && parent.type
@@ -382,7 +383,7 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Index do
                 type="select"
                 name="type"
                 prompt="All Types"
-                options={[{"Families", "family"}, {"Genera", "genus"}, {"Sections", "section"}]}
+                options={[{"Families", "family"}, {"Genera", "genus"}, {"Intermediates", "intermediate"}, {"Sections", "section"}]}
                 value={@filter_type}
               />
             </form>
@@ -488,6 +489,12 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Index do
                 </td>
                 <td>
                   <.type_badge type={taxonomy.type} />
+                  <span
+                    :if={taxonomy.type == "intermediate" && taxonomy[:rank]}
+                    class="text-xs text-amber-600 ml-1"
+                  >
+                    ({taxonomy.rank})
+                  </span>
                 </td>
                 <td class="text-gray-500">
                   {taxonomy.description || "—"}
@@ -658,6 +665,7 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Index do
       case assigns.type do
         "family" -> "bg-blue-100 text-blue-800"
         "genus" -> "bg-green-100 text-green-800"
+        "intermediate" -> "bg-amber-100 text-amber-800"
         "section" -> "bg-purple-100 text-purple-800"
         _ -> "bg-gray-100 text-gray-800"
       end

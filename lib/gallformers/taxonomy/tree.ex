@@ -542,6 +542,7 @@ defmodule Gallformers.Taxonomy.Tree do
           name: t.name,
           description: t.description,
           type: t.type,
+          rank: t.rank,
           parent_id: t.parent_id,
           parent_name: p.name,
           parent_type: p.type
@@ -594,6 +595,7 @@ defmodule Gallformers.Taxonomy.Tree do
           name: t.name,
           description: t.description,
           type: t.type,
+          rank: t.rank,
           parent_id: t.parent_id,
           parent_name: p.name,
           parent_type: p.type

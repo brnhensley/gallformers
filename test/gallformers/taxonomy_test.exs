@@ -2477,4 +2477,32 @@ defmodule Gallformers.TaxonomyTest do
       assert updated_g1.parent_id == tribe.id
     end
   end
+
+  describe "admin index queries for intermediates" do
+    test "list_taxonomies_with_parent includes rank for intermediates" do
+      # Cynipinae (id=31) is a Subfamily intermediate in test seeds
+      results = Taxonomy.list_taxonomies_with_parent("intermediate")
+      assert length(results) > 0
+
+      subfamily = Enum.find(results, &(&1.name == "Cynipinae"))
+      assert subfamily != nil
+      assert subfamily.rank == "Subfamily"
+      assert subfamily.type == "intermediate"
+      assert subfamily.parent_name == "Cynipidae"
+    end
+
+    test "list_taxonomies_with_parent_paginated includes rank for intermediates" do
+      results = Taxonomy.list_taxonomies_with_parent_paginated("intermediate", 50, 0)
+      assert length(results) > 0
+
+      tribe = Enum.find(results, &(&1.name == "Cynipini"))
+      assert tribe != nil
+      assert tribe.rank == "Tribe"
+    end
+
+    test "count_taxonomies counts intermediates" do
+      count = Taxonomy.count_taxonomies("intermediate")
+      assert count >= 2
+    end
+  end
 end
