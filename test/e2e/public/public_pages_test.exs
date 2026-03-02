@@ -22,7 +22,7 @@ defmodule GallformersWeb.E2E.PublicPagesTest do
       |> assert_has(css(".phx-connected"))
       # Use css selector since mobile and desktop nav may both have these links
       |> assert_has(css("a", text: "Identify", count: :any))
-      |> assert_has(css("a", text: "Explore", count: :any))
+      |> assert_has(css("button", text: "Browse", count: :any))
     end
   end
 
