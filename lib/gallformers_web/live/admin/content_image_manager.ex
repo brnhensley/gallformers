@@ -365,16 +365,7 @@ defmodule GallformersWeb.Admin.ContentImageManager do
   end
 
   def handle_event("form_change", params, socket) do
-    original = socket.assigns.original_image
-
-    changed =
-      params["creator"] != (original.creator || "") ||
-        params["license"] != (original.license || "") ||
-        params["licenselink"] != (original.licenselink || "") ||
-        params["sourcelink"] != (original.sourcelink || "") ||
-        params["attribution"] != (original.attribution || "") ||
-        params["caption"] != (original.caption || "")
-
+    changed = metadata_changed?(params, socket.assigns.original_image)
     {:noreply, assign(socket, :form_dirty, changed)}
   end
 
@@ -476,4 +467,12 @@ defmodule GallformersWeb.Admin.ContentImageManager do
 
   defp get_display_name(%{display_name: name}), do: name
   defp get_display_name(_), do: "unknown"
+
+  @metadata_fields ~w(creator license licenselink sourcelink attribution caption)
+
+  defp metadata_changed?(params, original) do
+    Enum.any?(@metadata_fields, fn field ->
+      params[field] != (Map.get(original, String.to_existing_atom(field)) || "")
+    end)
+  end
 end
