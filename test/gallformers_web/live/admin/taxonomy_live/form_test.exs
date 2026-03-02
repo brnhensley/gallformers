@@ -415,5 +415,156 @@ defmodule GallformersWeb.Admin.TaxonomyLive.FormTest do
       {:ok, view, _html} = live(conn, ~p"/admin/taxonomy/#{family.id}")
       assert has_element?(view, "button", "Delete")
     end
+
+    test "type select includes Intermediate option", %{conn: conn} do
+      {:ok, _view, html} = live(conn, ~p"/admin/taxonomy/new")
+      assert html =~ "Intermediate"
+    end
+
+    test "selecting intermediate type shows rank input", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/admin/taxonomy/new")
+
+      html =
+        view
+        |> form("#taxonomy-form", taxonomy: %{type: "intermediate"})
+        |> render_change()
+
+      assert html =~ "Rank"
+      assert html =~ "e.g. Subfamily, Tribe"
+    end
+
+    test "selecting intermediate type shows parent picker with families", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/admin/taxonomy/new")
+
+      html =
+        view
+        |> form("#taxonomy-form", taxonomy: %{type: "intermediate"})
+        |> render_change()
+
+      assert html =~ "Select a parent (family or intermediate)"
+    end
+  end
+
+  describe "intermediate creation" do
+    setup %{conn: conn} do
+      {:ok, family} =
+        Taxonomy.create_taxonomy(%{
+          name: "IntermediateFormTestFamily",
+          type: "family",
+          description: "Wasp"
+        })
+
+      {:ok, genus1} =
+        Taxonomy.create_taxonomy(%{
+          name: "IntermediateFormGenus1",
+          type: "genus",
+          parent_id: family.id
+        })
+
+      {:ok, genus2} =
+        Taxonomy.create_taxonomy(%{
+          name: "IntermediateFormGenus2",
+          type: "genus",
+          parent_id: family.id
+        })
+
+      {:ok,
+       conn: setup_admin_session(conn),
+       family: family,
+       genus1: genus1,
+       genus2: genus2}
+    end
+
+    test "shows children picker when parent is selected", %{
+      conn: conn,
+      family: family,
+      genus1: genus1
+    } do
+      {:ok, view, _html} = live(conn, ~p"/admin/taxonomy/new")
+
+      # First select the type to reveal the parent picker
+      view
+      |> form("#taxonomy-form", taxonomy: %{type: "intermediate"})
+      |> render_change()
+
+      # Then select a parent to load children
+      html =
+        view
+        |> form("#taxonomy-form", taxonomy: %{type: "intermediate", parent_id: family.id})
+        |> render_change()
+
+      # Should show children of the selected parent
+      assert html =~ genus1.name
+      assert html =~ "Children to move"
+    end
+
+    test "creating intermediate re-parents selected children", %{
+      conn: conn,
+      family: family,
+      genus1: genus1
+    } do
+      {:ok, view, _html} = live(conn, ~p"/admin/taxonomy/new")
+
+      # Step 1: Select type
+      view
+      |> form("#taxonomy-form", taxonomy: %{type: "intermediate"})
+      |> render_change()
+
+      # Step 2: Select parent
+      view
+      |> form("#taxonomy-form", taxonomy: %{type: "intermediate", parent_id: family.id})
+      |> render_change()
+
+      # Step 3: Toggle child selection
+      view |> render_click("toggle_child", %{"id" => "#{genus1.id}"})
+
+      # Step 4: Fill in name and rank, then save
+      view
+      |> form("#taxonomy-form",
+        taxonomy: %{
+          type: "intermediate",
+          name: "FormTestSubfamily",
+          rank: "Subfamily",
+          parent_id: family.id
+        }
+      )
+      |> render_submit()
+
+      # Should redirect
+      assert_redirect(view, "/admin/taxonomy")
+
+      # Verify the genus was re-parented
+      updated_genus = Repo.get!(TaxonomySchema, genus1.id)
+      refute updated_genus.parent_id == family.id
+    end
+
+    test "saving without children shows error", %{conn: conn, family: family} do
+      {:ok, view, _html} = live(conn, ~p"/admin/taxonomy/new")
+
+      # Select type first
+      view
+      |> form("#taxonomy-form", taxonomy: %{type: "intermediate"})
+      |> render_change()
+
+      # Select parent
+      view
+      |> form("#taxonomy-form", taxonomy: %{type: "intermediate", parent_id: family.id})
+      |> render_change()
+
+      # Submit without selecting any children
+      view
+      |> form("#taxonomy-form",
+        taxonomy: %{
+          type: "intermediate",
+          name: "NoChildrenSubfamily",
+          rank: "Subfamily",
+          parent_id: family.id
+        }
+      )
+      |> render_submit()
+
+      # Should show error, not redirect
+      assert has_element?(view, "[role=alert]", "At least one child must be selected")
+    end
   end
 end

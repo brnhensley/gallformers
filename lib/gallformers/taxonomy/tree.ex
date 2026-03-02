@@ -103,6 +103,49 @@ defmodule Gallformers.Taxonomy.Tree do
   end
 
   @doc """
+  Creates an intermediate taxonomy node and re-parents selected children under it.
+
+  Requires at least one child to be selected. Atomically creates the intermediate
+  and updates children's parent_id in a transaction.
+
+  Attrs must include: name, rank, parent_id, children_ids (list of integer IDs).
+  """
+  @spec create_intermediate(map()) :: {:ok, Taxonomy.t()} | {:error, term()}
+  def create_intermediate(attrs) do
+    children_ids = attrs[:children_ids] || attrs["children_ids"] || []
+
+    if children_ids == [] do
+      {:error, :no_children_selected}
+    else
+      Repo.transaction(fn ->
+        intermediate_attrs =
+          attrs
+          |> Map.drop([:children_ids, "children_ids"])
+          |> then(fn a ->
+            if Map.has_key?(a, :name), do: Map.put_new(a, :type, "intermediate"), else: Map.put_new(a, "type", "intermediate")
+          end)
+
+        case %Taxonomy{} |> Taxonomy.changeset(intermediate_attrs) |> Repo.insert() do
+          {:ok, intermediate} ->
+            {count, _} =
+              from(t in Taxonomy, where: t.id in ^children_ids)
+              |> Repo.update_all(set: [parent_id: intermediate.id])
+
+            if count == 0, do: Repo.rollback(:no_children_updated)
+            intermediate
+
+          {:error, changeset} ->
+            Repo.rollback(changeset)
+        end
+      end)
+      |> case do
+        {:ok, intermediate} -> broadcast({:ok, intermediate}, :taxonomy_created)
+        {:error, reason} -> {:error, reason}
+      end
+    end
+  end
+
+  @doc """
   Updates a taxonomy entry.
 
   When renaming a genus, automatically updates all linked species names and

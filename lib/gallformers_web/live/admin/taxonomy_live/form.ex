@@ -76,7 +76,10 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
 
   # Custom apply_action to handle parent_options
   defp apply_action(socket, :new, _params) do
-    apply_new_action(socket, parent_options: load_parent_options(nil))
+    socket
+    |> apply_new_action(parent_options: load_parent_options(nil))
+    |> assign(:children_options, [])
+    |> assign(:selected_children, [])
   end
 
   defp apply_action(socket, :edit, %{"id" => id}) do
@@ -90,6 +93,8 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
       |> assign(:show_delete_modal, false)
       |> assign(:deletion_impact, nil)
       |> assign(:delete_confirmation, "")
+      |> assign(:children_options, [])
+      |> assign(:selected_children, [])
     else
       socket
     end
@@ -103,7 +108,25 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
   defp load_parent_options("family"), do: []
 
   defp load_parent_options("genus") do
-    Taxonomy.list_families_for_select()
+    # Genera can parent to families or intermediates
+    families = Taxonomy.list_families_for_select()
+
+    intermediates =
+      Taxonomy.list_taxonomies_by_type("intermediate")
+      |> Enum.map(fn t -> {"#{t.name} (#{t.rank})", t.id} end)
+
+    families ++ intermediates
+  end
+
+  defp load_parent_options("intermediate") do
+    # Intermediates can parent to families or other intermediates
+    families = Taxonomy.list_families_for_select()
+
+    intermediates =
+      Taxonomy.list_taxonomies_by_type("intermediate")
+      |> Enum.map(fn t -> {"#{t.name} (#{t.rank})", t.id} end)
+
+    families ++ intermediates
   end
 
   defp load_parent_options("section") do
@@ -119,7 +142,7 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
 
     params =
       if params["type"] != prev_type do
-        Map.merge(params, %{"name" => "", "parent_id" => ""})
+        Map.merge(params, %{"name" => "", "parent_id" => "", "rank" => ""})
       else
         params
       end
@@ -131,6 +154,19 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
       |> Map.put(:action, :validate)
 
     parent_options = load_parent_options(params["type"])
+
+    # Load children options when parent changes for intermediates (new mode only)
+    socket =
+      if params["type"] == "intermediate" and socket.assigns.live_action == :new do
+        parent_id = params["parent_id"]
+        children = load_children_options(parent_id)
+
+        socket
+        |> assign(:children_options, children)
+        |> assign(:selected_children, [])
+      else
+        socket
+      end
 
     {:noreply,
      socket
@@ -146,17 +182,36 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
   end
 
   @impl true
-  def handle_event("save", %{"taxonomy" => taxonomy_params} = params, socket) do
-    changeset =
-      socket.assigns.taxonomy
-      |> Taxonomy.change_taxonomy(taxonomy_params)
-      |> validate_unique_name_parent(socket.assigns.taxonomy)
+  def handle_event("toggle_child", %{"id" => id_str}, socket) do
+    id = String.to_integer(id_str)
+    selected = socket.assigns.selected_children
 
-    if changeset.valid? do
-      handle_save(params, socket)
+    selected =
+      if id in selected do
+        List.delete(selected, id)
+      else
+        [id | selected]
+      end
+
+    {:noreply, assign(socket, :selected_children, selected)}
+  end
+
+  @impl true
+  def handle_event("save", %{"taxonomy" => taxonomy_params} = params, socket) do
+    if taxonomy_params["type"] == "intermediate" and socket.assigns.live_action == :new do
+      handle_save_intermediate(taxonomy_params, socket)
     else
-      changeset = Map.put(changeset, :action, :validate)
-      {:noreply, assign(socket, :form, to_form(changeset))}
+      changeset =
+        socket.assigns.taxonomy
+        |> Taxonomy.change_taxonomy(taxonomy_params)
+        |> validate_unique_name_parent(socket.assigns.taxonomy)
+
+      if changeset.valid? do
+        handle_save(params, socket)
+      else
+        changeset = Map.put(changeset, :action, :validate)
+        {:noreply, assign(socket, :form, to_form(changeset))}
+      end
     end
   end
 
@@ -219,6 +274,51 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
     handle_form_event(event, params, socket)
   end
 
+  defp handle_save_intermediate(params, socket) do
+    children_ids = socket.assigns.selected_children
+
+    if children_ids == [] do
+      {:noreply, put_flash(socket, :error, "At least one child must be selected.")}
+    else
+      attrs =
+        params
+        |> Map.put("type", "intermediate")
+        |> Map.put("children_ids", children_ids)
+
+      case Taxonomy.create_intermediate(attrs) do
+        {:ok, intermediate} ->
+          {:noreply,
+           socket
+           |> put_flash(:info, "Created intermediate \"#{intermediate.name}\" (#{intermediate.rank})")
+           |> push_navigate(to: ~p"/admin/taxonomy")}
+
+        {:error, %Ecto.Changeset{} = changeset} ->
+          {:noreply, assign(socket, :form, to_form(changeset))}
+
+        {:error, reason} ->
+          {:noreply, put_flash(socket, :error, "Failed to create: #{inspect(reason)}")}
+      end
+    end
+  end
+
+  defp load_children_options(parent_id) when parent_id in [nil, ""], do: []
+
+  defp load_children_options(parent_id) do
+    parent_id
+    |> String.to_integer()
+    |> Taxonomy.get_children()
+    |> Enum.reject(&(&1.type == "section"))
+    |> Enum.map(fn t ->
+      label =
+        case t.type do
+          "intermediate" -> "#{t.name} (#{t.rank})"
+          _ -> "#{t.name} (#{t.type})"
+        end
+
+      %{id: t.id, name: t.name, type: t.type, label: label}
+    end)
+  end
+
   # Handle impact map (for family/genus cascade delete)
   defp build_delete_success_message(
          taxonomy,
@@ -248,6 +348,8 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
 
   defp taxonomy_public_url(%{type: "family", id: id}), do: ~p"/family/#{id}"
   defp taxonomy_public_url(%{type: "genus", id: id}), do: ~p"/genus/#{id}"
+  # Public intermediate browse page route added in Task 8
+  defp taxonomy_public_url(%{type: "intermediate"}), do: nil
   defp taxonomy_public_url(%{type: "section", id: id}), do: ~p"/section/#{id}"
   defp taxonomy_public_url(_), do: nil
 
@@ -307,7 +409,12 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
               type="select"
               label="Type"
               prompt="Select type"
-              options={[{"Family", "family"}, {"Genus", "genus"}, {"Section", "section"}]}
+              options={[
+                {"Family", "family"},
+                {"Genus", "genus"},
+                {"Intermediate", "intermediate"},
+                {"Section", "section"}
+              ]}
             />
           </div>
 
@@ -350,6 +457,19 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
             </div>
           </div>
 
+          <div :if={HtmlForm.input_value(@form, :type) == "intermediate"} class="mb-3">
+            <.input
+              field={@form[:rank]}
+              type="text"
+              label="Rank"
+              placeholder="e.g. Subfamily, Tribe, Subtribe"
+              required={true}
+            />
+            <p class="mt-1 text-xs text-gray-500">
+              The taxonomic rank label for this intermediate level.
+            </p>
+          </div>
+
           <div class="mb-3">
             <%= if @parent_options != [] do %>
               <.input
@@ -357,15 +477,17 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
                 type="select"
                 label="Parent:"
                 prompt={
-                  if HtmlForm.input_value(@form, :type) == "section",
-                    do: "Select a genus",
-                    else: "Select a family"
+                  case HtmlForm.input_value(@form, :type) do
+                    "section" -> "Select a genus"
+                    "intermediate" -> "Select a parent (family or intermediate)"
+                    _ -> "Select a family"
+                  end
                 }
                 options={@parent_options}
                 required={true}
               />
               <p class="mt-1 text-xs text-gray-500">
-                Genera belong to families. Sections belong to genera.
+                Genera belong to families or intermediates. Intermediates belong to families or other intermediates. Sections belong to genera.
               </p>
             <% else %>
               <label class="gf-label">Parent:</label>
@@ -377,6 +499,35 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
                 <% end %>
               </p>
             <% end %>
+          </div>
+
+          <div
+            :if={
+              HtmlForm.input_value(@form, :type) == "intermediate" and @mode == :new and
+                @children_options != []
+            }
+            class="mb-3"
+          >
+            <label class="gf-label">Children to move under this intermediate:</label>
+            <p class="mt-1 mb-2 text-xs text-gray-500">
+              Select which children of the parent should be re-parented under this new intermediate. At least one is required.
+            </p>
+            <div class="space-y-1 border border-gray-200 rounded-lg p-3 max-h-48 overflow-y-auto">
+              <div :for={child <- @children_options} class="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id={"child-#{child.id}"}
+                  checked={child.id in @selected_children}
+                  phx-click="toggle_child"
+                  phx-value-id={child.id}
+                  class="rounded border-gray-300 text-gf-maroon focus:ring-gf-maroon"
+                />
+                <label for={"child-#{child.id}"} class="text-sm">{child.label}</label>
+              </div>
+            </div>
+            <p :if={@selected_children == []} class="mt-1 text-xs text-amber-600">
+              Select at least one child to continue.
+            </p>
           </div>
 
           <div class="flex justify-between pt-4 border-t border-gray-200">
@@ -413,7 +564,11 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
             <li>
               <strong>Families</strong> are the top-level groupings (e.g., Cynipidae, Fagaceae)
             </li>
-            <li><strong>Genera</strong> belong to families (e.g., Andricus, Quercus)</li>
+            <li>
+              <strong>Intermediates</strong>
+              are ranks between family and genus (e.g., Subfamily, Tribe)
+            </li>
+            <li><strong>Genera</strong> belong to families or intermediates (e.g., Andricus, Quercus)</li>
             <li>
               <strong>Sections</strong>
               are optional sub-groupings within genera (used primarily for Quercus oaks)

@@ -2346,4 +2346,104 @@ defmodule Gallformers.TaxonomyTest do
       assert [%{name: "Andricus", family_name: "Cynipidae"}] = results
     end
   end
+
+  describe "create_intermediate/1" do
+    setup do
+      {:ok, family} =
+        Taxonomy.create_taxonomy(%{
+          name: "IntermediateTestFamily",
+          type: "family",
+          description: "Wasp"
+        })
+
+      {:ok, genus1} =
+        Taxonomy.create_taxonomy(%{
+          name: "IntermediateTestGenus1",
+          type: "genus",
+          parent_id: family.id
+        })
+
+      {:ok, genus2} =
+        Taxonomy.create_taxonomy(%{
+          name: "IntermediateTestGenus2",
+          type: "genus",
+          parent_id: family.id
+        })
+
+      {:ok, family: family, genus1: genus1, genus2: genus2}
+    end
+
+    test "creates intermediate and re-parents one child", %{family: family, genus1: genus1} do
+      {:ok, intermediate} =
+        Taxonomy.create_intermediate(%{
+          name: "TestSubfamily",
+          rank: "Subfamily",
+          parent_id: family.id,
+          children_ids: [genus1.id]
+        })
+
+      assert intermediate.name == "TestSubfamily"
+      assert intermediate.rank == "Subfamily"
+      assert intermediate.parent_id == family.id
+
+      # Genus should now be under the intermediate
+      updated_genus = Repo.get!(TaxonomySchema, genus1.id)
+      assert updated_genus.parent_id == intermediate.id
+    end
+
+    test "creates intermediate and re-parents multiple children", %{
+      family: family,
+      genus1: genus1,
+      genus2: genus2
+    } do
+      {:ok, intermediate} =
+        Taxonomy.create_intermediate(%{
+          name: "TestSubfamily2",
+          rank: "Subfamily",
+          parent_id: family.id,
+          children_ids: [genus1.id, genus2.id]
+        })
+
+      updated_g1 = Repo.get!(TaxonomySchema, genus1.id)
+      updated_g2 = Repo.get!(TaxonomySchema, genus2.id)
+      assert updated_g1.parent_id == intermediate.id
+      assert updated_g2.parent_id == intermediate.id
+    end
+
+    test "fails with zero children" do
+      assert {:error, :no_children_selected} =
+               Taxonomy.create_intermediate(%{
+                 name: "EmptyIntermediate",
+                 rank: "Subfamily",
+                 parent_id: 1,
+                 children_ids: []
+               })
+    end
+
+    test "creates nested intermediate under another intermediate", %{
+      family: family,
+      genus1: genus1,
+      genus2: genus2
+    } do
+      {:ok, subfamily} =
+        Taxonomy.create_intermediate(%{
+          name: "NestedSubfamily",
+          rank: "Subfamily",
+          parent_id: family.id,
+          children_ids: [genus1.id, genus2.id]
+        })
+
+      {:ok, tribe} =
+        Taxonomy.create_intermediate(%{
+          name: "NestedTribe",
+          rank: "Tribe",
+          parent_id: subfamily.id,
+          children_ids: [genus1.id]
+        })
+
+      assert tribe.parent_id == subfamily.id
+      updated_g1 = Repo.get!(TaxonomySchema, genus1.id)
+      assert updated_g1.parent_id == tribe.id
+    end
+  end
 end

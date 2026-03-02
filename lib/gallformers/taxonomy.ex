@@ -13,6 +13,7 @@ defmodule Gallformers.Taxonomy do
 
   defdelegate change_taxonomy(taxonomy, attrs \\ %{}), to: Tree
   defdelegate create_taxonomy(attrs \\ %{}), to: Tree
+  defdelegate create_intermediate(attrs), to: Tree
   defdelegate update_taxonomy(taxonomy, attrs), to: Tree
   defdelegate delete_taxonomy(taxonomy), to: Tree
 
