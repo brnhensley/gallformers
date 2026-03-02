@@ -7,6 +7,7 @@ defmodule GallformersWeb.KeyLive do
   """
   use GallformersWeb, :live_view
 
+  alias Gallformers.ContentImages
   alias Gallformers.Keys
   alias Gallformers.Keys.PdfGenerator
 
@@ -16,6 +17,8 @@ defmodule GallformersWeb.KeyLive do
   def mount(%{"slug" => slug}, _session, socket) do
     case Keys.get_key(slug) do
       {:ok, key} ->
+        image_url_map = build_content_image_url_map(key)
+
         {:ok,
          assign(socket,
            page_title: key.title,
@@ -24,6 +27,7 @@ defmodule GallformersWeb.KeyLive do
            page_image: nil,
            page_json_ld: nil,
            key: key,
+           image_url_map: image_url_map,
            pdf_urls: PdfGenerator.cdn_urls(key),
            key_has_images: PdfGenerator.key_has_images?(key),
            path: [],
@@ -220,6 +224,20 @@ defmodule GallformersWeb.KeyLive do
     end
   end
 
+  # Collect all content_image_ids from couplet images and resolve to CDN URLs
+  defp build_content_image_url_map(key) do
+    key.couplets
+    |> Enum.flat_map(fn {_number, couplet} ->
+      Enum.flat_map(couplet.leads, fn lead ->
+        (lead.images || [])
+        |> Enum.map(& &1[:content_image_id])
+        |> Enum.reject(&is_nil/1)
+      end)
+    end)
+    |> Enum.uniq()
+    |> ContentImages.build_image_url_map()
+  end
+
   @impl true
   def render(assigns) do
     ~H"""
@@ -301,6 +319,7 @@ defmodule GallformersWeb.KeyLive do
               key_slug={@key.slug}
               state={couplet_state(number, @active_couplet, @path)}
               chosen_lead_index={chosen_lead_for(number, @path)}
+              image_url_map={@image_url_map}
             />
           </div>
         </div>

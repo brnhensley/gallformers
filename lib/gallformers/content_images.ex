@@ -68,6 +68,32 @@ defmodule Gallformers.ContentImages do
     Repo.get!(ContentImage, id) |> Repo.preload(:source)
   end
 
+  @doc """
+  Builds a map of content_image_id => CDN URL for the given image IDs.
+
+  Used by key rendering to resolve content_image references in couplet JSON.
+  Returns a map like `%{42 => "https://cdn.example.com/keys/1/img_medium.jpg"}`.
+  Missing IDs are silently omitted.
+  """
+  @spec build_image_url_map([integer()]) :: %{integer() => String.t()}
+  def build_image_url_map([]), do: %{}
+
+  def build_image_url_map(ids) do
+    from(i in ContentImage, where: i.id in ^ids, select: {i.id, i.path})
+    |> Repo.all()
+    |> Map.new(fn {id, path} ->
+      # For key images, prefer medium variant if available
+      url =
+        if String.contains?(path, "original") do
+          Storage.cdn_url() <> "/" <> String.replace(path, "original", "medium")
+        else
+          Storage.cdn_url() <> "/" <> path
+        end
+
+      {id, url}
+    end)
+  end
+
   # =============================================================================
   # Create
   # =============================================================================

@@ -78,6 +78,7 @@ defmodule GallformersWeb.KeyComponents do
   attr :key_slug, :string, required: true
   attr :state, :atom, required: true, doc: ":active | :visited | :unvisited"
   attr :chosen_lead_index, :integer, default: nil
+  attr :image_url_map, :map, default: %{}
 
   def couplet(assigns) do
     ~H"""
@@ -104,6 +105,7 @@ defmodule GallformersWeb.KeyComponents do
             lead_index={index}
             key_slug={@key_slug}
             state={lead_state(@state, @chosen_lead_index, index)}
+            image_url_map={@image_url_map}
           />
         </div>
       </div>
@@ -128,6 +130,7 @@ defmodule GallformersWeb.KeyComponents do
   attr :lead_index, :integer, required: true
   attr :key_slug, :string, required: true
   attr :state, :atom, required: true, doc: ":active | :chosen | :unchosen | :inactive"
+  attr :image_url_map, :map, default: %{}
 
   def lead(assigns) do
     ~H"""
@@ -186,6 +189,7 @@ defmodule GallformersWeb.KeyComponents do
           images={@lead.images}
           key_slug={@key_slug}
           state={@state}
+          image_url_map={@image_url_map}
         />
       </div>
     </div>
@@ -270,10 +274,14 @@ defmodule GallformersWeb.KeyComponents do
 
   @doc """
   Renders images for a lead.
+
+  Supports both legacy `file`-based images (resolved via key_slug) and
+  new `content_image_id`-based images (resolved via the `image_url_map`).
   """
   attr :images, :list, required: true
   attr :key_slug, :string, required: true
   attr :state, :atom, required: true
+  attr :image_url_map, :map, default: %{}
 
   def lead_images(assigns) do
     ~H"""
@@ -283,7 +291,7 @@ defmodule GallformersWeb.KeyComponents do
     ]}>
       <div :for={image <- @images} class="relative">
         <img
-          src={key_image_url(@key_slug, image.file)}
+          src={resolve_image_url(image, @key_slug, @image_url_map)}
           alt={image.caption || image.ref}
           class="max-w-[150px] max-h-[120px] rounded shadow-sm object-contain"
           loading="lazy"
@@ -299,7 +307,15 @@ defmodule GallformersWeb.KeyComponents do
     """
   end
 
-  defp key_image_url(key_slug, filename) do
+  defp resolve_image_url(%{content_image_id: id}, _key_slug, image_url_map)
+       when is_integer(id) do
+    Map.get(image_url_map, id, "")
+  end
+
+  defp resolve_image_url(%{file: filename}, key_slug, _image_url_map)
+       when is_binary(filename) do
     "#{Storage.cdn_url()}/keys/#{key_slug}/#{filename}"
   end
+
+  defp resolve_image_url(_, _, _), do: ""
 end

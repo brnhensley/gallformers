@@ -219,7 +219,8 @@ defmodule Gallformers.Keys.CoupletsType do
     %{
       ref: data["ref"],
       file: data["file"],
-      caption: data["caption"]
+      caption: data["caption"],
+      content_image_id: data["content_image_id"]
     }
   end
 
@@ -274,7 +275,16 @@ defmodule Gallformers.Keys.CoupletsType do
   end
 
   defp unconvert_image(image) when is_map(image) do
-    %{"ref" => get(image, :ref), "file" => get(image, :file), "caption" => get(image, :caption)}
+    base = %{
+      "ref" => get(image, :ref),
+      "file" => get(image, :file),
+      "caption" => get(image, :caption)
+    }
+
+    case get(image, :content_image_id) do
+      nil -> base
+      id -> Map.put(base, "content_image_id", id)
+    end
   end
 
   defp unconvert_destination(nil), do: nil
