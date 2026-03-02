@@ -38,28 +38,48 @@ defmodule Gallformers.Plants do
   end
 
   defp fetch_host_tree_data do
-    from(f in Taxonomy.Taxonomy,
-      join: g in Taxonomy.Taxonomy,
-      on: g.parent_id == f.id and g.type == "genus",
-      join: st in "species_taxonomy",
-      on: st.taxonomy_id == g.id,
-      join: s in Species,
-      on: s.id == st.species_id,
-      where: f.type == "family" and f.description == "Plant" and s.taxoncode == "plant",
-      order_by: [f.name, g.name, s.name],
-      select: %{
-        family_id: f.id,
-        family_name: f.name,
-        family_description: f.description,
-        genus_id: g.id,
-        genus_name: g.name,
-        genus_description: g.description,
-        species_id: s.id,
-        species_name: s.name,
+    # Use recursive CTE to walk from genus up through any intermediate ranks
+    # (subfamily, tribe, etc.) to find the ancestor family. A direct parent_id
+    # join only works when genus is an immediate child of family.
+    {:ok, %{rows: rows}} =
+      Repo.query("""
+      WITH RECURSIVE genus_to_family AS (
+        SELECT g.id AS genus_id, g.name AS genus_name, g.description AS genus_description,
+               g.parent_id AS current_parent_id
+        FROM taxonomy g
+        WHERE g.type = 'genus'
+
+        UNION ALL
+
+        SELECT gf.genus_id, gf.genus_name, gf.genus_description, t.parent_id
+        FROM genus_to_family gf
+        JOIN taxonomy t ON t.id = gf.current_parent_id
+        WHERE t.type != 'family'
+      )
+      SELECT f.id, f.name, f.description,
+             gf.genus_id, gf.genus_name, gf.genus_description,
+             s.id, s.name
+      FROM genus_to_family gf
+      JOIN taxonomy f ON f.id = gf.current_parent_id AND f.type = 'family'
+      JOIN species_taxonomy st ON st.taxonomy_id = gf.genus_id
+      JOIN species s ON s.id = st.species_id AND s.taxoncode = 'plant'
+      WHERE f.description = 'Plant'
+      ORDER BY f.name, gf.genus_name, s.name
+      """)
+
+    Enum.map(rows, fn [fid, fname, fdesc, gid, gname, gdesc, sid, sname] ->
+      %{
+        family_id: fid,
+        family_name: fname,
+        family_description: fdesc,
+        genus_id: gid,
+        genus_name: gname,
+        genus_description: gdesc,
+        species_id: sid,
+        species_name: sname,
         undescribed: false
       }
-    )
-    |> Repo.all()
+    end)
   end
 
   # ============================================
