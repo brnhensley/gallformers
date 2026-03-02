@@ -234,7 +234,11 @@ defmodule GallformersWeb.GenusLive do
                               {if @sort_dir == :asc, do: "↑", else: "↓"}
                             </span>
                           </th>
-                          <th class="sortable text-center" phx-click="sort" phx-value-column="common_name">
+                          <th
+                            class="sortable text-center"
+                            phx-click="sort"
+                            phx-value-column="common_name"
+                          >
                             Common Name
                             <span :if={@sort_by == :common_name} class="ml-1">
                               {if @sort_dir == :asc, do: "↑", else: "↓"}

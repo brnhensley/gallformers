@@ -426,74 +426,75 @@ defmodule GallformersWeb.GallLive do
                 </a>
               </div>
 
-              <div class="flex flex-col md:flex-row md:items-start gap-4">
-                <div class="flex-1 space-y-2">
-                  <.taxonomy_breadcrumb
-                    :if={@taxonomy}
-                    family={@taxonomy.family}
-                    intermediates={@taxonomy.intermediates}
-                    genus={@taxonomy.genus}
-                  />
+              <div class="space-y-2">
+                <.taxonomy_breadcrumb
+                  :if={@taxonomy}
+                  family={@taxonomy.family}
+                  intermediates={@taxonomy.intermediates}
+                  genus={@taxonomy.genus}
+                />
 
-                  <div :if={@gall.hosts && length(@gall.hosts) > 0} class="flex items-center gap-1">
-                    <div>
-                      <strong>Hosts:</strong>
-                      <em class="taxon-name">
-                        <span :for={{host, idx} <- Enum.with_index(@gall.hosts)}>
-                          {if idx > 0, do: " / "}<.link
-                            href={"/host/#{host.host_species_id}"}
-                            class="hover:underline"
-                          >{host.host_name}</.link>
-                        </span>
-                      </em>
-                    </div>
-                    <.link
-                      :if={@current_user}
-                      href={~p"/admin/gallhost?id=#{@gall.id}"}
-                      class="text-gray-400 hover:text-gf-maroon"
-                      title="Edit gall-host mappings"
-                    >
-                      <.icon name="ph-pencil-simple" class="h-4 w-4" />
-                    </.link>
+                <div :if={@gall.hosts && length(@gall.hosts) > 0} class="flex items-center gap-1">
+                  <div>
+                    <strong>Hosts:</strong>
+                    <em class="taxon-name">
+                      <span :for={{host, idx} <- Enum.with_index(@gall.hosts)}>
+                        {if idx > 0, do: " / "}<.link
+                          href={"/host/#{host.host_species_id}"}
+                          class="hover:underline"
+                        >{host.host_name}</.link>
+                      </span>
+                    </em>
                   </div>
-
-                  <div class="grid grid-cols-1 md:grid-cols-2 gap-x-4">
-                    <div class="space-y-1">
-                      <div>
-                        <strong>Detachable:</strong> {get_detachable_display(@gall.detachable)}
-                      </div>
-                      <div><strong>Color:</strong> {format_fields(@gall_filters.colors)}</div>
-                      <div><strong>Texture:</strong> {format_fields(@gall_filters.textures)}</div>
-                      <div><strong>Abundance:</strong> {@gall.abundance_name || ""}</div>
-                      <div><strong>Shape:</strong> {format_fields(@gall_filters.shapes)}</div>
-                      <div><strong>Season:</strong> {format_fields(@gall_filters.seasons)}</div>
-                    </div>
-                    <div class="space-y-1">
-                      <div><strong>Alignment:</strong> {format_fields(@gall_filters.alignments)}</div>
-                      <div><strong>Walls:</strong> {format_fields(@gall_filters.walls)}</div>
-                      <div><strong>Location:</strong> {format_fields(@gall_filters.plant_parts)}</div>
-                      <div><strong>Form:</strong> {format_fields(@gall_filters.forms)}</div>
-                      <div><strong>Cells:</strong> {format_fields(@gall_filters.cells)}</div>
-                    </div>
-                  </div>
+                  <.link
+                    :if={@current_user}
+                    href={~p"/admin/gallhost?id=#{@gall.id}"}
+                    class="text-gray-400 hover:text-gf-maroon"
+                    title="Edit gall-host mappings"
+                  >
+                    <.icon name="ph-pencil-simple" class="h-4 w-4" />
+                  </.link>
                 </div>
 
-                <div class="md:w-64 lg:w-80 shrink-0">
-                  <div class="flex items-center gap-1">
-                    <strong>Possible Range:</strong>
-                    <.info_tip content="The gall's range is computed from the range of all hosts that the gall occurs on. In some cases we have evidence that the gall does not occur across the full range of the hosts and we will remove these places from the range. For undescribed species we will show the expected range based on hosts plus where the galls have been observed." />
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-x-4">
+                  <div class="space-y-1">
+                    <div>
+                      <strong>Detachable:</strong> {get_detachable_display(@gall.detachable)}
+                    </div>
+                    <div><strong>Color:</strong> {format_fields(@gall_filters.colors)}</div>
+                    <div><strong>Texture:</strong> {format_fields(@gall_filters.textures)}</div>
+                    <div><strong>Abundance:</strong> {@gall.abundance_name || ""}</div>
                   </div>
-                  <.range_map
-                    id="gall-range-map"
-                    in_range={@range}
-                    inherited_range={@inherited_range}
-                    excluded_range={[]}
-                    bounds={@range_bounds}
-                    navigable
-                  />
-                  <div :if={@inherited_range != []} class="mt-1">
-                    <.range_map_legend mode={:public} />
+                  <div class="space-y-1">
+                    <div><strong>Shape:</strong> {format_fields(@gall_filters.shapes)}</div>
+                    <div><strong>Season:</strong> {format_fields(@gall_filters.seasons)}</div>
+                    <div><strong>Alignment:</strong> {format_fields(@gall_filters.alignments)}</div>
+                    <div><strong>Walls:</strong> {format_fields(@gall_filters.walls)}</div>
                   </div>
+                  <div class="space-y-1">
+                    <div><strong>Location:</strong> {format_fields(@gall_filters.plant_parts)}</div>
+                    <div><strong>Form:</strong> {format_fields(@gall_filters.forms)}</div>
+                    <div><strong>Cells:</strong> {format_fields(@gall_filters.cells)}</div>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <div class="flex items-center gap-1">
+                  <strong>Possible Range:</strong>
+                  <.info_tip content="The gall's range is computed from the range of all hosts that the gall occurs on. In some cases we have evidence that the gall does not occur across the full range of the hosts and we will remove these places from the range. For undescribed species we will show the expected range based on hosts plus where the galls have been observed." />
+                </div>
+                <.range_map
+                  id="gall-range-map"
+                  class="min-h-[250px] h-[300px]"
+                  in_range={@range}
+                  inherited_range={@inherited_range}
+                  excluded_range={[]}
+                  bounds={@range_bounds}
+                  navigable
+                />
+                <div :if={@inherited_range != []} class="mt-1">
+                  <.range_map_legend mode={:public} />
                 </div>
               </div>
 

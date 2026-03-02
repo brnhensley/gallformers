@@ -577,7 +577,7 @@ const RangeMap = {
     const boundsAttr = this.el.dataset.bounds
     if (boundsAttr) {
       const bounds = JSON.parse(boundsAttr)
-      this.map.fitBounds(bounds, { padding: 40, maxZoom: 8, animate })
+      this.map.fitBounds(bounds, { padding: 40, maxZoom: 5, animate })
       return
     }
 
@@ -625,7 +625,7 @@ const RangeMap = {
 
     this.map.fitBounds([[minLng, minLat], [maxLng, maxLat]], {
       padding: 40,
-      maxZoom: 8,
+      maxZoom: 5,
       animate
     })
   },
@@ -666,7 +666,7 @@ const RangeMap = {
     if (matched > 0) {
       this.map.fitBounds([[minLng, minLat], [maxLng, maxLat]], {
         padding: 40,
-        maxZoom: 8,
+        maxZoom: 5,
         animate: true
       })
     }

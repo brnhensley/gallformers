@@ -228,9 +228,7 @@ defmodule GallformersWeb.IntermediateLive do
                         </tr>
                       </thead>
                       <tbody>
-                        <tr :for={
-                          child <- sorted_children(@filtered_children, @sort_by, @sort_dir)
-                        }>
+                        <tr :for={child <- sorted_children(@filtered_children, @sort_by, @sort_dir)}>
                           <td>
                             <.link href={child_url(child)} class="hover:underline font-medium">
                               <.taxon_name name={child.name} rank={child.type} />
