@@ -1,5 +1,5 @@
 defmodule Gallformers.Repo.Migrations.AddIntermediateTaxonomyRank do
-  use Ecto.Migration
+  use Gallformers.Migration
 
   def change do
     alter table(:taxonomy) do

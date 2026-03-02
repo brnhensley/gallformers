@@ -1,5 +1,5 @@
 defmodule Gallformers.Repo.Migrations.CreateContentImages do
-  use Ecto.Migration
+  use Gallformers.Migration
 
   def change do
     create table(:content_images) do
