@@ -2505,6 +2505,16 @@ defmodule Gallformers.TaxonomyTest do
     end
   end
 
+  describe "family page — mixed children" do
+    test "get_children returns both intermediates and genera for a family" do
+      # Cynipidae (id=30) has Cynipinae (intermediate) and Unknown (genus, id=35)
+      children = Taxonomy.get_children(30)
+      types = children |> Enum.map(& &1.type) |> Enum.uniq() |> Enum.sort()
+      assert "genus" in types
+      assert "intermediate" in types
+    end
+  end
+
   describe "list_children_with_counts/1" do
     test "returns children of an intermediate with species counts" do
       # Cynipini (tribe, id=32) has children Andricus (33) and Cynips (34)

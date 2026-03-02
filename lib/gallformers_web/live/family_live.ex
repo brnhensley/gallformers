@@ -50,11 +50,11 @@ defmodule GallformersWeb.FamilyLive do
          )}
 
       %Family{} = family ->
-        # Get genera under this family
-        genera = Taxonomy.get_children(family_id)
+        # Get all direct children (intermediates + genera)
+        children = Taxonomy.get_children(family_id)
 
-        # Build tree data
-        tree_data = build_tree_data(genera)
+        # Build tree data recursively (handles intermediates and genera)
+        tree_data = build_tree_data(children)
 
         {:ok,
          assign(socket,
@@ -75,40 +75,64 @@ defmodule GallformersWeb.FamilyLive do
     end
   end
 
-  defp build_tree_data(genera) do
-    # Batch fetch all species IDs for all genera (1 query instead of N)
+  defp build_tree_data(children) do
+    # Separate genera and intermediates
+    {genera, intermediates} = Enum.split_with(children, &(&1.type == "genus"))
+
+    # Batch fetch species for all genera (1 query)
     genus_ids = Enum.map(genera, & &1.id)
     species_ids_map = Taxonomy.get_species_ids_for_genera(genus_ids)
-
-    # Batch fetch all species info (1 query)
     all_species_ids = species_ids_map |> Map.values() |> List.flatten() |> Enum.uniq()
     all_species = get_species_info(all_species_ids)
     species_map = Enum.into(all_species, %{}, fn s -> {s.id, s} end)
 
-    Enum.map(genera, fn genus ->
-      species_ids = Map.get(species_ids_map, genus.id, [])
+    # Build intermediate nodes (recursive — their children may be genera or more intermediates)
+    intermediate_nodes =
+      Enum.map(intermediates, fn intermediate ->
+        sub_children = Taxonomy.get_children(intermediate.id)
+        sub_tree = build_tree_data(sub_children)
 
-      species =
-        species_ids
-        |> Enum.map(&Map.get(species_map, &1))
-        |> Enum.reject(&is_nil/1)
+        rank_label = intermediate.rank || "intermediate"
 
-      %{
-        key: "g-#{genus.id}",
-        label: format_label(genus.name, genus.description),
-        name: genus.name,
-        rank: "genus",
-        url: "/genus/#{genus.id}",
-        nodes:
-          Enum.map(species, fn s ->
-            %{
-              key: "s-#{s.id}",
-              label: s.name,
-              url: s.url
-            }
-          end)
-      }
-    end)
+        %{
+          key: "i-#{intermediate.id}",
+          label: "#{rank_label}: #{format_label(intermediate.name, intermediate.description)}",
+          name: intermediate.name,
+          rank: "intermediate",
+          url: "/taxonomy/#{intermediate.id}",
+          nodes: sub_tree
+        }
+      end)
+
+    # Build genus nodes
+    genus_nodes =
+      Enum.map(genera, fn genus ->
+        species_ids = Map.get(species_ids_map, genus.id, [])
+
+        species =
+          species_ids
+          |> Enum.map(&Map.get(species_map, &1))
+          |> Enum.reject(&is_nil/1)
+
+        %{
+          key: "g-#{genus.id}",
+          label: format_label(genus.name, genus.description),
+          name: genus.name,
+          rank: "genus",
+          url: "/genus/#{genus.id}",
+          nodes:
+            Enum.map(species, fn s ->
+              %{
+                key: "s-#{s.id}",
+                label: s.name,
+                url: s.url
+              }
+            end)
+        }
+      end)
+
+    # Intermediates first, then genera
+    intermediate_nodes ++ genus_nodes
   end
 
   defp get_species_info(species_ids) do
