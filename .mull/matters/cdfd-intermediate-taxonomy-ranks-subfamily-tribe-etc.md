@@ -1,5 +1,5 @@
 ---
-status: refined
+status: done
 created: 2026-02-28
 updated: 2026-03-01
 epic: taxonomy
@@ -479,3 +479,22 @@ Group the children: intermediates first (with their rank label), then genera. Ea
 
 Depends on: Tasks 3, 9.
 
+## Implementation Review Notes
+
+### Task 3 blast radius is larger than documented
+
+The plan lists `get_taxonomy_for_species`, `get_taxonomy_for_species_batch`, `list_genera_for_select`, and `list_gall_families_for_host/genus` as needing query changes. But several more functions also assume `genus.parent_id == family.id`:
+
+- `search_families/2` (taxoncode filter branch) — joins `g.parent_id == f.id` to find genera under a family
+- `search_genera/3` — joins `g.parent_id == f.id` to resolve `family_name` and `family_id`
+- `get_species_ids_for_family/1` — joins `g.parent_id == ^family_id`, which would miss genera nested under intermediates
+
+These won't break immediately (no intermediates exist yet), but will silently return wrong results once someone creates an intermediate and moves genera under it.
+
+### from_genus must stay a pure constructor
+
+The plan suggests changing `from_genus/1` to call `get_taxonomy_path` (a DB query). Currently `from_genus` is a pure data transform — it takes a TaxonomySchema with preloaded parent and builds a Lineage. Making it do I/O changes its contract. Better approach: add a new `from_path/1` constructor and have callers that need intermediates use `get_taxonomy_path` + `from_path`. Keep `from_genus` backward-compatible for contexts where intermediates aren't needed.
+
+### Skip structure.sql update
+
+Task 1 lists `priv/repo/structure.sql` as a file to modify. Per project conventions, `structure.sql` was a one-time V1 bootstrap and is not the source of truth. All schema changes go through Ecto migrations only.
