@@ -92,6 +92,30 @@ defmodule Gallformers.Storage do
   end
 
   @doc """
+  Generates the S3 path for a content image (article or key).
+
+  Options:
+  - `has_variants` - when true, includes `_original` suffix for size variant generation
+
+  Format with variants: {prefix}/{owner_id}/{ts}_{unique}_original.{ext}
+  Format without:       {prefix}/{owner_id}/{ts}_{unique}.{ext}
+  """
+  @spec generate_content_image_path(String.t(), integer(), String.t(), keyword()) :: String.t()
+  def generate_content_image_path(prefix, owner_id, extension, opts \\ []) do
+    timestamp = System.system_time(:millisecond)
+    unique = System.unique_integer([:positive])
+    ext = String.trim_leading(extension, ".")
+    has_variants = Keyword.get(opts, :has_variants, false)
+
+    filename =
+      if has_variants,
+        do: "#{timestamp}_#{unique}_original.#{ext}",
+        else: "#{timestamp}_#{unique}.#{ext}"
+
+    prefix_path("#{prefix}/#{owner_id}/#{filename}")
+  end
+
+  @doc """
   Returns the full CDN URL for an article image path.
   """
   @spec article_image_url(String.t()) :: String.t()
@@ -148,11 +172,26 @@ defmodule Gallformers.Storage do
   """
   @spec generate_size_variants(String.t()) :: :ok | {:error, term()}
   def generate_size_variants(original_path) do
+    generate_size_variants(original_path, @sizes)
+  end
+
+  @doc """
+  Generates image size variants with a custom sizes config.
+
+  `sizes` is a map or keyword list of `{name, width_px}` pairs.
+  An empty map/list is a no-op.
+  """
+  @spec generate_size_variants(String.t(), map() | keyword()) :: :ok | {:error, term()}
+  def generate_size_variants(_original_path, sizes) when sizes == %{} or sizes == [] do
+    :ok
+  end
+
+  def generate_size_variants(original_path, sizes) do
     original_url = cdn_url() <> "/" <> original_path
 
     case fetch_original_image(original_url) do
       {:ok, body} ->
-        spawn_resize_tasks(body, original_path)
+        spawn_resize_tasks(body, original_path, sizes)
         :ok
 
       {:error, reason} ->
@@ -169,8 +208,8 @@ defmodule Gallformers.Storage do
     end
   end
 
-  defp spawn_resize_tasks(body, original_path) do
-    Enum.each(@sizes, fn {size_name, width} ->
+  defp spawn_resize_tasks(body, original_path, sizes) do
+    Enum.each(sizes, fn {size_name, width} ->
       Gallformers.Async.run(fn -> resize_and_upload(body, original_path, size_name, width) end)
     end)
   end
@@ -206,6 +245,40 @@ defmodule Gallformers.Storage do
   # =============================================================================
   # Delete Operations
   # =============================================================================
+
+  @doc """
+  Returns the list of S3 keys for a content image path and its size variants.
+
+  For paths without variants (empty sizes list), returns just the original path.
+  For paths with variants, returns original + each variant key.
+  """
+  @spec variant_keys_for_path(String.t(), [atom()]) :: [String.t()]
+  def variant_keys_for_path(path, []), do: [path]
+
+  def variant_keys_for_path(path, sizes) do
+    variant_keys =
+      Enum.map(sizes, fn size_name ->
+        String.replace(path, "original", Atom.to_string(size_name))
+      end)
+
+    [path | variant_keys]
+  end
+
+  @doc """
+  Deletes a content image and its size variants from S3.
+
+  Pass an empty sizes list for images without variants (articles).
+  Pass the variant size names for images with variants (keys).
+  """
+  @spec delete_content_image(String.t(), [atom()]) :: :ok | {:error, term()}
+  def delete_content_image(path, sizes) when is_binary(path) do
+    keys = variant_keys_for_path(path, sizes)
+
+    case ExAws.S3.delete_multiple_objects(bucket(), keys) |> Gallformers.S3.request() do
+      {:ok, _} -> :ok
+      {:error, reason} -> {:error, reason}
+    end
+  end
 
   @doc """
   Deletes an image and all its size variants from S3.

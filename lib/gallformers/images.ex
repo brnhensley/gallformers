@@ -386,61 +386,11 @@ defmodule Gallformers.Images do
   end
 
   # =============================================================================
-  # Attribution Functions
+  # Attribution Functions (delegates to Images.Attribution)
   # =============================================================================
 
-  @doc """
-  Checks if a license requires attribution (creator must be specified).
-
-  Public Domain / CC0 does not require attribution.
-  All other licenses (CC-BY variants, All Rights Reserved) require attribution.
-  """
-  @spec requires_attribution?(String.t() | nil) :: boolean()
-  def requires_attribution?(nil), do: false
-  def requires_attribution?("Public Domain / CC0"), do: false
-  def requires_attribution?(license), do: Licenses.valid?(license)
-
-  @doc """
-  Checks if an image is properly attributed.
-
-  An image is attributed if:
-  1. It has a source with a license, OR
-  2. It has sourcelink + license + creator, OR
-  3. Its license is Public Domain / CC0 (no attribution required)
-
-  An image is NOT attributed if:
-  - License requires attribution but creator is missing
-  - No license and no source
-  """
-  @spec image_attributed?(ImageSchema.t()) :: boolean()
-  def image_attributed?(%ImageSchema{} = image) do
-    cond do
-      # Has source with license - attributed via source
-      image.source_id != nil && image.source != nil && image.source.license != nil ->
-        true
-
-      # Public domain - no attribution needed
-      image.license == "Public Domain / CC0" ->
-        true
-
-      # Has license that requires attribution - need creator
-      requires_attribution?(image.license) ->
-        has_value?(image.creator)
-
-      # No license at all - not attributed
-      !has_value?(image.license) ->
-        false
-
-      # Fallback - has license, doesn't require attribution
-      true ->
-        true
-    end
-  end
-
-  defp has_value?(nil), do: false
-  defp has_value?(""), do: false
-  defp has_value?(val) when is_binary(val), do: String.trim(val) != ""
-  defp has_value?(_), do: false
+  defdelegate requires_attribution?(license), to: Gallformers.Images.Attribution
+  defdelegate image_attributed?(image), to: Gallformers.Images.Attribution
 
   @doc """
   Lists images that are not properly attributed.
