@@ -168,6 +168,23 @@ defmodule Gallformers.KeysTest do
       assert {:ok, _deleted} = Keys.delete_key(key)
       assert {:error, :not_found} = Keys.get_key("test-key")
     end
+
+    test "cascade deletes content images from DB" do
+      {:ok, key} = Keys.create_key(valid_attrs())
+
+      {:ok, _img} =
+        Gallformers.ContentImages.finalize_upload(
+          "keys/#{key.id}/test_original.png",
+          :key,
+          key.id,
+          "tester"
+        )
+
+      assert length(Gallformers.ContentImages.list_images_for_key(key.id)) == 1
+
+      assert {:ok, _} = Keys.delete_key(key)
+      assert Gallformers.ContentImages.list_images_for_key(key.id) == []
+    end
   end
 
   describe "CoupletsType validation" do

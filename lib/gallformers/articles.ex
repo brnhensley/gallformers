@@ -214,6 +214,8 @@ defmodule Gallformers.Articles do
   """
   @spec delete_article(Article.t()) :: {:ok, Article.t()} | {:error, Ecto.Changeset.t()}
   def delete_article(%Article{} = article) do
+    Gallformers.ContentImages.delete_images_from_s3_for_article(article.id)
+
     Repo.delete(article)
     |> broadcast(:article_deleted)
   end

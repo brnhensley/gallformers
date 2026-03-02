@@ -212,6 +212,23 @@ defmodule Gallformers.ArticlesTest do
       assert {:ok, %Article{}} = Articles.delete_article(article)
       assert_raise Ecto.NoResultsError, fn -> Articles.get_article!(article.id) end
     end
+
+    test "cascade deletes content images from DB" do
+      article = create_article()
+
+      {:ok, _img} =
+        Gallformers.ContentImages.finalize_upload(
+          "articles/#{article.id}/test.jpg",
+          :article,
+          article.id,
+          "tester"
+        )
+
+      assert length(Gallformers.ContentImages.list_images_for_article(article.id)) == 1
+
+      assert {:ok, _} = Articles.delete_article(article)
+      assert Gallformers.ContentImages.list_images_for_article(article.id) == []
+    end
   end
 
   describe "change_article/2" do
