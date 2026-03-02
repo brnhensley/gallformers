@@ -204,6 +204,17 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
   end
 
   @impl true
+  def handle_event("select_all_children", _params, socket) do
+    all_ids = Enum.map(socket.assigns.children_options, & &1.id)
+    {:noreply, assign(socket, :selected_children, all_ids)}
+  end
+
+  @impl true
+  def handle_event("deselect_all_children", _params, socket) do
+    {:noreply, assign(socket, :selected_children, [])}
+  end
+
+  @impl true
   def handle_event("save", %{"taxonomy" => taxonomy_params} = params, socket) do
     if taxonomy_params["type"] == "intermediate" and socket.assigns.live_action == :new do
       handle_save_intermediate(taxonomy_params, socket)
@@ -517,7 +528,22 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
             }
             class="mb-3"
           >
-            <label class="gf-label">Children to move under this intermediate:</label>
+            <div class="flex items-center justify-between">
+              <label class="gf-label">Children to move under this intermediate:</label>
+              <button
+                type="button"
+                phx-click={
+                  if length(@selected_children) == length(@children_options),
+                    do: "deselect_all_children",
+                    else: "select_all_children"
+                }
+                class="text-xs text-gf-maroon hover:underline"
+              >
+                {if length(@selected_children) == length(@children_options),
+                  do: "Deselect all",
+                  else: "Select all"}
+              </button>
+            </div>
             <p class="mt-1 mb-2 text-xs text-gray-500">
               Select which children of the parent should be re-parented under this new intermediate. At least one is required.
             </p>
