@@ -4,6 +4,8 @@ defmodule GallformersWeb.RedirectController do
   """
   use GallformersWeb, :controller
 
+  alias GallformersWeb.TaxonomyURL
+
   @doc """
   Redirects /refindex to /articles
   """
@@ -42,38 +44,22 @@ defmodule GallformersWeb.RedirectController do
   - intermediate → /:rank/:name (e.g., /subfamily/Cynipinae)
   """
   def taxonomy(conn, %{"id" => id_str}) do
-    case Integer.parse(id_str) do
-      {id, ""} ->
-        case Gallformers.Taxonomy.get_taxonomy(id) do
-          nil ->
-            conn
-            |> put_status(:not_found)
-            |> put_view(GallformersWeb.ErrorHTML)
-            |> render(:"404")
-
-          %{type: "intermediate", rank: rank, name: name} when rank not in [nil, ""] ->
-            conn
-            |> put_status(:moved_permanently)
-            |> redirect(to: "/#{String.downcase(rank)}/#{name}")
-
-          %{type: type, name: name} when type in ["family", "genus", "section"] ->
-            conn
-            |> put_status(:moved_permanently)
-            |> redirect(to: "/#{type}/#{name}")
-
-          _ ->
-            conn
-            |> put_status(:not_found)
-            |> put_view(GallformersWeb.ErrorHTML)
-            |> render(:"404")
-        end
-
-      _ ->
-        conn
-        |> put_status(:not_found)
-        |> put_view(GallformersWeb.ErrorHTML)
-        |> render(:"404")
+    with {id, ""} <- Integer.parse(id_str),
+         %{} = taxonomy <- Gallformers.Taxonomy.get_taxonomy(id),
+         path when is_binary(path) <- TaxonomyURL.public_path(taxonomy) do
+      conn
+      |> put_status(:moved_permanently)
+      |> redirect(to: path)
+    else
+      _ -> render_404(conn)
     end
+  end
+
+  defp render_404(conn) do
+    conn
+    |> put_status(:not_found)
+    |> put_view(GallformersWeb.ErrorHTML)
+    |> render(:"404")
   end
 
   @doc """

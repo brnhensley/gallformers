@@ -117,34 +117,46 @@ defmodule Gallformers.Taxonomy.Tree do
     if children_ids == [] do
       {:error, :no_children_selected}
     else
-      Repo.transaction(fn ->
-        intermediate_attrs =
-          attrs
-          |> Map.drop([:children_ids, "children_ids"])
-          |> then(fn a ->
-            if Map.has_key?(a, :name),
-              do: Map.put_new(a, :type, "intermediate"),
-              else: Map.put_new(a, "type", "intermediate")
-          end)
-
-        case %Taxonomy{} |> Taxonomy.changeset(intermediate_attrs) |> Repo.insert() do
-          {:ok, intermediate} ->
-            {count, _} =
-              from(t in Taxonomy, where: t.id in ^children_ids)
-              |> Repo.update_all(set: [parent_id: intermediate.id])
-
-            if count == 0, do: Repo.rollback(:no_children_updated)
-            intermediate
-
-          {:error, changeset} ->
-            Repo.rollback(changeset)
-        end
-      end)
+      attrs
+      |> do_create_intermediate(children_ids)
       |> case do
         {:ok, intermediate} -> broadcast({:ok, intermediate}, :taxonomy_created)
         {:error, reason} -> {:error, reason}
       end
     end
+  end
+
+  defp do_create_intermediate(attrs, children_ids) do
+    intermediate_attrs = prepare_intermediate_attrs(attrs)
+
+    Repo.transaction(fn ->
+      case %Taxonomy{} |> Taxonomy.changeset(intermediate_attrs) |> Repo.insert() do
+        {:ok, intermediate} ->
+          reparent_children!(children_ids, intermediate.id)
+          intermediate
+
+        {:error, changeset} ->
+          Repo.rollback(changeset)
+      end
+    end)
+  end
+
+  defp prepare_intermediate_attrs(attrs) do
+    attrs
+    |> Map.drop([:children_ids, "children_ids"])
+    |> then(fn a ->
+      if Map.has_key?(a, :name),
+        do: Map.put_new(a, :type, "intermediate"),
+        else: Map.put_new(a, "type", "intermediate")
+    end)
+  end
+
+  defp reparent_children!(children_ids, parent_id) do
+    {count, _} =
+      from(t in Taxonomy, where: t.id in ^children_ids)
+      |> Repo.update_all(set: [parent_id: parent_id])
+
+    if count == 0, do: Repo.rollback(:no_children_updated)
   end
 
   @doc """

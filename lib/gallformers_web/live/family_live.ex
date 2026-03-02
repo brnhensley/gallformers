@@ -8,6 +8,7 @@ defmodule GallformersWeb.FamilyLive do
 
   alias Gallformers.Taxonomy
   alias Gallformers.Taxonomy.Family
+  alias GallformersWeb.TaxonomyURL
   alias GallformersWeb.TreeComponents
 
   # Smart expand thresholds (same as Explore page)
@@ -15,7 +16,7 @@ defmodule GallformersWeb.FamilyLive do
 
   @impl true
   def mount(%{"name" => name}, _session, socket) do
-    if numeric?(name) do
+    if TaxonomyURL.numeric?(name) do
       redirect_by_id(socket, name, "family")
     else
       case Taxonomy.get_taxonomy_by_name(name, "family") do
@@ -44,12 +45,10 @@ defmodule GallformersWeb.FamilyLive do
     end
   end
 
-  defp numeric?(s), do: Regex.match?(~r/^\d+$/, s)
-
   defp redirect_by_id(socket, id_str, type) do
     case Taxonomy.get_taxonomy(String.to_integer(id_str)) do
-      %{type: ^type, name: name} ->
-        {:ok, push_navigate(socket, to: "/#{type}/#{name}", replace: true)}
+      %{type: ^type} = taxonomy ->
+        {:ok, push_navigate(socket, to: TaxonomyURL.public_path(taxonomy), replace: true)}
 
       _ ->
         {:ok,
@@ -78,7 +77,7 @@ defmodule GallformersWeb.FamilyLive do
        page_title: family.name,
        page_description:
          "#{family.name} - A taxonomic family documented on Gallformers with genera and species.",
-       page_url: "/family/#{family.name}",
+       page_url: TaxonomyURL.public_path(%{type: "family", name: family.name}),
        page_image: nil,
        page_json_ld: nil,
        page_noindex: false,
@@ -115,7 +114,7 @@ defmodule GallformersWeb.FamilyLive do
           label: "#{rank_label}: #{format_label(intermediate.name, intermediate.description)}",
           name: intermediate.name,
           rank: "intermediate",
-          url: "/#{String.downcase(intermediate.rank || "intermediate")}/#{intermediate.name}",
+          url: TaxonomyURL.public_path(intermediate),
           nodes: sub_tree
         }
       end)
@@ -135,7 +134,7 @@ defmodule GallformersWeb.FamilyLive do
           label: format_label(genus.name, genus.description),
           name: genus.name,
           rank: "genus",
-          url: "/genus/#{genus.name}",
+          url: TaxonomyURL.public_path(genus),
           nodes:
             Enum.map(species, fn s ->
               %{

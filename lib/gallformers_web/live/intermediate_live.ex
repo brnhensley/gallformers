@@ -9,10 +9,11 @@ defmodule GallformersWeb.IntermediateLive do
 
   alias Gallformers.Taxonomy
   alias Gallformers.Taxonomy.Lineage
+  alias GallformersWeb.TaxonomyURL
 
   @impl true
   def mount(%{"name" => name}, _session, socket) do
-    if numeric?(name) do
+    if TaxonomyURL.numeric?(name) do
       redirect_by_id(socket, name)
     else
       expected_rank =
@@ -30,12 +31,13 @@ defmodule GallformersWeb.IntermediateLive do
     end
   end
 
-  defp numeric?(s), do: Regex.match?(~r/^\d+$/, s)
-
   defp redirect_by_id(socket, id_str) do
     case Taxonomy.get_taxonomy(String.to_integer(id_str)) do
-      %{type: "intermediate", rank: rank, name: name} when rank not in [nil, ""] ->
-        {:ok, push_navigate(socket, to: "/#{String.downcase(rank)}/#{name}", replace: true)}
+      %{type: "intermediate"} = taxonomy ->
+        case TaxonomyURL.public_path(taxonomy) do
+          nil -> {:ok, assign_not_found(socket, "Taxonomy not found")}
+          path -> {:ok, push_navigate(socket, to: path, replace: true)}
+        end
 
       _ ->
         {:ok, assign_not_found(socket, "Taxonomy not found")}
@@ -52,7 +54,7 @@ defmodule GallformersWeb.IntermediateLive do
        page_title: "#{taxonomy.rank}: #{taxonomy.name}",
        page_description:
          "#{taxonomy.name} - A taxonomic #{String.downcase(taxonomy.rank || "group")} documented on Gallformers.",
-       page_url: "/#{String.downcase(taxonomy.rank)}/#{taxonomy.name}",
+       page_url: TaxonomyURL.public_path(taxonomy),
        page_image: nil,
        page_json_ld: nil,
        page_noindex: false,
@@ -88,13 +90,7 @@ defmodule GallformersWeb.IntermediateLive do
     )
   end
 
-  defp child_url(%{type: "genus", name: name}), do: "/genus/#{name}"
-
-  defp child_url(%{type: "intermediate", rank: rank, name: name}),
-    do: "/#{String.downcase(rank)}/#{name}"
-
-  defp child_url(%{type: "section", name: name}), do: "/section/#{name}"
-  defp child_url(_), do: nil
+  defp child_url(child), do: TaxonomyURL.public_path(child)
 
   @impl true
   def handle_event("search", %{"query" => query}, socket) do
@@ -138,18 +134,13 @@ defmodule GallformersWeb.IntermediateLive do
   end
 
   defp sorted_children(children, sort_by, sort_dir) do
-    sorted =
-      Enum.sort_by(children, fn c ->
-        case sort_by do
-          :name -> String.downcase(c.name || "")
-          :type -> String.downcase(c.rank || c.type || "")
-          :species_count -> c.species_count
-          _ -> String.downcase(c.name || "")
-        end
-      end)
-
+    sorted = Enum.sort_by(children, &sort_key(&1, sort_by))
     if sort_dir == :desc, do: Enum.reverse(sorted), else: sorted
   end
+
+  defp sort_key(child, :type), do: String.downcase(child.rank || child.type || "")
+  defp sort_key(child, :species_count), do: child.species_count
+  defp sort_key(child, _), do: String.downcase(child.name || "")
 
   @impl true
   def render(assigns) do

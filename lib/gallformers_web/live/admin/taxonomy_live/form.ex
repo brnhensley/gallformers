@@ -11,6 +11,7 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
   import GallformersWeb.FormComponents, only: [cascade_delete_modal: 1, typeahead: 1]
 
   alias Gallformers.Taxonomy
+  alias GallformersWeb.TaxonomyURL
   alias Phoenix.HTML.Form, as: HtmlForm
 
   # Family types - these categorize what kind of organism a family contains.
@@ -509,14 +510,7 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
     "Deleted #{deleted.type} \"#{deleted.name}\""
   end
 
-  defp taxonomy_public_url(%{type: "family", name: name}), do: ~p"/family/#{name}"
-  defp taxonomy_public_url(%{type: "genus", name: name}), do: ~p"/genus/#{name}"
-
-  defp taxonomy_public_url(%{type: "intermediate", rank: rank, name: name}),
-    do: "/#{String.downcase(rank)}/#{name}"
-
-  defp taxonomy_public_url(%{type: "section", name: name}), do: ~p"/section/#{name}"
-  defp taxonomy_public_url(_), do: nil
+  defp taxonomy_public_url(taxonomy), do: TaxonomyURL.public_path(taxonomy)
 
   defp validate_unique_name_parent(changeset, taxonomy) do
     name = Ecto.Changeset.get_field(changeset, :name)

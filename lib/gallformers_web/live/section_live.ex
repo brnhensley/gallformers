@@ -9,10 +9,11 @@ defmodule GallformersWeb.SectionLive do
 
   alias Gallformers.Species
   alias Gallformers.Taxonomy
+  alias GallformersWeb.TaxonomyURL
 
   @impl true
   def mount(%{"name" => name}, _session, socket) do
-    if numeric?(name) do
+    if TaxonomyURL.numeric?(name) do
       redirect_by_id(socket, name)
     else
       case Taxonomy.get_taxonomy_by_name(name, "section") do
@@ -25,12 +26,10 @@ defmodule GallformersWeb.SectionLive do
     end
   end
 
-  defp numeric?(s), do: Regex.match?(~r/^\d+$/, s)
-
   defp redirect_by_id(socket, id_str) do
     case Taxonomy.get_taxonomy(String.to_integer(id_str)) do
-      %{type: "section", name: name} ->
-        {:ok, push_navigate(socket, to: "/section/#{name}", replace: true)}
+      %{type: "section"} = taxonomy ->
+        {:ok, push_navigate(socket, to: TaxonomyURL.public_path(taxonomy), replace: true)}
 
       _ ->
         {:ok, assign_section_not_found(socket)}
@@ -63,7 +62,7 @@ defmodule GallformersWeb.SectionLive do
            page_title: "Section #{lineage.section.name}",
            page_description:
              "#{lineage.section.name} - A taxonomic section documented on Gallformers with #{length(species)} species.",
-           page_url: "/section/#{lineage.section.name}",
+           page_url: TaxonomyURL.public_path(%{type: "section", name: lineage.section.name}),
            page_image: nil,
            page_json_ld: nil,
            page_noindex: false,

@@ -14,7 +14,6 @@ defmodule GallformersWeb.GallsBrowseLive do
   @impl true
   def mount(_params, _session, socket) do
     galls_tree = Galls.get_galls_tree()
-    undescribed_tree = Galls.get_undescribed_tree()
 
     {:ok,
      assign(socket,
@@ -26,7 +25,7 @@ defmodule GallformersWeb.GallsBrowseLive do
        showing_undescribed: false,
        search_query: "",
        galls_tree: galls_tree,
-       undescribed_tree: undescribed_tree,
+       undescribed_tree: nil,
        filtered: galls_tree,
        expanded: MapSet.new()
      )}
@@ -34,7 +33,7 @@ defmodule GallformersWeb.GallsBrowseLive do
 
   @impl true
   def handle_event("toggle_node", %{"key" => key}, socket) do
-    expanded = toggle_set(socket.assigns.expanded, key)
+    expanded = BrowseHelpers.toggle_set(socket.assigns.expanded, key)
     {:noreply, assign(socket, expanded: expanded)}
   end
 
@@ -61,6 +60,15 @@ defmodule GallformersWeb.GallsBrowseLive do
   @impl true
   def handle_event("toggle_undescribed", _params, socket) do
     new_showing = !socket.assigns.showing_undescribed
+
+    # Lazy-load undescribed tree on first toggle
+    socket =
+      if new_showing && is_nil(socket.assigns.undescribed_tree) do
+        assign(socket, undescribed_tree: Galls.get_undescribed_tree())
+      else
+        socket
+      end
+
     tree = if new_showing, do: socket.assigns.undescribed_tree, else: socket.assigns.galls_tree
     query = socket.assigns.search_query
     filtered = BrowseHelpers.filter_tree(tree, query)
@@ -80,10 +88,6 @@ defmodule GallformersWeb.GallsBrowseLive do
 
   defp active_tree(assigns) do
     if assigns.showing_undescribed, do: assigns.undescribed_tree, else: assigns.galls_tree
-  end
-
-  defp toggle_set(set, key) do
-    if MapSet.member?(set, key), do: MapSet.delete(set, key), else: MapSet.put(set, key)
   end
 
   @impl true

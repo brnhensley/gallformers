@@ -10,6 +10,7 @@ defmodule Gallformers.TaxonomyTest do
   alias Gallformers.Taxonomy
   alias Gallformers.Taxonomy.{Family, Genus, Intermediate, Lineage, Section}
   alias Gallformers.Taxonomy.Taxonomy, as: TaxonomySchema
+  alias Gallformers.Taxonomy.Tree
 
   describe "update_taxonomy/2 genus rename" do
     setup do
@@ -2314,7 +2315,8 @@ defmodule Gallformers.TaxonomyTest do
 
   describe "query changes for intermediates" do
     # Test seed data (from test_seeds.sql):
-    # Cynipidae (family, id=30) → Cynipinae (subfamily, id=31) → Cynipini (tribe, id=32) → Andricus (genus, id=33), Cynips (genus, id=34)
+    # Cynipidae (family, id=30) → Cynipinae (subfamily, id=31) →
+    #   Cynipini (tribe, id=32) → Andricus (genus, id=33), Cynips (genus, id=34)
     # Species: 200 = Andricus crystallinus → genus 33, 201 = Cynips quercus → genus 34
 
     test "get_taxonomy_for_species returns intermediates for species under intermediate-parented genus" do
@@ -2361,7 +2363,7 @@ defmodule Gallformers.TaxonomyTest do
 
     test "build_taxonomy_from_genus with intermediates" do
       genus = Repo.get!(TaxonomySchema, 33)
-      lineage = Gallformers.Taxonomy.Tree.build_taxonomy_from_genus(genus)
+      lineage = Tree.build_taxonomy_from_genus(genus)
 
       assert lineage.family.name == "Cynipidae"
       assert lineage.genus.name == "Andricus"

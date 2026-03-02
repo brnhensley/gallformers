@@ -30,7 +30,7 @@ defmodule GallformersWeb.HostsBrowseLive do
 
   @impl true
   def handle_event("toggle_node", %{"key" => key}, socket) do
-    expanded = toggle_set(socket.assigns.expanded, key)
+    expanded = BrowseHelpers.toggle_set(socket.assigns.expanded, key)
     {:noreply, assign(socket, expanded: expanded)}
   end
 
@@ -51,10 +51,6 @@ defmodule GallformersWeb.HostsBrowseLive do
     expanded = BrowseHelpers.smart_expand(filtered, query, socket.assigns.expanded)
 
     {:noreply, assign(socket, search_query: query, filtered: filtered, expanded: expanded)}
-  end
-
-  defp toggle_set(set, key) do
-    if MapSet.member?(set, key), do: MapSet.delete(set, key), else: MapSet.put(set, key)
   end
 
   @impl true

@@ -8,6 +8,7 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Index do
   use GallformersWeb, :live_view
 
   alias Gallformers.Taxonomy
+  alias GallformersWeb.TaxonomyURL
 
   @page_size 50
   @valid_sort_columns ~w(name type description parent_name)
@@ -356,14 +357,7 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Index do
     end
   end
 
-  defp taxonomy_public_url(%{type: "family", name: name}), do: ~p"/family/#{name}"
-  defp taxonomy_public_url(%{type: "genus", name: name}), do: ~p"/genus/#{name}"
-
-  defp taxonomy_public_url(%{type: "intermediate", rank: rank, name: name}),
-    do: "/#{String.downcase(rank)}/#{name}"
-
-  defp taxonomy_public_url(%{type: "section", name: name}), do: ~p"/section/#{name}"
-  defp taxonomy_public_url(_), do: nil
+  defp taxonomy_public_url(taxonomy), do: TaxonomyURL.public_path(taxonomy)
 
   @impl true
   def render(assigns) do

@@ -34,39 +34,41 @@ defmodule Gallformers.Taxonomy.Search do
       )
 
     if taxoncode do
-      # Use CTE to find genera that are descendants of matching families
-      # (handles intermediate ranks between family and genus)
-      name_pattern_for_sql = "#{String.downcase(query)}%"
-
-      sql = """
-      WITH RECURSIVE family_descendants AS (
-        SELECT f.id, f.id as family_id, f.name as family_name, f.type
-        FROM taxonomy f
-        WHERE f.type = 'family' AND lower(f.name) LIKE ?1
-
-        UNION ALL
-
-        SELECT t.id, fd.family_id, fd.family_name, t.type
-        FROM taxonomy t
-        JOIN family_descendants fd ON t.parent_id = fd.id
-      )
-      SELECT DISTINCT fd.family_id as id, fd.family_name as name
-      FROM family_descendants fd
-      JOIN species_taxonomy st ON st.taxonomy_id = fd.id AND fd.type = 'genus'
-      JOIN species s ON st.species_id = s.id AND s.taxoncode = ?2
-      ORDER BY fd.family_name
-      LIMIT ?3
-      """
-
-      case Repo.query(sql, [name_pattern_for_sql, taxoncode, limit]) do
-        {:ok, %{rows: rows}} ->
-          Enum.map(rows, fn [id, name] -> %{id: id, name: name} end)
-
-        {:error, _} ->
-          []
-      end
+      search_families_by_taxoncode(query, taxoncode, limit)
     else
       Repo.all(base)
+    end
+  end
+
+  defp search_families_by_taxoncode(query, taxoncode, limit) do
+    name_pattern = "#{String.downcase(query)}%"
+
+    sql = """
+    WITH RECURSIVE family_descendants AS (
+      SELECT f.id, f.id as family_id, f.name as family_name, f.type
+      FROM taxonomy f
+      WHERE f.type = 'family' AND lower(f.name) LIKE ?1
+
+      UNION ALL
+
+      SELECT t.id, fd.family_id, fd.family_name, t.type
+      FROM taxonomy t
+      JOIN family_descendants fd ON t.parent_id = fd.id
+    )
+    SELECT DISTINCT fd.family_id as id, fd.family_name as name
+    FROM family_descendants fd
+    JOIN species_taxonomy st ON st.taxonomy_id = fd.id AND fd.type = 'genus'
+    JOIN species s ON st.species_id = s.id AND s.taxoncode = ?2
+    ORDER BY fd.family_name
+    LIMIT ?3
+    """
+
+    case Repo.query(sql, [name_pattern, taxoncode, limit]) do
+      {:ok, %{rows: rows}} ->
+        Enum.map(rows, fn [id, name] -> %{id: id, name: name} end)
+
+      {:error, _} ->
+        []
     end
   end
 

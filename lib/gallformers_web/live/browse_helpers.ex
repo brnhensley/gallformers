@@ -58,6 +58,14 @@ defmodule GallformersWeb.BrowseHelpers do
     end)
   end
 
+  @doc """
+  Toggles a key in a MapSet (adds if absent, removes if present).
+  """
+  @spec toggle_set(MapSet.t(), String.t()) :: MapSet.t()
+  def toggle_set(set, key) do
+    if MapSet.member?(set, key), do: MapSet.delete(set, key), else: MapSet.put(set, key)
+  end
+
   # --- Private helpers ---
 
   defp do_filter_tree(nodes, query_lower) do

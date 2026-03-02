@@ -18,6 +18,7 @@ defmodule GallformersWeb.SitemapController do
 
   alias Gallformers.Repo
   alias Gallformers.Species.Species
+  alias GallformersWeb.TaxonomyURL
 
   @base_url "https://gallformers.org"
 
@@ -127,9 +128,12 @@ defmodule GallformersWeb.SitemapController do
     )
     |> Repo.all()
     |> Enum.map(fn {name, rank} ->
-      rank_path = String.downcase(rank || "intermediate")
-      %{loc: "#{@base_url}/#{rank_path}/#{name}", changefreq: "monthly", priority: "0.5"}
+      case TaxonomyURL.public_path(%{type: "intermediate", rank: rank, name: name}) do
+        nil -> nil
+        path -> %{loc: "#{@base_url}#{path}", changefreq: "monthly", priority: "0.5"}
+      end
     end)
+    |> Enum.reject(&is_nil/1)
   end
 
   # All place pages

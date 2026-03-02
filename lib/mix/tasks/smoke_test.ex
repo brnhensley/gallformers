@@ -236,7 +236,7 @@ defmodule Mix.Tasks.SmokeTest do
 
   defp discover_genus_name(client, body) when is_list(body) do
     case body do
-      [%{"genera" => [%{"name" => genus_name} | _]} | _] when is_binary(genus_name) ->
+      [%{"children" => [%{"name" => genus_name} | _]} | _] when is_binary(genus_name) ->
         {:ok, genus_name}
 
       [%{"id" => family_id} | _] when is_integer(family_id) ->
