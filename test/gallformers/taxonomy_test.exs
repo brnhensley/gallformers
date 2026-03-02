@@ -2347,6 +2347,37 @@ defmodule Gallformers.TaxonomyTest do
     end
   end
 
+  describe "search integration for intermediates" do
+    # Uses seed data: Cynipinae (subfamily, id=31), Cynipini (tribe, id=32)
+
+    test "search_genera_and_sections includes intermediates" do
+      results = Taxonomy.search_genera_and_sections("Cynip")
+
+      intermediate_results = Enum.filter(results, &(&1.type == "intermediate"))
+      assert length(intermediate_results) >= 1
+
+      cynipinae = Enum.find(intermediate_results, &(&1.name == "Cynipinae"))
+      assert cynipinae
+      assert cynipinae.rank == "Subfamily"
+    end
+
+    test "search_genera_and_sections returns rank field for intermediates" do
+      results = Taxonomy.search_genera_and_sections("Cynipini")
+      tribe = Enum.find(results, &(&1.name == "Cynipini"))
+      assert tribe
+      assert tribe.rank == "Tribe"
+      assert tribe.type == "intermediate"
+    end
+
+    test "search_genera_and_sections rank is nil for genus and section" do
+      results = Taxonomy.search_genera_and_sections("GenusAlpha")
+      genus = Enum.find(results, &(&1.name == "GenusAlpha"))
+      assert genus
+      assert genus.rank == nil
+      assert genus.type == "genus"
+    end
+  end
+
   describe "create_intermediate/1" do
     setup do
       {:ok, family} =

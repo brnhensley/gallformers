@@ -177,7 +177,7 @@ defmodule Gallformers.Taxonomy.Search do
 
     base_query =
       from(t in Taxonomy,
-        where: t.type in ["genus", "section"],
+        where: t.type in ["genus", "intermediate", "section"],
         where:
           fragment("lower(?) LIKE ?", t.name, ^name_pattern) or
             fragment("lower(?) LIKE ?", t.description, ^description_pattern),
@@ -187,7 +187,8 @@ defmodule Gallformers.Taxonomy.Search do
           id: t.id,
           name: t.name,
           type: t.type,
-          description: t.description
+          description: t.description,
+          rank: t.rank
         }
       )
 
