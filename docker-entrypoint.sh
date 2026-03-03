@@ -94,7 +94,17 @@ fi
 # Note: release_command doesn't work with SQLite volumes on Fly.io because
 # the release machine gets a forked snapshot that doesn't persist changes
 echo "Running database migrations..."
-su-exec gallformers /app/bin/gallformers eval 'Gallformers.Release.migrate()'
+attempts=0
+max_attempts=3
+until su-exec gallformers /app/bin/gallformers eval 'Gallformers.Release.migrate()'; do
+  attempts=$((attempts + 1))
+  if [ "$attempts" -ge "$max_attempts" ]; then
+    echo "ERROR: Migrations failed after $max_attempts attempts"
+    exit 1
+  fi
+  echo "Migration attempt $attempts failed, retrying in 5s..."
+  sleep 5
+done
 
 # Switch to gallformers user and start litestream with the app
 exec su-exec gallformers litestream replicate -exec "/app/bin/server"
