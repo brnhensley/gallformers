@@ -1,5 +1,5 @@
 ---
-status: raw
+status: refined
 effort: 1 day
 created: 2026-02-18
 updated: 2026-03-03
@@ -79,4 +79,3 @@ Pages converted to controllers lose LiveView hooks. For pages that need client i
 - Request log analysis: 75% bot traffic, GPTBot (9.4K), Meta (9K), ClaudeBot (7.2K), Amazonbot (4K)
 - Tree memory measurements: galls ~1 MB, hosts ~670 KB, places ~760 KB per process
 - Machine: shared-cpu-1x with 1024 MB RAM
-
