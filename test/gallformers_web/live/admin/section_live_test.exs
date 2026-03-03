@@ -119,5 +119,14 @@ defmodule GallformersWeb.Admin.SectionLiveTest do
 
       assert html =~ "Thymus alpinus"
     end
+
+    test "species search works with keyup event payload", %{conn: conn, section: section} do
+      {:ok, view, _html} = live(conn, ~p"/admin/section/#{section.id}")
+
+      # phx-keyup sends %{"value" => ...}, not %{"query" => ...}
+      html = render_keyup(view, "search_species", %{"value" => "Thymus"})
+
+      assert html =~ "Thymus"
+    end
   end
 end

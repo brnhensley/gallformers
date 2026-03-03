@@ -93,7 +93,7 @@ defmodule GallformersWeb.Admin.SectionLive.Form do
   # -- Species mapping events (edit mode) --
 
   @impl true
-  def handle_event("search_species", %{"query" => query}, socket) do
+  def handle_event("search_species", %{"value" => query}, socket) do
     if String.length(query) >= 2 do
       selected_ids = Enum.map(socket.assigns.species, & &1.id)
 

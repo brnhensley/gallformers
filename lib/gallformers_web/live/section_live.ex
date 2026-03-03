@@ -212,13 +212,17 @@ defmodule GallformersWeb.SectionLive do
                               {if @sort_dir == :asc, do: "↑", else: "↓"}
                             </span>
                           </th>
-                          <th class="sortable" phx-click="sort" phx-value-column="common_name">
+                          <th
+                            class="sortable text-center"
+                            phx-click="sort"
+                            phx-value-column="common_name"
+                          >
                             Common Name
                             <span :if={@sort_by == :common_name} class="ml-1">
                               {if @sort_dir == :asc, do: "↑", else: "↓"}
                             </span>
                           </th>
-                          <th class="sortable" phx-click="sort" phx-value-column="count">
+                          <th class="sortable text-center" phx-click="sort" phx-value-column="count">
                             Number of Galls
                             <span :if={@sort_by == :count} class="ml-1">
                               {if @sort_dir == :asc, do: "↑", else: "↓"}
@@ -234,8 +238,8 @@ defmodule GallformersWeb.SectionLive do
                               <.taxon_name name={species.name} />
                             </.link>
                           </td>
-                          <td>{species.common_name}</td>
-                          <td class="text-gray-600">
+                          <td class="text-center">{species.common_name}</td>
+                          <td class="text-center text-gray-600">
                             {species.count}
                           </td>
                         </tr>
