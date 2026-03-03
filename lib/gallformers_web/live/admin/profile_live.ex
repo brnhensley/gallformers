@@ -145,12 +145,17 @@ defmodule GallformersWeb.Admin.ProfileLive do
       flash={@flash}
       current_user={@current_user}
       page_title={@page_title}
-      public_url={if @user && @user.nickname, do: ~p"/user/#{@user.nickname}"}
     >
+      <:page_title_html>
+        Editing
+        <em class="font-bold">
+          {@current_user && Gallformers.Accounts.Auth0User.display_name(@current_user)}
+        </em>
+      </:page_title_html>
       <Layouts.admin_edit_layout
         back_path={~p"/admin"}
         back_label="Back to Dashboard"
-        title="Edit Profile"
+        public_url={if @user && @user.nickname, do: ~p"/user/#{@user.nickname}"}
       >
         <:intro>
           Your display name is used anywhere we display data change attribution and timestamps. It will be publicly visible.

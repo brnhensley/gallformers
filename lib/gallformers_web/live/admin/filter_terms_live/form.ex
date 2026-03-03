@@ -153,14 +153,16 @@ defmodule GallformersWeb.Admin.FilterTermsLive.Form do
   def render(assigns) do
     ~H"""
     <Layouts.admin flash={@flash} current_user={@current_user} page_title={@page_title}>
+      <:page_title_html>
+        <%= if @mode == :edit do %>
+          Editing <em class="font-bold">{FilterFields.singular_label(@filter_type)}</em>
+        <% else %>
+          New {FilterFields.singular_label(@filter_type)}
+        <% end %>
+      </:page_title_html>
       <Layouts.admin_edit_layout
         back_path={~p"/admin/filter-terms?type=#{@filter_type}"}
         back_label={"Back to #{FilterFields.type_label(@filter_type)}"}
-        title={
-          if @mode == :new,
-            do: "Add New #{FilterFields.singular_label(@filter_type)}",
-            else: "Edit #{FilterFields.singular_label(@filter_type)}"
-        }
       >
         <:intro>
           Filter terms are used by the ID tool to help identify galls.

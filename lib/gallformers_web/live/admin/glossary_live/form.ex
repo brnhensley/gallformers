@@ -66,16 +66,18 @@ defmodule GallformersWeb.Admin.GlossaryLive.Form do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.admin
-      flash={@flash}
-      current_user={@current_user}
-      page_title={@page_title}
-      public_url={if @mode == :edit, do: ~p"/glossary"}
-    >
+    <Layouts.admin flash={@flash} current_user={@current_user} page_title={@page_title}>
+      <:page_title_html>
+        <%= if @mode == :edit do %>
+          Editing <em class="font-bold">{@entry.word}</em>
+        <% else %>
+          New Glossary Entry
+        <% end %>
+      </:page_title_html>
       <Layouts.admin_edit_layout
         back_path={~p"/admin/glossary"}
         back_label="Back to Glossary"
-        title={if @mode == :new, do: "Add New Glossary Entry", else: "Edit Glossary Entry"}
+        public_url={if @mode == :edit, do: ~p"/glossary"}
       >
         <:intro>
           Glossary entries are automatically linked in species descriptions and other text throughout the site.

@@ -382,7 +382,7 @@ defmodule GallformersWeb.Admin.TaxonomyLive.FormTest do
     test "renders new taxonomy form", %{conn: conn} do
       {:ok, _view, html} = live(conn, ~p"/admin/taxonomy/new")
 
-      assert html =~ "Create New Taxonomy Entry"
+      assert html =~ "New Taxonomy Entry"
       assert html =~ "Name"
       assert html =~ "Type"
     end
@@ -397,7 +397,7 @@ defmodule GallformersWeb.Admin.TaxonomyLive.FormTest do
 
       {:ok, _view, html} = live(conn, ~p"/admin/taxonomy/#{family.id}")
 
-      assert html =~ "Edit Taxonomy Entry"
+      assert html =~ "Editing"
       assert html =~ "EditTestFamily"
     end
 
@@ -834,7 +834,7 @@ defmodule GallformersWeb.Admin.TaxonomyLive.FormTest do
     end
   end
 
-  describe "edit mode banner" do
+  describe "edit mode subtitle" do
     setup %{conn: conn} do
       {:ok, family} =
         Taxonomy.create_taxonomy(%{
@@ -846,18 +846,19 @@ defmodule GallformersWeb.Admin.TaxonomyLive.FormTest do
       {:ok, conn: setup_admin_session(conn), family: family}
     end
 
-    test "shows edit banner in edit mode", %{conn: conn, family: family} do
+    test "shows type and name in edit mode header", %{conn: conn, family: family} do
       {:ok, _view, html} = live(conn, ~p"/admin/taxonomy/#{family.id}")
 
-      assert html =~ "Editing existing"
+      assert html =~ "Editing"
       assert html =~ "family"
       assert html =~ "BannerTestFamily"
     end
 
-    test "does not show edit banner in new mode", %{conn: conn} do
+    test "does not show type and name in new mode", %{conn: conn} do
       {:ok, _view, html} = live(conn, ~p"/admin/taxonomy/new")
 
-      refute html =~ "Editing existing"
+      assert html =~ "New Taxonomy Entry"
+      refute html =~ "Editing"
     end
   end
 

@@ -91,7 +91,6 @@ defmodule GallformersWeb.Admin.ImagesLive do
       flash={@flash}
       current_user={@current_user}
       page_title="Image Management"
-      public_url={species_public_url(@selected_species)}
     >
       <div class="space-y-6">
         <%!-- Species Search --%>
@@ -1372,10 +1371,6 @@ defmodule GallformersWeb.Admin.ImagesLive do
         {:noreply, put_flash(socket, :error, "Failed to delete image: #{inspect(reason)}")}
     end
   end
-
-  defp species_public_url(nil), do: nil
-  defp species_public_url(%{taxoncode: "plant", id: id}), do: ~p"/host/#{id}"
-  defp species_public_url(%{id: id}), do: ~p"/gall/#{id}"
 
   @impl true
   def handle_info({:inat_import_complete, species_id}, socket) do

@@ -562,6 +562,19 @@ defmodule Gallformers.Taxonomy.Tree do
     families ++ intermediates
   end
 
+  def list_parent_options_with_paths("section") do
+    from(t in Taxonomy,
+      where: t.type == "genus" and t.is_placeholder == false,
+      order_by: t.name,
+      select: t
+    )
+    |> Repo.all()
+    |> Enum.map(fn t ->
+      path = build_parent_path(t)
+      %{id: t.id, name: t.name, type: "genus", rank: nil, path: path}
+    end)
+  end
+
   def list_parent_options_with_paths(_type), do: []
 
   defp build_parent_path(taxonomy) do

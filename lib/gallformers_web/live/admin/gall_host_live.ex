@@ -483,7 +483,6 @@ defmodule GallformersWeb.Admin.GallHostLive do
       flash={@flash}
       current_user={@current_user}
       page_title={@page_title}
-      public_url={if @selected_gall, do: ~p"/gall/#{@selected_gall.id}"}
     >
       <div class="max-w-7xl mx-auto">
         <div class="mb-4">

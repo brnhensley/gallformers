@@ -72,4 +72,41 @@ defmodule Gallformers.Taxonomy.TreeTest do
       assert updated_species.name =~ "RenamedGenus"
     end
   end
+
+  describe "list_parent_options_with_paths/1" do
+    test "returns genera with family paths for section type" do
+      # Seed data has FamilyAlpha (id: 20) with GenusAlpha (id: 10) as a child
+      results = Tree.list_parent_options_with_paths("section")
+
+      assert length(results) > 0
+
+      # Every result should be a genus
+      assert Enum.all?(results, fn opt -> opt.type == "genus" end)
+
+      # Each result should have the expected keys
+      first = hd(results)
+      assert Map.has_key?(first, :id)
+      assert Map.has_key?(first, :name)
+      assert Map.has_key?(first, :path)
+
+      # GenusAlpha should be present with its family path
+      genus_alpha = Enum.find(results, &(&1.name == "GenusAlpha"))
+      assert genus_alpha
+      assert genus_alpha.path == "FamilyAlpha / GenusAlpha"
+    end
+
+    test "returns genera under intermediates with full path for section type" do
+      # Seed data has Cynipidae (family 30) > Cynipinae (intermediate 31) > Cynipini (intermediate 32)
+      # Create a genus under the intermediate
+      {:ok, genus} =
+        Tree.create_taxonomy(%{name: "SectionTestGenus", type: "genus", parent_id: 32})
+
+      results = Tree.list_parent_options_with_paths("section")
+      section_genus = Enum.find(results, &(&1.id == genus.id))
+
+      assert section_genus
+      assert section_genus.path =~ "Cynipidae"
+      assert section_genus.path =~ "SectionTestGenus"
+    end
+  end
 end

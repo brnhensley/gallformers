@@ -59,7 +59,7 @@ defmodule GallformersWeb.Admin.SourceLive.FormTest do
       # Should show the edit page with the new source data (not the list page)
       # Current buggy behavior: shows "Sources" list page
       # Expected behavior: shows "Edit Source" page with the source data
-      assert html =~ "Edit Source"
+      assert html =~ "Editing"
       assert html =~ "Test Source Title"
       assert html =~ "Test Author"
     end

@@ -848,469 +848,476 @@ defmodule GallformersWeb.Admin.GallLive.Form do
 
   @impl true
   def render(assigns) do
-    assigns = assign(assigns, :title, "Add/Edit Galls")
-
     ~H"""
     <Layouts.admin
       flash={@flash}
       current_user={@current_user}
       page_title={@page_title}
-      public_url={if @mode == :edit, do: ~p"/gall/#{@gall.id}"}
     >
-      <div class="bg-white shadow rounded-lg">
-        <Layouts.admin_edit_layout back_path={~p"/admin"} back_label="Back to Admin" title={@title}>
-          <:intro>
-            Search for an existing gall to edit, or type a new name to create one.
-            To add descriptions, first add <.link
-              navigate={~p"/admin/sources"}
-              class="hover:underline"
-            >Sources</.link>,
-            then map species to sources. <br />
-            To add an undescribed gall, you must use the <.link
-              navigate={~p"/admin/galls/undescribed"}
-              class="text-gf-maroon hover:underline"
-            >
+      <:page_title_html>
+        <%= if @mode == :edit do %>
+          Editing <em class="font-bold">{@gall.name}</em>
+        <% else %>
+          New Gall
+        <% end %>
+      </:page_title_html>
+
+      <Layouts.admin_edit_layout
+        back_path={~p"/admin/galls"}
+        back_label="Back to Galls"
+        public_url={if @mode == :edit, do: ~p"/gall/#{@gall.id}"}
+      >
+        <:intro>
+          Search for an existing gall to edit, or type a new name to create one.
+          To add descriptions, first add <.link
+            navigate={~p"/admin/sources"}
+            class="hover:underline"
+          >Sources</.link>,
+          then map species to sources. <br />
+          To add an undescribed gall, you must use the <.link
+            navigate={~p"/admin/galls/undescribed"}
+            class="text-gf-maroon hover:underline"
+          >
               Undescribed Gall guided naming flow</.link>.
-          </:intro>
+        </:intro>
 
-          <:quick_links :if={@mode == :edit}>
-            <.link
-              navigate={~p"/admin/images?species_id=#{@gall.id}"}
-              class="text-sm hover:underline mr-4"
-            >
-              Manage Images
-            </.link>
-            <.link
-              navigate={~p"/admin/gallhost?id=#{@gall.id}"}
-              class="text-sm hover:underline mr-4"
-            >
-              Gall-Host Mappings
-            </.link>
-            <.link
-              navigate={~p"/admin/species-sources/find?species_id=#{@gall.id}"}
-              class="text-sm hover:underline mr-4"
-            >
-              Species-Source Mappings
-            </.link>
-            <.link
-              navigate={~p"/admin/species-sources/add?species_id=#{@gall.id}"}
-              class="text-sm hover:underline"
-            >
-              Add Source Mapping
-            </.link>
-          </:quick_links>
+        <:quick_links :if={@mode == :edit}>
+          <.link
+            navigate={~p"/admin/images?species_id=#{@gall.id}"}
+            class="text-sm hover:underline mr-4"
+          >
+            Manage Images
+          </.link>
+          <.link
+            navigate={~p"/admin/gallhost?id=#{@gall.id}"}
+            class="text-sm hover:underline mr-4"
+          >
+            Gall-Host Mappings
+          </.link>
+          <.link
+            navigate={~p"/admin/species-sources/find?species_id=#{@gall.id}"}
+            class="text-sm hover:underline mr-4"
+          >
+            Species-Source Mappings
+          </.link>
+          <.link
+            navigate={~p"/admin/species-sources/add?species_id=#{@gall.id}"}
+            class="text-sm hover:underline"
+          >
+            Add Source Mapping
+          </.link>
+        </:quick_links>
 
-          <%!-- Name field with typeahead for search/create --%>
-          <div class="mb-3">
-            <%= cond do %>
-              <% @mode == :edit -> %>
-                <%!-- Edit mode: show selected name with rename button --%>
-                <label class="gf-label">Name (binomial):</label>
-                <div class="flex gap-2">
-                  <input
-                    type="text"
-                    value={@gall.name}
-                    disabled
-                    class="flex-1 px-3 py-2 bg-gray-100 border border-gray-300 rounded text-gray-700 text-sm italic"
-                  />
-                  <button
-                    type="button"
-                    phx-click="open_reclassify_modal"
-                    phx-target="#reclassify"
-                    class="px-3 py-2 text-sm bg-gray-200 hover:bg-gray-300 border border-gray-300 rounded whitespace-nowrap"
-                  >
-                    Rename/Reclassify
-                  </button>
-                </div>
-              <% @from_undescribed_flow -> %>
-                <%!-- Undescribed flow: read-only name with link back to naming flow --%>
-                <label class="gf-label">Name (binomial):</label>
-                <div class="flex gap-2">
-                  <input
-                    type="text"
-                    value={@gall.name}
-                    disabled
-                    class="flex-1 px-3 py-2 bg-gray-100 border border-gray-300 rounded text-gray-700 text-sm italic"
-                  />
-                  <.link
-                    navigate={~p"/admin/galls/undescribed"}
-                    class="px-3 py-2 text-sm bg-gray-200 hover:bg-gray-300 border border-gray-300 rounded whitespace-nowrap"
-                  >
-                    Edit Name
-                  </.link>
-                </div>
-              <% true -> %>
-                <%!-- Search/New mode: typeahead for search or create --%>
-                <.typeahead
-                  id="gall-picker"
-                  label="Name (binomial):"
-                  placeholder="Search existing galls or type new name..."
-                  search_event="search_gall"
-                  select_event="select_gall"
-                  clear_event="clear_gall"
-                  create_event="create_gall"
-                  allow_new={true}
-                  query={@gall_search_query}
-                  results={@gall_search_results}
-                  selected={@gall}
-                  display_fn={fn gall -> gall.name end}
+        <%!-- Name field with typeahead for search/create --%>
+        <div class="mb-3">
+          <%= cond do %>
+            <% @mode == :edit -> %>
+              <%!-- Edit mode: show selected name with rename button --%>
+              <label class="gf-label">Name (binomial):</label>
+              <div class="flex gap-2">
+                <input
+                  type="text"
+                  value={@gall.name}
+                  disabled
+                  class="flex-1 px-3 py-2 bg-gray-100 border border-gray-300 rounded text-gray-700 text-sm italic"
                 />
-                <p :if={@mode == :search} class="text-gray-500 text-xs mt-1">
-                  Type to search existing galls, or enter a new name to create one.
-                </p>
-            <% end %>
-          </div>
-
-          <.alias_collision_warning collisions={@alias_collisions} />
-
-          <%!-- Rest of form - disabled until gall selected/created --%>
-          <fieldset disabled={@mode == :search} class={[@mode == :search && "opacity-50"]}>
-            <.form
-              :if={@form}
-              for={@form}
-              id="gall-form"
-              phx-change="validate"
-              phx-submit="save"
-            >
-              <%!-- Row: Genus | Family --%>
-              <.taxonomy_genus_family_row
-                taxonomy={@taxonomy}
-                genus_is_new={@genus_is_new}
-                selected_family_id={@selected_family_id}
-                families={@families}
-                new_genus_hint="selected family"
-                family_required_always={true}
+                <button
+                  type="button"
+                  phx-click="open_reclassify_modal"
+                  phx-target="#reclassify"
+                  class="px-3 py-2 text-sm bg-gray-200 hover:bg-gray-300 border border-gray-300 rounded whitespace-nowrap"
+                >
+                  Rename/Reclassify
+                </button>
+              </div>
+            <% @from_undescribed_flow -> %>
+              <%!-- Undescribed flow: read-only name with link back to naming flow --%>
+              <label class="gf-label">Name (binomial):</label>
+              <div class="flex gap-2">
+                <input
+                  type="text"
+                  value={@gall.name}
+                  disabled
+                  class="flex-1 px-3 py-2 bg-gray-100 border border-gray-300 rounded text-gray-700 text-sm italic"
+                />
+                <.link
+                  navigate={~p"/admin/galls/undescribed"}
+                  class="px-3 py-2 text-sm bg-gray-200 hover:bg-gray-300 border border-gray-300 rounded whitespace-nowrap"
+                >
+                  Edit Name
+                </.link>
+              </div>
+            <% true -> %>
+              <%!-- Search/New mode: typeahead for search or create --%>
+              <.typeahead
+                id="gall-picker"
+                label="Name (binomial):"
+                placeholder="Search existing galls or type new name..."
+                search_event="search_gall"
+                select_event="select_gall"
+                clear_event="clear_gall"
+                create_event="create_gall"
+                allow_new={true}
+                query={@gall_search_query}
+                results={@gall_search_results}
+                selected={@gall}
+                display_fn={fn gall -> gall.name end}
               />
+              <p :if={@mode == :search} class="text-gray-500 text-xs mt-1">
+                Type to search existing galls, or enter a new name to create one.
+              </p>
+          <% end %>
+        </div>
 
-              <%!-- Row: Hosts --%>
-              <div class="mb-3">
-                <.multi_select_dropdown
-                  id="host-picker"
-                  label="Hosts:"
-                  type={:hosts}
-                  search_results={@host_search_results}
-                  selected={@hosts}
-                  search_query={@host_search_query}
-                  dropdown_open={@host_dropdown_open}
-                  item_id={:host_relation_id}
-                  result_id={:id}
-                  selected_match_id={:host_species_id}
-                  item_label={:host_name}
-                  result_label={:name}
-                  placeholder="Search hosts..."
-                  on_search="search_hosts"
-                  on_add="add_host"
-                  on_remove="remove_host"
-                  on_open="open_host_dropdown"
-                  on_close="close_host_dropdown"
-                  required={true}
-                />
-                <p :if={@hosts == []} class="text-red-600 text-xs mt-1">
-                  You must map this gall to at least one host.
-                </p>
-              </div>
+        <.alias_collision_warning collisions={@alias_collisions} />
 
-              <%!-- Row: Detachable | Walls | Cells | Alignment --%>
-              <div class="grid grid-cols-4 gap-3 mb-3">
-                <div>
-                  <.input
-                    type="select"
-                    name="value"
-                    label="Detachable:"
-                    options={@detachable_options}
-                    value={@detachable}
-                    phx-change="update_detachable"
-                  />
-                </div>
-                <.multi_select_dropdown
-                  id="walls"
-                  label="Walls:"
-                  type={:walls}
-                  options={@filter_options.walls}
-                  selected={@filter_values.walls}
-                  search_query={@filter_search.walls}
-                  dropdown_open={@filter_dropdown_open == :walls}
-                  item_label={:field}
-                  on_search="filter_search"
-                  on_add="add_filter"
-                  on_remove="remove_filter"
-                  on_open="open_filter_dropdown"
-                  on_close="close_filter_dropdown"
-                />
-                <.multi_select_dropdown
-                  id="cells"
-                  label="Cells:"
-                  type={:cells}
-                  options={@filter_options.cells}
-                  selected={@filter_values.cells}
-                  search_query={@filter_search.cells}
-                  dropdown_open={@filter_dropdown_open == :cells}
-                  item_label={:field}
-                  on_search="filter_search"
-                  on_add="add_filter"
-                  on_remove="remove_filter"
-                  on_open="open_filter_dropdown"
-                  on_close="close_filter_dropdown"
-                />
-                <.multi_select_dropdown
-                  id="alignments"
-                  label="Alignment(s):"
-                  type={:alignments}
-                  options={@filter_options.alignments}
-                  selected={@filter_values.alignments}
-                  search_query={@filter_search.alignments}
-                  dropdown_open={@filter_dropdown_open == :alignments}
-                  item_label={:field}
-                  on_search="filter_search"
-                  on_add="add_filter"
-                  on_remove="remove_filter"
-                  on_open="open_filter_dropdown"
-                  on_close="close_filter_dropdown"
-                />
-              </div>
-
-              <%!-- Row: Color | Shape | Season | Form --%>
-              <div class="grid grid-cols-4 gap-3 mb-3">
-                <.multi_select_dropdown
-                  id="colors"
-                  label="Color(s):"
-                  type={:colors}
-                  options={@filter_options.colors}
-                  selected={@filter_values.colors}
-                  search_query={@filter_search.colors}
-                  dropdown_open={@filter_dropdown_open == :colors}
-                  item_label={:field}
-                  on_search="filter_search"
-                  on_add="add_filter"
-                  on_remove="remove_filter"
-                  on_open="open_filter_dropdown"
-                  on_close="close_filter_dropdown"
-                />
-                <.multi_select_dropdown
-                  id="shapes"
-                  label="Shape(s):"
-                  type={:shapes}
-                  options={@filter_options.shapes}
-                  selected={@filter_values.shapes}
-                  search_query={@filter_search.shapes}
-                  dropdown_open={@filter_dropdown_open == :shapes}
-                  item_label={:field}
-                  on_search="filter_search"
-                  on_add="add_filter"
-                  on_remove="remove_filter"
-                  on_open="open_filter_dropdown"
-                  on_close="close_filter_dropdown"
-                />
-                <.multi_select_dropdown
-                  id="seasons"
-                  label="Season(s):"
-                  type={:seasons}
-                  options={@filter_options.seasons}
-                  selected={@filter_values.seasons}
-                  search_query={@filter_search.seasons}
-                  dropdown_open={@filter_dropdown_open == :seasons}
-                  item_label={:field}
-                  on_search="filter_search"
-                  on_add="add_filter"
-                  on_remove="remove_filter"
-                  on_open="open_filter_dropdown"
-                  on_close="close_filter_dropdown"
-                />
-                <.multi_select_dropdown
-                  id="forms"
-                  label="Form(s):"
-                  type={:forms}
-                  options={@filter_options.forms}
-                  selected={@filter_values.forms}
-                  search_query={@filter_search.forms}
-                  dropdown_open={@filter_dropdown_open == :forms}
-                  item_label={:field}
-                  on_search="filter_search"
-                  on_add="add_filter"
-                  on_remove="remove_filter"
-                  on_open="open_filter_dropdown"
-                  on_close="close_filter_dropdown"
-                />
-              </div>
-
-              <%!-- Row: Location | Texture | Abundance --%>
-              <div class="grid grid-cols-3 gap-3 mb-3">
-                <.multi_select_dropdown
-                  id="plant_parts"
-                  label="Location(s):"
-                  type={:plant_parts}
-                  options={@filter_options.plant_parts}
-                  selected={@filter_values.plant_parts}
-                  search_query={@filter_search.plant_parts}
-                  dropdown_open={@filter_dropdown_open == :plant_parts}
-                  item_label={:field}
-                  on_search="filter_search"
-                  on_add="add_filter"
-                  on_remove="remove_filter"
-                  on_open="open_filter_dropdown"
-                  on_close="close_filter_dropdown"
-                />
-                <.multi_select_dropdown
-                  id="textures"
-                  label="Texture(s):"
-                  type={:textures}
-                  options={@filter_options.textures}
-                  selected={@filter_values.textures}
-                  search_query={@filter_search.textures}
-                  dropdown_open={@filter_dropdown_open == :textures}
-                  item_label={:field}
-                  on_search="filter_search"
-                  on_add="add_filter"
-                  on_remove="remove_filter"
-                  on_open="open_filter_dropdown"
-                  on_close="close_filter_dropdown"
-                />
-                <div>
-                  <label class="gf-label">Abundance:</label>
-                  <.input
-                    field={@form[:abundance_id]}
-                    type="select"
-                    options={Enum.map(@abundances, &{&1.abundance, &1.id})}
-                    prompt=""
-                    class="gf-select w-full text-sm"
-                  />
-                </div>
-              </div>
-
-              <%!-- Aliases table --%>
-              <.alias_editor
-                aliases={@aliases}
-                new_alias_name={@new_alias_name}
-                new_alias_type={@new_alias_type}
-              />
-
-              <%!-- Checkboxes --%>
-              <div class="space-y-2 mb-4">
-                <div>
-                  <label class={[
-                    "flex items-center gap-2",
-                    if(@datacomplete_locked, do: "cursor-not-allowed", else: "cursor-pointer")
-                  ]}>
-                    <input
-                      type="checkbox"
-                      name={@form[:datacomplete].name}
-                      value="true"
-                      checked={
-                        Phoenix.HTML.Form.normalize_value("checkbox", @form[:datacomplete].value)
-                      }
-                      disabled={@datacomplete_locked}
-                      class="rounded border-gray-300 text-gf-maroon focus:ring-gf-maroon disabled:opacity-50"
-                    />
-                    <span class="text-sm text-gray-700">
-                      All sources containing unique information relevant to this gall have been added and are reflected in its associated data.
-                    </span>
-                  </label>
-                  <p :if={@datacomplete_lock_reason} class="text-amber-600 text-xs mt-1 ml-6">
-                    {@datacomplete_lock_reason}
-                  </p>
-                </div>
-
-                <div>
-                  <label class={[
-                    "flex items-center gap-2",
-                    if(@undescribed_locked, do: "cursor-not-allowed", else: "cursor-pointer")
-                  ]}>
-                    <input
-                      type="checkbox"
-                      name="undescribed"
-                      value="true"
-                      checked={@undescribed}
-                      phx-change="toggle_undescribed"
-                      disabled={@undescribed_locked}
-                      class="rounded border-gray-300 text-gf-maroon focus:ring-gf-maroon disabled:opacity-50"
-                    />
-                    <span class="text-sm text-gray-700">Undescribed?</span>
-                  </label>
-                  <p :if={@undescribed_lock_reason} class="text-amber-600 text-xs mt-1 ml-6">
-                    {@undescribed_lock_reason}
-                  </p>
-                </div>
-
-                <div :if={@undescribed || @gallformers_code not in [nil, ""]} class="mt-2">
-                  <label class="block text-sm font-medium text-gray-700 mb-1">
-                    Gallformers Code
-                  </label>
-                  <input
-                    type="text"
-                    name="gallformers_code"
-                    value={@gallformers_code}
-                    phx-change="update_gallformers_code"
-                    phx-debounce="300"
-                    placeholder="e.g. q-lobata-leaf-blister"
-                    class="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:ring-gf-maroon focus:border-gf-maroon"
-                  />
-                  <p :if={@gallformers_code_error} class="text-red-600 text-xs mt-1">
-                    {@gallformers_code_error}
-                  </p>
-                  <p :if={!@gallformers_code_error} class="text-gray-500 text-xs mt-1">
-                    Used for iNaturalist observation linking. Auto-populated for new undescribed galls.
-                  </p>
-                </div>
-              </div>
-
-              <%!-- Action buttons --%>
-              <div class="flex justify-between pt-3 border-t border-gray-200">
-                <div>
-                  <button
-                    :if={@mode == :edit}
-                    type="button"
-                    phx-click="delete"
-                    data-confirm="Are you sure? This will delete the gall and all its associations."
-                    class="gf-btn gf-btn-danger"
-                  >
-                    Delete
-                  </button>
-                </div>
-                <.form_actions
-                  form_dirty={@form_dirty}
-                  form_valid={!@gallformers_code_error}
-                  mode={@mode}
-                />
-              </div>
-            </.form>
-
-            <.record_metadata
-              :if={@mode == :edit}
-              inserted_at={@gall.inserted_at}
-              updated_at={@gall.updated_at}
+        <%!-- Rest of form - disabled until gall selected/created --%>
+        <fieldset disabled={@mode == :search} class={[@mode == :search && "opacity-50"]}>
+          <.form
+            :if={@form}
+            for={@form}
+            id="gall-form"
+            phx-change="validate"
+            phx-submit="save"
+          >
+            <%!-- Row: Genus | Family --%>
+            <.taxonomy_genus_family_row
+              taxonomy={@taxonomy}
+              genus_is_new={@genus_is_new}
+              selected_family_id={@selected_family_id}
+              families={@families}
+              new_genus_hint="selected family"
+              family_required_always={true}
             />
-          </fieldset>
 
-          <%!-- Placeholder when no gall selected --%>
-          <div :if={@mode == :search} class="text-center py-8 text-gray-500">
-            <.icon name="ph-magnifying-glass" class="h-12 w-12 mx-auto mb-3 text-gray-300" />
-            <p>Select an existing gall or create a new one to edit details.</p>
-          </div>
+            <%!-- Row: Hosts --%>
+            <div class="mb-3">
+              <.multi_select_dropdown
+                id="host-picker"
+                label="Hosts:"
+                type={:hosts}
+                search_results={@host_search_results}
+                selected={@hosts}
+                search_query={@host_search_query}
+                dropdown_open={@host_dropdown_open}
+                item_id={:host_relation_id}
+                result_id={:id}
+                selected_match_id={:host_species_id}
+                item_label={:host_name}
+                result_label={:name}
+                placeholder="Search hosts..."
+                on_search="search_hosts"
+                on_add="add_host"
+                on_remove="remove_host"
+                on_open="open_host_dropdown"
+                on_close="close_host_dropdown"
+                required={true}
+              />
+              <p :if={@hosts == []} class="text-red-600 text-xs mt-1">
+                You must map this gall to at least one host.
+              </p>
+            </div>
 
-          <.discard_confirm_modal show={@show_discard_confirm} />
-        </Layouts.admin_edit_layout>
+            <%!-- Row: Detachable | Walls | Cells | Alignment --%>
+            <div class="grid grid-cols-4 gap-3 mb-3">
+              <div>
+                <.input
+                  type="select"
+                  name="value"
+                  label="Detachable:"
+                  options={@detachable_options}
+                  value={@detachable}
+                  phx-change="update_detachable"
+                />
+              </div>
+              <.multi_select_dropdown
+                id="walls"
+                label="Walls:"
+                type={:walls}
+                options={@filter_options.walls}
+                selected={@filter_values.walls}
+                search_query={@filter_search.walls}
+                dropdown_open={@filter_dropdown_open == :walls}
+                item_label={:field}
+                on_search="filter_search"
+                on_add="add_filter"
+                on_remove="remove_filter"
+                on_open="open_filter_dropdown"
+                on_close="close_filter_dropdown"
+              />
+              <.multi_select_dropdown
+                id="cells"
+                label="Cells:"
+                type={:cells}
+                options={@filter_options.cells}
+                selected={@filter_values.cells}
+                search_query={@filter_search.cells}
+                dropdown_open={@filter_dropdown_open == :cells}
+                item_label={:field}
+                on_search="filter_search"
+                on_add="add_filter"
+                on_remove="remove_filter"
+                on_open="open_filter_dropdown"
+                on_close="close_filter_dropdown"
+              />
+              <.multi_select_dropdown
+                id="alignments"
+                label="Alignment(s):"
+                type={:alignments}
+                options={@filter_options.alignments}
+                selected={@filter_values.alignments}
+                search_query={@filter_search.alignments}
+                dropdown_open={@filter_dropdown_open == :alignments}
+                item_label={:field}
+                on_search="filter_search"
+                on_add="add_filter"
+                on_remove="remove_filter"
+                on_open="open_filter_dropdown"
+                on_close="close_filter_dropdown"
+              />
+            </div>
 
-        <.live_component
-          module={GallformersWeb.Admin.ReclassifyLive}
-          id="reclassify"
-          species_id={@gall && @gall.id}
-          species_name={@gall && @gall.name}
-          current_family={@taxonomy && @taxonomy.family}
-          current_genus={@taxonomy && @taxonomy.genus}
-          entity_type="Gall"
-          is_gall={true}
-          undescribed={@undescribed}
-        />
+            <%!-- Row: Color | Shape | Season | Form --%>
+            <div class="grid grid-cols-4 gap-3 mb-3">
+              <.multi_select_dropdown
+                id="colors"
+                label="Color(s):"
+                type={:colors}
+                options={@filter_options.colors}
+                selected={@filter_values.colors}
+                search_query={@filter_search.colors}
+                dropdown_open={@filter_dropdown_open == :colors}
+                item_label={:field}
+                on_search="filter_search"
+                on_add="add_filter"
+                on_remove="remove_filter"
+                on_open="open_filter_dropdown"
+                on_close="close_filter_dropdown"
+              />
+              <.multi_select_dropdown
+                id="shapes"
+                label="Shape(s):"
+                type={:shapes}
+                options={@filter_options.shapes}
+                selected={@filter_values.shapes}
+                search_query={@filter_search.shapes}
+                dropdown_open={@filter_dropdown_open == :shapes}
+                item_label={:field}
+                on_search="filter_search"
+                on_add="add_filter"
+                on_remove="remove_filter"
+                on_open="open_filter_dropdown"
+                on_close="close_filter_dropdown"
+              />
+              <.multi_select_dropdown
+                id="seasons"
+                label="Season(s):"
+                type={:seasons}
+                options={@filter_options.seasons}
+                selected={@filter_values.seasons}
+                search_query={@filter_search.seasons}
+                dropdown_open={@filter_dropdown_open == :seasons}
+                item_label={:field}
+                on_search="filter_search"
+                on_add="add_filter"
+                on_remove="remove_filter"
+                on_open="open_filter_dropdown"
+                on_close="close_filter_dropdown"
+              />
+              <.multi_select_dropdown
+                id="forms"
+                label="Form(s):"
+                type={:forms}
+                options={@filter_options.forms}
+                selected={@filter_values.forms}
+                search_query={@filter_search.forms}
+                dropdown_open={@filter_dropdown_open == :forms}
+                item_label={:field}
+                on_search="filter_search"
+                on_add="add_filter"
+                on_remove="remove_filter"
+                on_open="open_filter_dropdown"
+                on_close="close_filter_dropdown"
+              />
+            </div>
 
-        <%!-- Genus disambiguation modal --%>
-        <.genus_disambiguation_modal
-          possible_families={@possible_families}
-          taxonomy={@taxonomy}
-          entity_description="gall-forming"
-          select_event="select_family_from_disambiguation"
-          clear_event="clear_gall"
-        />
-      </div>
+            <%!-- Row: Location | Texture | Abundance --%>
+            <div class="grid grid-cols-3 gap-3 mb-3">
+              <.multi_select_dropdown
+                id="plant_parts"
+                label="Location(s):"
+                type={:plant_parts}
+                options={@filter_options.plant_parts}
+                selected={@filter_values.plant_parts}
+                search_query={@filter_search.plant_parts}
+                dropdown_open={@filter_dropdown_open == :plant_parts}
+                item_label={:field}
+                on_search="filter_search"
+                on_add="add_filter"
+                on_remove="remove_filter"
+                on_open="open_filter_dropdown"
+                on_close="close_filter_dropdown"
+              />
+              <.multi_select_dropdown
+                id="textures"
+                label="Texture(s):"
+                type={:textures}
+                options={@filter_options.textures}
+                selected={@filter_values.textures}
+                search_query={@filter_search.textures}
+                dropdown_open={@filter_dropdown_open == :textures}
+                item_label={:field}
+                on_search="filter_search"
+                on_add="add_filter"
+                on_remove="remove_filter"
+                on_open="open_filter_dropdown"
+                on_close="close_filter_dropdown"
+              />
+              <div>
+                <label class="gf-label">Abundance:</label>
+                <.input
+                  field={@form[:abundance_id]}
+                  type="select"
+                  options={Enum.map(@abundances, &{&1.abundance, &1.id})}
+                  prompt=""
+                  class="gf-select w-full text-sm"
+                />
+              </div>
+            </div>
+
+            <%!-- Aliases table --%>
+            <.alias_editor
+              aliases={@aliases}
+              new_alias_name={@new_alias_name}
+              new_alias_type={@new_alias_type}
+            />
+
+            <%!-- Checkboxes --%>
+            <div class="space-y-2 mb-4">
+              <div>
+                <label class={[
+                  "flex items-center gap-2",
+                  if(@datacomplete_locked, do: "cursor-not-allowed", else: "cursor-pointer")
+                ]}>
+                  <input
+                    type="checkbox"
+                    name={@form[:datacomplete].name}
+                    value="true"
+                    checked={
+                      Phoenix.HTML.Form.normalize_value("checkbox", @form[:datacomplete].value)
+                    }
+                    disabled={@datacomplete_locked}
+                    class="rounded border-gray-300 text-gf-maroon focus:ring-gf-maroon disabled:opacity-50"
+                  />
+                  <span class="text-sm text-gray-700">
+                    All sources containing unique information relevant to this gall have been added and are reflected in its associated data.
+                  </span>
+                </label>
+                <p :if={@datacomplete_lock_reason} class="text-amber-600 text-xs mt-1 ml-6">
+                  {@datacomplete_lock_reason}
+                </p>
+              </div>
+
+              <div>
+                <label class={[
+                  "flex items-center gap-2",
+                  if(@undescribed_locked, do: "cursor-not-allowed", else: "cursor-pointer")
+                ]}>
+                  <input
+                    type="checkbox"
+                    name="undescribed"
+                    value="true"
+                    checked={@undescribed}
+                    phx-change="toggle_undescribed"
+                    disabled={@undescribed_locked}
+                    class="rounded border-gray-300 text-gf-maroon focus:ring-gf-maroon disabled:opacity-50"
+                  />
+                  <span class="text-sm text-gray-700">Undescribed?</span>
+                </label>
+                <p :if={@undescribed_lock_reason} class="text-amber-600 text-xs mt-1 ml-6">
+                  {@undescribed_lock_reason}
+                </p>
+              </div>
+
+              <div :if={@undescribed || @gallformers_code not in [nil, ""]} class="mt-2">
+                <label class="block text-sm font-medium text-gray-700 mb-1">
+                  Gallformers Code
+                </label>
+                <input
+                  type="text"
+                  name="gallformers_code"
+                  value={@gallformers_code}
+                  phx-change="update_gallformers_code"
+                  phx-debounce="300"
+                  placeholder="e.g. q-lobata-leaf-blister"
+                  class="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:ring-gf-maroon focus:border-gf-maroon"
+                />
+                <p :if={@gallformers_code_error} class="text-red-600 text-xs mt-1">
+                  {@gallformers_code_error}
+                </p>
+                <p :if={!@gallformers_code_error} class="text-gray-500 text-xs mt-1">
+                  Used for iNaturalist observation linking. Auto-populated for new undescribed galls.
+                </p>
+              </div>
+            </div>
+
+            <%!-- Action buttons --%>
+            <div class="flex justify-between pt-3 border-t border-gray-200">
+              <div>
+                <button
+                  :if={@mode == :edit}
+                  type="button"
+                  phx-click="delete"
+                  data-confirm="Are you sure? This will delete the gall and all its associations."
+                  class="gf-btn gf-btn-danger"
+                >
+                  Delete
+                </button>
+              </div>
+              <.form_actions
+                form_dirty={@form_dirty}
+                form_valid={!@gallformers_code_error}
+                mode={@mode}
+              />
+            </div>
+          </.form>
+
+          <.record_metadata
+            :if={@mode == :edit}
+            inserted_at={@gall.inserted_at}
+            updated_at={@gall.updated_at}
+          />
+        </fieldset>
+
+        <%!-- Placeholder when no gall selected --%>
+        <div :if={@mode == :search} class="text-center py-8 text-gray-500">
+          <.icon name="ph-magnifying-glass" class="h-12 w-12 mx-auto mb-3 text-gray-300" />
+          <p>Select an existing gall or create a new one to edit details.</p>
+        </div>
+
+        <.discard_confirm_modal show={@show_discard_confirm} />
+      </Layouts.admin_edit_layout>
+
+      <.live_component
+        module={GallformersWeb.Admin.ReclassifyLive}
+        id="reclassify"
+        species_id={@gall && @gall.id}
+        species_name={@gall && @gall.name}
+        current_family={@taxonomy && @taxonomy.family}
+        current_genus={@taxonomy && @taxonomy.genus}
+        entity_type="Gall"
+        is_gall={true}
+        undescribed={@undescribed}
+      />
+
+      <%!-- Genus disambiguation modal --%>
+      <.genus_disambiguation_modal
+        possible_families={@possible_families}
+        taxonomy={@taxonomy}
+        entity_description="gall-forming"
+        select_event="select_family_from_disambiguation"
+        clear_event="clear_gall"
+      />
     </Layouts.admin>
     """
   end

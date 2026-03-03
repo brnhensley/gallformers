@@ -234,12 +234,18 @@ defmodule GallformersWeb.Admin.SectionLive.Form do
       flash={@flash}
       current_user={@current_user}
       page_title={@page_title}
-      public_url={if @mode == :edit, do: ~p"/section/#{@section.name}"}
     >
+      <:page_title_html>
+        <%= if @mode == :edit do %>
+          Editing <em class="font-bold">{@section.name}</em>
+        <% else %>
+          New Section
+        <% end %>
+      </:page_title_html>
       <Layouts.admin_edit_layout
         back_path={~p"/admin/section"}
         back_label="Back to Sections"
-        title={if @mode == :new, do: "Create New Section", else: "Edit Section"}
+        public_url={if @mode == :edit, do: ~p"/section/#{@section.name}"}
       >
         <:intro>
           Sections group host plant species within a genus. All species in a section
@@ -373,9 +379,8 @@ defmodule GallformersWeb.Admin.SectionLive.Form do
             </div>
           </div>
         </.form>
+        <.discard_confirm_modal show={@show_discard_confirm} />
       </Layouts.admin_edit_layout>
-
-      <.discard_confirm_modal show={@show_discard_confirm} />
     </Layouts.admin>
     """
   end

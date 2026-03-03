@@ -79,12 +79,18 @@ defmodule GallformersWeb.Admin.SourceLive.Form do
       flash={@flash}
       current_user={@current_user}
       page_title={@page_title}
-      public_url={if @mode == :edit, do: ~p"/source/#{@source.id}"}
     >
+      <:page_title_html>
+        <%= if @mode == :edit do %>
+          Editing <em class="font-bold">{@source.title}</em>
+        <% else %>
+          New Source
+        <% end %>
+      </:page_title_html>
       <Layouts.admin_edit_layout
         back_path={~p"/admin/sources"}
         back_label="Back to Sources"
-        title={if @mode == :new, do: "Add New Source", else: "Edit Source"}
+        public_url={if @mode == :edit, do: ~p"/source/#{@source.id}"}
       >
         <:intro>
           Sources are scientific references and publications. After adding a source, you can

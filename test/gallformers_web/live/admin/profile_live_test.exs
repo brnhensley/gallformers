@@ -46,7 +46,7 @@ defmodule GallformersWeb.Admin.ProfileLiveTest do
     test "page loads successfully for logged-in admin", %{conn: conn} do
       {:ok, _view, html} = live(conn, ~p"/admin/profile")
 
-      assert html =~ "Edit Profile"
+      assert html =~ "Editing"
       assert html =~ "Display Name"
     end
 

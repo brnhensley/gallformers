@@ -652,6 +652,11 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
     end
   end
 
+  defp display_type(%{type: "intermediate", rank: rank}) when rank not in [nil, ""],
+    do: String.capitalize(rank)
+
+  defp display_type(%{type: type}), do: type
+
   defp family_type_options do
     gall_options = Enum.map(@gall_family_types, &{&1, &1})
     host_options = Enum.map(@host_family_types, &{"#{&1} (host)", &1})
@@ -667,37 +672,32 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
       flash={@flash}
       current_user={@current_user}
       page_title={@page_title}
-      public_url={if @mode == :edit, do: taxonomy_public_url(@taxonomy)}
     >
+      <:page_title_html>
+        <%= if @mode == :edit do %>
+          Editing <em class="font-bold">{display_type(@taxonomy)} {@taxonomy.name}</em>
+        <% else %>
+          New Taxonomy Entry
+        <% end %>
+      </:page_title_html>
+
       <Layouts.admin_edit_layout
         back_path={~p"/admin/taxonomy"}
         back_label="Back to Taxonomy"
-        title={if @mode == :new, do: "Create New Taxonomy Entry", else: "Edit Taxonomy Entry"}
+        public_url={if @mode == :edit, do: taxonomy_public_url(@taxonomy)}
       >
-        <:intro>
-          Taxonomy entries define the hierarchical classification of species:
-          Family → (Intermediate ranks) → Genus → (Section). Species are linked to genera.
-        </:intro>
-
-        <div :if={@mode == :edit and @taxonomy.type == "section"} class="mb-4">
+        <:quick_links>
           <.link
+            :if={@mode == :edit and @taxonomy.type == "section"}
             href={~p"/admin/section/#{@taxonomy.id}"}
-            class="inline-flex items-center gap-1.5 text-sm text-gf-maroon hover:text-gf-autumn"
+            class="text-sm hover:underline"
           >
-            <.icon name="ph-arrow-right" class="h-4 w-4" /> Manage species in this section
+            Manage species in this section
           </.link>
-        </div>
+        </:quick_links>
 
         <% type_selected = HtmlForm.input_value(@form, :type) not in [nil, ""] %>
         <.form for={@form} id="taxonomy-form" phx-change="validate" phx-submit="save">
-          <div
-            :if={@mode == :edit}
-            class="mb-4 px-3 py-2 bg-amber-50 border border-amber-200 rounded text-sm text-amber-800"
-          >
-            <.icon name="ph-pencil-simple" class="h-4 w-4 inline mr-1" />
-            Editing existing <strong>{@taxonomy.type}</strong>: <strong>{@taxonomy.name}</strong>
-          </div>
-
           <div class="mb-3">
             <.input
               field={@form[:type]}
@@ -792,13 +792,18 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
                     Intermediates belong to families or other intermediates.
                   <% end %>
                 </p>
-              <% current_type == "section" and @parent_options != [] -> %>
-                <.input
-                  field={@form[:parent_id]}
-                  type="select"
-                  label="Parent:"
-                  prompt="Select a genus"
-                  options={@parent_options}
+              <% current_type == "section" -> %>
+                <.typeahead
+                  id="parent-picker"
+                  label="Parent"
+                  placeholder="Search for a parent genus..."
+                  search_event="search_parent"
+                  select_event="select_parent"
+                  clear_event="clear_parent"
+                  query={@parent_query}
+                  results={@parent_results}
+                  selected={@selected_parent}
+                  display_fn={fn opt -> opt.path end}
                   required={true}
                 />
                 <p class="mt-1 text-xs text-gray-500">

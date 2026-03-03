@@ -88,7 +88,7 @@ defmodule GallformersWeb.Admin.GallLive.FormTest do
       gall = require_gall()
       {:ok, _view, html} = live(conn, ~p"/admin/galls/#{gall.id}")
 
-      assert html =~ "Edit Gall"
+      assert html =~ "Editing"
       assert html =~ gall.name
     end
 
@@ -117,9 +117,10 @@ defmodule GallformersWeb.Admin.GallLive.FormTest do
 
     test "shows view public page link in edit mode", %{conn: conn} do
       gall = require_gall()
-      {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
+      {:ok, view, html} = live(conn, ~p"/admin/galls/#{gall.id}")
 
-      assert has_element?(view, "a[href='/gall/#{gall.id}'][title='View public page']")
+      assert html =~ "View public page"
+      assert has_element?(view, "a[href='/gall/#{gall.id}']")
     end
 
     test "shows filter fields in edit mode", %{conn: conn} do
@@ -187,7 +188,7 @@ defmodule GallformersWeb.Admin.GallLive.FormTest do
 
       html = render_click(view, "select_gall", %{"id" => Integer.to_string(gall.id)})
 
-      assert html =~ "Edit Gall"
+      assert html =~ "Editing"
       assert html =~ gall.name
     end
   end
@@ -246,7 +247,7 @@ defmodule GallformersWeb.Admin.GallLive.FormTest do
 
       html = render_click(view, "search_hosts", %{"value" => "quercus"})
 
-      assert html =~ "Edit Gall" or html =~ gall.name
+      assert html =~ "Editing" or html =~ gall.name
     end
 
     test "add_host adds host to the list", %{conn: conn} do
@@ -277,7 +278,7 @@ defmodule GallformersWeb.Admin.GallLive.FormTest do
 
       html = render_click(view, "filter_search", %{"type" => "colors", "value" => "red"})
 
-      assert html =~ "Edit Gall" or html =~ gall.name
+      assert html =~ "Editing" or html =~ gall.name
     end
 
     test "filter_search works for various filter types", %{conn: conn} do

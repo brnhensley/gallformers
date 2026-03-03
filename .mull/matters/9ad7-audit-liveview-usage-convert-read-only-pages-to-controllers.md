@@ -9,6 +9,8 @@ relates: [1edb, 8ae6, 8c5c]
 
 # Audit LiveView usage — convert read-only pages to controllers
 
+# Audit LiveView usage — convert read-only pages to controllers
+
 Every page in gallformers is a LiveView, including read-only display pages that don't need server-driven interactivity. Each LiveView page means: double mount (dead render + WebSocket), a long-lived process per open tab, all assigns held in process heap indefinitely.
 
 ## March 2-3 OOM incidents
@@ -33,9 +35,44 @@ Contributing factor: 75% bot traffic (GPTBot, ClaudeBot, Amazonbot, Meta) with ~
 | Genus (/genus/:name) | LiveView | Moderate | Read-only display | Medium |
 | Home (/) | LiveView | High | Mostly static | Low |
 
-## Approach
+## JS strategy: no framework, better organization
 
-Convert to controller + dead template (EEx). Existing pattern: PageController + PageHTML with embed_templates. SEO assigns pass through conn assigns to root layout. Tree interactivity approach TBD — needs design discussion.
+Evaluated Alpine.js, Stimulus, and htmx. All rejected — they add a second reactivity system that conflicts with LiveView's DOM patching or duplicate what Phoenix already provides. The existing LiveView hooks pattern (mounted/updated/destroyed + pushEvent) is already a sufficient framework.
+
+Current JS is ~2,500 lines across 7 files, with only 3 npm deps (MapLibre, PMTiles, D3). The complexity feeling comes from app.js being a 714-line grab bag of 10 inline hooks.
+
+### Extract inline hooks from app.js
+
+Move each inline hook in app.js to its own file under hooks/:
+
+- `hooks/tabs.js` — tab switching with keyboard nav
+- `hooks/image_gallery.js` — gallery navigation, lightbox, attribution
+- `hooks/typeahead.js` — keyboard nav for search dropdowns
+- `hooks/copy_to_clipboard.js` — clipboard API wrapper
+- `hooks/auto_dismiss.js` — flash message auto-dismiss
+- `hooks/input_event.js` — generic input event forwarder
+- `hooks/scroll_to_couplet.js` — dichotomous key navigation
+- `hooks/admin_nav.js` — active nav link highlighting
+- `hooks/region_scope.js` — continent scope widget
+- `hooks/region_prompt.js` — first-visit region prompt
+- `hooks/indeterminate_checkbox.js` — tri-state checkbox
+
+After extraction, app.js becomes ~30 lines: imports + LiveSocket setup.
+
+### Client interactivity on converted controller pages
+
+Pages converted to controllers lose LiveView hooks. For pages that need client interactivity (browse tree search/filter, family sort/search):
+
+- Use standalone JS modules that attach via `data-` attributes on `DOMContentLoaded`
+- No framework — it's filtering/sorting a list that was already server-rendered
+- Tree data can be embedded as JSON in a `<script>` tag or `data-` attribute, filtered client-side
+- These modules live alongside hooks/ but don't depend on LiveSocket
+
+### Sequencing
+
+1. Extract inline hooks (cleanup, no behavior change, can land independently)
+2. Convert read-only pages to controllers (species detail, genus — no client JS needed)
+3. Convert interactive-read pages (browse, family — needs standalone JS modules for search/filter)
 
 ## Investigation artifacts
 

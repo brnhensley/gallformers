@@ -318,12 +318,18 @@ defmodule GallformersWeb.Admin.KeyLive.Form do
       flash={@flash}
       current_user={@current_user}
       page_title={@page_title}
-      public_url={if @mode == :edit, do: ~p"/keys/#{@key.slug}"}
     >
+      <:page_title_html>
+        <%= if @mode == :edit do %>
+          Editing <em class="font-bold">{@key.title}</em>
+        <% else %>
+          New Identification Key
+        <% end %>
+      </:page_title_html>
       <Layouts.admin_edit_layout
         back_path={~p"/admin/keys"}
         back_label="Back to Keys"
-        title={if @mode == :new, do: "New Identification Key", else: "Edit Identification Key"}
+        public_url={if @mode == :edit, do: ~p"/keys/#{@key.slug}"}
       >
         <:intro>
           Upload a key JSON file or paste JSON directly. Metadata fields will be auto-populated from the JSON.

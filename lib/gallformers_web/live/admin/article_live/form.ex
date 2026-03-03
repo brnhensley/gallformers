@@ -483,26 +483,23 @@ defmodule GallformersWeb.Admin.ArticleLive.Form do
       flash={@flash}
       current_user={@current_user}
       page_title={@page_title}
-      public_url={if @mode == :edit, do: ~p"/articles/#{@article.slug}"}
     >
+      <:page_title_html>
+        <%= if @mode == :edit do %>
+          Editing <em class="font-bold">{@article.title}</em>
+        <% else %>
+          New Article
+        <% end %>
+      </:page_title_html>
+
       <Layouts.admin_edit_layout
         back_path={~p"/admin/articles"}
         back_label="Back to Articles"
-        title={if @mode == :new, do: "Add New Article", else: "Edit Article"}
+        public_url={if @mode == :edit, do: ~p"/articles/#{@article.slug}"}
       >
         <:intro>
           Reference articles provide educational content about galls with markdown formatting and glossary auto-linking.
         </:intro>
-
-        <:quick_links :if={@mode == :edit}>
-          <.link
-            href={~p"/articles/#{@article.slug}"}
-            target="_blank"
-            class="text-sm hover:underline"
-          >
-            View Public Page
-          </.link>
-        </:quick_links>
 
         <%= if @show_image_browser do %>
           <%!-- Image Browser (replaces edit/preview content) --%>

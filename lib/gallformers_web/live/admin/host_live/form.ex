@@ -1136,12 +1136,19 @@ defmodule GallformersWeb.Admin.HostLive.Form do
       flash={@flash}
       current_user={@current_user}
       page_title={@page_title}
-      public_url={if @mode == :edit, do: ~p"/host/#{@host.id}"}
     >
+      <:page_title_html>
+        <%= if @mode == :edit do %>
+          Editing <em class="font-bold">{@host.name}</em>
+        <% else %>
+          New Host
+        <% end %>
+      </:page_title_html>
+
       <Layouts.admin_edit_layout
         back_path={~p"/admin/hosts"}
         back_label="Back to Hosts"
-        title={if @mode == :new, do: "Add New Host", else: "Edit Host"}
+        public_url={if @mode == :edit, do: ~p"/host/#{@host.id}"}
       >
         <:intro>
           This is for all of the details about a Host. To add a description (which must be referenced to a source) go add <.link

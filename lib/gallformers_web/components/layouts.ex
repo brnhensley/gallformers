@@ -509,8 +509,8 @@ defmodule GallformersWeb.Layouts do
   attr :flash, :map, required: true, doc: "the map of flash messages"
   attr :current_user, :map, required: true, doc: "the currently logged in user"
   attr :page_title, :string, default: nil, doc: "the page title for the header"
-  attr :public_url, :string, default: nil, doc: "URL to the public page for this item"
 
+  slot :page_title_html, doc: "rich HTML page title (overrides plain page_title in the bar)"
   slot :inner_block, required: true
 
   def admin(assigns) do
@@ -576,22 +576,17 @@ defmodule GallformersWeb.Layouts do
           </div>
         </div>
 
-        <%!-- Small page title with view public page link --%>
+        <%!-- Small page title bar --%>
         <div
-          :if={@page_title}
+          :if={@page_title || @page_title_html != []}
           class="bg-gray-50 border-b border-gray-200 px-6 sm:px-10 lg:px-16 py-2"
         >
-          <div class="flex items-center justify-between">
-            <h1 class="text-lg font-semibold text-gf-maroon">{@page_title}</h1>
-            <a
-              :if={@public_url}
-              href={@public_url}
-              title="View public page"
-              class="text-gf-maroon hover:text-gf-autumn transition-colors"
-            >
-              <.icon name="ph-eye" class="h-5 w-5" />
-            </a>
-          </div>
+          <h1 :if={@page_title_html != []} class="text-lg font-semibold text-gf-maroon">
+            {render_slot(@page_title_html)}
+          </h1>
+          <h1 :if={@page_title_html == []} class="text-lg font-semibold text-gf-maroon">
+            {@page_title}
+          </h1>
         </div>
 
         <%!-- Page content --%>
@@ -674,66 +669,69 @@ defmodule GallformersWeb.Layouts do
   Standard layout for admin edit pages (Gall, Host, Source, etc.)
 
   Provides consistent structure with:
-  - Back link
-  - Card with gray header bar and maroon title
+  - Quick Links bar (back link + optional public URL + entity-specific links)
   - Intro text slot
-  - Quick links slot (optional)
   - Main content area
+
+  Note: The page title is set via the `page_title_html` slot on the parent `admin` layout.
 
   ## Example
 
-      <Layouts.admin_edit_layout
-        back_path={~p"/admin/galls"}
-        back_label="Back to Galls"
-        title="Edit Gall"
+      <Layouts.admin
+        page_title={@page_title}
       >
-        <:intro>
-          This is for all the details about a Gall...
-        </:intro>
-        <:quick_links>
-          <.link navigate={...}>Manage Images</.link>
-        </:quick_links>
+        <:page_title_html>
+          Editing <em>Species Name</em>
+        </:page_title_html>
+        <Layouts.admin_edit_layout
+          back_path={~p"/admin/galls"}
+          back_label="Back to Galls"
+          public_url={~p"/gall/123"}
+        >
+          <:intro>
+            This is for all the details about a Gall...
+          </:intro>
+          <:quick_links>
+            <.link navigate={...}>Manage Images</.link>
+          </:quick_links>
 
-        <.form ...>
-          ... form fields ...
-        </.form>
-      </Layouts.admin_edit_layout>
+          <.form ...>
+            ... form fields ...
+          </.form>
+        </Layouts.admin_edit_layout>
+      </Layouts.admin>
   """
-  attr :back_path, :any, default: nil, doc: "path for the back link (nil to hide)"
-  attr :back_label, :any, default: nil, doc: "text for the back link (without arrow)"
-  attr :title, :string, required: true, doc: "card header title"
+  attr :back_path, :any, required: true, doc: "path for the back link"
+  attr :back_label, :any, required: true, doc: "text for the back link"
+  attr :public_url, :string, default: nil, doc: "URL to the public page for this item"
 
   slot :intro, doc: "intro text paragraph"
-  slot :quick_links, doc: "quick links (shown in a gray box)"
+  slot :quick_links, doc: "entity-specific quick links"
   slot :inner_block, required: true, doc: "main form content"
 
   def admin_edit_layout(assigns) do
     ~H"""
     <div class="max-w-7xl mx-auto">
-      <div :if={@back_path} class="mb-4">
-        <.link navigate={@back_path} class="hover:underline text-sm">
+      <div class="mb-4 p-3 bg-gray-50 border border-gray-200 rounded flex items-center gap-4">
+        <span class="text-sm font-medium text-gray-700">Quick Links:</span>
+        <.link navigate={@back_path} class="text-sm hover:underline">
           &larr; {@back_label}
         </.link>
+        <a
+          :if={@public_url}
+          href={@public_url}
+          class="text-sm hover:underline inline-flex items-center gap-1"
+        >
+          <.icon name="ph-eye" class="h-4 w-4" /> View public page
+        </a>
+        {render_slot(@quick_links)}
       </div>
 
-      <div class="bg-white border border-gray-200 rounded shadow-sm">
-        <div class="px-4 py-3 border-b border-gray-200 bg-gray-50">
-          <h4 class="text-lg font-semibold text-gf-maroon">{@title}</h4>
-        </div>
+      <p :if={@intro != []} class="text-sm text-gray-600 mb-4">
+        {render_slot(@intro)}
+      </p>
 
-        <div class="p-4">
-          <p :if={@intro != []} class="text-sm text-gray-600 mb-4">
-            {render_slot(@intro)}
-          </p>
-
-          <div :if={@quick_links != []} class="mb-4 p-3 bg-gray-50 border border-gray-200 rounded">
-            <span class="text-sm font-medium text-gray-700 mr-3">Quick Links:</span>
-            {render_slot(@quick_links)}
-          </div>
-
-          {render_slot(@inner_block)}
-        </div>
-      </div>
+      {render_slot(@inner_block)}
     </div>
     """
   end
