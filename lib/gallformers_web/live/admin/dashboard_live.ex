@@ -92,8 +92,8 @@ defmodule GallformersWeb.Admin.DashboardLive do
               accent="amber"
             />
             <.action_card
-              label="Manage Sections"
-              href="/admin/section"
+              label="Section Species"
+              href={~p"/admin/section"}
               icon="gf-taxon"
               accent="amber"
             />

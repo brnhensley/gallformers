@@ -1,9 +1,10 @@
 ---
 status: planned
 created: 2026-03-02
-updated: 2026-03-02
+updated: 2026-03-03
 epic: geo-expansion
-relates: [d7d1, 8900]
+relates: [d7d1, 8900, f6d4]
+blocks: [f6d4]
 docket: true
 ---
 

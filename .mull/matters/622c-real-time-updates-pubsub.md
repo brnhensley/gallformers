@@ -1,8 +1,8 @@
 ---
-status: raw
+status: dropped
 effort: 2 hours
 created: 2026-02-15
-updated: 2026-02-18
+updated: 2026-03-03
 epic: platform
 blocks: [4389]
 ---

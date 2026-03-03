@@ -1,9 +1,12 @@
 defmodule GallformersWeb.Admin.SectionLive.Form do
   @moduledoc """
-  Admin form for creating and editing taxonomy sections.
+  Admin page for managing species membership in taxonomy sections.
 
-  Sections group host plant species within a genus. Species can be added/removed
-  from sections, and the section's parent genus is derived from the species.
+  At `/admin/section` (no ID), shows a section picker. Once a section is
+  selected, navigates to `/admin/section/:id` for species mapping.
+
+  Section creation and editing (name, description, parent) is handled by the
+  taxonomy form.
   """
   use GallformersWeb, :live_view
   use GallformersWeb.Admin.FormHelpers
@@ -11,22 +14,24 @@ defmodule GallformersWeb.Admin.SectionLive.Form do
   alias Gallformers.Plants
   alias Gallformers.Taxonomy
   alias Gallformers.Taxonomy.TaxonName
-  alias Gallformers.Taxonomy.Taxonomy, as: TaxonomySchema
 
   @impl true
   def mount(_params, session, socket) do
     current_user = session["current_user"]
 
+    if connected?(socket), do: Taxonomy.subscribe()
+
     socket =
       socket
       |> assign(:current_user, current_user)
-      |> assign(:page_title, "Section")
+      |> assign(:page_title, "Section Species")
       |> init_form_state()
       |> assign(:section, nil)
-      |> assign(:form, nil)
       |> assign(:species, [])
       |> assign(:search_results, [])
       |> assign(:search_query, "")
+      |> assign(:section_query, "")
+      |> assign(:section_results, [])
 
     {:ok, socket}
   end
@@ -36,52 +41,60 @@ defmodule GallformersWeb.Admin.SectionLive.Form do
     {:noreply, apply_action(socket, socket.assigns.live_action, params)}
   end
 
-  defp apply_action(socket, :new, _params) do
-    section = %TaxonomySchema{type: "section"}
-    changeset = Taxonomy.change_taxonomy(section)
-
+  defp apply_action(socket, :index, _params) do
     socket
-    |> assign(:page_title, "New Section")
-    |> assign(:section, section)
-    |> assign(:form, to_form(changeset))
+    |> assign(:page_title, "Section Species")
+    |> assign(:section, nil)
     |> assign(:species, [])
-    |> assign(:mode, :new)
     |> reset_dirty()
   end
 
   defp apply_action(socket, :edit, %{"id" => id}) do
     section = Taxonomy.get_taxonomy!(id)
     species = Taxonomy.get_species_for_section(section.id)
-    changeset = Taxonomy.change_taxonomy(section)
 
     socket
-    |> assign(:page_title, "Edit Section: #{section.name}")
+    |> assign(:page_title, "Section Species: #{section.name}")
     |> assign(:section, section)
-    |> assign(:form, to_form(changeset))
     |> assign(:species, species)
-    |> assign(:mode, :edit)
     |> reset_dirty()
   end
 
-  @impl true
-  def handle_event("validate", %{"taxonomy" => params}, socket) do
-    changeset =
-      socket.assigns.section
-      |> Taxonomy.change_taxonomy(params)
-      |> Map.put(:action, :validate)
+  # -- Section picker events (index mode) --
 
-    {:noreply, socket |> assign(:form, to_form(changeset)) |> mark_dirty()}
+  @impl true
+  def handle_event("search_section", %{"value" => query}, socket) do
+    results =
+      if String.length(query) >= 2 do
+        Taxonomy.search_sections(query)
+      else
+        []
+      end
+
+    {:noreply,
+     socket
+     |> assign(:section_query, query)
+     |> assign(:section_results, results)}
   end
 
   @impl true
-  def handle_event("save", %{"taxonomy" => params}, socket) do
-    save_section(socket, socket.assigns.mode, params)
+  def handle_event("select_section", %{"id" => id}, socket) do
+    {:noreply, push_navigate(socket, to: ~p"/admin/section/#{id}")}
   end
+
+  @impl true
+  def handle_event("clear_section", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:section_query, "")
+     |> assign(:section_results, [])}
+  end
+
+  # -- Species mapping events (edit mode) --
 
   @impl true
   def handle_event("search_species", %{"query" => query}, socket) do
     if String.length(query) >= 2 do
-      # Filter out already selected species
       selected_ids = Enum.map(socket.assigns.species, & &1.id)
 
       results =
@@ -107,8 +120,6 @@ defmodule GallformersWeb.Admin.SectionLive.Form do
 
     if species_to_add do
       new_species = socket.assigns.species ++ [species_to_add]
-
-      # Check if all species are from the same genus
       genera = new_species |> Enum.map(&extract_genus/1) |> Enum.uniq()
 
       socket =
@@ -143,16 +154,19 @@ defmodule GallformersWeb.Admin.SectionLive.Form do
   end
 
   @impl true
-  def handle_event("delete", _params, socket) do
-    case Taxonomy.delete_taxonomy(socket.assigns.section) do
-      {:ok, _} ->
-        {:noreply,
-         socket
-         |> put_flash(:info, "Section deleted successfully")
-         |> push_navigate(to: ~p"/admin/section")}
+  def handle_event("save", _params, socket) do
+    species_ids = Enum.map(socket.assigns.species, & &1.id)
 
-      {:error, _} ->
-        {:noreply, put_flash(socket, :error, "Failed to delete section")}
+    if species_ids == [] do
+      {:noreply, put_flash(socket, :error, "At least one species is required.")}
+    else
+      Taxonomy.update_section_species(socket.assigns.section.id, species_ids)
+
+      {:noreply,
+       socket
+       |> put_flash(:info, "Section species updated successfully")
+       |> reset_dirty()
+       |> push_navigate(to: ~p"/admin/section/#{socket.assigns.section.id}")}
     end
   end
 
@@ -162,62 +176,21 @@ defmodule GallformersWeb.Admin.SectionLive.Form do
     handle_form_event(event, params, socket)
   end
 
+  # -- PubSub --
+
+  @impl true
+  def handle_info({event, _entry}, socket)
+      when event in [:taxonomy_created, :taxonomy_updated, :taxonomy_deleted, :section_updated] do
+    if socket.assigns.section do
+      species = Taxonomy.get_species_for_section(socket.assigns.section.id)
+      {:noreply, assign(socket, :species, species)}
+    else
+      {:noreply, socket}
+    end
+  end
+
   def close_form(socket) do
     push_navigate(socket, to: ~p"/admin/section")
-  end
-
-  defp save_section(socket, :new, params) do
-    species_ids = Enum.map(socket.assigns.species, & &1.id)
-
-    if species_ids == [] do
-      {:noreply, put_flash(socket, :error, "At least one species is required.")}
-    else
-      # Derive parent genus from first species
-      first_species = hd(socket.assigns.species)
-      genus_name = extract_genus(first_species)
-      genus = Taxonomy.get_taxonomy_by_name(genus_name, "genus")
-
-      params =
-        params
-        |> Map.put("type", "section")
-        |> Map.put("parent_id", genus && genus.id)
-
-      case Taxonomy.create_taxonomy(params) do
-        {:ok, section} ->
-          # Link species to section
-          Taxonomy.update_section_species(section.id, species_ids)
-
-          {:noreply,
-           socket
-           |> put_flash(:info, "Section created successfully")
-           |> push_navigate(to: ~p"/admin/section")}
-
-        {:error, changeset} ->
-          {:noreply, assign(socket, :form, to_form(changeset))}
-      end
-    end
-  end
-
-  defp save_section(socket, :edit, params) do
-    species_ids = Enum.map(socket.assigns.species, & &1.id)
-
-    if species_ids == [] do
-      {:noreply, put_flash(socket, :error, "At least one species is required.")}
-    else
-      case Taxonomy.update_taxonomy(socket.assigns.section, params) do
-        {:ok, _section} ->
-          # Update species links
-          Taxonomy.update_section_species(socket.assigns.section.id, species_ids)
-
-          {:noreply,
-           socket
-           |> put_flash(:info, "Section updated successfully")
-           |> push_navigate(to: ~p"/admin/section")}
-
-        {:error, changeset} ->
-          {:noreply, assign(socket, :form, to_form(changeset))}
-      end
-    end
   end
 
   defp extract_genus(%{name: name}) do
@@ -235,153 +208,165 @@ defmodule GallformersWeb.Admin.SectionLive.Form do
       current_user={@current_user}
       page_title={@page_title}
     >
-      <:page_title_html>
-        <%= if @mode == :edit do %>
-          Editing <em class="font-bold">{@section.name}</em>
-        <% else %>
-          New Section
+      <:page_title_html :if={@section}>
+        Species in Section <em class="font-bold">{@section.name}</em>
+        <%= if @section.description && @section.description != "" do %>
+          <span class="text-gray-500 font-normal">({@section.description})</span>
         <% end %>
       </:page_title_html>
-      <Layouts.admin_edit_layout
-        back_path={~p"/admin/section"}
-        back_label="Back to Sections"
-        public_url={if @mode == :edit, do: ~p"/section/#{@section.name}"}
-      >
-        <:intro>
-          Sections group host plant species within a genus. All species in a section
-          must be from the same genus. The section's parent genus is automatically
-          determined from the species.
-        </:intro>
 
-        <.form for={@form} id="section-form" phx-change="validate" phx-submit="save">
-          <div class="mb-4">
-            <.input
-              field={@form[:name]}
-              type="text"
-              label="Section Name"
-              placeholder="e.g., Quercus sect. Lobatae"
-              required
-            />
-          </div>
+      <%!-- Section picker (index mode) --%>
+      <div :if={!@section} class="max-w-xl mx-auto space-y-6">
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <p class="text-sm text-blue-800">
+            <.icon name="ph-info" class="h-4 w-4 inline mr-1" />
+            Select a section to manage its species. Create and edit sections in the <.link
+              navigate={~p"/admin/taxonomy"}
+              class="underline font-medium"
+            >taxonomy admin</.link>.
+          </p>
+        </div>
 
-          <div class="mb-4">
-            <.input
-              field={@form[:description]}
-              type="text"
-              label="Description"
-              placeholder="e.g., Red Oaks"
-              required
-            />
-            <p class="mt-1 text-xs text-gray-500">
-              A friendly name for the section (e.g., "Red Oaks", "White Oaks")
-            </p>
-          </div>
+        <.typeahead
+          id="section-picker"
+          label="Section"
+          placeholder="Search for a section..."
+          search_event="search_section"
+          select_event="select_section"
+          clear_event="clear_section"
+          query={@section_query}
+          results={@section_results}
+          selected={nil}
+          display_fn={fn s -> "#{s.name}#{if s.description, do: " (#{s.description})", else: ""}" end}
+        />
+      </div>
 
-          <div class="mb-4">
-            <label class="block text-sm font-medium text-gray-700 mb-2">
-              Species in this Section <span class="text-red-500">*</span>
-            </label>
+      <%!-- Species mapping (edit mode) --%>
+      <div :if={@section}>
+        {render_species_mapping(assigns)}
+      </div>
+    </Layouts.admin>
+    """
+  end
 
-            <%!-- Selected species chips --%>
-            <div class="mb-3">
-              <%= if @species != [] do %>
-                <div class="flex flex-wrap gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                  <%= for species <- @species do %>
-                    <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm bg-green-100 text-green-800">
-                      <.taxon_name name={species.name} />
-                      <button
-                        type="button"
-                        phx-click="remove_species"
-                        phx-value-id={species.id}
-                        class="ml-1 text-green-600 hover:text-green-800"
-                      >
-                        <.icon name="ph-x" class="h-3 w-3" />
-                      </button>
-                    </span>
-                  <% end %>
-                </div>
-              <% else %>
-                <p class="text-sm text-gray-500 italic p-3 bg-gray-50 rounded-lg border border-gray-200">
-                  No species selected. Search below to add host plants.
-                </p>
-              <% end %>
-            </div>
+  defp render_species_mapping(assigns) do
+    ~H"""
+    <Layouts.admin_edit_layout
+      back_path={~p"/admin/section"}
+      back_label="Back to Sections"
+      public_url={~p"/section/#{@section.name}"}
+    >
+      <:quick_links>
+        <.link
+          href={~p"/admin/taxonomy/#{@section.id}"}
+          class="text-sm hover:underline"
+        >
+          Edit in taxonomy
+        </.link>
+      </:quick_links>
+      <:intro>
+        Manage which host plant species belong to this section.
+      </:intro>
 
-            <%!-- Search input --%>
-            <div class="relative">
-              <input
-                type="text"
-                phx-keyup="search_species"
-                phx-debounce="300"
-                value={@search_query}
-                name="query"
-                placeholder="Search for host plants to add..."
-                class="gf-input w-full"
-                autocomplete="off"
-              />
+      <div>
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            Species in this Section <span class="text-red-500">*</span>
+          </label>
 
-              <%!-- Search results dropdown --%>
-              <%= if @search_results != [] do %>
-                <div class="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                  <%= for result <- @search_results do %>
+          <%!-- Selected species chips --%>
+          <div class="mb-3">
+            <%= if @species != [] do %>
+              <div class="flex flex-wrap gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                <%= for species <- @species do %>
+                  <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm bg-green-100 text-green-800">
+                    <.taxon_name name={species.name} />
                     <button
                       type="button"
-                      phx-click="add_species"
-                      phx-value-id={result.id}
-                      class="w-full text-left px-4 py-2 hover:bg-gray-100 border-b border-gray-100 last:border-0"
+                      phx-click="remove_species"
+                      phx-value-id={species.id}
+                      class="ml-1 text-green-600 hover:text-green-800"
                     >
-                      <.taxon_name name={result.name} />
+                      <.icon name="ph-x" class="h-3 w-3" />
                     </button>
-                  <% end %>
-                </div>
-              <% end %>
-            </div>
+                  </span>
+                <% end %>
+              </div>
+            <% else %>
+              <p class="text-sm text-gray-500 italic p-3 bg-gray-50 rounded-lg border border-gray-200">
+                No species selected. Search below to add host plants.
+              </p>
+            <% end %>
+          </div>
 
-            <p class="mt-2 text-xs text-gray-500">
-              All species must be from the same genus. Search by species name and click to add.
+          <%!-- Search input --%>
+          <div class="relative">
+            <input
+              type="text"
+              phx-keyup="search_species"
+              phx-debounce="300"
+              value={@search_query}
+              name="query"
+              placeholder="Search for host plants to add..."
+              class="gf-input w-full"
+              autocomplete="off"
+            />
+
+            <%!-- Search results dropdown --%>
+            <%= if @search_results != [] do %>
+              <div class="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                <%= for result <- @search_results do %>
+                  <button
+                    type="button"
+                    phx-click="add_species"
+                    phx-value-id={result.id}
+                    class="w-full text-left px-4 py-2 hover:bg-gray-100 border-b border-gray-100 last:border-0"
+                  >
+                    <.taxon_name name={result.name} />
+                  </button>
+                <% end %>
+              </div>
+            <% end %>
+          </div>
+
+          <p class="mt-2 text-xs text-gray-500">
+            All species must be from the same genus. Search by species name and click to add.
+          </p>
+        </div>
+
+        <%!-- Genus info --%>
+        <%= if @species != [] do %>
+          <div class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <p class="text-sm text-blue-800">
+              <.icon name="ph-info" class="h-4 w-4 inline mr-1" /> Parent genus:
+              <strong>{extract_genus(hd(@species))}</strong>
+              (derived from species)
             </p>
           </div>
+        <% end %>
 
-          <%!-- Genus info --%>
-          <%= if @species != [] do %>
-            <div class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-              <p class="text-sm text-blue-800">
-                <.icon name="ph-info" class="h-4 w-4 inline mr-1" /> Parent genus:
-                <strong>{extract_genus(hd(@species))}</strong>
-                (derived from species)
-              </p>
-            </div>
-          <% end %>
-
-          <div class="flex justify-between pt-4 border-t border-gray-200">
-            <div>
-              <button
-                :if={@mode == :edit}
-                type="button"
-                phx-click="delete"
-                data-confirm="Are you sure? This will remove all species from this section."
-                class="gf-btn gf-btn-danger"
-              >
-                Delete
-              </button>
-            </div>
-            <div class="flex gap-2">
-              <button
-                type="button"
-                phx-click="request_cancel"
-                class="gf-btn gf-btn-secondary"
-              >
-                Cancel
-              </button>
-              <button type="submit" class="gf-btn gf-btn-primary">
-                {if @mode == :new, do: "Create Section", else: "Save Changes"}
-              </button>
-            </div>
+        <div class="flex justify-end pt-4 border-t border-gray-200">
+          <div class="flex gap-2">
+            <button
+              type="button"
+              phx-click="request_cancel"
+              class="gf-btn gf-btn-soft"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              phx-click="save"
+              disabled={not @form_dirty}
+              class="gf-btn gf-btn-primary"
+            >
+              Save
+            </button>
           </div>
-        </.form>
-        <.discard_confirm_modal show={@show_discard_confirm} />
-      </Layouts.admin_edit_layout>
-    </Layouts.admin>
+        </div>
+      </div>
+      <.discard_confirm_modal show={@show_discard_confirm} />
+    </Layouts.admin_edit_layout>
     """
   end
 end

@@ -496,7 +496,7 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
   end
 
   defp inject_parent_id(params, socket) do
-    if params["type"] in ["genus", "intermediate"] do
+    if params["type"] in ["genus", "intermediate", "section"] do
       case socket.assigns.selected_parent do
         %{id: id} -> Map.put(params, "parent_id", to_string(id))
         _ -> params

@@ -89,9 +89,8 @@ defmodule GallformersWeb.Router do
     live "/taxonomy/new", Admin.TaxonomyLive.Form, :new
     live "/taxonomy/:id", Admin.TaxonomyLive.Form, :edit
 
-    # Section admin (host plant sections)
-    live "/section", Admin.SectionLive.Index, :index
-    live "/section/new", Admin.SectionLive.Form, :new
+    # Section admin (species mapping — creation/editing in taxonomy form)
+    live "/section", Admin.SectionLive.Form, :index
     live "/section/:id", Admin.SectionLive.Form, :edit
 
     # Source admin
