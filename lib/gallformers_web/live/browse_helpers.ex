@@ -61,7 +61,7 @@ defmodule GallformersWeb.BrowseHelpers do
   @doc """
   Toggles a key in a MapSet (adds if absent, removes if present).
   """
-  @spec toggle_set(MapSet.t(), String.t()) :: MapSet.t()
+  @spec toggle_set(MapSet.t(), term()) :: MapSet.t()
   def toggle_set(set, key) do
     if MapSet.member?(set, key), do: MapSet.delete(set, key), else: MapSet.put(set, key)
   end

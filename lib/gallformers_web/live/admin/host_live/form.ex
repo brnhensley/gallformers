@@ -21,6 +21,7 @@ defmodule GallformersWeb.Admin.HostLive.Form do
     only: [alias_collision_warning: 1, alias_editor: 1, form_actions: 1]
 
   import GallformersWeb.Admin.ReclassifyHelpers
+  import GallformersWeb.BrowseHelpers, only: [toggle_set: 2]
 
   @impl true
   def mount(_params, session, socket) do
@@ -329,21 +330,21 @@ defmodule GallformersWeb.Admin.HostLive.Form do
   @impl true
   def handle_event("toggle_wcvp_diff_add", %{"id" => code}, socket) do
     diff = socket.assigns.wcvp_diff
-    updated = %{diff | selected_adds: toggle_in_set(diff.selected_adds, code)}
+    updated = %{diff | selected_adds: toggle_set(diff.selected_adds, code)}
     {:noreply, assign(socket, :wcvp_diff, updated)}
   end
 
   @impl true
   def handle_event("toggle_wcvp_diff_remove", %{"id" => code}, socket) do
     diff = socket.assigns.wcvp_diff
-    updated = %{diff | selected_removes: toggle_in_set(diff.selected_removes, code)}
+    updated = %{diff | selected_removes: toggle_set(diff.selected_removes, code)}
     {:noreply, assign(socket, :wcvp_diff, updated)}
   end
 
   @impl true
   def handle_event("toggle_wcvp_diff_introduced_place", %{"id" => code}, socket) do
     diff = socket.assigns.wcvp_diff
-    updated = %{diff | selected_introduced: toggle_in_set(diff.selected_introduced, code)}
+    updated = %{diff | selected_introduced: toggle_set(diff.selected_introduced, code)}
     {:noreply, assign(socket, :wcvp_diff, updated)}
   end
 
@@ -767,13 +768,21 @@ defmodule GallformersWeb.Admin.HostLive.Form do
     # Only show introduced places not already in the current range
     new_introduced = MapSet.difference(introduced_codes, current_place_codes)
 
+    place_by_code = socket.assigns.place_by_code
+    adds_list = MapSet.to_list(added)
+    removes_list = MapSet.to_list(removed)
+    introduced_list = MapSet.to_list(new_introduced)
+
     %{
       wcvp_data: wcvp_data,
       native_codes: native_codes,
       introduced_codes: introduced_codes,
-      places_added: MapSet.to_list(added),
-      places_removed: MapSet.to_list(removed),
-      introduced_places: MapSet.to_list(new_introduced),
+      places_added: adds_list,
+      places_removed: removes_list,
+      introduced_places: introduced_list,
+      adds_groups: group_places_by_country(adds_list, place_by_code),
+      removes_groups: group_places_by_country(removes_list, place_by_code),
+      introduced_groups: group_places_by_country(introduced_list, place_by_code),
       selected_adds: added,
       selected_removes: removed,
       selected_introduced: new_introduced,
@@ -785,10 +794,6 @@ defmodule GallformersWeb.Admin.HostLive.Form do
     }
   end
 
-  defp toggle_in_set(set, item) do
-    if MapSet.member?(set, item), do: MapSet.delete(set, item), else: MapSet.put(set, item)
-  end
-
   defp wcvp_section_fields("adds", diff), do: {diff.places_added, :selected_adds}
   defp wcvp_section_fields("removes", diff), do: {diff.places_removed, :selected_removes}
   defp wcvp_section_fields("introduced", diff), do: {diff.introduced_places, :selected_introduced}
@@ -796,13 +801,7 @@ defmodule GallformersWeb.Admin.HostLive.Form do
 
   defp update_wcvp_expanded(socket, section, country) do
     diff = socket.assigns.wcvp_diff
-    key = {section, country}
-
-    expanded =
-      if MapSet.member?(diff.expanded_countries, key),
-        do: MapSet.delete(diff.expanded_countries, key),
-        else: MapSet.put(diff.expanded_countries, key)
-
+    expanded = toggle_set(diff.expanded_countries, {section, country})
     {:noreply, assign(socket, :wcvp_diff, %{diff | expanded_countries: expanded})}
   end
 
@@ -1382,7 +1381,7 @@ defmodule GallformersWeb.Admin.HostLive.Form do
                     :if={@wcvp_diff.places_added != []}
                     id="wcvp-adds"
                     label="+ Native places in WCVP but not in current range"
-                    groups={group_places_by_country(@wcvp_diff.places_added, @place_by_code)}
+                    groups={@wcvp_diff.adds_groups}
                     selected={@wcvp_diff.selected_adds}
                     expanded={section_expanded(@wcvp_diff.expanded_countries, "adds")}
                     toggle_item_event="toggle_wcvp_diff_add"
@@ -1399,7 +1398,7 @@ defmodule GallformersWeb.Admin.HostLive.Form do
                     :if={@wcvp_diff.places_removed != []}
                     id="wcvp-removes"
                     label="- Places in current range but not in WCVP native"
-                    groups={group_places_by_country(@wcvp_diff.places_removed, @place_by_code)}
+                    groups={@wcvp_diff.removes_groups}
                     selected={@wcvp_diff.selected_removes}
                     expanded={section_expanded(@wcvp_diff.expanded_countries, "removes")}
                     toggle_item_event="toggle_wcvp_diff_remove"
@@ -1416,7 +1415,7 @@ defmodule GallformersWeb.Admin.HostLive.Form do
                     :if={@wcvp_diff.introduced_places != []}
                     id="wcvp-introduced"
                     label="Introduced places"
-                    groups={group_places_by_country(@wcvp_diff.introduced_places, @place_by_code)}
+                    groups={@wcvp_diff.introduced_groups}
                     selected={@wcvp_diff.selected_introduced}
                     expanded={section_expanded(@wcvp_diff.expanded_countries, "introduced")}
                     toggle_item_event="toggle_wcvp_diff_introduced_place"

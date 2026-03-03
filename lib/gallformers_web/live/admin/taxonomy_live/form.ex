@@ -9,12 +9,17 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
 
   import GallformersWeb.Admin.FormComponents, only: [form_actions: 1]
 
+  import GallformersWeb.BrowseHelpers, only: [toggle_set: 2]
+
   import GallformersWeb.FormComponents,
     only: [cascade_delete_modal: 1, selectable_tree: 1, typeahead: 1]
 
   alias Gallformers.Taxonomy
   alias GallformersWeb.TaxonomyURL
   alias Phoenix.HTML.Form, as: HtmlForm
+
+  # Group ID for unassigned genera in the children tree (used in expanded defaults + group builder).
+  @unassigned_group "unassigned"
 
   # Family types - these categorize what kind of organism a family contains.
   # "Plant" indicates a host family; all others are gall-former families.
@@ -81,10 +86,9 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
   defp apply_action(socket, :new, _params) do
     socket
     |> apply_new_action(parent_options: load_parent_options(nil))
-    |> assign(:children_options, %{unassigned: [], intermediate_groups: [], intermediates: []})
     |> assign(:children_tree_groups, [])
     |> assign(:selected_children, MapSet.new())
-    |> assign(:expanded_intermediate_groups, MapSet.new(["unassigned"]))
+    |> assign(:expanded_intermediate_groups, MapSet.new([@unassigned_group]))
     |> assign_parent_typeahead_defaults(nil, [])
   end
 
@@ -104,10 +108,9 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
       |> assign(:show_delete_modal, false)
       |> assign(:deletion_impact, nil)
       |> assign(:delete_confirmation, "")
-      |> assign(:children_options, %{unassigned: [], intermediate_groups: [], intermediates: []})
       |> assign(:children_tree_groups, [])
       |> assign(:selected_children, MapSet.new())
-      |> assign(:expanded_intermediate_groups, MapSet.new(["unassigned"]))
+      |> assign(:expanded_intermediate_groups, MapSet.new([@unassigned_group]))
       |> assign_parent_typeahead_defaults(taxonomy, all_parent_options)
     else
       socket
@@ -234,13 +237,16 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
       # Load children options for intermediates in new mode
       socket =
         if params["type"] == "intermediate" and socket.assigns.live_action == :new do
-          children = load_children_options(to_string(parent_id))
+          groups =
+            parent_id
+            |> to_string()
+            |> load_children_options()
+            |> children_tree_groups()
 
           socket
-          |> assign(:children_options, children)
-          |> assign(:children_tree_groups, children_tree_groups(children))
+          |> assign(:children_tree_groups, groups)
           |> assign(:selected_children, MapSet.new())
-          |> assign(:expanded_intermediate_groups, MapSet.new(["unassigned"]))
+          |> assign(:expanded_intermediate_groups, MapSet.new([@unassigned_group]))
         else
           socket
         end
@@ -276,10 +282,9 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
      |> assign(:selected_parent, nil)
      |> assign(:parent_query, "")
      |> assign(:parent_results, [])
-     |> assign(:children_options, %{unassigned: [], intermediate_groups: [], intermediates: []})
      |> assign(:children_tree_groups, [])
      |> assign(:selected_children, MapSet.new())
-     |> assign(:expanded_intermediate_groups, MapSet.new(["unassigned"]))
+     |> assign(:expanded_intermediate_groups, MapSet.new([@unassigned_group]))
      |> assign(:form, to_form(changeset))
      |> mark_dirty()}
   end
@@ -287,14 +292,9 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
   @impl true
   def handle_event("toggle_child", %{"id" => id_str}, socket) do
     id = String.to_integer(id_str)
-    selected = socket.assigns.selected_children
 
-    selected =
-      if MapSet.member?(selected, id),
-        do: MapSet.delete(selected, id),
-        else: MapSet.put(selected, id)
-
-    {:noreply, assign(socket, :selected_children, selected)}
+    {:noreply,
+     assign(socket, :selected_children, toggle_set(socket.assigns.selected_children, id))}
   end
 
   @impl true
@@ -314,13 +314,7 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
 
   @impl true
   def handle_event("expand_children_group", %{"group" => group_id}, socket) do
-    expanded = socket.assigns.expanded_intermediate_groups
-
-    expanded =
-      if MapSet.member?(expanded, group_id),
-        do: MapSet.delete(expanded, group_id),
-        else: MapSet.put(expanded, group_id)
-
+    expanded = toggle_set(socket.assigns.expanded_intermediate_groups, group_id)
     {:noreply, assign(socket, :expanded_intermediate_groups, expanded)}
   end
 
@@ -464,13 +458,15 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
       prev_parent_id = Ecto.Changeset.get_field(socket.assigns.form.source, :parent_id)
 
       if to_string(params["parent_id"]) != to_string(prev_parent_id) do
-        children = load_children_options(params["parent_id"])
+        groups =
+          params["parent_id"]
+          |> load_children_options()
+          |> children_tree_groups()
 
         assign(socket,
-          children_options: children,
-          children_tree_groups: children_tree_groups(children),
+          children_tree_groups: groups,
           selected_children: MapSet.new(),
-          expanded_intermediate_groups: MapSet.new(["unassigned"])
+          expanded_intermediate_groups: MapSet.new([@unassigned_group])
         )
       else
         socket
@@ -581,40 +577,29 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
          intermediate_groups: int_groups,
          intermediates: intermediates
        }) do
-    groups = []
+    to_items = fn children -> Enum.map(children, &%{id: &1.id, label: &1.label}) end
 
-    groups =
-      if unassigned != [] do
-        items = Enum.map(unassigned, fn c -> %{id: c.id, label: c.label} end)
-        [%{id: "unassigned", label: "Unassigned genera", items: items} | groups]
-      else
-        groups
-      end
+    unassigned_group =
+      if unassigned != [],
+        do: [%{id: @unassigned_group, label: "Unassigned genera", items: to_items.(unassigned)}],
+        else: []
 
-    groups =
-      Enum.reduce(Enum.reverse(int_groups), groups, fn group, acc ->
-        items = Enum.map(group.children, fn c -> %{id: c.id, label: c.label} end)
-
-        [
-          %{
-            id: "under-#{group.id}",
-            label: "Under #{group.label}",
-            name: group.name,
-            items: items
-          }
-          | acc
-        ]
+    int_item_groups =
+      Enum.map(int_groups, fn g ->
+        %{
+          id: "under-#{g.id}",
+          label: "Under #{g.label}",
+          name: g.name,
+          items: to_items.(g.children)
+        }
       end)
 
-    groups =
-      if intermediates != [] do
-        items = Enum.map(intermediates, fn c -> %{id: c.id, label: c.label} end)
-        [%{id: "intermediates", label: "Intermediates", items: items} | groups]
-      else
-        groups
-      end
+    intermediates_group =
+      if intermediates != [],
+        do: [%{id: "intermediates", label: "Intermediates", items: to_items.(intermediates)}],
+        else: []
 
-    Enum.reverse(groups)
+    unassigned_group ++ int_item_groups ++ intermediates_group
   end
 
   # Handle impact map (for family/genus cascade delete)
