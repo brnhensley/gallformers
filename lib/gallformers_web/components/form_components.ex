@@ -1526,12 +1526,11 @@ defmodule GallformersWeb.FormComponents do
   def selectable_tree(assigns) do
     total_items = Enum.reduce(assigns.groups, 0, fn g, acc -> acc + length(g.items) end)
 
-    all_item_ids =
-      assigns.groups
-      |> Enum.flat_map(& &1.items)
-      |> MapSet.new(& &1.id)
-
-    all_selected = total_items > 0 and MapSet.subset?(all_item_ids, assigns.selected)
+    all_selected =
+      total_items > 0 and
+        Enum.all?(assigns.groups, fn g ->
+          Enum.all?(g.items, &MapSet.member?(assigns.selected, &1.id))
+        end)
 
     assigns =
       assigns
@@ -1554,17 +1553,13 @@ defmodule GallformersWeb.FormComponents do
       </div>
       <div class="mt-2 max-h-96 overflow-y-auto space-y-1">
         <div :for={group <- @groups}>
-          <% selected_count = Enum.count(group.items, &MapSet.member?(@selected, &1.id))
-          total_count = length(group.items)
-          all_group_selected = selected_count == total_count
-          none_selected = selected_count == 0
-          expanded = MapSet.member?(@expanded, group.id) %>
+          <% gs = selectable_tree_group_state(group, @selected, @expanded) %>
           <div class="flex items-center gap-1.5">
             <input
               id={"#{@id}-group-#{group.id}"}
               type="checkbox"
-              checked={all_group_selected}
-              data-indeterminate={to_string(!all_group_selected and !none_selected)}
+              checked={gs.all_selected}
+              data-indeterminate={to_string(!gs.all_selected and !gs.none_selected)}
               phx-hook="IndeterminateCheckbox"
               phx-click={@toggle_group_event}
               phx-value-group={to_string(group.id)}
@@ -1576,14 +1571,14 @@ defmodule GallformersWeb.FormComponents do
               phx-value-group={to_string(group.id)}
               class={"flex items-center gap-1 text-xs font-medium #{@heading_class} hover:underline"}
             >
-              <span class="w-3 text-center">{if expanded, do: "▾", else: "▸"}</span>
+              <span class="w-3 text-center">{if gs.expanded, do: "▾", else: "▸"}</span>
               {group.label}
               <span class="font-normal text-gray-500">
-                ({selected_count}/{total_count})
+                ({gs.selected_count}/{gs.total_count})
               </span>
             </button>
           </div>
-          <div :if={expanded} class="ml-6 space-y-0.5 mt-0.5">
+          <div :if={gs.expanded} class="ml-6 space-y-0.5 mt-0.5">
             <label :for={item <- group.items} class="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
@@ -1600,6 +1595,19 @@ defmodule GallformersWeb.FormComponents do
       </div>
     </div>
     """
+  end
+
+  defp selectable_tree_group_state(group, selected, expanded) do
+    selected_count = Enum.count(group.items, &MapSet.member?(selected, &1.id))
+    total_count = length(group.items)
+
+    %{
+      selected_count: selected_count,
+      total_count: total_count,
+      all_selected: selected_count == total_count,
+      none_selected: selected_count == 0,
+      expanded: MapSet.member?(expanded, group.id)
+    }
   end
 
   defp rename_collision_type_label("common"), do: "common name"

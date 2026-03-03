@@ -203,34 +203,22 @@ defmodule GallformersWeb.FormComponentsTest do
     end
 
     def handle_event("toggle_item", %{"id" => id}, socket) do
-      selected =
-        if MapSet.member?(socket.assigns.selected, id),
-          do: MapSet.delete(socket.assigns.selected, id),
-          else: MapSet.put(socket.assigns.selected, id)
-
-      {:noreply, assign(socket, selected: selected)}
+      import GallformersWeb.BrowseHelpers, only: [toggle_set: 2]
+      {:noreply, assign(socket, selected: toggle_set(socket.assigns.selected, id))}
     end
 
     def handle_event("toggle_group", %{"group" => group_id}, socket) do
-      group = Enum.find(socket.assigns.groups, &(&1.id == group_id))
-      item_ids = MapSet.new(group.items, & &1.id)
-      selected_in_group = MapSet.intersection(socket.assigns.selected, item_ids)
+      import GallformersWeb.BrowseHelpers, only: [toggle_group_selection: 3]
 
       selected =
-        if MapSet.equal?(selected_in_group, item_ids),
-          do: MapSet.difference(socket.assigns.selected, item_ids),
-          else: MapSet.union(socket.assigns.selected, item_ids)
+        toggle_group_selection(socket.assigns.groups, socket.assigns.selected, group_id)
 
       {:noreply, assign(socket, selected: selected)}
     end
 
     def handle_event("expand_group", %{"group" => group_id}, socket) do
-      expanded =
-        if MapSet.member?(socket.assigns.expanded, group_id),
-          do: MapSet.delete(socket.assigns.expanded, group_id),
-          else: MapSet.put(socket.assigns.expanded, group_id)
-
-      {:noreply, assign(socket, expanded: expanded)}
+      import GallformersWeb.BrowseHelpers, only: [toggle_set: 2]
+      {:noreply, assign(socket, expanded: toggle_set(socket.assigns.expanded, group_id))}
     end
 
     def handle_event("select_all", _params, socket) do
@@ -283,7 +271,11 @@ defmodule GallformersWeb.FormComponentsTest do
        )}
     end
 
-    def handle_event(_, _, socket), do: {:noreply, socket}
+    def handle_event("toggle_item", _params, socket), do: {:noreply, socket}
+    def handle_event("toggle_group", _params, socket), do: {:noreply, socket}
+    def handle_event("expand_group", _params, socket), do: {:noreply, socket}
+    def handle_event("select_all", _params, socket), do: {:noreply, socket}
+    def handle_event("deselect_all", _params, socket), do: {:noreply, socket}
   end
 
   describe "selectable_tree/1" do

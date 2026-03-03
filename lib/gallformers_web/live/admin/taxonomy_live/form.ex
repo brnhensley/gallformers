@@ -9,7 +9,7 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
 
   import GallformersWeb.Admin.FormComponents, only: [form_actions: 1]
 
-  import GallformersWeb.BrowseHelpers, only: [toggle_set: 2]
+  import GallformersWeb.BrowseHelpers, only: [toggle_group_selection: 3, toggle_set: 2]
 
   import GallformersWeb.FormComponents,
     only: [cascade_delete_modal: 1, selectable_tree: 1, typeahead: 1]
@@ -320,22 +320,14 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
 
   @impl true
   def handle_event("toggle_group_children", %{"group" => group_id}, socket) do
-    group = Enum.find(socket.assigns.children_tree_groups, &(to_string(&1.id) == group_id))
+    updated =
+      toggle_group_selection(
+        socket.assigns.children_tree_groups,
+        socket.assigns.selected_children,
+        group_id
+      )
 
-    if group do
-      item_ids = MapSet.new(group.items, & &1.id)
-      selected = socket.assigns.selected_children
-      selected_in_group = MapSet.intersection(selected, item_ids)
-
-      updated =
-        if MapSet.equal?(selected_in_group, item_ids),
-          do: MapSet.difference(selected, item_ids),
-          else: MapSet.union(selected, item_ids)
-
-      {:noreply, assign(socket, :selected_children, updated)}
-    else
-      {:noreply, socket}
-    end
+    {:noreply, assign(socket, :selected_children, updated)}
   end
 
   @impl true

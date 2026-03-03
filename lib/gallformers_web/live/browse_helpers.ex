@@ -60,10 +60,35 @@ defmodule GallformersWeb.BrowseHelpers do
 
   @doc """
   Toggles a key in a MapSet (adds if absent, removes if present).
+
+  Works with any term type — string IDs, integer IDs, tuples, etc.
   """
   @spec toggle_set(MapSet.t(), term()) :: MapSet.t()
   def toggle_set(set, key) do
     if MapSet.member?(set, key), do: MapSet.delete(set, key), else: MapSet.put(set, key)
+  end
+
+  @doc """
+  Toggles all items in a group within a selection set.
+
+  If all group items are selected, deselects them. Otherwise, selects all.
+  Expects a group with an `:items` list where each item has an `:id` field.
+  Returns the selection unchanged if the group is not found.
+  """
+  @spec toggle_group_selection([map()], MapSet.t(), term()) :: MapSet.t()
+  def toggle_group_selection(groups, selected, group_id) do
+    group = Enum.find(groups, &(to_string(&1.id) == to_string(group_id)))
+
+    if group do
+      item_ids = MapSet.new(group.items, & &1.id)
+      selected_in_group = MapSet.intersection(selected, item_ids)
+
+      if MapSet.equal?(selected_in_group, item_ids),
+        do: MapSet.difference(selected, item_ids),
+        else: MapSet.union(selected, item_ids)
+    else
+      selected
+    end
   end
 
   # --- Private helpers ---
