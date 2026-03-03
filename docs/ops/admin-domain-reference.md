@@ -42,13 +42,17 @@ The second part of the binomial name (after the genus). For described species, t
 
 ## Taxonomy
 
-Gallformers tracks a simplified taxonomic hierarchy:
+Gallformers tracks a taxonomic hierarchy with flexible depth:
 
 ```
 Family
-└── Genus
-    └── Section (optional, plants only)
-        └── Species
+├── Genus (directly under family)
+│   └── Section (optional, plants only)
+│       └── Species
+└── Intermediate rank(s) (optional)
+    └── Genus
+        └── Section (optional)
+            └── Species
 ```
 
 ### Families
@@ -60,15 +64,32 @@ A family is the highest level tracked. Each family has a **type** that identifie
 
 The family type determines whether a family appears in gall-related or host-related contexts throughout the admin and public site.
 
+### Intermediate Ranks
+
+Between a family and its genera, optional **intermediate ranks** can be inserted to capture finer taxonomic groupings. The supported ranks, from broadest to narrowest:
+
+| Rank | Example |
+|---|---|
+| Subfamily | Cynipinae |
+| Infrafamily | — |
+| Supertribe | — |
+| Tribe | Cynipini |
+| Subtribe | — |
+| Infratribe | — |
+
+Intermediates can nest — a tribe can sit under a subfamily, for instance. A genus's parent can be a family directly or any intermediate rank. The hierarchy is always walked upward through `parent_id` links to reach the family.
+
+On the public site, each intermediate rank gets its own page (e.g., `/tribe/Cynipini`) showing the genera it contains and its position in the hierarchy.
+
 ### Genera
 
-A genus belongs to exactly one family. When a genus is renamed, all species names under it update automatically.
+A genus belongs to exactly one parent — either a family directly or an intermediate rank within a family. When a genus is renamed, all species names under it update automatically.
 
 ### Sections
 
 Sections are an optional level *below* genus, used only in plant taxonomy for large genera (e.g., the genus *Quercus* has sections like *Quercus* (white oaks) and *Lobatae* (red oaks)). A species can optionally belong to one section within its genus.
 
-Sections are **children** of genera, not parents. The hierarchy is always Family > Genus > Section.
+Sections are **children** of genera, not parents. The hierarchy is always Family > [Intermediates] > Genus > Section.
 
 ---
 
@@ -212,21 +233,53 @@ Scientific synonyms appear in a **Synonymy** section on the public page. Common 
 
 Each gall can form on one or more host plants. The gall-host relationship is the core association in the database — it's what makes a gall a gall (something has to grow on something).
 
-### How Ranges Work
+### How Host Ranges Work
 
-Geographic ranges on Gallformers are computed, not directly assigned to galls:
+Each host plant has a set of **places** where it grows, stored at two levels of precision:
 
-1. Each **host plant** has a set of **places** where it grows (its range).
-2. A gall's **possible range** is the union of all its hosts' ranges — everywhere at least one of its hosts grows.
+- **Exact** — the host is documented in a specific state, province, or territory (e.g., "CA-ON" for Ontario).
+- **Country-level** — the host is known to occur somewhere in a country, but state/province-level data isn't available (e.g., "MX" for Mexico). Country-level entries are displayed as lighter shading on the map.
+
+Host range data can be entered manually or pre-filled from **WCVP** (the World Checklist of Vascular Plants), Kew Gardens' authoritative global plant distribution database. When creating a new host, admins can search WCVP to auto-populate the range. For existing hosts, a "Refresh from POWO-WCVP" tool shows a diff of what's changed.
+
+### How Gall Ranges Work
+
+Galls have no range of their own — their geographic range is **computed** from their hosts:
+
+1. Each host plant has places where it grows (its range, at exact and country-level precision).
+2. A gall's **possible range** is the union of all its hosts' ranges.
 3. **Range exclusions** let admins remove specific places from that computed range. This handles cases where a gall's host grows somewhere but the gall itself doesn't occur there.
 
-**Example:** A gall forms on *Quercus alba* and *Quercus rubra*. Both oaks grow across the eastern US, so the gall's range covers the eastern US. But if the gall has only been observed south of New York, an admin can exclude northern states.
+**Example:** A gall forms on *Quercus alba* and *Quercus montana*. Both oaks grow across the eastern US, so the gall's range covers the eastern US. But if the gall has only been observed south of New York, an admin can exclude northern states.
 
-The public page shows this as "Possible Range" with a map.
+### Range Maps
+
+Ranges are displayed as interactive maps using vector tiles. The color coding:
+
+| Color | Meaning |
+|---|---|
+| **Dark green** | Documented at state/province level (exact precision) |
+| **Light green** | Documented at country level only (inherited precision) |
+| **Red** | Excluded from gall range (admin only) |
+| **White** | Not in range |
+
+On admin pages, maps are interactive — click a state/province to toggle it, or click a country to open a drill-down panel for sub-national editing.
 
 ### Places
 
-Places are geographic regions (states, provinces, countries, etc.) with a hierarchical parent-child structure. They're managed by superadmins.
+Places are geographic regions organized in a hierarchy:
+
+```
+Continent (e.g., North America)
+└── Country (e.g., US, CA, MX)
+    └── State / Province (e.g., CA-ON, US-NY)
+```
+
+Some countries have no subdivisions in the system (e.g., territories like Puerto Rico, Bermuda) — these are "leaf countries" that behave like states for range purposes.
+
+**Important distinction:** "Leaf places" (states, provinces, leaf countries) are what appear in range selections and on maps. Parent countries with subdivisions are used for country-level precision entries that get expanded to their children for display.
+
+Places are managed by superadmins.
 
 ---
 
@@ -331,8 +384,10 @@ Common glossary terms include morphological vocabulary (monothalamous, polythala
 
 ```
 Family (Cynipidae, type: Wasp)
-└── Genus (Callirhytis)
-    └── Species: Callirhytis furva (taxoncode: gall)
+└── Subfamily (Cynipinae)          ← optional intermediate ranks
+    └── Tribe (Cynipini)
+        └── Genus (Callirhytis)
+            └── Species: Callirhytis furva (taxoncode: gall)
         ├── Traits: spherical, brown, on leaf...
         ├── Hosts: Quercus alba, Quercus rubra
         │   └── Range: computed from host places minus exclusions

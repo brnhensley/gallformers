@@ -16,9 +16,9 @@ A task-oriented guide for Gallformers admins. Whether you're brand new or return
 The dashboard is organized into sections:
 
 - **Quick Actions** — the things you'll do most often (create galls, hosts, sources, manage associations)
-- **Taxonomy** — create families, genera, and sections
-- **Content & Reference** — articles, identification keys, glossary entries, image audit
-- **Super Admin** — user management, places, filter terms (only visible to superadmins)
+- **Taxonomy** — create families, genera, intermediates, and sections
+- **Content & Reference** — articles, identification keys, glossary entries
+- **Super Admin** — user management, filter terms (only visible to superadmins)
 - **Stats** — current counts for galls, hosts, sources, and images (clickable to browse each list)
 
 There's also a **Discord** link and a link to this help doc in the top right for help.
@@ -59,6 +59,14 @@ Use this when a gall species is formally described in the literature.
 - [Add images](#how-do-i-manage-images)
 - [Map host plants](#how-do-i-manage-gall-host-associations)
 - [Map sources](#how-do-i-map-species-to-sources)
+
+### Quick Links (Edit Mode)
+
+When editing an existing gall, links appear at the top of the form:
+- **Manage Images** — jump to the image manager for this gall
+- **Gall-Host Mappings** — go to the gall-host associations page with this gall pre-selected
+- **Species-Source Mappings** — find existing source mappings
+- **Add Source Mapping** — add a new source mapping
 
 ---
 
@@ -104,13 +112,32 @@ Use this when a species has been formally re-described, moved to a different gen
 ## How Do I Add a New Host Plant?
 
 1. From the dashboard, click **Create a New Host** (or go to `/admin/hosts/new`).
-2. Select **Family** and **Genus** from the dropdowns.
-3. Enter the **specific epithet**.
-4. Add **common names** — click the add button and type each name.
-5. Set **Abundance** and add a **Description** if available.
-6. Click **Save**.
+2. **WCVP pre-fill (recommended):** If the host exists in the World Checklist of Vascular Plants, use the WCVP search card at the top of the form. Search by name, select a match, and the form auto-fills the species name, family (created if it doesn't exist yet), and geographic range. Toggle "Include introduced range" if you want introduced distributions too.
+3. **Or fill in manually:** Select **Family** and **Genus**, enter the **specific epithet**.
+4. Optionally assign a **Section** (for genera that have them, like *Quercus*).
+5. Add **common names** as aliases.
+6. Set **Abundance**.
+7. **Edit the range map** — click states/provinces to toggle them in or out of range. Click a country to open the drill-down panel for sub-national editing. Colors: dark green = exact, light green = country-level, white = not in range.
+8. Click **Save**.
 
 **After creating:** You'll probably want to [map galls to this host](#how-do-i-manage-gall-host-associations).
+
+### Refreshing Host Range from WCVP
+
+When editing an existing host, the **Refresh from POWO-WCVP** button (below the section/abundance row) compares the current range against WCVP data and shows a diff:
+
+- **Green (to add)** — places in WCVP but not in the current range
+- **Red (to remove)** — places in the current range but not in WCVP
+- **Amber (introduced)** — introduced distributions you can optionally include
+
+Check or uncheck individual items, then click **Apply Selected Changes** to stage the updates. Changes aren't saved until you click **Save**.
+
+### Quick Links (Edit Mode)
+
+When editing an existing host, links appear at the top of the form:
+- **Manage Images** — jump to the image manager for this host
+- **Species-Source Mappings** — find existing source mappings
+- **Add Source Mapping** — add a new source mapping
 
 ---
 
@@ -240,34 +267,38 @@ There are two workflows depending on your starting point.
 This dedicated page manages which galls form on which host plants, plus geographic range exclusions.
 
 1. From the dashboard, click **Manage Gall-Host Associations** (or go to `/admin/gallhost`).
-2. **Select a gall** using the typeahead search.
-3. The current hosts are shown.
-4. **Add hosts:** Search for and select additional host plants.
-5. **Remove hosts:** Click the remove button on any host.
-6. **Range exclusions** (advanced): Below the host list, you can see all the places covered by the selected hosts. Exclude specific places from the gall's range if needed — for example, if a gall occurs on a host everywhere *except* a certain region.
+2. **Select a gall** using the typeahead search (or arrive via a link from the gall form/list, which pre-selects it).
+3. The current hosts are shown. **Add hosts** by searching the dropdown, or **remove** them with the remove button.
+4. The **range map** shows the gall's computed range — the union of all its hosts' ranges minus any exclusions. A summary line shows counts: confirmed places, country-level places, excluded places, and total from hosts.
+5. **Manage exclusions:** Click a country on the map to open the exclusion drill-down panel. This shows only the subdivisions that are in the host range. Toggle individual states/provinces to exclude them, or use "Select All" / "Deselect All" for bulk changes. Green = in range, red = excluded.
+6. The map updates live as you add/remove hosts or change exclusions.
 7. Click **Save** to apply all changes.
 
-**Tip:** You can also get here by clicking **Map Hosts** from the gall list page, which pre-selects the gall.
+**Tip:** Links at the top take you to the gall's public page and edit form.
 
 ---
 
 ## How Do I Create or Edit Taxonomy?
 
-Taxonomy follows the hierarchy: **Family > Genus > Section** (sections are optional).
+Taxonomy follows the hierarchy: **Family > [Intermediate ranks] > Genus > Section**. Intermediate ranks and sections are optional.
 
 ### Creating a New Taxon
 
 1. Go to `/admin/taxonomy/new` (or click **Create a New Taxon** on the dashboard).
-2. Select the **type**: Family, Genus, or Section.
-3. Enter the **name** and optional **description**.
-4. **If creating a genus**, select its parent **family**.
-5. **If creating a section**, select its parent **genus**.
-6. Click **Save**.
+2. Select the **type**: Family, Genus, Intermediate, or Section.
+3. Enter the **name**.
+4. **Family** — select the organism type (Wasp, Midge, Plant, etc.) from the description dropdown.
+5. **Genus** — select its parent (a family or an intermediate rank) using the typeahead. The search shows full ancestry paths like "Cynipidae / Subfamily: Cynipinae".
+6. **Intermediate** — select a **rank** (Subfamily, Tribe, etc.), select its parent (a family or another intermediate), and use the **children tree** to pick which genera or intermediates should be re-parented under this new rank. At least one child is required.
+7. **Section** — select its parent **genus** (plant genera only).
+8. Click **Save**.
+
+**Note:** A taxon's type cannot be changed after creation.
 
 ### Browsing and Editing Taxonomy
 
 1. Go to `/admin/taxonomy` to see the full list.
-2. **Search** by name, **filter** by type (family/genus/section), or **sort** by any column.
+2. **Search** by name, **filter** by type (family/genus/intermediate/section), or **sort** by any column.
 3. Click a taxon to edit it.
 
 ### Moving Genera Between Families
@@ -276,6 +307,10 @@ Taxonomy follows the hierarchy: **Family > Genus > Section** (sections are optio
 2. Click the **Move** button that appears.
 3. Select the destination family in the modal.
 4. Confirm the move.
+
+### Deleting Taxonomy
+
+Deleting a taxon shows a confirmation modal with the impact count (how many children and species are affected). For intermediates, deletion "collapses upward" — children are re-parented to the intermediate's own parent, so the tree heals itself.
 
 ### Hiding Empty Unknown Genera
 
