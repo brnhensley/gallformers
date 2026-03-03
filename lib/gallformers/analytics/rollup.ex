@@ -23,6 +23,61 @@ defmodule Gallformers.Analytics.Rollup do
   end
 
   @doc """
+  Rolls up all days from the last rolled-up date through yesterday.
+
+  Finds the most recent date in `daily_stats`, then processes each day
+  from the day after that through yesterday. If no rollups exist yet,
+  finds the earliest raw page view and starts from there.
+
+  Individual day failures are logged and skipped — they don't prevent
+  subsequent days from being processed.
+
+  Returns `{:ok, count}` where count is the number of days successfully rolled up.
+  """
+  @spec rollup_pending_days() :: {:ok, non_neg_integer()}
+  def rollup_pending_days do
+    yesterday = Date.add(Date.utc_today(), -1)
+    start_date = next_pending_date()
+
+    if start_date == nil or Date.compare(start_date, yesterday) == :gt do
+      {:ok, 0}
+    else
+      count =
+        Date.range(start_date, yesterday)
+        |> Enum.reduce(0, fn date, acc ->
+          try do
+            case rollup_day(date) do
+              :ok -> acc + 1
+              :noop -> acc
+            end
+          rescue
+            e ->
+              Logger.error("Analytics rollup failed for #{date}: #{Exception.message(e)}")
+
+              acc
+          end
+        end)
+
+      {:ok, count}
+    end
+  end
+
+  # Returns the first date that needs rolling up, or nil if caught up.
+  defp next_pending_date do
+    case Repo.query!("SELECT MAX(date) FROM daily_stats") do
+      %{rows: [[nil]]} ->
+        # No rollups exist — find the earliest raw page view date
+        case Repo.query!("SELECT MIN(date(inserted_at)) FROM page_views") do
+          %{rows: [[nil]]} -> nil
+          %{rows: [[min_str]]} -> Date.from_iso8601!(min_str)
+        end
+
+      %{rows: [[max_str]]} ->
+        Date.from_iso8601!(max_str) |> Date.add(1)
+    end
+  end
+
+  @doc """
   Aggregates a single day's raw page_views into the 5 summary tables.
 
   Idempotent: uses DELETE + INSERT for multi-row tables, INSERT OR REPLACE
@@ -77,11 +132,12 @@ defmodule Gallformers.Analytics.Rollup do
 
   @impl true
   def handle_info(:run_rollup, state) do
-    yesterday = Date.add(Date.utc_today(), -1)
+    case rollup_pending_days() do
+      {:ok, 0} ->
+        Logger.debug("Analytics rollup: no pending days")
 
-    case rollup_day(yesterday) do
-      :ok -> Logger.info("Analytics rollup completed for #{yesterday}")
-      :noop -> Logger.debug("Analytics rollup: no data for #{yesterday}")
+      {:ok, count} ->
+        Logger.info("Analytics rollup: processed #{count} day(s)")
     end
 
     {pruned, _} = prune_old_page_views()
