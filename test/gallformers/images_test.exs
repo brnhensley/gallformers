@@ -120,11 +120,10 @@ defmodule Gallformers.ImagesTest do
   end
 
   describe "list_unattributed_images/1" do
-    test "returns tuple with images and count" do
+    test "returns empty list and zero count with no images seeded" do
       {images, count} = Images.list_unattributed_images()
-      assert is_list(images)
-      assert is_integer(count)
-      assert count >= 0
+      assert images == []
+      assert count == 0
     end
 
     test "respects pagination options" do
@@ -134,10 +133,8 @@ defmodule Gallformers.ImagesTest do
   end
 
   describe "count_unattributed_images/0" do
-    test "returns a non-negative integer" do
-      count = Images.count_unattributed_images()
-      assert is_integer(count)
-      assert count >= 0
+    test "returns zero with no images seeded" do
+      assert Images.count_unattributed_images() == 0
     end
   end
 

@@ -14,18 +14,20 @@ defmodule Gallformers.ProdData.InvariantsTest do
   # ---------------------------------------------------------------------------
 
   describe "taxonomy tree integrity" do
-    test "every genus has a parent_id pointing to a family" do
+    test "every genus has a parent_id pointing to a family or intermediate rank" do
       bad =
         Repo.all(
           from g in "taxonomy",
             left_join: p in "taxonomy",
             on: g.parent_id == p.id,
-            where: g.type == "genus" and (is_nil(p.id) or p.type != "family"),
+            where:
+              g.type == "genus" and
+                (is_nil(p.id) or p.type not in ["family", "intermediate"]),
             select: %{id: g.id, name: g.name, parent_id: g.parent_id}
         )
 
       assert bad == [],
-             "Found #{length(bad)} genera whose parent is not a family: #{inspect(Enum.take(bad, 10))}"
+             "Found #{length(bad)} genera whose parent is not a family or intermediate: #{inspect(Enum.take(bad, 10))}"
     end
 
     test "every section has a parent_id pointing to a genus (not a family)" do
@@ -68,7 +70,7 @@ defmodule Gallformers.ProdData.InvariantsTest do
              "Found #{length(bad)} orphaned taxonomy records: #{inspect(Enum.take(bad, 10))}"
     end
 
-    test "taxonomy type field is consistent (families have no parent, genera/sections do)" do
+    test "taxonomy type field is consistent (families have no parent, genera/sections/intermediates do)" do
       # Families should have no parent_id (they are roots)
       families_with_parent =
         Repo.all(
@@ -80,16 +82,16 @@ defmodule Gallformers.ProdData.InvariantsTest do
       assert families_with_parent == [],
              "Found #{length(families_with_parent)} families with a parent_id: #{inspect(Enum.take(families_with_parent, 10))}"
 
-      # Genera and sections should have a parent_id
+      # Genera, sections, and intermediates should have a parent_id
       missing_parent =
         Repo.all(
           from t in "taxonomy",
-            where: t.type in ["genus", "section"] and is_nil(t.parent_id),
+            where: t.type in ["genus", "section", "intermediate"] and is_nil(t.parent_id),
             select: %{id: t.id, name: t.name, type: t.type}
         )
 
       assert missing_parent == [],
-             "Found #{length(missing_parent)} genera/sections without parent_id: #{inspect(Enum.take(missing_parent, 10))}"
+             "Found #{length(missing_parent)} genera/sections/intermediates without parent_id: #{inspect(Enum.take(missing_parent, 10))}"
     end
   end
 

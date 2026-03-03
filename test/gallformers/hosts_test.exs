@@ -4,64 +4,53 @@ defmodule Gallformers.HostsTest do
   """
   use Gallformers.DataCase, async: false
 
-  alias Gallformers.{GallHosts, Galls, Ranges, Species}
+  alias Gallformers.{GallHosts, Ranges, Species}
   alias Gallformers.Plants
 
-  describe "list_hosts/0" do
-    test "returns hosts with expected fields" do
-      hosts = Plants.list_hosts()
-      assert is_list(hosts)
+  # Test seeds: plants 1-9 (Q. alba, Q. rubra, Q. velutina, Acer rubrum,
+  # Acer saccharum, Thymus alpinus, Thymus serpyllum, Mentha arvensis, Q. robur)
 
-      if length(hosts) > 0 do
-        host = hd(hosts)
-        assert Map.has_key?(host, :id)
-        assert Map.has_key?(host, :name)
-        assert Map.has_key?(host, :taxoncode)
-        assert host.taxoncode == "plant"
-      end
+  describe "list_hosts/0" do
+    test "returns all host plants" do
+      hosts = Plants.list_hosts()
+      assert length(hosts) == 9
+      assert Enum.all?(hosts, &(&1.taxoncode == "plant"))
     end
 
     test "returns hosts ordered by name" do
       hosts = Plants.list_hosts()
-
-      if length(hosts) > 1 do
-        names = Enum.map(hosts, & &1.name)
-        assert names == Enum.sort(names)
-      end
+      names = Enum.map(hosts, & &1.name)
+      assert names == Enum.sort(names)
     end
   end
 
   describe "list_hosts_paginated/2" do
     test "returns limited number of hosts" do
       hosts = Plants.list_hosts_paginated(5, 0)
-      assert length(hosts) <= 5
+      assert length(hosts) == 5
     end
 
     test "respects offset parameter" do
-      all_hosts = Plants.list_hosts()
+      # 9 hosts total
+      first_page = Plants.list_hosts_paginated(5, 0)
+      second_page = Plants.list_hosts_paginated(5, 5)
 
-      if length(all_hosts) > 5 do
-        first_page = Plants.list_hosts_paginated(5, 0)
-        second_page = Plants.list_hosts_paginated(5, 5)
+      assert length(first_page) == 5
+      assert length(second_page) == 4
 
-        first_ids = MapSet.new(Enum.map(first_page, & &1.id))
-        second_ids = MapSet.new(Enum.map(second_page, & &1.id))
-        assert MapSet.disjoint?(first_ids, second_ids)
-      end
+      first_ids = MapSet.new(Enum.map(first_page, & &1.id))
+      second_ids = MapSet.new(Enum.map(second_page, & &1.id))
+      assert MapSet.disjoint?(first_ids, second_ids)
     end
   end
 
   describe "count_hosts/0" do
-    test "returns a non-negative integer" do
-      count = Plants.count_hosts()
-      assert is_integer(count)
-      assert count >= 0
+    test "returns count matching seeded hosts" do
+      assert Plants.count_hosts() == 9
     end
 
     test "count matches length of list_hosts" do
-      count = Plants.count_hosts()
-      hosts = Plants.list_hosts()
-      assert count == length(hosts)
+      assert Plants.count_hosts() == length(Plants.list_hosts())
     end
   end
 
@@ -70,17 +59,11 @@ defmodule Gallformers.HostsTest do
       assert nil == Plants.get_host(999_999_999)
     end
 
-    test "returns host with expected fields for valid ID" do
-      hosts = Plants.list_hosts()
-
-      if length(hosts) > 0 do
-        host = Plants.get_host(hd(hosts).id)
-        assert host != nil
-        assert Map.has_key?(host, :id)
-        assert Map.has_key?(host, :name)
-        assert Map.has_key?(host, :taxoncode)
-        assert host.taxoncode == "plant"
-      end
+    test "returns host for valid ID" do
+      host = Plants.get_host(1)
+      assert host.id == 1
+      assert host.name == "Quercus alba"
+      assert host.taxoncode == "plant"
     end
   end
 
@@ -90,154 +73,97 @@ defmodule Gallformers.HostsTest do
     end
 
     test "returns host for valid name" do
-      hosts = Plants.list_hosts()
-
-      if length(hosts) > 0 do
-        host = Plants.get_host_by_name(hd(hosts).name)
-        assert host != nil
-        assert host.name == hd(hosts).name
-      end
+      host = Plants.get_host_by_name("Quercus rubra")
+      assert host.id == 2
     end
   end
 
   describe "get_hosts_for_gall/1" do
     test "returns empty list for non-existent gall" do
-      hosts = GallHosts.get_hosts_for_gall(999_999_999)
-      assert hosts == []
+      assert GallHosts.get_hosts_for_gall(999_999_999) == []
     end
 
-    test "returns hosts with expected fields" do
-      galls = Galls.list_galls()
-
-      # Find a gall with hosts
-      gall_with_host =
-        Enum.find(galls, fn g ->
-          length(GallHosts.get_hosts_for_gall(g.id)) > 0
-        end)
-
-      if gall_with_host do
-        hosts = GallHosts.get_hosts_for_gall(gall_with_host.id)
-        assert length(hosts) > 0
-        host = hd(hosts)
-        assert Map.has_key?(host, :host_relation_id)
-        assert Map.has_key?(host, :host_species_id)
-        assert Map.has_key?(host, :host_name)
-      end
+    test "returns hosts for a gall with known host relationships" do
+      # Gall 100 is linked to hosts 6 (T. alpinus) and 8 (M. arvensis)
+      hosts = GallHosts.get_hosts_for_gall(100)
+      assert length(hosts) == 2
+      host_ids = Enum.map(hosts, & &1.host_species_id) |> Enum.sort()
+      assert host_ids == [6, 8]
     end
   end
 
   describe "get_galls_for_host/1" do
     test "returns empty list for non-existent host" do
-      galls = GallHosts.get_galls_for_host(999_999_999)
-      assert galls == []
+      assert GallHosts.get_galls_for_host(999_999_999) == []
     end
 
-    test "returns galls with expected fields" do
-      hosts = Plants.list_hosts()
-
-      # Find a host with galls
-      host_with_gall =
-        Enum.find(hosts, fn h ->
-          length(GallHosts.get_galls_for_host(h.id)) > 0
-        end)
-
-      if host_with_gall do
-        galls = GallHosts.get_galls_for_host(host_with_gall.id)
-        assert length(galls) > 0
-        gall = hd(galls)
-        assert Map.has_key?(gall, :id)
-        assert Map.has_key?(gall, :name)
-        assert Map.has_key?(gall, :undescribed)
-      end
+    test "returns galls for a host with known gall relationships" do
+      # Host 6 (T. alpinus) is linked to gall 100
+      galls = GallHosts.get_galls_for_host(6)
+      assert length(galls) == 1
+      assert hd(galls).id == 100
+      assert hd(galls).name == "Andricus quercuscalifornicus"
     end
   end
 
   describe "get_places_for_host/1" do
     test "returns empty list for non-existent host" do
-      places = Ranges.get_places_for_host(999_999_999)
-      assert places == []
+      assert Ranges.get_places_for_host(999_999_999) == []
     end
 
-    test "returns list of place codes" do
-      hosts = Plants.list_hosts()
-
-      if length(hosts) > 0 do
-        places = Ranges.get_places_for_host(hd(hosts).id)
-        assert is_list(places)
-
-        if length(places) > 0 do
-          # Place codes are strings
-          assert is_binary(hd(places))
-        end
-      end
+    test "returns place codes for host with known range" do
+      # Host 8 (M. arvensis) has ranges: US-CA (exact), CA-AB (exact), US (country)
+      places = Ranges.get_places_for_host(8)
+      assert "US-CA" in places
+      assert "CA-AB" in places
     end
   end
 
   describe "get_places_for_gall/1" do
     test "returns empty list for non-existent gall" do
-      places = Ranges.get_places_for_gall(999_999_999)
-      assert places == []
+      assert Ranges.get_places_for_gall(999_999_999) == []
     end
 
-    test "returns list of place codes" do
-      galls = Galls.list_galls()
-
-      if length(galls) > 0 do
-        places = Ranges.get_places_for_gall(hd(galls).id)
-        assert is_list(places)
-      end
+    test "returns place codes derived from host ranges" do
+      # Gall 100 is on hosts 6 and 8, which have ranges in US-CA and CA-AB
+      places = Ranges.get_places_for_gall(100)
+      assert length(places) > 0
     end
   end
 
   describe "get_excluded_places_for_gall/1" do
-    test "returns a list" do
-      galls = Galls.list_galls()
+    test "returns excluded places for gall with exclusions" do
+      # Gall 100 excludes MX-JAL
+      excluded = Ranges.get_excluded_places_for_gall(100)
+      assert "MX-JAL" in excluded
+    end
 
-      if length(galls) > 0 do
-        excluded = Ranges.get_excluded_places_for_gall(hd(galls).id)
-        assert is_list(excluded)
-      end
+    test "returns empty list for gall with no exclusions" do
+      assert Ranges.get_excluded_places_for_gall(101) == []
     end
   end
 
   describe "search_hosts/2" do
     test "returns empty list for empty query" do
-      results = Plants.search_hosts("")
-      assert results == []
+      assert Plants.search_hosts("") == []
     end
 
     test "returns empty list for whitespace query" do
-      results = Plants.search_hosts("   ")
-      assert results == []
+      assert Plants.search_hosts("   ") == []
     end
 
     test "returns matching hosts for valid query" do
-      hosts = Plants.list_hosts()
-
-      if length(hosts) > 0 do
-        # Search for part of first host's name
-        host_name = hd(hosts).name
-        search_term = String.slice(host_name, 0, 3)
-        results = Plants.search_hosts(search_term)
-
-        assert is_list(results)
-        # Results should include hosts matching the search term
-      end
+      results = Plants.search_hosts("Quercus")
+      assert length(results) >= 3
+      assert Enum.all?(results, &String.contains?(&1.name, "Quercus"))
     end
 
     test "search is case-insensitive" do
-      hosts = Plants.list_hosts()
+      upper_results = Plants.search_hosts("QUERCUS")
+      lower_results = Plants.search_hosts("quercus")
 
-      if length(hosts) > 0 do
-        host_name = hd(hosts).name
-        search_term = String.slice(host_name, 0, 3)
-        upper_results = Plants.search_hosts(String.upcase(search_term))
-        lower_results = Plants.search_hosts(String.downcase(search_term))
-
-        # Both should return results (may not be identical due to aliases)
-        assert is_list(upper_results)
-        assert is_list(lower_results)
-      end
+      assert length(upper_results) > 0
+      assert length(upper_results) == length(lower_results)
     end
 
     test "respects limit parameter" do
@@ -246,53 +172,40 @@ defmodule Gallformers.HostsTest do
     end
 
     test "results have aliases field" do
-      hosts = Plants.list_hosts()
-
-      if length(hosts) > 0 do
-        host_name = hd(hosts).name
-        search_term = String.slice(host_name, 0, 3)
-        results = Plants.search_hosts(search_term, 5)
-
-        if length(results) > 0 do
-          result = hd(results)
-          assert Map.has_key?(result, :aliases)
-          assert is_list(result.aliases)
-        end
-      end
+      results = Plants.search_hosts("Quercus", 5)
+      assert length(results) > 0
+      assert Enum.all?(results, &Map.has_key?(&1, :aliases))
+      assert Enum.all?(results, &is_list(&1.aliases))
     end
 
     test "batch-loaded aliases match individually loaded aliases" do
-      # This test verifies the N+1 optimization (attach_aliases_batch)
-      # returns the same results as individual get_aliases_for_host calls
-      results = Plants.search_hosts("a", 10)
+      results = Plants.search_hosts("Quercus", 10)
+      assert length(results) >= 3
 
-      if length(results) > 1 do
-        # For each result, verify batch-loaded aliases match individual lookup
-        for result <- results do
-          individual_aliases = Plants.get_aliases_for_host(result.id)
-          batch_aliases = result.aliases
+      for result <- results do
+        individual_aliases = Plants.get_aliases_for_host(result.id)
+        batch_aliases = result.aliases
 
-          # Both should be lists with the same contents (order may differ)
-          assert Enum.sort(batch_aliases) == Enum.sort(individual_aliases),
-                 "Aliases mismatch for host #{result.id}: batch=#{inspect(batch_aliases)}, individual=#{inspect(individual_aliases)}"
-        end
+        assert Enum.sort(batch_aliases) == Enum.sort(individual_aliases),
+               "Aliases mismatch for host #{result.id}: batch=#{inspect(batch_aliases)}, individual=#{inspect(individual_aliases)}"
       end
     end
   end
 
   describe "get_aliases_for_host/1" do
     test "returns empty list for non-existent host" do
-      aliases = Plants.get_aliases_for_host(999_999_999)
-      assert aliases == []
+      assert Plants.get_aliases_for_host(999_999_999) == []
     end
 
-    test "returns list of alias names" do
-      hosts = Plants.list_hosts()
+    test "returns alias names for host with aliases" do
+      # Host 1 (Q. alba) has alias "White Oak"
+      aliases = Plants.get_aliases_for_host(1)
+      assert aliases == ["White Oak"]
+    end
 
-      if length(hosts) > 0 do
-        aliases = Plants.get_aliases_for_host(hd(hosts).id)
-        assert is_list(aliases)
-      end
+    test "returns empty list for host with no aliases" do
+      # Host 4 (Acer rubrum) has no aliases in test seeds
+      assert Plants.get_aliases_for_host(4) == []
     end
   end
 

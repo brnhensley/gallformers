@@ -6,30 +6,26 @@ defmodule Gallformers.GlossariesTest do
 
   alias Gallformers.Glossaries
 
+  # Test seeds provide 4 glossary entries:
+  # abscission, bivalved, cynipid, detachable
+
   describe "list_glossary/0" do
-    test "returns a list of glossary entries" do
+    test "returns all glossary entries" do
       entries = Glossaries.list_glossary()
-      assert is_list(entries)
+      assert length(entries) == 4
     end
 
     test "entries are ordered alphabetically by word" do
       entries = Glossaries.list_glossary()
-
-      if length(entries) > 1 do
-        words = Enum.map(entries, & &1.word)
-        assert words == Enum.sort(words)
-      end
+      words = Enum.map(entries, & &1.word)
+      assert words == ["abscission", "bivalved", "cynipid", "detachable"]
     end
 
     test "entries have expected fields" do
-      entries = Glossaries.list_glossary()
-
-      if length(entries) > 0 do
-        entry = hd(entries)
-        assert Map.has_key?(entry, :id)
-        assert Map.has_key?(entry, :word)
-        assert Map.has_key?(entry, :definition)
-      end
+      [entry | _] = Glossaries.list_glossary()
+      assert entry.id == 1
+      assert entry.word == "abscission"
+      assert entry.definition =~ "natural detachment"
     end
   end
 
@@ -39,13 +35,8 @@ defmodule Gallformers.GlossariesTest do
     end
 
     test "returns entry for valid ID" do
-      entries = Glossaries.list_glossary()
-
-      if length(entries) > 0 do
-        entry = Glossaries.get_glossary(hd(entries).id)
-        assert entry != nil
-        assert entry.id == hd(entries).id
-      end
+      entry = Glossaries.get_glossary(1)
+      assert entry.word == "abscission"
     end
   end
 
@@ -55,13 +46,9 @@ defmodule Gallformers.GlossariesTest do
     end
 
     test "returns entry for valid word" do
-      entries = Glossaries.list_glossary()
-
-      if length(entries) > 0 do
-        entry = Glossaries.get_glossary_by_word(hd(entries).word)
-        assert entry != nil
-        assert entry.word == hd(entries).word
-      end
+      entry = Glossaries.get_glossary_by_word("cynipid")
+      assert entry.id == 3
+      assert entry.definition =~ "Cynipidae"
     end
   end
 
@@ -72,54 +59,29 @@ defmodule Gallformers.GlossariesTest do
     end
 
     test "returns matching entries for valid query" do
-      entries = Glossaries.list_glossary()
-
-      if length(entries) > 0 do
-        # Search for part of first entry's word
-        word = hd(entries).word
-        search_term = String.slice(word, 0, 3)
-        results = Glossaries.search_glossary(search_term)
-
-        assert is_list(results)
-        assert length(results) > 0
-      end
+      results = Glossaries.search_glossary("cyn")
+      assert length(results) >= 1
+      assert Enum.any?(results, &(&1.word == "cynipid"))
     end
 
     test "search is case-insensitive" do
-      entries = Glossaries.list_glossary()
+      upper_results = Glossaries.search_glossary("CYNIPID")
+      lower_results = Glossaries.search_glossary("cynipid")
 
-      if length(entries) > 0 do
-        word = hd(entries).word
-        upper_results = Glossaries.search_glossary(String.upcase(word))
-        lower_results = Glossaries.search_glossary(String.downcase(word))
-
-        assert is_list(upper_results)
-        assert is_list(lower_results)
-      end
+      assert length(upper_results) > 0
+      assert length(upper_results) == length(lower_results)
     end
 
     test "searches in definitions too" do
-      entries = Glossaries.list_glossary()
-
-      entry_with_definition =
-        Enum.find(entries, fn e ->
-          e.definition != nil and String.length(e.definition) > 10
-        end)
-
-      if entry_with_definition do
-        # Search for part of the definition
-        search_term = String.slice(entry_with_definition.definition, 0, 5)
-        results = Glossaries.search_glossary(search_term)
-        assert is_list(results)
-      end
+      # "detachment" appears in abscission's definition, not its word
+      results = Glossaries.search_glossary("detachment")
+      assert Enum.any?(results, &(&1.word == "abscission"))
     end
   end
 
   describe "count_glossary/0" do
-    test "returns a non-negative integer" do
-      count = Glossaries.count_glossary()
-      assert is_integer(count)
-      assert count >= 0
+    test "returns count matching seeded entries" do
+      assert Glossaries.count_glossary() == 4
     end
 
     test "count matches length of list_glossary" do
@@ -131,12 +93,9 @@ defmodule Gallformers.GlossariesTest do
 
   describe "list_glossary_by_letter/1" do
     test "returns entries starting with specified letter" do
-      entries = Glossaries.list_glossary_by_letter("a")
-
-      Enum.each(entries, fn entry ->
-        first_letter = String.first(entry.word) |> String.downcase()
-        assert first_letter == "a"
-      end)
+      entries = Glossaries.list_glossary_by_letter("d")
+      assert length(entries) == 1
+      assert hd(entries).word == "detachable"
     end
 
     test "is case-insensitive" do
@@ -146,42 +105,33 @@ defmodule Gallformers.GlossariesTest do
     end
 
     test "returns empty list for letter with no entries" do
-      # Test with an uncommon starting letter
-      results = Glossaries.list_glossary_by_letter("z")
-      assert is_list(results)
+      assert Glossaries.list_glossary_by_letter("z") == []
     end
   end
 
   describe "get_letter_counts/0" do
-    test "returns a map" do
+    test "returns a map with correct counts" do
       counts = Glossaries.get_letter_counts()
-      assert is_map(counts)
+      assert counts["A"] == 1
+      assert counts["B"] == 1
+      assert counts["C"] == 1
+      assert counts["D"] == 1
+      assert map_size(counts) == 4
     end
 
     test "map keys are uppercase letters" do
       counts = Glossaries.get_letter_counts()
 
       Enum.each(counts, fn {letter, _count} ->
-        assert is_binary(letter)
         assert String.length(letter) == 1
         assert letter == String.upcase(letter)
-      end)
-    end
-
-    test "map values are positive integers" do
-      counts = Glossaries.get_letter_counts()
-
-      Enum.each(counts, fn {_letter, count} ->
-        assert is_integer(count)
-        assert count > 0
       end)
     end
 
     test "total count matches count_glossary" do
       counts = Glossaries.get_letter_counts()
       total_from_map = Enum.reduce(counts, 0, fn {_l, c}, acc -> acc + c end)
-      total = Glossaries.count_glossary()
-      assert total_from_map == total
+      assert total_from_map == Glossaries.count_glossary()
     end
   end
 end

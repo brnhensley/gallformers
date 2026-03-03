@@ -214,6 +214,16 @@ INSERT INTO species_taxonomy (species_id, taxonomy_id) VALUES
   (201, 34);  -- C. quercus → Cynips (under Cynipini tribe)
 
 -- =============================================================================
+-- Glossary
+-- =============================================================================
+
+INSERT INTO glossary (id, word, definition, urls) VALUES
+  (1, 'abscission', 'The natural detachment of parts of a plant, typically dead leaves and ripe fruit.', ''),
+  (2, 'bivalved', 'Having or consisting of two valves or similar parts.', ''),
+  (3, 'cynipid', 'A member of the family Cynipidae, gall wasps that induce galls on plants.', 'https://en.wikipedia.org/wiki/Cynipidae'),
+  (4, 'detachable', 'A gall that can be separated from the host plant without tearing plant tissue.', '');
+
+-- =============================================================================
 -- Articles
 -- =============================================================================
 -- Note: Article tests use Ecto sandbox and create their own test data.

@@ -36,35 +36,24 @@ defmodule GallformersWeb.Plugs.CORSTest do
       assert allowed =~ "content-type"
     end
 
-    test "sets Access-Control-Max-Age header", %{conn: conn} do
+    test "sets Access-Control-Max-Age to 86400", %{conn: conn} do
       conn = get(conn, ~p"/api/v2/galls")
-
-      headers = get_resp_header(conn, "access-control-max-age")
-      assert length(headers) > 0
-      # Should be a number (in seconds)
-      max_age = hd(headers)
-      assert String.match?(max_age, ~r/^\d+$/)
+      assert get_resp_header(conn, "access-control-max-age") == ["86400"]
     end
 
-    test "handles OPTIONS preflight request", %{conn: conn} do
-      # Note: Phoenix routes OPTIONS to catch-all by default
-      # The CORS plug still sets headers but the route may 404
+    test "OPTIONS preflight returns 404 — no explicit OPTIONS route defined" do
+      # Phoenix requires explicit OPTIONS routes for preflight handling.
+      # Without one, OPTIONS falls through to the catch-all and misses the
+      # :api pipeline entirely (so no CORS headers are set).
+      # This test documents the current behavior. If proper preflight support
+      # is needed, add: `options "/api/v2/*path", ...` to the router.
       conn =
-        conn
+        build_conn()
         |> put_req_header("origin", "https://example.com")
         |> put_req_header("access-control-request-method", "GET")
         |> options(~p"/api/v2/galls")
 
-      # CORS headers should be set regardless of status
-      # (The plug adds headers before the route is matched)
-      headers = get_resp_header(conn, "access-control-allow-origin")
-
-      # Either we get 204 with CORS headers, or we get the headers anyway
-      assert conn.status in [200, 204, 404]
-
-      if length(headers) > 0 do
-        assert hd(headers) == "*"
-      end
+      assert conn.status == 404
     end
 
     test "CORS headers present on all API endpoints", %{conn: conn} do

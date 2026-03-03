@@ -86,6 +86,7 @@ defmodule Gallformers.PlacesTest do
     end
 
     test "countries sort before subdivisions" do
+      # "ca" matches CA (Canada, country) and US-CA (California, subdivision)
       results = Places.search_places_grouped("ca", 10)
       groups = Enum.map(results, & &1.group)
 
@@ -101,9 +102,9 @@ defmodule Gallformers.PlacesTest do
         |> Enum.filter(fn {g, _} -> g == "States & Provinces" end)
         |> Enum.map(&elem(&1, 1))
 
-      if country_indices != [] and subdiv_indices != [] do
-        assert Enum.max(country_indices) < Enum.min(subdiv_indices)
-      end
+      assert country_indices != [], "expected at least one country match for 'ca'"
+      assert subdiv_indices != [], "expected at least one subdivision match for 'ca'"
+      assert Enum.max(country_indices) < Enum.min(subdiv_indices)
     end
 
     test "leaf countries appear in Countries group" do

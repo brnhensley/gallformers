@@ -9,69 +9,57 @@ defmodule Gallformers.SpeciesTest do
   alias Gallformers.Repo
   alias Gallformers.Species
 
+  # Test seeds: galls 100-103, 200-201; plants 1-9
+
   describe "list_species/0" do
-    test "returns a list of species" do
+    test "returns all seeded species" do
       species = Species.list_species()
-      assert is_list(species)
+      # 9 plants + 6 galls = 15 species
+      assert length(species) == 15
     end
   end
 
   describe "list_galls/0" do
-    test "returns galls with expected fields" do
+    test "returns only gall species with correct fields" do
       galls = Galls.list_galls()
-      assert is_list(galls)
-
-      if length(galls) > 0 do
-        gall = hd(galls)
-        assert Map.has_key?(gall, :id)
-        assert Map.has_key?(gall, :name)
-        assert Map.has_key?(gall, :taxoncode)
-        assert gall.taxoncode == "gall"
-      end
+      assert length(galls) == 6
+      assert Enum.all?(galls, &(&1.taxoncode == "gall"))
     end
 
     test "returns galls ordered by name" do
       galls = Galls.list_galls()
-
-      if length(galls) > 1 do
-        names = Enum.map(galls, & &1.name)
-        assert names == Enum.sort(names)
-      end
+      names = Enum.map(galls, & &1.name)
+      assert names == Enum.sort(names)
     end
   end
 
   describe "list_galls_paginated/2" do
     test "returns limited number of galls" do
-      galls = Galls.list_galls_paginated(5, 0)
-      assert length(galls) <= 5
+      galls = Galls.list_galls_paginated(3, 0)
+      assert length(galls) == 3
     end
 
     test "respects offset parameter" do
-      all_galls = Galls.list_galls()
+      # 6 galls total, page size 3
+      first_page = Galls.list_galls_paginated(3, 0)
+      second_page = Galls.list_galls_paginated(3, 3)
 
-      if length(all_galls) > 5 do
-        first_page = Galls.list_galls_paginated(5, 0)
-        second_page = Galls.list_galls_paginated(5, 5)
+      assert length(first_page) == 3
+      assert length(second_page) == 3
 
-        # Ensure no overlap
-        first_ids = MapSet.new(Enum.map(first_page, & &1.id))
-        second_ids = MapSet.new(Enum.map(second_page, & &1.id))
-        assert MapSet.disjoint?(first_ids, second_ids)
-      end
+      first_ids = MapSet.new(Enum.map(first_page, & &1.id))
+      second_ids = MapSet.new(Enum.map(second_page, & &1.id))
+      assert MapSet.disjoint?(first_ids, second_ids)
     end
   end
 
   describe "count_galls/0" do
-    test "returns a non-negative integer" do
-      count = Galls.count_galls()
-      assert is_integer(count)
-      assert count >= 0
+    test "returns count matching seeded galls" do
+      assert Galls.count_galls() == 6
     end
 
     test "count matches length of list_galls" do
-      count = Galls.count_galls()
-      galls = Galls.list_galls()
-      assert count == length(galls)
+      assert Galls.count_galls() == length(Galls.list_galls())
     end
   end
 
@@ -81,13 +69,9 @@ defmodule Gallformers.SpeciesTest do
     end
 
     test "returns species for valid ID" do
-      galls = Galls.list_galls()
-
-      if length(galls) > 0 do
-        species = Species.get_species(hd(galls).id)
-        assert species != nil
-        assert species.id == hd(galls).id
-      end
+      species = Species.get_species(100)
+      assert species.id == 100
+      assert species.name == "Andricus quercuscalifornicus"
     end
   end
 
@@ -104,18 +88,12 @@ defmodule Gallformers.SpeciesTest do
       assert nil == Galls.get_gall(999_999_999)
     end
 
-    test "returns gall with expected fields for valid ID" do
-      galls = Galls.list_galls()
-
-      if length(galls) > 0 do
-        gall = Galls.get_gall(hd(galls).id)
-        assert gall != nil
-        assert Map.has_key?(gall, :id)
-        assert Map.has_key?(gall, :name)
-        assert Map.has_key?(gall, :gall_id)
-        assert Map.has_key?(gall, :detachable)
-        assert Map.has_key?(gall, :undescribed)
-      end
+    test "returns gall with traits for valid ID" do
+      gall = Galls.get_gall(100)
+      assert gall.id == 100
+      assert gall.name == "Andricus quercuscalifornicus"
+      assert gall.detachable == "integral"
+      assert gall.undescribed == false
     end
   end
 
@@ -125,94 +103,55 @@ defmodule Gallformers.SpeciesTest do
     end
 
     test "returns gall for valid name" do
-      galls = Galls.list_galls()
-
-      if length(galls) > 0 do
-        gall = Galls.get_gall_by_name(hd(galls).name)
-        assert gall != nil
-        assert gall.name == hd(galls).name
-      end
+      gall = Galls.get_gall_by_name("Amphibolips confluenta")
+      assert gall.id == 101
     end
   end
 
   describe "get_images_for_species/1" do
     test "returns empty list for non-existent species" do
-      images = Species.get_images_for_species(999_999_999)
-      assert images == []
+      assert Species.get_images_for_species(999_999_999) == []
     end
 
-    test "returns images with expected fields" do
-      galls = Galls.list_galls()
-
-      if length(galls) > 0 do
-        images = Species.get_images_for_species(hd(galls).id)
-        assert is_list(images)
-
-        if length(images) > 0 do
-          image = hd(images)
-          assert Map.has_key?(image, :id)
-          assert Map.has_key?(image, :path)
-          assert Map.has_key?(image, :default)
-        end
-      end
+    test "returns empty list for species with no images" do
+      # No images seeded for any species
+      assert Species.get_images_for_species(100) == []
     end
   end
 
   describe "get_aliases_for_species/1" do
     test "returns empty list for non-existent species" do
-      aliases = Species.get_aliases_for_species(999_999_999)
-      assert aliases == []
+      assert Species.get_aliases_for_species(999_999_999) == []
     end
 
-    test "returns aliases with expected fields" do
-      galls = Galls.list_galls()
-
-      # Find a gall with aliases
-      gall_with_alias =
-        Enum.find(galls, fn g ->
-          length(Species.get_aliases_for_species(g.id)) > 0
-        end)
-
-      if gall_with_alias do
-        aliases = Species.get_aliases_for_species(gall_with_alias.id)
-        alias_entry = hd(aliases)
-        assert Map.has_key?(alias_entry, :id)
-        assert Map.has_key?(alias_entry, :name)
-        assert Map.has_key?(alias_entry, :type)
-      end
+    test "returns aliases for species that has them" do
+      # Species 100 (A. quercuscalifornicus) has alias "Oak Apple Gall Wasp"
+      aliases = Species.get_aliases_for_species(100)
+      assert length(aliases) == 1
+      assert hd(aliases).name == "Oak Apple Gall Wasp"
+      assert hd(aliases).type == "common"
     end
   end
 
   describe "random_gall/0" do
-    test "returns a gall with image or nil" do
-      result = Galls.random_gall()
-
-      if result != nil do
-        assert Map.has_key?(result, :id)
-        assert Map.has_key?(result, :name)
-        assert Map.has_key?(result, :image_url)
-        assert String.contains?(result.image_url, "http")
-      end
+    test "returns nil when no galls have images" do
+      # No images seeded, so random_gall should return nil
+      assert Galls.random_gall() == nil
     end
   end
 
   describe "get_default_gall_images/0" do
-    test "returns a list of image maps" do
-      images = Galls.get_default_gall_images()
-      assert is_list(images)
-
-      if length(images) > 0 do
-        image = hd(images)
-        assert Map.has_key?(image, :species_id)
-        assert Map.has_key?(image, :path)
-      end
+    test "returns empty list when no images are seeded" do
+      assert Galls.get_default_gall_images() == []
     end
   end
 
   describe "list_abundances/0" do
-    test "returns a list of abundances" do
+    test "returns all seeded abundances" do
       abundances = Species.list_abundances()
-      assert is_list(abundances)
+      assert length(abundances) == 3
+      names = Enum.map(abundances, & &1.abundance) |> Enum.sort()
+      assert names == ["common", "rare", "uncommon"]
     end
   end
 
@@ -250,13 +189,9 @@ defmodule Gallformers.SpeciesTest do
     test "multi-word queries work" do
       # "q alba" should match "Quercus alba"
       results = Species.search_species_fts("q alba", 10)
-      assert is_list(results)
-
-      # Should find Quercus alba or similar
-      if length(results) > 0 do
-        names = Enum.map(results, & &1.name)
-        assert Enum.any?(names, &String.contains?(String.downcase(&1), "alba"))
-      end
+      assert length(results) > 0
+      names = Enum.map(results, & &1.name)
+      assert Enum.any?(names, &String.contains?(String.downcase(&1), "alba"))
     end
 
     test "returns empty list for nonsense query" do
@@ -270,16 +205,12 @@ defmodule Gallformers.SpeciesTest do
     end
 
     test "results have expected fields" do
-      results = Species.search_species_fts("quercus", 5)
-
-      if length(results) > 0 do
-        result = hd(results)
-        assert Map.has_key?(result, :id)
-        assert Map.has_key?(result, :name)
-        assert Map.has_key?(result, :taxoncode)
-        assert Map.has_key?(result, :datacomplete)
-        assert Map.has_key?(result, :abundance_name)
-      end
+      [result | _] = Species.search_species_fts("quercus", 5)
+      assert result.id
+      assert result.name =~ "Quercus"
+      assert result.taxoncode in ["plant", "gall"]
+      assert Map.has_key?(result, :datacomplete)
+      assert Map.has_key?(result, :abundance_name)
     end
 
     test "respects limit parameter" do
@@ -300,13 +231,8 @@ defmodule Gallformers.SpeciesTest do
       # "ercus" is mid-word in "Quercus" - FTS5 won't match this
       # but LIKE should
       results = Species.search_species("ercus", 10)
-      assert is_list(results)
-
-      # Should find Quercus species via LIKE fallback
-      if length(results) > 0 do
-        names = Enum.map(results, & &1.name)
-        assert Enum.any?(names, &String.contains?(String.downcase(&1), "ercus"))
-      end
+      assert length(results) > 0
+      assert Enum.all?(results, &String.contains?(String.downcase(&1.name), "ercus"))
     end
   end
 

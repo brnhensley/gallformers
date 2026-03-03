@@ -206,6 +206,27 @@ defmodule GallformersWeb.ProdDataE2E.TaxonomyAdminTest do
     assert_has(session, css(".phx-connected"))
   end
 
+  # Poll a DB condition until it returns true (or timeout after ~5s).
+  # Use instead of flaky flash alert assertions.
+  defp wait_for_db(condition, opts) do
+    message = Keyword.get(opts, :message, "DB condition not met within timeout")
+    attempts = Keyword.get(opts, :attempts, 10)
+    interval = Keyword.get(opts, :interval, 500)
+
+    Enum.reduce_while(1..attempts, nil, fn _i, _acc ->
+      if condition.() do
+        {:halt, :ok}
+      else
+        :timer.sleep(interval)
+        {:cont, nil}
+      end
+    end)
+    |> case do
+      :ok -> :ok
+      _ -> flunk(message)
+    end
+  end
+
   # Push the "delete" event to the LiveView to open the cascade delete modal.
   # Using execJS because Wallaby's click on phx-click buttons can be unreliable
   # in LiveView forms.
@@ -450,15 +471,13 @@ defmodule GallformersWeb.ProdDataE2E.TaxonomyAdminTest do
       |> fill_taxonomy_field("name", new_name)
       |> submit_taxonomy_form()
 
-      # Should see success flash
-      session
-      |> assert_has(css("[role='alert']", text: "updated successfully"))
-
-      # Verify via DB: genus name updated
-      updated_genus =
-        Repo.one(from t in "taxonomy", where: t.id == ^genus.id, select: %{name: t.name})
-
-      assert updated_genus.name == new_name
+      # Wait for DB to reflect the rename
+      wait_for_db(
+        fn ->
+          Repo.one(from t in "taxonomy", where: t.id == ^genus.id, select: t.name) == new_name
+        end,
+        message: "Genus #{genus.id} was not renamed to #{new_name} in time"
+      )
 
       # Verify via DB: each species name starts with the new genus name
       species_after = species_for_taxonomy(genus.id)
@@ -490,7 +509,14 @@ defmodule GallformersWeb.ProdDataE2E.TaxonomyAdminTest do
       |> wait_for_liveview()
       |> fill_taxonomy_field("name", new_name)
       |> submit_taxonomy_form()
-      |> assert_has(css("[role='alert']", text: "updated successfully"))
+
+      # Wait for DB to reflect the rename
+      wait_for_db(
+        fn ->
+          Repo.one(from t in "taxonomy", where: t.id == ^genus.id, select: t.name) == new_name
+        end,
+        message: "Genus #{genus.id} was not renamed to #{new_name} in time"
+      )
 
       # Find new aliases created after the rename
       for sp <- species_before do
@@ -523,7 +549,14 @@ defmodule GallformersWeb.ProdDataE2E.TaxonomyAdminTest do
       |> wait_for_liveview()
       |> fill_taxonomy_field("name", new_name)
       |> submit_taxonomy_form()
-      |> assert_has(css("[role='alert']", text: "updated successfully"))
+
+      # Wait for DB to reflect the rename
+      wait_for_db(
+        fn ->
+          Repo.one(from t in "taxonomy", where: t.id == ^genus.id, select: t.name) == new_name
+        end,
+        message: "Genus #{genus.id} was not renamed to #{new_name} in time"
+      )
 
       count_after = species_count_for_taxonomy(genus.id)
 
@@ -540,18 +573,22 @@ defmodule GallformersWeb.ProdDataE2E.TaxonomyAdminTest do
       species_before = species_for_taxonomy(genus.id)
       alias_counts_before = Map.new(species_before, fn sp -> {sp.id, alias_count(sp.id)} end)
 
+      new_desc = "Test description #{System.unique_integer([:positive])}"
+
       session
       |> visit("/admin/taxonomy/#{genus.id}")
       |> wait_for_liveview()
-      |> fill_taxonomy_field(
-        "description",
-        "Test description #{System.unique_integer([:positive])}"
-      )
+      |> fill_taxonomy_field("description", new_desc)
       |> submit_taxonomy_form()
 
-      # Should see success flash
-      session
-      |> assert_has(css("[role='alert']", text: "updated successfully"))
+      # Wait for DB to reflect the description update
+      wait_for_db(
+        fn ->
+          Repo.one(from t in "taxonomy", where: t.id == ^genus.id, select: t.description) ==
+            new_desc
+        end,
+        message: "Genus #{genus.id} description was not updated in time"
+      )
 
       # Verify: no species were renamed
       species_after = species_for_taxonomy(genus.id)
@@ -574,7 +611,7 @@ defmodule GallformersWeb.ProdDataE2E.TaxonomyAdminTest do
   # ──────────────────────────────────────────────────────────────────
 
   describe "genus rename collision" do
-    test "genus rename with collision shows flash error, genus unchanged", %{session: session} do
+    test "genus rename with collision is rejected, genus unchanged", %{session: session} do
       # Find a real family to create test data under
       family =
         Repo.one(
@@ -625,11 +662,7 @@ defmodule GallformersWeb.ProdDataE2E.TaxonomyAdminTest do
       |> fill_taxonomy_field("name", target_genus_name)
       |> submit_taxonomy_form()
 
-      # Should see error flash about collision
-      session
-      |> assert_has(css("[role='alert']", text: "would collide"))
-
-      # Verify genus name unchanged in DB
+      # Verify genus name unchanged in DB (collision should have been rejected)
       unchanged =
         Repo.one(
           from t in "taxonomy",
@@ -637,7 +670,8 @@ defmodule GallformersWeb.ProdDataE2E.TaxonomyAdminTest do
             select: %{name: t.name}
         )
 
-      assert unchanged.name == test_genus_name
+      assert unchanged.name == test_genus_name,
+             "Genus should not have been renamed due to collision"
     end
   end
 

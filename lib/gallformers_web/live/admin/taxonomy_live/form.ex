@@ -176,6 +176,9 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
   # Custom validate handler to update parent_options when type changes
   @impl true
   def handle_event("validate", %{"taxonomy" => params}, socket) do
+    # Disabled fields aren't submitted by the browser — inject type in edit mode
+    params = inject_type_for_edit(params, socket)
+
     prev_type = HtmlForm.input_value(socket.assigns.form, :type)
     type_changed? = params["type"] != prev_type
 
@@ -341,16 +344,12 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
 
   @impl true
   def handle_event("save", %{"taxonomy" => taxonomy_params} = params, socket) do
+    # Disabled fields aren't submitted by the browser — inject type in edit mode
+    # (must happen before inject_parent_id which checks the type)
+    taxonomy_params = inject_type_for_edit(taxonomy_params, socket)
+
     # Inject parent_id from typeahead for types that use it
     taxonomy_params = inject_parent_id(taxonomy_params, socket)
-
-    # Disabled fields aren't submitted — inject the existing type in edit mode
-    taxonomy_params =
-      if socket.assigns.mode == :edit do
-        Map.put(taxonomy_params, "type", socket.assigns.taxonomy.type)
-      else
-        taxonomy_params
-      end
 
     params = Map.put(params, "taxonomy", taxonomy_params)
 
@@ -483,6 +482,16 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
       end
     else
       socket
+    end
+  end
+
+  # Disabled fields aren't included in browser FormData. In edit mode,
+  # the type select is disabled, so we must inject the existing type.
+  defp inject_type_for_edit(params, socket) do
+    if socket.assigns.mode == :edit do
+      Map.put_new(params, "type", socket.assigns.taxonomy.type)
+    else
+      params
     end
   end
 
