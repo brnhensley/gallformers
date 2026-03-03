@@ -94,10 +94,16 @@ defmodule Gallformers.Taxonomy.Search do
     {taxoncode_filter, taxoncode_params, next_param} =
       if taxoncode do
         {"""
-         AND EXISTS (
-           SELECT 1 FROM species_taxonomy st
-           JOIN species s ON st.species_id = s.id AND s.taxoncode = ?3
-           WHERE st.taxonomy_id = g.id
+         AND (
+           EXISTS (
+             SELECT 1 FROM species_taxonomy st
+             JOIN species s ON st.species_id = s.id AND s.taxoncode = ?3
+             WHERE st.taxonomy_id = g.id
+           )
+           OR NOT EXISTS (
+             SELECT 1 FROM species_taxonomy st2
+             WHERE st2.taxonomy_id = g.id
+           )
          )
          """, [taxoncode], 4}
       else
@@ -194,16 +200,27 @@ defmodule Gallformers.Taxonomy.Search do
         }
       )
 
-    # Filter by taxoncode if specified
+    # Filter by taxoncode if specified — include genera that have a species with
+    # the matching taxoncode, OR genera that have no species yet (newly created).
     base_query =
       if taxoncode do
         from(t in base_query,
-          join: st in "species_taxonomy",
-          on: st.taxonomy_id == t.id,
-          join: s in Gallformers.Species.Species,
-          on: st.species_id == s.id,
-          where: s.taxoncode == ^taxoncode,
-          distinct: true
+          where:
+            fragment(
+              """
+              (EXISTS (
+                SELECT 1 FROM species_taxonomy st
+                JOIN species s ON st.species_id = s.id AND s.taxoncode = ?
+                WHERE st.taxonomy_id = ?
+              ) OR NOT EXISTS (
+                SELECT 1 FROM species_taxonomy st2
+                WHERE st2.taxonomy_id = ?
+              ))
+              """,
+              ^taxoncode,
+              t.id,
+              t.id
+            )
         )
       else
         base_query

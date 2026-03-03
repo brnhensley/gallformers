@@ -1152,6 +1152,48 @@ defmodule Gallformers.TaxonomyTest do
       results = Taxonomy.search_genera("Zzzznotagenus")
       assert results == []
     end
+
+    test "taxoncode filter includes genera with no species", %{genus: genus} do
+      # genus has no species linked — it should still appear when filtering by taxoncode
+      results = Taxonomy.search_genera("Search", nil, taxoncode: "gall")
+      ids = Enum.map(results, & &1.id)
+      assert genus.id in ids
+    end
+
+    test "taxoncode filter excludes genera belonging to the other taxoncode" do
+      {:ok, family} =
+        Taxonomy.create_taxonomy(%{
+          name: "TaxcodeFilterFamily",
+          type: "family",
+          description: "Test"
+        })
+
+      {:ok, genus} =
+        Taxonomy.create_taxonomy(%{
+          name: "Taxcodefiltergenus",
+          type: "genus",
+          parent_id: family.id
+        })
+
+      # Create a plant species and link it to this genus
+      {:ok, plant} =
+        Gallformers.Species.create_species(%{
+          name: "Taxcodefiltergenus plantsp",
+          taxoncode: "plant"
+        })
+
+      Taxonomy.link_species_to_taxonomy(plant.id, genus.id)
+
+      # Searching with taxoncode: "gall" should NOT find this genus (it has only plant species)
+      results = Taxonomy.search_genera("Taxcodefilter", nil, taxoncode: "gall")
+      ids = Enum.map(results, & &1.id)
+      refute genus.id in ids
+
+      # Searching with taxoncode: "plant" should find it
+      results = Taxonomy.search_genera("Taxcodefilter", nil, taxoncode: "plant")
+      ids = Enum.map(results, & &1.id)
+      assert genus.id in ids
+    end
   end
 
   describe "resolve_taxonomy_for_species/2" do
