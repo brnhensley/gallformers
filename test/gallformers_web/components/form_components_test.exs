@@ -279,11 +279,11 @@ defmodule GallformersWeb.FormComponentsTest do
   end
 
   describe "selectable_tree/1" do
-    test "renders label with total item count", %{conn: conn} do
+    test "renders label with selected/total item count", %{conn: conn} do
       {:ok, _view, html} = live_isolated(conn, SelectableTreeTestLive)
 
-      # 5 total items across both groups
-      assert html =~ "Places (5)"
+      # 2 selected out of 5 total items across both groups
+      assert html =~ "Places (2/5)"
     end
 
     test "renders group headers with selected/total counts", %{conn: conn} do

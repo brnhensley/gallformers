@@ -1526,22 +1526,24 @@ defmodule GallformersWeb.FormComponents do
   def selectable_tree(assigns) do
     total_items = Enum.reduce(assigns.groups, 0, fn g, acc -> acc + length(g.items) end)
 
-    all_selected =
-      total_items > 0 and
-        Enum.all?(assigns.groups, fn g ->
-          Enum.all?(g.items, &MapSet.member?(assigns.selected, &1.id))
-        end)
+    selected_count =
+      Enum.reduce(assigns.groups, 0, fn g, acc ->
+        acc + Enum.count(g.items, &MapSet.member?(assigns.selected, &1.id))
+      end)
+
+    all_selected = total_items > 0 and selected_count == total_items
 
     assigns =
       assigns
       |> assign(:total_items, total_items)
+      |> assign(:selected_count, selected_count)
       |> assign(:all_selected, all_selected)
 
     ~H"""
     <div id={@id} class={@container_class}>
       <div class="flex items-center justify-between">
         <span class={"font-medium #{@text_class}"}>
-          {@label} ({@total_items})
+          {@label} ({@selected_count}/{@total_items})
         </span>
         <button
           type="button"
