@@ -63,6 +63,7 @@ defmodule Gallformers.Taxonomy.Taxonomy do
     |> maybe_require_family_type()
     |> maybe_require_parent()
     |> maybe_require_rank()
+    |> validate_no_self_reference()
     |> unique_constraint([:name, :parent_id],
       name: :taxonomy_name_parent_id_index,
       message: "already exists for this parent"
@@ -85,6 +86,18 @@ defmodule Gallformers.Taxonomy.Taxonomy do
       changeset
     end
   end
+
+  defp validate_no_self_reference(changeset) do
+    case get_field(changeset, :id) do
+      nil -> changeset
+      id -> validate_change(changeset, :parent_id, &self_ref_check(&1, &2, id))
+    end
+  end
+
+  defp self_ref_check(:parent_id, parent_id, id) when parent_id == id,
+    do: [parent_id: "cannot reference itself"]
+
+  defp self_ref_check(:parent_id, _parent_id, _id), do: []
 
   defp maybe_require_rank(changeset) do
     if get_field(changeset, :type) == "intermediate" do

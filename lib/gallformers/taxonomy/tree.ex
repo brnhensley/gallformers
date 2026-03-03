@@ -169,16 +169,28 @@ defmodule Gallformers.Taxonomy.Tree do
           {:ok, Taxonomy.t()}
           | {:error, Ecto.Changeset.t() | {:rename_collision, String.t(), atom()}}
   def update_taxonomy(%Taxonomy{} = taxonomy, attrs) do
-    new_name = attrs["name"] || attrs[:name]
-    is_genus_rename = taxonomy.type == "genus" && new_name && new_name != taxonomy.name
+    new_name = attr_value(attrs, "name")
+    new_type = attr_value(attrs, "type") || taxonomy.type
+    type_changing? = new_type != taxonomy.type
 
-    if is_genus_rename do
-      update_genus_with_species_sync(taxonomy, attrs)
-    else
-      taxonomy
-      |> Taxonomy.changeset(attrs)
-      |> Repo.update()
-      |> broadcast(:taxonomy_updated)
+    genus_rename? =
+      taxonomy.type == "genus" && !type_changing? && new_name && new_name != taxonomy.name
+
+    cond do
+      type_changing? && has_linked_species?(taxonomy.id) ->
+        {:error,
+         taxonomy
+         |> Taxonomy.changeset(attrs)
+         |> Ecto.Changeset.add_error(:type, "cannot change type when species are linked")}
+
+      genus_rename? ->
+        update_genus_with_species_sync(taxonomy, attrs)
+
+      true ->
+        taxonomy
+        |> Taxonomy.changeset(attrs)
+        |> Repo.update()
+        |> broadcast(:taxonomy_updated)
     end
   end
 
@@ -1156,6 +1168,12 @@ defmodule Gallformers.Taxonomy.Tree do
   # =====================================================================
   # Private Helpers
   # =====================================================================
+
+  defp attr_value(attrs, key), do: attrs[key] || attrs[String.to_existing_atom(key)]
+
+  defp has_linked_species?(taxonomy_id) do
+    Repo.exists?(from(st in "species_taxonomy", where: st.taxonomy_id == ^taxonomy_id))
+  end
 
   defp broadcast({:ok, taxonomy}, event) do
     Phoenix.PubSub.broadcast(Gallformers.PubSub, "taxonomy", {event, taxonomy})

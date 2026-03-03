@@ -784,4 +784,122 @@ defmodule GallformersWeb.Admin.TaxonomyLive.FormTest do
       refute updated.parent_id == subfamily.id
     end
   end
+
+  describe "type field locking in edit mode" do
+    setup %{conn: conn} do
+      {:ok, family} =
+        Taxonomy.create_taxonomy(%{
+          name: "TypeLockTestFamily",
+          type: "family",
+          description: "Plant"
+        })
+
+      {:ok, genus} =
+        Taxonomy.create_taxonomy(%{
+          name: "TypeLockTestGenus",
+          type: "genus",
+          parent_id: family.id
+        })
+
+      {:ok, conn: setup_admin_session(conn), family: family, genus: genus}
+    end
+
+    test "type field is disabled in edit mode", %{conn: conn, family: family} do
+      {:ok, _view, html} = live(conn, ~p"/admin/taxonomy/#{family.id}")
+
+      # The select for type should have a disabled attribute
+      assert html =~ ~r/<select[^>]*name="taxonomy\[type\]"[^>]*disabled/s
+    end
+
+    test "type field is enabled in new mode", %{conn: conn} do
+      {:ok, _view, html} = live(conn, ~p"/admin/taxonomy/new")
+
+      # The select for type should NOT have disabled
+      refute html =~ ~r/<select[^>]*name="taxonomy\[type\]"[^>]*disabled/s
+    end
+
+    test "saving in edit mode preserves the original type", %{conn: conn, genus: genus} do
+      {:ok, view, _html} = live(conn, ~p"/admin/taxonomy/#{genus.id}")
+
+      # Change the name (type field is disabled so it won't be in params,
+      # but the handler should inject it)
+      view
+      |> form("#taxonomy-form", taxonomy: %{name: "RenamedTypeTestGenus"})
+      |> render_submit()
+
+      # Verify the genus still has type "genus"
+      updated = Repo.get!(TaxonomySchema, genus.id)
+      assert updated.type == "genus"
+      assert updated.name == "RenamedTypeTestGenus"
+    end
+  end
+
+  describe "edit mode banner" do
+    setup %{conn: conn} do
+      {:ok, family} =
+        Taxonomy.create_taxonomy(%{
+          name: "BannerTestFamily",
+          type: "family",
+          description: "Wasp"
+        })
+
+      {:ok, conn: setup_admin_session(conn), family: family}
+    end
+
+    test "shows edit banner in edit mode", %{conn: conn, family: family} do
+      {:ok, _view, html} = live(conn, ~p"/admin/taxonomy/#{family.id}")
+
+      assert html =~ "Editing existing"
+      assert html =~ "family"
+      assert html =~ "BannerTestFamily"
+    end
+
+    test "does not show edit banner in new mode", %{conn: conn} do
+      {:ok, _view, html} = live(conn, ~p"/admin/taxonomy/new")
+
+      refute html =~ "Editing existing"
+    end
+  end
+
+  describe "section parent dropdown excludes self" do
+    setup %{conn: conn} do
+      {:ok, family} =
+        Taxonomy.create_taxonomy(%{
+          name: "SectionSelfTestFamily",
+          type: "family",
+          description: "Plant"
+        })
+
+      {:ok, genus} =
+        Taxonomy.create_taxonomy(%{
+          name: "SectionSelfTestGenus",
+          type: "genus",
+          parent_id: family.id
+        })
+
+      {:ok, section} =
+        Taxonomy.create_taxonomy(%{
+          name: "SectionSelfTestSection",
+          type: "section",
+          parent_id: genus.id
+        })
+
+      {:ok, conn: setup_admin_session(conn), family: family, genus: genus, section: section}
+    end
+
+    test "section edit form does not show self in parent dropdown", %{
+      conn: conn,
+      section: section,
+      genus: genus
+    } do
+      {:ok, _view, html} = live(conn, ~p"/admin/taxonomy/#{section.id}")
+
+      # The parent dropdown should contain the genus (the actual parent)
+      assert html =~ genus.name
+
+      # But should NOT contain the section itself as a parent option
+      # The section's own id should not appear as an option value
+      refute html =~ ~r/<option[^>]*value="#{section.id}"[^>]*>.*#{section.name}/s
+    end
+  end
 end

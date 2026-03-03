@@ -104,7 +104,7 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
         |> Enum.reject(&(&1.id == taxonomy.id))
 
       socket
-      |> assign(:parent_options, load_parent_options(taxonomy.type))
+      |> assign(:parent_options, load_parent_options(taxonomy.type) |> reject_self(taxonomy.id))
       |> assign(:show_delete_modal, false)
       |> assign(:deletion_impact, nil)
       |> assign(:delete_confirmation, "")
@@ -162,6 +162,15 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
   defp load_parent_options("section") do
     Taxonomy.list_genera_for_select(:plant)
     |> Enum.map(fn g -> {g.name, g.id} end)
+  end
+
+  defp reject_self(options, nil), do: options
+
+  defp reject_self(options, id) do
+    Enum.reject(options, fn
+      {_label, opt_id} -> opt_id == id
+      _ -> false
+    end)
   end
 
   # Custom validate handler to update parent_options when type changes
@@ -334,6 +343,15 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
   def handle_event("save", %{"taxonomy" => taxonomy_params} = params, socket) do
     # Inject parent_id from typeahead for types that use it
     taxonomy_params = inject_parent_id(taxonomy_params, socket)
+
+    # Disabled fields aren't submitted — inject the existing type in edit mode
+    taxonomy_params =
+      if socket.assigns.mode == :edit do
+        Map.put(taxonomy_params, "type", socket.assigns.taxonomy.type)
+      else
+        taxonomy_params
+      end
+
     params = Map.put(params, "taxonomy", taxonomy_params)
 
     if taxonomy_params["type"] == "intermediate" and socket.assigns.live_action == :new do
@@ -672,6 +690,14 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
 
         <% type_selected = HtmlForm.input_value(@form, :type) not in [nil, ""] %>
         <.form for={@form} id="taxonomy-form" phx-change="validate" phx-submit="save">
+          <div
+            :if={@mode == :edit}
+            class="mb-4 px-3 py-2 bg-amber-50 border border-amber-200 rounded text-sm text-amber-800"
+          >
+            <.icon name="ph-pencil-simple" class="h-4 w-4 inline mr-1" />
+            Editing existing <strong>{@taxonomy.type}</strong>: <strong>{@taxonomy.name}</strong>
+          </div>
+
           <div class="mb-3">
             <.input
               field={@form[:type]}
@@ -679,6 +705,7 @@ defmodule GallformersWeb.Admin.TaxonomyLive.Form do
               type="select"
               label="Type"
               prompt="Select type"
+              disabled={@mode == :edit}
               options={[
                 {"Family", "family"},
                 {"Genus", "genus"},
