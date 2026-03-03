@@ -1,45 +1,34 @@
 defmodule GallformersWeb.FamilyLiveTest do
   @moduledoc """
-  Tests for the public family browse page with intermediate support.
+  Tests for the public family browse page with table layout.
   """
   use GallformersWeb.ConnCase, async: false
   import Phoenix.LiveViewTest
 
   describe "FamilyLive with name-based URLs" do
-    test "renders family page by name", %{conn: conn} do
-      # Cynipidae (id=30) should be accessible by name
+    test "renders family page with table of children", %{conn: conn} do
       {:ok, _view, html} = live(conn, "/family/Cynipidae")
 
+      assert html =~ "Family:"
       assert html =~ "Cynipidae"
-      # Intermediate should appear in tree with rank label
+      # Direct child intermediate should appear in table
       assert html =~ "Cynipinae"
-      assert html =~ "Subfamily"
     end
 
-    test "renders genera nested under intermediates after expand", %{conn: conn} do
-      {:ok, view, _html} = live(conn, "/family/Cynipidae")
+    test "shows children with species counts", %{conn: conn} do
+      {:ok, _view, html} = live(conn, "/family/Cynipidae")
 
-      # Expand all nodes to reveal nested genera
-      html = render_click(view, "expand_all")
-
-      # Andricus and Cynips are nested under Cynipini (tribe) under Cynipinae (subfamily)
-      assert html =~ "Andricus"
-      assert html =~ "Cynips"
-      assert html =~ "Cynipini"
+      # Table should have species count column
+      assert html =~ "Species"
+      assert html =~ "Children"
     end
 
-    test "tree node URLs use names not IDs", %{conn: conn} do
-      {:ok, view, _html} = live(conn, "/family/Cynipidae")
-
-      html = render_click(view, "expand_all")
+    test "child URLs use names not IDs", %{conn: conn} do
+      {:ok, _view, html} = live(conn, "/family/Cynipidae")
 
       # Intermediate URLs should use rank-based paths with names
       assert html =~ "/subfamily/Cynipinae"
       refute html =~ "/taxonomy/31"
-
-      # Genus URLs should use names
-      assert html =~ "/genus/Andricus"
-      refute html =~ "/genus/33"
     end
 
     test "returns error for nonexistent family name", %{conn: conn} do

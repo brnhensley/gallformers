@@ -1,275 +1,135 @@
 defmodule GallformersWeb.FamilyLive do
   @moduledoc """
-  LiveView for the taxonomic family listing page.
+  LiveView for the public family browse page.
 
-  Displays a family with its genera and species in an expandable tree view.
+  Displays a family with its direct children (genera and intermediate ranks)
+  in a sortable, filterable table with species counts.
   """
   use GallformersWeb, :live_view
 
   alias Gallformers.Taxonomy
-  alias Gallformers.Taxonomy.Family
   alias GallformersWeb.TaxonomyURL
-  alias GallformersWeb.TreeComponents
-
-  # Smart expand thresholds (same as Explore page)
-  @max_children_per_node 5
 
   @impl true
   def mount(%{"name" => name}, _session, socket) do
     if TaxonomyURL.numeric?(name) do
-      redirect_by_id(socket, name, "family")
+      redirect_by_id(socket, name)
     else
       case Taxonomy.get_taxonomy_by_name(name, "family") do
         nil ->
-          {:ok,
-           assign(socket,
-             page_title: "Family Not Found",
-             page_description: "The requested taxonomic family was not found on Gallformers.",
-             page_url: nil,
-             page_image: nil,
-             page_json_ld: nil,
-             page_noindex: true,
-             family: nil,
-             error: "Family not found"
-           )}
+          {:ok, assign_not_found(socket, "Family not found")}
 
         taxonomy ->
-          family = %Family{
-            id: taxonomy.id,
-            name: taxonomy.name,
-            description: taxonomy.description
-          }
-
-          load_family(socket, family)
+          load_family(socket, taxonomy)
       end
     end
   end
 
-  defp redirect_by_id(socket, id_str, type) do
+  defp redirect_by_id(socket, id_str) do
     case Taxonomy.get_taxonomy(String.to_integer(id_str)) do
-      %{type: ^type} = taxonomy ->
-        {:ok, push_navigate(socket, to: TaxonomyURL.public_path(taxonomy), replace: true)}
+      %{type: "family"} = taxonomy ->
+        case TaxonomyURL.public_path(taxonomy) do
+          nil -> {:ok, assign_not_found(socket, "Family not found")}
+          path -> {:ok, push_navigate(socket, to: path, replace: true)}
+        end
 
       _ ->
-        {:ok,
-         assign(socket,
-           page_title: "Family Not Found",
-           page_description: "The requested taxonomic family was not found on Gallformers.",
-           page_url: nil,
-           page_image: nil,
-           page_json_ld: nil,
-           page_noindex: true,
-           family: nil,
-           error: "Family not found"
-         )}
+        {:ok, assign_not_found(socket, "Family not found")}
     end
   end
 
-  defp load_family(socket, %Family{} = family) do
-    # Get all direct children (intermediates + genera)
-    children = Taxonomy.get_children(family.id)
-
-    # Build tree data recursively (handles intermediates and genera)
-    tree_data = build_tree_data(children)
+  defp load_family(socket, taxonomy) do
+    children = Taxonomy.list_children_with_counts(taxonomy.id)
 
     {:ok,
      assign(socket,
-       page_title: family.name,
-       page_description:
-         "#{family.name} - A taxonomic family documented on Gallformers with genera and species.",
-       page_url: TaxonomyURL.public_path(%{type: "family", name: family.name}),
+       page_title: taxonomy.name,
+       page_description: "#{taxonomy.name} - A taxonomic family documented on Gallformers.",
+       page_url: TaxonomyURL.public_path(taxonomy),
        page_image: nil,
        page_json_ld: nil,
        page_noindex: false,
-       family: family,
-       tree_data: tree_data,
-       filtered_tree: tree_data,
-       expanded_keys: MapSet.new(),
+       taxonomy: taxonomy,
+       children: children,
+       filtered_children: children,
+       total_children_count: length(children),
        search_query: "",
+       sort_by: :name,
+       sort_dir: :asc,
        error: nil
      )}
   end
 
-  defp build_tree_data(children) do
-    # Separate genera and intermediates
-    {genera, intermediates} = Enum.split_with(children, &(&1.type == "genus"))
-
-    # Batch fetch species for all genera (1 query)
-    genus_ids = Enum.map(genera, & &1.id)
-    species_ids_map = Taxonomy.get_species_ids_for_genera(genus_ids)
-    all_species_ids = species_ids_map |> Map.values() |> List.flatten() |> Enum.uniq()
-    all_species = get_species_info(all_species_ids)
-    species_map = Enum.into(all_species, %{}, fn s -> {s.id, s} end)
-
-    # Build intermediate nodes (recursive — their children may be genera or more intermediates)
-    intermediate_nodes =
-      Enum.map(intermediates, fn intermediate ->
-        sub_children = Taxonomy.get_children(intermediate.id)
-        sub_tree = build_tree_data(sub_children)
-
-        rank_label = intermediate.rank || "intermediate"
-
-        %{
-          key: "i-#{intermediate.id}",
-          label: "#{rank_label}: #{format_label(intermediate.name, intermediate.description)}",
-          name: intermediate.name,
-          rank: "intermediate",
-          url: TaxonomyURL.public_path(intermediate),
-          nodes: sub_tree
-        }
-      end)
-
-    # Build genus nodes
-    genus_nodes =
-      Enum.map(genera, fn genus ->
-        species_ids = Map.get(species_ids_map, genus.id, [])
-
-        species =
-          species_ids
-          |> Enum.map(&Map.get(species_map, &1))
-          |> Enum.reject(&is_nil/1)
-
-        %{
-          key: "g-#{genus.id}",
-          label: format_label(genus.name, genus.description),
-          name: genus.name,
-          rank: "genus",
-          url: TaxonomyURL.public_path(genus),
-          nodes:
-            Enum.map(species, fn s ->
-              %{
-                key: "s-#{s.id}",
-                label: s.name,
-                url: s.url
-              }
-            end)
-        }
-      end)
-
-    # Intermediates first, then genera
-    intermediate_nodes ++ genus_nodes
+  defp assign_not_found(socket, error) do
+    assign(socket,
+      page_title: "Not Found",
+      page_description: "The requested taxonomic family was not found on Gallformers.",
+      page_url: nil,
+      page_image: nil,
+      page_json_ld: nil,
+      page_noindex: true,
+      taxonomy: nil,
+      children: [],
+      filtered_children: [],
+      total_children_count: 0,
+      search_query: "",
+      sort_by: :name,
+      sort_dir: :asc,
+      error: error
+    )
   end
 
-  defp get_species_info(species_ids) do
-    Gallformers.Species.list_species_by_ids(species_ids)
-    |> Enum.map(fn s ->
-      url = if s.taxoncode == "gall", do: "/gall/#{s.id}", else: "/host/#{s.id}"
-      Map.put(s, :url, url)
-    end)
-  end
-
-  defp format_label(name, nil), do: name
-  defp format_label(name, ""), do: name
-  defp format_label(name, description), do: "#{name} (#{description})"
-
-  @impl true
-  def handle_event("toggle_node", %{"key" => key}, socket) do
-    expanded_keys = socket.assigns.expanded_keys
-
-    new_expanded =
-      if MapSet.member?(expanded_keys, key) do
-        MapSet.delete(expanded_keys, key)
-      else
-        MapSet.put(expanded_keys, key)
-      end
-
-    {:noreply, assign(socket, expanded_keys: new_expanded)}
-  end
-
-  @impl true
-  def handle_event("expand_all", _params, socket) do
-    all_keys = collect_branch_keys(socket.assigns.filtered_tree)
-    {:noreply, assign(socket, expanded_keys: MapSet.new(all_keys))}
-  end
-
-  @impl true
-  def handle_event("collapse_all", _params, socket) do
-    {:noreply, assign(socket, expanded_keys: MapSet.new())}
-  end
+  defp child_url(child), do: TaxonomyURL.public_path(child)
 
   @impl true
   def handle_event("search", %{"query" => query}, socket) do
-    filtered = filter_tree(socket.assigns.tree_data, query)
-
-    # Smart expand logic with two thresholds
-    new_expanded =
-      if String.trim(query) != "" do
-        # For family page, we're always at 1 "family" (the genera list)
-        # So we use the per-node threshold
-        filtered
-        |> collect_branch_keys_with_limit(@max_children_per_node)
-        |> MapSet.new()
-      else
-        # Empty search - keep current expansion
-        socket.assigns.expanded_keys
-      end
-
     {:noreply,
      socket
      |> assign(:search_query, query)
-     |> assign(:filtered_tree, filtered)
-     |> assign(:expanded_keys, new_expanded)}
+     |> filter_children()}
   end
 
-  defp collect_branch_keys(nodes) do
-    Enum.flat_map(nodes, fn node ->
-      if Map.has_key?(node, :nodes) and node.nodes != [] do
-        [node.key | collect_branch_keys(node.nodes)]
+  @impl true
+  def handle_event("sort", %{"column" => column}, socket)
+      when column in ["name", "type", "species_count"] do
+    column_atom = String.to_atom(column)
+
+    {new_sort_by, new_sort_dir} =
+      if socket.assigns.sort_by == column_atom do
+        new_dir = if socket.assigns.sort_dir == :asc, do: :desc, else: :asc
+        {column_atom, new_dir}
       else
-        []
+        {column_atom, :asc}
       end
-    end)
+
+    {:noreply, assign(socket, sort_by: new_sort_by, sort_dir: new_sort_dir)}
   end
 
-  defp collect_branch_keys_with_limit(nodes, max_children) do
-    Enum.flat_map(nodes, &collect_node_keys_with_limit(&1, max_children))
+  defp filter_children(socket) do
+    query = String.downcase(socket.assigns.search_query)
+
+    filtered =
+      if query == "" do
+        socket.assigns.children
+      else
+        Enum.filter(socket.assigns.children, fn c ->
+          String.contains?(String.downcase(c.name), query) ||
+            (c.description && String.contains?(String.downcase(c.description), query)) ||
+            (c.rank && String.contains?(String.downcase(c.rank), query))
+        end)
+      end
+
+    assign(socket, :filtered_children, filtered)
   end
 
-  defp collect_node_keys_with_limit(%{nodes: children} = node, max_children)
-       when is_list(children) and children != [] do
-    child_keys = collect_branch_keys_with_limit(children, max_children)
-
-    if length(children) <= max_children do
-      [node.key | child_keys]
-    else
-      child_keys
-    end
+  defp sorted_children(children, sort_by, sort_dir) do
+    sorted = Enum.sort_by(children, &sort_key(&1, sort_by))
+    if sort_dir == :desc, do: Enum.reverse(sorted), else: sorted
   end
 
-  defp collect_node_keys_with_limit(_node, _max_children), do: []
-
-  defp filter_tree(nodes, ""), do: nodes
-
-  defp filter_tree(nodes, query) do
-    query_lower = String.downcase(query)
-
-    nodes
-    |> Enum.map(&filter_node(&1, query, query_lower))
-    |> Enum.reject(&is_nil/1)
-  end
-
-  defp filter_node(node, query, query_lower) do
-    if branch_node?(node) do
-      filter_branch_node(node, query, query_lower)
-    else
-      if label_matches?(node.label, query_lower), do: node, else: nil
-    end
-  end
-
-  defp filter_branch_node(node, query, query_lower) do
-    filtered_children = filter_tree(node.nodes, query)
-
-    if filtered_children != [] or label_matches?(node.label, query_lower) do
-      %{node | nodes: filtered_children}
-    else
-      nil
-    end
-  end
-
-  defp branch_node?(node), do: Map.has_key?(node, :nodes) and node.nodes != []
-
-  defp label_matches?(label, query_lower),
-    do: String.contains?(String.downcase(label), query_lower)
+  defp sort_key(child, :type), do: String.downcase(child.rank || child.type || "")
+  defp sort_key(child, :species_count), do: child.species_count
+  defp sort_key(child, _), do: String.downcase(child.name || "")
 
   @impl true
   def render(assigns) do
@@ -279,49 +139,126 @@ defmodule GallformersWeb.FamilyLive do
         <%= if @error do %>
           <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">{@error}</div>
         <% else %>
-          <%= if @family do %>
+          <%= if @taxonomy do %>
             <%!-- Header --%>
             <div class="mb-6">
-              <div class="flex items-center gap-2">
+              <div class="flex items-center gap-2 mb-2">
                 <h1 class="text-2xl font-bold text-gf-maroon">
-                  {@family.name}
-                  <span :if={@family.description} class="text-lg font-normal text-gray-600">
-                    - {@family.description}
-                  </span>
+                  <span class="text-lg font-normal text-gray-600">Family:</span>
+                  {@taxonomy.name}
                 </h1>
                 <.link
                   :if={@current_user}
-                  href={~p"/admin/taxonomy/#{@family.id}"}
+                  href={~p"/admin/taxonomy/#{@taxonomy.id}"}
                   class="text-gray-400 hover:text-gf-maroon"
                   title="Edit in admin"
                 >
                   <.icon name="ph-pencil-simple" class="h-5 w-5" />
                 </.link>
               </div>
+              <p
+                :if={@taxonomy.description not in [nil, ""]}
+                class="text-gray-600"
+              >
+                {@taxonomy.description}
+              </p>
             </div>
 
-            <%!-- Tree browser --%>
-            <%= if length(@tree_data) > 0 do %>
-              <TreeComponents.tree_browser
-                id="family-tree"
-                nodes={@filtered_tree}
-                expanded={@expanded_keys}
-                search_query={@search_query}
-                show_search={true}
-                show_controls={true}
-                on_toggle="toggle_node"
-                on_expand_all="expand_all"
-                on_collapse_all="collapse_all"
-                on_search="search"
-              />
-            <% else %>
-              <div class="bg-white rounded-lg border border-gray-200 p-4">
-                <p class="text-gray-500 italic">No genera or species found for this family.</p>
-              </div>
-            <% end %>
-          <% else %>
-            <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
-              Family not found
+            <%!-- Children list --%>
+            <div class="mt-6">
+              <%= if @total_children_count > 0 do %>
+                <h2 class="text-lg font-semibold text-gray-800 mb-3">
+                  Children ({@total_children_count})
+                </h2>
+
+                <%!-- Search box --%>
+                <div class="mb-4 max-w-md">
+                  <form phx-change="search" phx-submit="search" id="family-search-form">
+                    <.search_input
+                      id="family-search"
+                      name="query"
+                      value={@search_query}
+                      placeholder="Filter by name, type, or description..."
+                      phx-debounce="300"
+                    />
+                  </form>
+                </div>
+
+                <%= if Enum.empty?(@filtered_children) do %>
+                  <div class="bg-gray-50 rounded-lg p-8 text-center text-gray-600">
+                    <p>No children found matching "{@search_query}"</p>
+                  </div>
+                <% else %>
+                  <div class="bg-white rounded border border-gray-200 overflow-hidden">
+                    <table class="gf-table">
+                      <thead>
+                        <tr>
+                          <th class="sortable" phx-click="sort" phx-value-column="name">
+                            Name
+                            <span :if={@sort_by == :name} class="ml-1">
+                              {if @sort_dir == :asc, do: "↑", else: "↓"}
+                            </span>
+                          </th>
+                          <th
+                            class="sortable text-center"
+                            phx-click="sort"
+                            phx-value-column="type"
+                          >
+                            Type
+                            <span :if={@sort_by == :type} class="ml-1">
+                              {if @sort_dir == :asc, do: "↑", else: "↓"}
+                            </span>
+                          </th>
+                          <th
+                            class="sortable text-center"
+                            phx-click="sort"
+                            phx-value-column="species_count"
+                          >
+                            Species
+                            <span :if={@sort_by == :species_count} class="ml-1">
+                              {if @sort_dir == :asc, do: "↑", else: "↓"}
+                            </span>
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr :for={child <- sorted_children(@filtered_children, @sort_by, @sort_dir)}>
+                          <td>
+                            <.link href={child_url(child)} class="hover:underline font-medium">
+                              <.taxon_name name={child.name} rank={child.type} />
+                            </.link>
+                            <span
+                              :if={child.description not in [nil, ""]}
+                              class="text-gray-500 text-sm ml-1"
+                            >
+                              ({child.description})
+                            </span>
+                          </td>
+                          <td class="text-center">
+                            <span class="text-sm text-gray-600">
+                              {child.rank || child.type}
+                            </span>
+                          </td>
+                          <td class="text-center text-gray-600">
+                            {child.species_count}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <%!-- Filter status message --%>
+                  <div class="mt-4 text-sm text-gray-500">
+                    <%= if @search_query != "" do %>
+                      Filtering {length(@filtered_children)} of {@total_children_count} children
+                    <% else %>
+                      Showing {length(@filtered_children)} children
+                    <% end %>
+                  </div>
+                <% end %>
+              <% else %>
+                <p class="text-gray-500 italic">No children found.</p>
+              <% end %>
             </div>
           <% end %>
         <% end %>
