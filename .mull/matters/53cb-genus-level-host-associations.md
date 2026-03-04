@@ -1,9 +1,9 @@
 ---
 status: raw
 created: 2026-03-03
-updated: 2026-03-03
+updated: 2026-03-04
 epic: cynipid
-relates: [0f79]
+relates: [0f79, 67c9]
 ---
 
 # Genus-level host associations
@@ -35,4 +35,3 @@ This matters because:
 - Data model: new junction table (gall↔genus) vs flag/column on gallhost?
 - How to handle mixed associations (some species explicit + genus-level catchall)?
 - Range implications: does a genus-level association inherit range from all species in that genus?
-
