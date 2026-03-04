@@ -352,3 +352,25 @@ Post-PoC, the ingestion pipeline could move from a local CLI to a hosted service
 - For very long monographs (100+ pages), should the pipeline chunk the document or process it whole? Context window limits may force chunking.
 - What's the right S3 key structure? `sources/{source_id}.md` + `sources/{source_id}.json` is simple but doesn't handle versioning. Do we need versioning?
 - When does layer 3 (admin review UI) get built? After both PoCs validate and community feedback is in.
+
+## Token Cost Estimate: OCR Document Cleanup
+
+### Token counts (per document, single pass)
+
+- **Input tokens**: ~45,000 (raw OCR text + system prompt)
+- **Output tokens**: ~12,000 (cleaned markdown)
+
+### Cost by model
+
+| Model | Input cost | Output cost | **Total** |
+|-------|-----------|------------|-----------|
+| Opus 4.6 | $0.675 (45K × $15/M) | $0.900 (12K × $75/M) | **~$1.58** |
+| Sonnet 4.6 | $0.135 (45K × $3/M) | $0.180 (12K × $15/M) | **~$0.32** |
+| Haiku 4.5 | $0.045 (45K × $1/M) | $0.100 (12K × $8/M) | **~$0.15** |
+
+### Notes
+
+- Estimates are for a single clean pass (raw text in, cleaned markdown out). Interactive sessions with multiple read/write cycles will cost more.
+- Sonnet is likely the sweet spot for OCR cleanup — good quality at 1/5 the Opus cost.
+- Haiku may struggle with ambiguous OCR repairs (reassembling scattered words, resolving garbled Latin binomials).
+- Document was ~28 printed pages / ~3,200 lines of OCR text (Uichanco 1919, Philippine Plant Galls).
