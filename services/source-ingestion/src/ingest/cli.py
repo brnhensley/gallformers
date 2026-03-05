@@ -9,7 +9,7 @@ from pathlib import Path
 import click
 
 from ingest.extract import extract_text
-from ingest.llm import MetadataResult, TokenUsage, clean_text, extract_metadata
+from ingest.llm import DataExtractResult, MetadataResult, TokenUsage, clean_text, extract_data, extract_metadata
 from ingest.ocr import ocr_pdf
 from ingest.output import assemble_document, build_frontmatter
 from ingest.pipeline import load_pipeline, run_pipeline
@@ -163,6 +163,33 @@ def metadata(input_path: str, output_path: str, model: str, config_path: str | N
     click.echo(f"Metadata written to {output_path}")
 
 
+@cli.command(name="data-extract")
+@click.option("-i", "--input", "input_path", required=True, help="Input text file")
+@click.option("-o", "--output", "output_path", required=True, help="Output JSON file path")
+@click.option("--model", required=True, help="Provider/model spec (e.g., deepseek/deepseek-chat)")
+@click.option("--config", "config_path", default=None, help="Provider config YAML path")
+def data_extract(input_path: str, output_path: str, model: str, config_path: str | None) -> None:
+    """Extract structured gall records via LLM."""
+    provider = _load_provider(config_path, model)
+
+    click.echo(f"Extracting structured data from {input_path} with {provider.model}")
+    try:
+        raw_text = Path(input_path).read_text()
+    except FileNotFoundError:
+        click.echo(f"Error: File not found: {input_path}", err=True)
+        sys.exit(1)
+
+    try:
+        result = extract_data(raw_text, provider)
+    except RuntimeError as exc:
+        click.echo(f"Error: {exc}", err=True)
+        sys.exit(1)
+
+    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+    Path(output_path).write_text(json.dumps(result.records, indent=2))
+    click.echo(f"Extracted {len(result.records)} records to {output_path}")
+
+
 @cli.command()
 @click.option("-i", "--input", "input_path", required=True, help="Cleaned text file")
 @click.option("--metadata", "metadata_path", required=True, help="Metadata JSON file path")
@@ -209,7 +236,7 @@ def assemble(input_path: str, metadata_path: str, output_path: str, source_id: i
 @cli.command()
 @click.option("-p", "--pipeline", "pipeline_path", required=True, help="Pipeline YAML config path")
 @click.option("--source-id", required=True, type=int, help="Source ID")
-@click.option("-i", "--input", "input_path", required=True, help="Input file")
+@click.option("-i", "--input", "input_path", default=None, help="Input file (optional when resuming)")
 @click.option("--config", "config_path", default=None, help="Provider config YAML path")
 @click.option("-o", "--output", "output_dir", default="./output", help="Output directory")
 def run(

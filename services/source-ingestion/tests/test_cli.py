@@ -278,6 +278,66 @@ class TestMetadata:
         assert data["doi"] == "10.1234/test"
 
 
+class TestDataExtract:
+    """Test the data-extract subcommand."""
+
+    def test_data_extract_help(self):
+        runner = CliRunner()
+        result = runner.invoke(cli, ["data-extract", "--help"])
+        assert result.exit_code == 0
+        assert "--input" in result.output or "-i" in result.output
+        assert "--output" in result.output or "-o" in result.output
+        assert "--model" in result.output
+
+    def test_data_extract_runs(self, tmp_path, mocker):
+        input_file = tmp_path / "input.txt"
+        input_file.write_text("Scholarly text about galls.")
+        output_file = tmp_path / "data.json"
+
+        config_file = tmp_path / "providers.yaml"
+        config_file.write_text(
+            "providers:\n"
+            "  test:\n"
+            "    base_url: http://localhost:8000/v1\n"
+            "    env_key: TEST_API_KEY\n"
+            "    models:\n"
+            "      - test-model\n"
+        )
+        mocker.patch.dict("os.environ", {"TEST_API_KEY": "fake-key"})
+
+        from ingest.llm import DataExtractResult, TokenUsage
+
+        mock_extract = mocker.patch(
+            "ingest.cli.extract_data",
+            return_value=DataExtractResult(
+                records=[{"gall_species": {"name": "Test gall"}, "confidence": 0.9}],
+                usage=TokenUsage(100, 50),
+            ),
+        )
+
+        runner = CliRunner()
+        result = runner.invoke(cli, [
+            "data-extract",
+            "-i", str(input_file),
+            "-o", str(output_file),
+            "--model", "test/test-model",
+            "--config", str(config_file),
+        ])
+
+        assert result.exit_code == 0, f"CLI failed: {result.output}"
+        mock_extract.assert_called_once()
+
+        # Verify JSON output
+        data = json.loads(output_file.read_text())
+        assert len(data) == 1
+        assert data[0]["gall_species"]["name"] == "Test gall"
+
+    def test_data_extract_appears_in_help(self):
+        runner = CliRunner()
+        result = runner.invoke(cli, ["--help"])
+        assert "data-extract" in result.output
+
+
 class TestAssemble:
     """Test the assemble subcommand."""
 

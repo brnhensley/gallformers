@@ -9,13 +9,13 @@ import click
 import yaml
 
 from ingest.extract import extract_text
-from ingest.llm import CleanupResult, MetadataResult, TokenUsage, clean_text, extract_metadata
+from ingest.llm import CleanupResult, DataExtractResult, MetadataResult, TokenUsage, clean_text, extract_data, extract_metadata
 from ingest.ocr import OcrResult, ocr_pdf
 from ingest.output import assemble_document, build_frontmatter
 from ingest.preprocess import preprocess
 from ingest.providers import resolve_model
 
-VALID_STEPS = frozenset({"extract", "ocr", "preprocess", "llm-clean", "metadata", "assemble"})
+VALID_STEPS = frozenset({"extract", "ocr", "preprocess", "llm-clean", "metadata", "data-extract", "assemble"})
 
 
 def load_pipeline(config_path: str) -> dict:
@@ -71,7 +71,7 @@ def _validate_stages(stages: list[dict]) -> None:
 def run_pipeline(
     pipeline: dict,
     source_id: int,
-    input_path: str,
+    input_path: str | None,
     provider_config: dict,
     output_dir: str = "./output",
 ) -> None:
@@ -80,7 +80,8 @@ def run_pipeline(
     Args:
         pipeline: Parsed pipeline config from load_pipeline().
         source_id: Source ID for output naming.
-        input_path: Path to initial input file.
+        input_path: Path to initial input file. Can be None when resuming
+            a pipeline where early steps already have cached output.
         provider_config: Provider config dict for resolving models.
         output_dir: Base output directory.
     """
@@ -122,6 +123,12 @@ def run_pipeline(
             current_input = str(output_path)
             step_outputs[step_type] = str(output_path)
             continue
+
+        if current_input is None:
+            raise ValueError(
+                f"Step '{step_type}' needs to run but no input file is available. "
+                f"Provide -i/--input to supply the initial input file."
+            )
 
         click.echo(f"Running {step_type} (step {step_number})...")
 
@@ -191,7 +198,7 @@ def _output_path_for_step(
     """Build output path for a regular (non-fork) step."""
     if step_type == "assemble":
         return source_dir / f"{name}-{source_id}.md"
-    ext = ".json" if step_type == "metadata" else ".md"
+    ext = ".json" if step_type in ("metadata", "data-extract") else ".md"
     return source_dir / f"{name}-{step_number}-{step_type}{ext}"
 
 
@@ -206,7 +213,7 @@ def _output_path_for_fork_step(
     """Build output path for a forked step."""
     if step_type == "assemble":
         return source_dir / f"{name}-{branch_name}-{source_id}.md"
-    ext = ".json" if step_type == "metadata" else ".md"
+    ext = ".json" if step_type in ("metadata", "data-extract") else ".md"
     return source_dir / f"{name}-{branch_name}-{step_number}-{step_type}{ext}"
 
 
@@ -235,6 +242,9 @@ def _run_step(
     elif step_type == "metadata":
         provider = resolve_model(stage["model"], provider_config)
         _run_metadata(input_path, output_path, provider=provider)
+    elif step_type == "data-extract":
+        provider = resolve_model(stage["model"], provider_config)
+        _run_data_extract(input_path, output_path, provider=provider, step_outputs=step_outputs)
     elif step_type == "assemble":
         _run_assemble(input_path, output_path, source_id=source_id, step_outputs=step_outputs)
 
@@ -261,6 +271,17 @@ def _run_llm_clean(input_path: str, output_path: Path, *, provider: object, **kw
     output_path.write_text(result.text)
 
 
+def _run_data_extract(
+    input_path: str, output_path: Path, *, provider: object, step_outputs: dict[str, str], **kwargs: object
+) -> None:
+    # Read from llm-clean output (the cleaned text), not the previous step
+    # which may be metadata JSON or other non-text output.
+    text_path = step_outputs.get("llm-clean", input_path)
+    text = Path(text_path).read_text()
+    result = extract_data(text, provider)
+    output_path.write_text(json.dumps(result.records, indent=2))
+
+
 def _run_metadata(input_path: str, output_path: Path, *, provider: object, **kwargs: object) -> None:
     text = Path(input_path).read_text()
     result = extract_metadata(text, provider)
@@ -278,8 +299,9 @@ def _run_assemble(
 ) -> None:
     """Assemble final document from cleaned text and metadata.
 
-    Finds the metadata file from step_outputs. The input_path is the most
-    recent non-metadata, non-assemble step output (typically llm-clean).
+    Uses the llm-clean output as the document body (falling back to
+    input_path if llm-clean hasn't run). This ensures the body is always
+    the cleaned text, not output from later steps like data-extract.
     """
     metadata_path = step_outputs.get("metadata")
     if not metadata_path:
@@ -287,7 +309,10 @@ def _run_assemble(
             "assemble step requires a preceding metadata step, but none was found"
         )
 
-    body = Path(input_path).read_text()
+    # Prefer llm-clean output as body; fall back to input_path for pipelines
+    # that don't have steps after llm-clean (e.g., no data-extract).
+    body_path = step_outputs.get("llm-clean", input_path)
+    body = Path(body_path).read_text()
     meta_raw = Path(metadata_path).read_text()
     meta_data = json.loads(meta_raw)
 

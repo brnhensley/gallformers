@@ -466,6 +466,99 @@ class TestRunPipeline:
 # ---------------------------------------------------------------------------
 
 
+class TestDataExtractStep:
+    """Tests for the data-extract pipeline step."""
+
+    def test_data_extract_is_valid_step(self, tmp_path):
+        """data-extract is recognized as a valid step type."""
+        data = {
+            "pipeline": {
+                "name": "test",
+                "stages": [{"step": "data-extract", "model": "test/test-model"}],
+            }
+        }
+        path = _write_pipeline(tmp_path, data)
+        result = load_pipeline(str(path))
+        assert result["stages"][0]["step"] == "data-extract"
+
+    def test_runs_data_extract_stage(self, tmp_path, mocker):
+        """data-extract stage calls extract_data and writes JSON output."""
+        input_file = tmp_path / "input.txt"
+        input_file.write_text("scholarly text")
+        output_dir = tmp_path / "output"
+
+        from ingest.llm import DataExtractResult, TokenUsage
+
+        mock_extract = mocker.patch(
+            "ingest.pipeline.extract_data",
+            return_value=DataExtractResult(
+                records=[{"gall_species": {"name": "Test gall"}, "confidence": 0.9}],
+                usage=TokenUsage(100, 50),
+            ),
+        )
+        mocker.patch("ingest.pipeline.resolve_model")
+
+        pipeline = {
+            "name": "test-pipe",
+            "stages": [
+                {"step": "data-extract", "model": "test/test-model"},
+            ],
+        }
+
+        run_pipeline(
+            pipeline=pipeline,
+            source_id=9995,
+            input_path=str(input_file),
+            provider_config={"test": {"base_url": "http://x", "env_key": "K", "models": ["test-model"]}},
+            output_dir=str(output_dir),
+        )
+
+        mock_extract.assert_called_once()
+
+        # Output should be JSON
+        data_out = output_dir / "9995" / "test-pipe-1-data-extract.json"
+        assert data_out.exists()
+        data = json.loads(data_out.read_text())
+        assert len(data) == 1
+        assert data[0]["gall_species"]["name"] == "Test gall"
+
+    def test_output_uses_json_extension(self, tmp_path, mocker):
+        """data-extract output files use .json extension."""
+        input_file = tmp_path / "input.txt"
+        input_file.write_text("text")
+        output_dir = tmp_path / "output"
+
+        from ingest.llm import DataExtractResult, TokenUsage
+
+        mocker.patch(
+            "ingest.pipeline.extract_data",
+            return_value=DataExtractResult(
+                records=[], usage=TokenUsage(10, 5),
+            ),
+        )
+        mocker.patch("ingest.pipeline.resolve_model")
+
+        pipeline = {
+            "name": "test-pipe",
+            "stages": [
+                {"step": "data-extract", "model": "test/test-model"},
+            ],
+        }
+
+        run_pipeline(
+            pipeline=pipeline,
+            source_id=9995,
+            input_path=str(input_file),
+            provider_config={"test": {"base_url": "http://x", "env_key": "K", "models": ["test-model"]}},
+            output_dir=str(output_dir),
+        )
+
+        source_dir = output_dir / "9995"
+        json_files = list(source_dir.glob("*.json"))
+        assert len(json_files) == 1
+        assert json_files[0].name == "test-pipe-1-data-extract.json"
+
+
 class TestForkPipeline:
     """Tests for pipeline forking."""
 

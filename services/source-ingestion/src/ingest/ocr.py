@@ -7,6 +7,7 @@ Converts PDF pages to images and sends them to a vision-language model
 from __future__ import annotations
 
 import base64
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -81,6 +82,7 @@ def ocr_page(image_b64: str, provider: ProviderConfig) -> tuple[str, TokenUsage]
         response = client.chat.completions.create(
             model=provider.model,
             messages=messages,
+            max_tokens=4096,
         )
     except APIError as exc:
         raise RuntimeError(f"OCR API call failed: {exc}") from exc
@@ -114,31 +116,45 @@ def ocr_pdf(
         OcrResult with combined text and total token usage.
     """
     images = extract_pages_as_images(pdf_path, dpi=dpi)
-    pages: list[str] = []
+    results: list[str | None] = [None] * len(images)
     total_prompt = 0
     total_completion = 0
 
     if cache_dir:
         Path(cache_dir).mkdir(parents=True, exist_ok=True)
 
-    for i, image_b64 in enumerate(images, 1):
-        page_cache = Path(cache_dir) / f"page_{i}.md" if cache_dir else None
-
+    # Separate cached vs uncached pages
+    uncached: list[tuple[int, str]] = []
+    for i, image_b64 in enumerate(images):
+        page_cache = Path(cache_dir) / f"page_{i + 1}.md" if cache_dir else None
         if page_cache and page_cache.exists():
-            click.echo(f"  Loading cached page {i}/{len(images)}")
-            pages.append(page_cache.read_text())
-            continue
+            click.echo(f"  Loading cached page {i + 1}/{len(images)}")
+            results[i] = page_cache.read_text()
+        else:
+            uncached.append((i, image_b64))
 
-        click.echo(f"  OCR page {i}/{len(images)}...")
-        text, usage = ocr_page(image_b64, provider)
-        pages.append(text)
-        total_prompt += usage.prompt_tokens
-        total_completion += usage.completion_tokens
+    # Process uncached pages in parallel
+    if uncached:
+        click.echo(f"  OCR {len(uncached)} pages in parallel...")
 
-        if page_cache:
-            page_cache.write_text(text)
+        def _process_page(idx_img: tuple[int, str]) -> tuple[int, str, TokenUsage]:
+            idx, image_b64 = idx_img
+            text, usage = ocr_page(image_b64, provider)
+            return idx, text, usage
+
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            futures = {executor.submit(_process_page, item): item for item in uncached}
+            for future in as_completed(futures):
+                idx, text, usage = future.result()
+                results[idx] = text
+                total_prompt += usage.prompt_tokens
+                total_completion += usage.completion_tokens
+                click.echo(f"  Page {idx + 1}/{len(images)} done.")
+                page_cache = Path(cache_dir) / f"page_{idx + 1}.md" if cache_dir else None
+                if page_cache:
+                    page_cache.write_text(text)
 
     return OcrResult(
-        text="\n\n".join(pages),
+        text="\n\n".join(results),
         usage=TokenUsage(prompt_tokens=total_prompt, completion_tokens=total_completion),
     )
