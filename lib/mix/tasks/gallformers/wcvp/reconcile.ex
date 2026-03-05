@@ -11,8 +11,6 @@ defmodule Mix.Tasks.Gallformers.Wcvp.Reconcile do
   Produces reports in priv/repo/data/reconciliation/YYYY-MM-DD/:
     - taxonomy-mismatches.json
     - in-gf-not-wcvp.json
-    - in-wcvp-not-gf-usca.json
-    - in-wcvp-not-gf-hemisphere.json
     - range-updates.json
   """
 

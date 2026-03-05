@@ -60,7 +60,7 @@ defmodule Gallformers.Wcvp.Tdwg do
 
   @doc """
   Returns true if a place code is in the US or Canada.
-  Used to split reports into US/CA priority vs rest-of-hemisphere.
+  Used to split reports into US/CA priority vs rest-of-world.
   """
   def us_canada_code?(code) do
     String.starts_with?(code, "US-") or String.starts_with?(code, "CA-") or
