@@ -659,13 +659,13 @@ defmodule GallformersWeb.DataDisplayComponents do
           class="hover:underline"
         >
           <.taxon_name name={field(@genus, :name)} rank="genus" />
-          <span :if={field(@genus, :description)} class="text-gray-600">
+          <span :if={field(@genus, :description) not in [nil, ""]} class="text-gray-600">
             - {field(@genus, :description)}
           </span>
         </.link>
         <span :if={!field(@genus, :id)}>
           <.taxon_name name={field(@genus, :name)} rank="genus" />
-          <span :if={field(@genus, :description)} class="text-gray-600">
+          <span :if={field(@genus, :description) not in [nil, ""]} class="text-gray-600">
             - {field(@genus, :description)}
           </span>
         </span>

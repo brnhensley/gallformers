@@ -100,6 +100,17 @@ defmodule GallformersWeb.DataDisplayComponentsTest do
       refute html =~ "/section/5"
     end
 
+    test "does not render dash when genus description is empty string" do
+      html =
+        render_component(&DataDisplayComponents.taxonomy_breadcrumb/1,
+          family: %{id: 1, name: "Cynipidae"},
+          genus: %{id: 2, name: "Andricus", description: ""}
+        )
+
+      assert html =~ "Andricus"
+      refute html =~ "- "
+    end
+
     test "renders identically to before when intermediates is nil or empty" do
       with_nil =
         render_component(&DataDisplayComponents.taxonomy_breadcrumb/1,
