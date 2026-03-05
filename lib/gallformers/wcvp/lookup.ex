@@ -63,6 +63,55 @@ defmodule Gallformers.Wcvp.Lookup do
   end
 
   @doc """
+  Contains-based name search on taxon_name.
+
+  Splits the query on whitespace and requires each term to appear
+  anywhere in the name (case-insensitive). This handles subspecies,
+  varieties, and partial matches.
+
+  ## Options
+
+    * `:limit` - maximum results to return (default 20)
+
+  Returns an empty list if the repo is unavailable.
+  """
+  @spec search_contains(String.t(), keyword()) :: [map()]
+  def search_contains(query, opts \\ []) do
+    limit = Keyword.get(opts, :limit, 20)
+
+    terms =
+      query
+      |> String.split(~r/\s+/, trim: true)
+      |> Enum.map(&"%#{String.downcase(&1)}%")
+
+    base =
+      from(n in "wcvp_names",
+        order_by: n.taxon_name,
+        limit: ^limit,
+        select: %{
+          plant_name_id: n.plant_name_id,
+          taxon_name: n.taxon_name,
+          family: n.family,
+          genus: n.genus,
+          species: n.species,
+          taxon_authors: n.taxon_authors,
+          powo_id: n.powo_id
+        }
+      )
+
+    query =
+      Enum.reduce(terms, base, fn pattern, q ->
+        from(n in q, where: like(fragment("lower(?)", n.taxon_name), ^pattern))
+      end)
+
+    Repo.WCVP.all(query)
+  rescue
+    _ -> []
+  catch
+    :exit, _ -> []
+  end
+
+  @doc """
   Exact lookup by plant_name_id.
 
   Returns a map with all name fields plus `:native_distribution` and

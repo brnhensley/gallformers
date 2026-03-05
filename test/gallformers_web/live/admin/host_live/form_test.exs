@@ -15,6 +15,8 @@ defmodule GallformersWeb.Admin.HostLive.FormTest do
 
   alias Gallformers.Accounts.Auth0User
   alias Gallformers.Plants
+  alias Gallformers.Repo
+  alias Gallformers.Wcvp.Lookup
 
   # Helper to set up admin session
   defp setup_admin_session(conn) do
@@ -577,6 +579,147 @@ defmodule GallformersWeb.Admin.HostLive.FormTest do
       html = render_click(view, "save", %{"species" => %{}})
 
       assert html =~ "at least one range"
+    end
+  end
+
+  describe "WCVP refresh — no match modal" do
+    setup %{conn: conn} do
+      # Create a minimal WCVP test DB with names that won't match any test host
+      db_path = Application.get_env(:gallformers, Gallformers.Repo.WCVP)[:database]
+      db_path |> Path.dirname() |> File.mkdir_p!()
+      {:ok, db} = Exqlite.Sqlite3.open(db_path)
+
+      :ok = Exqlite.Sqlite3.execute(db, "DROP TABLE IF EXISTS wcvp_distributions")
+      :ok = Exqlite.Sqlite3.execute(db, "DROP TABLE IF EXISTS wcvp_names")
+
+      :ok =
+        Exqlite.Sqlite3.execute(db, """
+        CREATE TABLE wcvp_names (
+          plant_name_id TEXT PRIMARY KEY,
+          taxon_name TEXT NOT NULL,
+          family TEXT NOT NULL,
+          genus TEXT NOT NULL,
+          species TEXT NOT NULL,
+          taxon_authors TEXT,
+          powo_id TEXT
+        )
+        """)
+
+      :ok =
+        Exqlite.Sqlite3.execute(db, """
+        CREATE TABLE wcvp_distributions (
+          plant_name_id TEXT NOT NULL,
+          area_code_l3 TEXT NOT NULL,
+          introduced INTEGER NOT NULL DEFAULT 0,
+          PRIMARY KEY (plant_name_id, area_code_l3, introduced)
+        )
+        """)
+
+      # Insert WCVP names that won't prefix-match any test host
+      # but are findable via contains-search
+      :ok =
+        Exqlite.Sqlite3.execute(
+          db,
+          "INSERT INTO wcvp_names VALUES ('500', 'Zzyzx wcvponly', 'Testaceae', 'Zzyzx', 'wcvponly', 'Test', NULL)"
+        )
+
+      # A subspecies entry searchable by "Quercus alba" contains-match
+      :ok =
+        Exqlite.Sqlite3.execute(
+          db,
+          "INSERT INTO wcvp_names VALUES ('501', 'Quercus alnobetula subsp. alba', 'Fagaceae', 'Quercus', 'alnobetula', 'L.', 'urn:test')"
+        )
+
+      :ok =
+        Exqlite.Sqlite3.execute(
+          db,
+          "INSERT INTO wcvp_distributions VALUES ('501', 'ALB', 0)"
+        )
+
+      Exqlite.Sqlite3.close(db)
+
+      case Repo.WCVP.start_link() do
+        {:ok, _pid} -> :ok
+        {:error, {:already_started, _pid}} -> :ok
+      end
+
+      on_exit(fn -> File.rm(db_path) end)
+
+      {:ok, conn: setup_admin_session(conn)}
+    end
+
+    test "opens search modal instead of flash when no WCVP match", %{conn: conn} do
+      # Verify WCVP is available for this test
+      assert Lookup.available?(), "WCVP repo must be available for this test"
+
+      host = require_host()
+      {:ok, view, html} = live(conn, ~p"/admin/hosts/#{host.id}")
+
+      # WCVP refresh button should be visible
+      assert html =~ "Refresh from POWO-WCVP",
+             "WCVP refresh button not rendered — wcvp_available may be false"
+
+      html = render_click(view, "refresh_from_wcvp", %{})
+
+      # Should show the search modal, not a flash toast
+      assert html =~ "No exact match found"
+      assert html =~ "wcvp-nomatch-search"
+    end
+
+    test "search modal pre-fills with host name", %{conn: conn} do
+      host = require_host()
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
+
+      html = render_click(view, "refresh_from_wcvp", %{})
+
+      assert html =~ host.name
+    end
+
+    test "search updates results in modal", %{conn: conn} do
+      host = require_host()
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
+
+      render_click(view, "refresh_from_wcvp", %{})
+
+      # Search for something that exists in WCVP
+      html = render_keyup(view, "wcvp_nomatch_search", %{"value" => "Zzyzx"})
+
+      assert html =~ "Zzyzx wcvponly"
+    end
+
+    test "select highlights result and enables Continue", %{conn: conn} do
+      host = require_host()
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
+
+      render_click(view, "refresh_from_wcvp", %{})
+      html = render_click(view, "select_wcvp_nomatch", %{"id" => "501"})
+
+      # Continue button should now be enabled (no disabled attribute)
+      assert html =~ "continue_wcvp_search"
+      assert html =~ "bg-blue-600"
+    end
+
+    test "continue with selection opens diff modal", %{conn: conn} do
+      host = require_host()
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
+
+      render_click(view, "refresh_from_wcvp", %{})
+      render_click(view, "select_wcvp_nomatch", %{"id" => "501"})
+      html = render_click(view, "continue_wcvp_search", %{})
+
+      # Search modal should be gone, diff should be showing
+      refute html =~ "No exact match found"
+      assert html =~ "POWO-WCVP Data Comparison"
+    end
+
+    test "cancel closes the search modal", %{conn: conn} do
+      host = require_host()
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
+
+      render_click(view, "refresh_from_wcvp", %{})
+      html = render_click(view, "cancel_wcvp_search", %{})
+
+      refute html =~ "No exact match found"
     end
   end
 

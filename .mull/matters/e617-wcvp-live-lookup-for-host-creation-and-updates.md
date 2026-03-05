@@ -1,10 +1,10 @@
 ---
 status: done
 created: 2026-02-20
-updated: 2026-02-25
+updated: 2026-03-05
 epic: geo-expansion
 docs: ['']
-relates: [7932]
+relates: [7932, a84c]
 ---
 
 # WCVP live lookup for host creation and updates

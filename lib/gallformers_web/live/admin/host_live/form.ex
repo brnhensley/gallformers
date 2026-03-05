@@ -280,7 +280,15 @@ defmodule GallformersWeb.Admin.HostLive.Form do
 
     case wcvp_data do
       nil ->
-        {:noreply, put_flash(socket, :error, "No matching species found in WCVP")}
+        host_name = socket.assigns.host.name
+        results = Wcvp.Lookup.search_contains(host_name, limit: 20)
+
+        {:noreply,
+         assign(socket, :wcvp_nomatch_search, %{
+           query: host_name,
+           results: results,
+           selected: nil
+         })}
 
       data ->
         diff = build_wcvp_diff(socket, data)
@@ -323,6 +331,52 @@ defmodule GallformersWeb.Admin.HostLive.Form do
   @impl true
   def handle_event("cancel_wcvp_refresh", _params, socket) do
     {:noreply, assign(socket, :wcvp_diff, nil)}
+  end
+
+  # =================================================================
+  # Event handlers - WCVP no-match search modal
+  # =================================================================
+
+  @impl true
+  def handle_event("wcvp_nomatch_search", %{"value" => query}, socket) do
+    results =
+      if String.length(query) >= 2 do
+        Wcvp.Lookup.search_contains(query, limit: 20)
+      else
+        []
+      end
+
+    search = %{socket.assigns.wcvp_nomatch_search | query: query, results: results}
+    {:noreply, assign(socket, :wcvp_nomatch_search, search)}
+  end
+
+  @impl true
+  def handle_event("select_wcvp_nomatch", %{"id" => plant_name_id}, socket) do
+    search = %{socket.assigns.wcvp_nomatch_search | selected: plant_name_id}
+    {:noreply, assign(socket, :wcvp_nomatch_search, search)}
+  end
+
+  @impl true
+  def handle_event("cancel_wcvp_search", _params, socket) do
+    {:noreply, assign(socket, :wcvp_nomatch_search, nil)}
+  end
+
+  @impl true
+  def handle_event("continue_wcvp_search", _params, socket) do
+    search = socket.assigns.wcvp_nomatch_search
+
+    case Wcvp.Lookup.get(search.selected) do
+      nil ->
+        {:noreply, put_flash(socket, :error, "WCVP species not found")}
+
+      data ->
+        diff = build_wcvp_diff(socket, data)
+
+        {:noreply,
+         socket
+         |> assign(:wcvp_nomatch_search, nil)
+         |> assign(:wcvp_diff, diff)}
+    end
   end
 
   @impl true
@@ -627,6 +681,7 @@ defmodule GallformersWeb.Admin.HostLive.Form do
     |> assign(:wcvp_prefilled, nil)
     |> assign(:wcvp_effective_place_ids, nil)
     |> assign(:wcvp_diff, nil)
+    |> assign(:wcvp_nomatch_search, nil)
     |> assign(:host_traits, nil)
     |> assign(:pending_host_traits, nil)
     |> reset_dirty()
@@ -1552,6 +1607,81 @@ defmodule GallformersWeb.Admin.HostLive.Form do
           <.icon name="ph-magnifying-glass" class="h-12 w-12 mx-auto mb-3 text-gray-300" />
           <p>Select an existing host or create a new one to edit details.</p>
         </div>
+
+        <.modal
+          :if={@wcvp_nomatch_search}
+          id="wcvp-nomatch-modal"
+          show
+          on_cancel={JS.push("cancel_wcvp_search")}
+          class="gf-modal-md"
+        >
+          <:header>No exact match found</:header>
+          <:body>
+            <p class="text-gray-600 mb-4">
+              No exact match found in WCVP for <span class="italic font-medium">{@host.name}</span>.
+              Search below to find the correct entry.
+            </p>
+            <div id="wcvp-nomatch-search">
+              <input
+                type="text"
+                value={@wcvp_nomatch_search.query}
+                phx-keyup="wcvp_nomatch_search"
+                phx-debounce="300"
+                placeholder="Search WCVP..."
+                class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                autofocus
+              />
+              <ul
+                :if={@wcvp_nomatch_search.results != []}
+                class="mt-2 max-h-60 overflow-y-auto border border-gray-200 rounded-md divide-y divide-gray-100"
+              >
+                <li
+                  :for={result <- @wcvp_nomatch_search.results}
+                  phx-click="select_wcvp_nomatch"
+                  phx-value-id={result.plant_name_id}
+                  class={[
+                    "px-3 py-2 cursor-pointer text-sm hover:bg-blue-50",
+                    @wcvp_nomatch_search.selected == result.plant_name_id &&
+                      "bg-blue-100 font-medium"
+                  ]}
+                >
+                  <span class="italic">{result.taxon_name}</span>
+                </li>
+              </ul>
+              <p
+                :if={
+                  @wcvp_nomatch_search.results == [] && String.length(@wcvp_nomatch_search.query) >= 2
+                }
+                class="mt-2 text-sm text-gray-500"
+              >
+                No results found.
+              </p>
+            </div>
+          </:body>
+          <:footer>
+            <button
+              type="button"
+              phx-click="cancel_wcvp_search"
+              class="px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              phx-click="continue_wcvp_search"
+              disabled={is_nil(@wcvp_nomatch_search.selected)}
+              class={[
+                "px-4 py-2 rounded-md",
+                if(@wcvp_nomatch_search.selected,
+                  do: "bg-blue-600 text-white hover:bg-blue-700",
+                  else: "bg-gray-300 text-gray-500 cursor-not-allowed"
+                )
+              ]}
+            >
+              Continue
+            </button>
+          </:footer>
+        </.modal>
 
         <.discard_confirm_modal show={@show_discard_confirm} />
       </Layouts.admin_edit_layout>

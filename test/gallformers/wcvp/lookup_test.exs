@@ -75,6 +75,24 @@ defmodule Gallformers.Wcvp.LookupTest do
         "carolina",
         "L.",
         "urn:lsid:ipni.org:names:726498-1"
+      ],
+      [
+        "300",
+        "Alnus alnobetula subsp. sinuata",
+        "Betulaceae",
+        "Alnus",
+        "alnobetula",
+        "(Regel) Raus",
+        nil
+      ],
+      [
+        "301",
+        "Alnus incana",
+        "Betulaceae",
+        "Alnus",
+        "incana",
+        "(L.) Moench",
+        nil
       ]
     ]
 
@@ -155,6 +173,41 @@ defmodule Gallformers.Wcvp.LookupTest do
 
     test "returns empty list for nonexistent name" do
       assert Lookup.search("Nonexistent") == []
+    end
+  end
+
+  describe "search_contains/2" do
+    test "matches subspecies by epithet appearing anywhere in name" do
+      results = Lookup.search_contains("Alnus sinuata")
+      assert length(results) == 1
+      assert hd(results).taxon_name == "Alnus alnobetula subsp. sinuata"
+    end
+
+    test "splits query into independent terms" do
+      results = Lookup.search_contains("Aln sin")
+      assert length(results) == 1
+      assert hd(results).taxon_name == "Alnus alnobetula subsp. sinuata"
+    end
+
+    test "matches genus-only query" do
+      results = Lookup.search_contains("Alnus")
+      assert length(results) == 2
+      assert Enum.all?(results, fn r -> r.genus == "Alnus" end)
+    end
+
+    test "is case insensitive" do
+      results = Lookup.search_contains("alnus sinuata")
+      assert length(results) == 1
+      assert hd(results).taxon_name == "Alnus alnobetula subsp. sinuata"
+    end
+
+    test "respects limit option" do
+      results = Lookup.search_contains("Quercus", limit: 1)
+      assert length(results) == 1
+    end
+
+    test "returns empty list for no matches" do
+      assert Lookup.search_contains("Nonexistent") == []
     end
   end
 
