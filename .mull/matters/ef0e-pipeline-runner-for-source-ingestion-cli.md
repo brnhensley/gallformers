@@ -1,9 +1,10 @@
 ---
-status: raw
+status: done
 tags: [design]
 created: 2026-03-04
 updated: 2026-03-04
 epic: ingestion
+relates: [7fda]
 ---
 
 # Pipeline runner for source ingestion CLI
@@ -90,3 +91,27 @@ If an output file exists, skip that stage. Re-run picks up where it left off.
 
 Evaluated pypyr, Ploomber, Hamilton, Gloe, Haystack, LangChain, InstructLab SDG. All either overkill (LangChain/Haystack), wrong model (doit), or don't provide enough over a custom ~100 LOC runner to justify the dependency. Custom runner with existing PyYAML/Click deps is the pragmatic choice.
 
+## Design: Structured Data Extraction Step
+
+New pipeline step `data-extract` that uses an LLM to extract structured gall records from cleaned document text.
+
+### Output format
+
+JSON array, one record per gall-host association. Each record includes:
+- `gall_species`: name, authority, family, order
+- `host_species`: name, authority, family
+- `traits`: each trait has `original` (free text from source) and `suggested` (mapped to gallformers vocabulary)
+  - shape, color, texture, walls, cells, alignment, plant_part, form, season, detachable
+- `description`: full morphological description text
+- `location`: collection locality
+- `confidence`: LLM's self-assessed confidence (0-1)
+
+### Trait mapping
+
+Prompt includes all valid gallformers lookup values. LLM extracts original text AND suggests closest match from the vocabulary. Reviewer sees both during import.
+
+### Pipeline integration
+
+Step type: `data-extract`. Input: cleaned text. Output: `.json`. Requires model. Uses chunking for large documents with JSON array merging.
+
+New subcommand: `ingest data-extract -i cleaned.md -o data.json --model ...`

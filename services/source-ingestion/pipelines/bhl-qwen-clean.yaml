@@ -6,4 +6,6 @@ pipeline:
       model: lmstudio/qwen3-vl-8b
     - step: metadata
       model: lmstudio/qwen3-vl-8b
+    - step: data-extract
+      model: lmstudio/qwen3-vl-8b
     - step: assemble
