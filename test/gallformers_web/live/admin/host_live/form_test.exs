@@ -532,6 +532,9 @@ defmodule GallformersWeb.Admin.HostLive.FormTest do
       # Select the section from the dropdown
       render_click(view, "select_section", %{"section_id" => to_string(section.id)})
 
+      # Add range data (required for save)
+      render_click(view, "toggle_region", %{"code" => "US-CA"})
+
       # Submit the form
       render_click(view, "save", %{"species" => %{}})
 
@@ -543,6 +546,37 @@ defmodule GallformersWeb.Admin.HostLive.FormTest do
       taxonomy = Gallformers.Taxonomy.get_taxonomy_for_species(host_id)
       assert taxonomy.section != nil, "section should be linked but was nil"
       assert taxonomy.section.id == section.id
+    end
+  end
+
+  describe "Range data validation" do
+    setup %{conn: conn} do
+      {:ok, conn: setup_admin_session(conn)}
+    end
+
+    test "save in edit mode fails when host has no range data", %{conn: conn} do
+      # Host 6 (Thymus alpinus) has range data - remove it by toggling its only region off
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/6")
+
+      # Toggle off US-CA (the only range entry)
+      render_click(view, "toggle_region", %{"code" => "US-CA"})
+
+      # Attempt to save
+      html = render_click(view, "save", %{"species" => %{}})
+
+      assert html =~ "at least one range"
+    end
+
+    test "save in new mode fails when host has no range data", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/new")
+
+      # Create a new host using a genus that exists in test DB
+      render_click(view, "create_host", %{"name" => "GenusAlpha norangehost"})
+
+      # Attempt to save without adding any range data
+      html = render_click(view, "save", %{"species" => %{}})
+
+      assert html =~ "at least one range"
     end
   end
 

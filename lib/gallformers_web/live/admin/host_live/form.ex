@@ -134,17 +134,21 @@ defmodule GallformersWeb.Admin.HostLive.Form do
 
   @impl true
   def handle_event("save", %{"species" => params}, socket) do
-    # Validate that family is selected when genus is new
-    if socket.assigns.genus_is_new && is_nil(socket.assigns.selected_family_id) do
-      {:noreply, put_flash(socket, :error, "Please select a Family for the new genus")}
-    else
-      # Name is captured via typeahead (outside the form), so add it from socket assigns
-      params =
-        params
-        |> Map.put("taxoncode", "plant")
-        |> Map.put("name", socket.assigns.host.name)
+    cond do
+      socket.assigns.genus_is_new && is_nil(socket.assigns.selected_family_id) ->
+        {:noreply, put_flash(socket, :error, "Please select a Family for the new genus")}
 
-      save_host(socket, socket.assigns.mode, params)
+      socket.assigns.exact_places == [] && socket.assigns.country_places == [] ->
+        {:noreply, put_flash(socket, :error, "Host must have at least one range entry")}
+
+      true ->
+        # Name is captured via typeahead (outside the form), so add it from socket assigns
+        params =
+          params
+          |> Map.put("taxoncode", "plant")
+          |> Map.put("name", socket.assigns.host.name)
+
+        save_host(socket, socket.assigns.mode, params)
     end
   end
 
@@ -533,7 +537,7 @@ defmodule GallformersWeb.Admin.HostLive.Form do
     end
   end
 
-  defp toggle_region(%{assigns: %{mode: mode}} = socket, _code) when mode != :edit, do: socket
+  defp toggle_region(%{assigns: %{mode: :search}} = socket, _code), do: socket
 
   defp toggle_region(socket, code) do
     place = Map.get(socket.assigns.place_by_code, code)
