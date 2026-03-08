@@ -1,6 +1,5 @@
 ---
 status: planned
-effort: 1 day
 created: 2026-02-18
 updated: 2026-03-08
 epic: platform
@@ -117,3 +116,10 @@ Already in place: browser pipeline, root layout shared with LiveView, component 
 - Tree memory: galls ~1 MB, hosts ~670 KB, places ~760 KB per process
 - March 2-3 OOM incidents documented
 - JS framework evaluation: htmx rejected (round-trips for client-side ops). Alpine.js and Stimulus reconsidered now that conflict-with-LiveView-DOM-patching objection doesn't apply to controller pages. Decision deferred to Phase 2.
+
+
+## Additional findings
+
+- **Zero LiveComponents on public pages.** All 5 LiveComponents (ExclusionDrillDown, CountryDrillDown, ContentImageManager, InatImportComponent, ReclassifyLive) are admin-only. Phase 1 conversions require no LiveComponent migration — every public component is a function component that works identically in controller templates.
+- **Land gall-range-curation branch first.** It touches gall_live.ex and host_live.ex with range display changes. Converting those files to controllers is a structural rewrite, so merge the feature branch first to avoid resolving conflicts against the new controller structure.
+
