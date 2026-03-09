@@ -98,7 +98,6 @@ defmodule GallformersWeb.GallLive do
         range_data = Ranges.get_display_range_for_gall(gall_id)
         range = range_data.in_range
         inherited_range = range_data.inherited_range
-        excluded_range = range_data.excluded_range
         range_bounds = Places.get_bounds_for_codes(range ++ inherited_range)
         gall_filters = Galls.get_gall_filter_values(gall_id)
         related_galls = Galls.get_related_galls(gall)
@@ -152,7 +151,6 @@ defmodule GallformersWeb.GallLive do
            taxonomy: taxonomy,
            range: range,
            inherited_range: inherited_range,
-           excluded_range: excluded_range,
            range_bounds: range_bounds,
            related_galls: related_galls,
            common_names: common_names,
@@ -483,13 +481,21 @@ defmodule GallformersWeb.GallLive do
                 <div class="flex items-center gap-1">
                   <strong>Possible Range:</strong>
                   <.info_tip content="The gall's range is computed from the range of all hosts that the gall occurs on. In some cases we have evidence that the gall does not occur across the full range of the hosts and we will remove these places from the range. For undescribed species we will show the expected range based on hosts plus where the galls have been observed." />
+                  <.link
+                    :if={@current_user && !@gall.range_confirmed}
+                    href={~p"/admin/gallhost?id=#{@gall.id}"}
+                    class="inline-flex items-center gap-1 text-xs text-amber-500 hover:text-amber-700"
+                    title="Range not yet confirmed — click to review"
+                  >
+                    <.icon name="ph-warning" class="h-3.5 w-3.5" />
+                    <span>Needs review</span>
+                  </.link>
                 </div>
                 <.range_map
                   id="gall-range-map"
                   class="min-h-[250px] h-[300px]"
                   in_range={@range}
                   inherited_range={@inherited_range}
-                  excluded_range={[]}
                   bounds={@range_bounds}
                   navigable
                 />

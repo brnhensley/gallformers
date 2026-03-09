@@ -221,8 +221,7 @@ defmodule GallformersWeb.API.GallController do
     aliases = Species.get_aliases_for_species(gall.id)
     hosts = GallHosts.get_hosts_for_gall(gall.id)
     filter_fields = Galls.get_gall_filter_values(gall.id)
-    places = Ranges.get_places_for_gall(gall.id)
-    excluded_places = Ranges.get_excluded_places_for_gall(gall.id)
+    places = Ranges.get_gall_range_codes(gall.id)
 
     %{
       id: gall.id,
@@ -243,8 +242,7 @@ defmodule GallformersWeb.API.GallController do
       cells: filter_fields.cells,
       seasons: filter_fields.seasons,
       forms: filter_fields.forms,
-      places: places,
-      excludedPlaces: excluded_places
+      places: places
     }
   end
 

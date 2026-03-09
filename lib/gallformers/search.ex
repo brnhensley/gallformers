@@ -552,8 +552,6 @@ defmodule Gallformers.Search do
 
   # Filters gall results to those whose hosts have ranges in the continent's descendants.
   # Uses gallhost join to find which galls have hosts in the continent.
-  # Note: gall_range_exclusions are not applied here — they're for fine-grained
-  # ID tool filtering, not for broad "does this gall exist on this continent" checks.
   defp filter_galls_by_continent([], _continent_code), do: []
 
   defp filter_galls_by_continent(results, continent_code) do
@@ -565,11 +563,9 @@ defmodule Gallformers.Search do
       gall_ids = Enum.map(results, & &1.id)
 
       galls_in_continent =
-        from(gh in "gallhost",
-          join: hr in "host_range",
-          on: hr.species_id == gh.host_species_id,
-          where: gh.gall_species_id in ^gall_ids and hr.place_id in ^continent_desc_ids,
-          select: gh.gall_species_id
+        from(gr in "gall_range",
+          where: gr.species_id in ^gall_ids and gr.place_id in ^continent_desc_ids,
+          select: gr.species_id
         )
         |> Repo.all()
         |> MapSet.new()
