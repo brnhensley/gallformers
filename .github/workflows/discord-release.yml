@@ -42,7 +42,7 @@ jobs:
             echo "$EOF" >> "$GITHUB_OUTPUT"
           else
             # Release event trigger — use env vars to avoid backtick interpretation
-            # (${{ }} is raw string interpolation; backticks in markdown become command substitution)
+            # (inline expansion is raw string interpolation; backticks become command substitution)
             echo "name=$RELEASE_NAME_RAW" >> "$GITHUB_OUTPUT"
             echo "url=$RELEASE_URL_RAW" >> "$GITHUB_OUTPUT"
             echo "tag=$RELEASE_TAG_RAW" >> "$GITHUB_OUTPUT"
