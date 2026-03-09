@@ -19,6 +19,10 @@ jobs:
         id: release
         env:
           TAG: ${{ inputs.tag }}
+          RELEASE_NAME_RAW: ${{ github.event.release.name }}
+          RELEASE_URL_RAW: ${{ github.event.release.html_url }}
+          RELEASE_TAG_RAW: ${{ github.event.release.tag_name }}
+          RELEASE_BODY_RAW: ${{ github.event.release.body }}
         run: |
           if [ -n "$TAG" ]; then
             # Manual trigger - fetch release by tag from public API
@@ -37,14 +41,15 @@ jobs:
             echo "$RELEASE" | jq -r .body >> "$GITHUB_OUTPUT"
             echo "$EOF" >> "$GITHUB_OUTPUT"
           else
-            # Release event trigger
-            echo "name=${{ github.event.release.name }}" >> "$GITHUB_OUTPUT"
-            echo "url=${{ github.event.release.html_url }}" >> "$GITHUB_OUTPUT"
-            echo "tag=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
+            # Release event trigger — use env vars to avoid backtick interpretation
+            # (${{ }} is raw string interpolation; backticks in markdown become command substitution)
+            echo "name=$RELEASE_NAME_RAW" >> "$GITHUB_OUTPUT"
+            echo "url=$RELEASE_URL_RAW" >> "$GITHUB_OUTPUT"
+            echo "tag=$RELEASE_TAG_RAW" >> "$GITHUB_OUTPUT"
 
             EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
             echo "body<<$EOF" >> "$GITHUB_OUTPUT"
-            echo "${{ github.event.release.body }}" >> "$GITHUB_OUTPUT"
+            printf '%s\n' "$RELEASE_BODY_RAW" >> "$GITHUB_OUTPUT"
             echo "$EOF" >> "$GITHUB_OUTPUT"
           fi
 
