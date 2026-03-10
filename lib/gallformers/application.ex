@@ -18,6 +18,8 @@ defmodule Gallformers.Application do
         [
           {DNSCluster, query: Application.get_env(:gallformers, :dns_cluster_query) || :ignore},
           {Phoenix.PubSub, name: Gallformers.PubSub},
+          # Stop VM if app becomes unresponsive so Fly restarts it
+          Gallformers.HealthWatchdog,
           # Image audit cache for orphan detection
           Gallformers.Images.AuditCache,
           # Nightly analytics rollup and pruning
