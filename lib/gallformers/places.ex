@@ -73,10 +73,14 @@ defmodule Gallformers.Places do
     shifted_east = shifted_ranges |> Enum.map(&elem(&1, 1)) |> Enum.max()
     shifted_span = shifted_east - shifted_west
 
-    # Pick the union with the smaller span
+    # Pick the union with the smaller span. Use a tolerance to avoid
+    # floating point noise — adding 360 to negative longitudes changes
+    # magnitudes enough to produce ~1e-14 differences in span calculations,
+    # which can falsely select the antimeridian-crossing union for ranges
+    # entirely in one hemisphere.
     {west, east} =
-      if shifted_span < normal_span do
-        # The antimeridian-crossing union is tighter — use it.
+      if shifted_span < normal_span - 0.01 do
+        # The antimeridian-crossing union is meaningfully tighter — use it.
         # MapLibre handles coordinates > 180, so pass as-is.
         {shifted_west, shifted_east}
       else

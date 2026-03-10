@@ -656,7 +656,7 @@ const RangeMap = {
    * The map must be at a zoom level where subdivision features are available.
    */
   fitToRange(animate) {
-    if (!this.map || !this.map.isStyleLoaded()) return
+    if (!this.map) return
     if (this.inRange.size === 0 && this.inheritedRange.size === 0) {
       this.map.fitBounds(WORLD_BOUNDS, { padding: 20, animate })
       return
