@@ -8,6 +8,7 @@ defmodule Gallformers.Places do
   import Ecto.Query
   alias Gallformers.Places.Place
   alias Gallformers.Repo
+  alias Gallformers.Search.TextMatch
   alias Gallformers.Species.Species
 
   # Bounding boxes per place code, extracted from PMTiles by extract_bounds.py.
@@ -193,10 +194,10 @@ defmodule Gallformers.Places do
   """
   @spec search_places(String.t(), integer()) :: [Place.t()]
   def search_places(query, limit \\ 20) do
-    search_pattern = "%#{String.downcase(query)}%"
+    filter = TextMatch.build_filter(query, [:name])
 
     from(p in Place,
-      where: fragment("lower(?) LIKE ?", p.name, ^search_pattern),
+      where: ^filter,
       order_by: p.name,
       limit: ^limit
     )
@@ -336,6 +337,44 @@ defmodule Gallformers.Places do
 
       Enum.reject(all_ids, &(&1 in parent_ids))
     end
+  end
+
+  @doc """
+  Returns IDs for leaf descendants of multiple places in a single batched query.
+  Equivalent to calling `leaf_descendant_ids/1` for each place_id, but avoids N+1 queries.
+  """
+  @spec batch_leaf_descendant_ids([integer()]) :: [integer()]
+  def batch_leaf_descendant_ids([]), do: []
+
+  def batch_leaf_descendant_ids(place_ids) do
+    placeholders = Enum.map_join(1..length(place_ids), ", ", &"?#{&1}")
+
+    {:ok, %{rows: rows}} =
+      Repo.query(
+        """
+        WITH RECURSIVE descendants(id) AS (
+          SELECT id FROM place WHERE id IN (#{placeholders})
+          UNION ALL
+          SELECT ph.place_id
+          FROM place_hierarchy ph
+          JOIN descendants d ON ph.parent_id = d.id
+        )
+        SELECT DISTINCT id FROM descendants
+        """,
+        place_ids
+      )
+
+    all_ids = Enum.map(rows, fn [id] -> id end)
+
+    parent_ids =
+      from(ph in "place_hierarchy",
+        where: ph.parent_id in ^all_ids,
+        select: ph.parent_id,
+        distinct: true
+      )
+      |> Repo.all()
+
+    Enum.reject(all_ids, &(&1 in parent_ids))
   end
 
   @doc """

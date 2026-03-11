@@ -1,9 +1,9 @@
 ---
-status: active
+status: done
 created: 2026-03-03
-updated: 2026-03-06
+updated: 2026-03-10
 epic: geo-expansion
-relates: [8900, b9e5, be9d]
+relates: [8900, b9e5, be9d, 600a]
 blocks: [be9d]
 ---
 

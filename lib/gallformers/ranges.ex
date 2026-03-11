@@ -420,12 +420,10 @@ defmodule Gallformers.Ranges do
           []
 
         entries ->
-          # Collect all country place_ids, expand each to leaf descendants,
-          # then batch-fetch all leaf codes in a single query
           leaf_ids =
             entries
-            |> Enum.flat_map(&Places.leaf_descendant_ids(&1.place_id))
-            |> Enum.uniq()
+            |> Enum.map(& &1.place_id)
+            |> Places.batch_leaf_descendant_ids()
 
           from(p in Place, where: p.id in ^leaf_ids, select: p.code)
           |> Repo.all()
