@@ -1,7 +1,7 @@
 ---
 status: refined
 created: 2026-03-10
-updated: 2026-03-10
+updated: 2026-03-11
 epic: platform
 relates: [be9d]
 ---
@@ -50,4 +50,3 @@ Move it to its own scheduled time or at least add a delay after rollup completes
 - `busy_timeout`: 10,000ms (config/runtime.exs line 84)
 - `pool_size`: 10 (production)
 - WAL autocheckpoint: 1000 pages (default)
-
