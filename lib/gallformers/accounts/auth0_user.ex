@@ -63,6 +63,14 @@ defmodule Gallformers.Accounts.Auth0User do
   end
 
   @doc """
+  Returns true if the user has the operator role.
+  """
+  @spec operator?(t()) :: boolean()
+  def operator?(%__MODULE__{roles: roles}) do
+    "operator" in roles
+  end
+
+  @doc """
   Returns the display name for the user, preferring name over nickname over email.
   """
   @spec display_name(t()) :: String.t()

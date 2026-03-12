@@ -143,6 +143,18 @@ defmodule Gallformers.Accounts do
   def superadmin?(_), do: false
 
   @doc """
+  Returns true if the user is an operator.
+
+  Accepts Auth0User structs or any map with a `roles` field (to handle
+  session deserialization where struct types may not be preserved).
+  """
+  @spec operator?(Auth0User.t() | map() | nil) :: boolean()
+  def operator?(nil), do: false
+  def operator?(%Auth0User{} = user), do: Auth0User.operator?(user)
+  def operator?(%{roles: roles}) when is_list(roles), do: "operator" in roles
+  def operator?(_), do: false
+
+  @doc """
   Returns the Auth0 logout URL.
 
   This URL will clear the Auth0 session and redirect back to the specified URL.

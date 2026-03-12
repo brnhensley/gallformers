@@ -25,6 +25,7 @@ config :gallformers, Gallformers.Repo.WCVP,
 # watchers to your application. For example, we can use it
 # to bundle .js and .css sources.
 config :gallformers, GallformersWeb.Endpoint,
+  url: [host: "localhost", port: 4000],
   http: [ip: {127, 0, 0, 1}],
   check_origin: false,
   code_reloader: true,

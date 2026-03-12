@@ -24,10 +24,16 @@ defmodule GallformersWeb.Router do
 
   pipeline :admin do
     plug GallformersWeb.Plugs.RequireAdmin
+    plug GallformersWeb.Plugs.EnforceReadOnly
   end
 
   pipeline :superadmin do
     plug GallformersWeb.Plugs.RequireSuperAdmin
+    plug GallformersWeb.Plugs.EnforceReadOnly
+  end
+
+  pipeline :operator do
+    plug GallformersWeb.Plugs.RequireOperator
   end
 
   defp fetch_current_user(conn, _opts) do
@@ -142,6 +148,13 @@ defmodule GallformersWeb.Router do
 
     # User management (superadmin only)
     live "/users", Admin.UsersLive, :index
+  end
+
+  # Operator routes (require operator role)
+  scope "/admin", GallformersWeb do
+    pipe_through [:browser, :operator]
+
+    live "/ops", Admin.OpsLive, :index
   end
 
   # Public routes

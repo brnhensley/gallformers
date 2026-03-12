@@ -22,6 +22,8 @@ defmodule Gallformers.Application do
           Gallformers.HealthWatchdog,
           # Image audit cache for orphan detection
           Gallformers.Images.AuditCache,
+          # Site-wide settings with persistent_term cache
+          Gallformers.SiteSettings,
           # Nightly analytics rollup and pruning
           Gallformers.Analytics.Rollup,
           # Start to serve requests, typically the last entry
