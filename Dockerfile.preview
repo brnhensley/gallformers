@@ -1,6 +1,6 @@
-# Gallformers Preview - Dockerfile
-# Multi-stage build with baked-in database from S3 snapshot
-# No volumes, no Litestream replication at runtime
+# Gallformers Preview - Phoenix Dockerfile
+# Copy of production Dockerfile with separate Litestream replication target
+# to prevent preview from overwriting production's Litestream backups.
 
 # Stage 1: Build Elixir release
 FROM hexpm/elixir:1.17.3-erlang-27.1.2-alpine-3.20.3 AS builder
@@ -17,7 +17,6 @@ RUN mix local.hex --force && \
 
 # Set build ENV
 ENV MIX_ENV=prod
-ENV PREVIEW_DEPLOY=true
 
 # Install mix dependencies
 COPY mix.exs mix.lock ./
@@ -55,10 +54,14 @@ RUN mix release
 # Stage 2: Runtime
 FROM alpine:3.20 AS runtime
 
-# Runtime dependencies
+# Runtime dependencies + aws-cli for database reset workflow
 # vips is needed for image processing (resizing variants)
-# curl is needed to download the database snapshot
-RUN apk add --no-cache libstdc++ openssl ncurses-libs sqlite vips curl
+# curl is needed for downloading data files from S3 on first boot
+RUN apk add --no-cache libstdc++ openssl ncurses-libs sqlite su-exec aws-cli vips curl
+
+# Install Litestream for continuous SQLite replication
+ADD https://github.com/benbjohnson/litestream/releases/download/v0.3.13/litestream-v0.3.13-linux-amd64.tar.gz /tmp/litestream.tar.gz
+RUN tar -C /usr/local/bin -xzf /tmp/litestream.tar.gz && rm /tmp/litestream.tar.gz
 
 # Install Typst for PDF generation of identification keys
 ADD https://github.com/typst/typst/releases/download/v0.14.2/typst-x86_64-unknown-linux-musl.tar.xz /tmp/typst.tar.xz
@@ -72,26 +75,18 @@ RUN addgroup -g 1000 gallformers && \
 
 # Copy release from builder
 COPY --from=builder --chown=gallformers:gallformers /app/_build/prod/rel/gallformers ./
+COPY --chown=gallformers:gallformers litestream-preview.yml /etc/litestream.yml
 
-# Download data files from public S3 (no auth needed)
-RUN mkdir -p /app/data && \
-    curl -fSL -o /app/data/gallformers.sqlite \
-      https://gallformers-backups.s3.amazonaws.com/public/gallformers.sqlite && \
-    curl -fSL -o /app/data/wcvp.sqlite \
-      https://gallformers-backups.s3.amazonaws.com/public/wcvp.sqlite && \
-    curl -fSL -o /app/data/boundaries.pmtiles \
-      https://gallformers-backups.s3.amazonaws.com/public/boundaries.pmtiles
+# Create data directory
+RUN mkdir -p /data && chown gallformers:gallformers /data
 
-RUN chown -R gallformers:gallformers /app/data
-
-# Copy entrypoint script
-COPY --chmod=755 docker-entrypoint-preview.sh /app/docker-entrypoint-preview.sh
+# Copy entrypoint script (runs as root to fix permissions, then drops to gallformers)
+COPY --chmod=755 docker-entrypoint.sh /app/docker-entrypoint.sh
 
 ENV HOME=/app
-ENV DATABASE_PATH=/app/data/gallformers.sqlite
+ENV DATABASE_PATH=/data/gallformers.sqlite
 
 EXPOSE 4000
 
-USER gallformers
-
-CMD ["/app/docker-entrypoint-preview.sh"]
+# Run entrypoint as root - it fixes permissions then drops to gallformers user
+CMD ["/app/docker-entrypoint.sh"]
