@@ -1,7 +1,7 @@
 ---
-status: raw
+status: planned
 created: 2026-03-11
-updated: 2026-03-12
+updated: 2026-03-13
 epic: postgres
 needs: [1858]
 parent: 4474
@@ -72,4 +72,3 @@ Note: code cleanup (dead code, Litestream removal from Dockerfile/entrypoint, do
 - Fly cert swap vs in-place deploy: leaning in-place (`fly deploy`) which requires no routing changes. Validate this works as expected.
 - Rollback: `fly deploy` previous release, SQLite still on volume. How long do we keep the ability to roll back?
 - How long should the read-only soak period be before enabling writes? Hours? A day?
-

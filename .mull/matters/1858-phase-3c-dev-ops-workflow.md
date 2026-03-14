@@ -1,7 +1,7 @@
 ---
-status: raw
+status: planned
 created: 2026-03-11
-updated: 2026-03-11
+updated: 2026-03-13
 epic: postgres
 blocks: [cead]
 needs: [f176]
@@ -56,4 +56,3 @@ All operational workflows working against Postgres before cutover. No surprises 
 - Fly config updated
 - Conversion tool verified to work against remote Postgres
 - Production Postgres instance provisioned
-

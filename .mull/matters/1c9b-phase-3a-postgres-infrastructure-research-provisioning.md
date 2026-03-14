@@ -1,5 +1,5 @@
 ---
-status: raw
+status: done
 created: 2026-03-11
 updated: 2026-03-13
 epic: postgres
@@ -62,4 +62,3 @@ Not configured or tested. Fly postgres-flex includes barman but needs verificati
 - `fly postgres attach gallformers -a gallformers-db-prod`
 - Clean up Litestream secrets
 - Rename S3 IAM user
-
