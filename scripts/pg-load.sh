@@ -271,7 +271,7 @@ if [ "$NEED_SQLITE" = true ]; then
       LS_CONFIG=$(mktemp /tmp/litestream-XXXXXX.yml)
       cat > "$LS_CONFIG" <<LSEOF
 logging:
-  level: info
+  level: debug
   type: text
 dbs:
   - path: $SQLITE_FILE
@@ -408,8 +408,8 @@ fi
 if [ -n "$FLY_APP" ]; then
   DB_URL="postgres://$USERNAME:$PASSWORD@$DB_APP.flycast:5432/$DBNAME"
   if confirm "Set DATABASE_URL on $FLY_APP" \
-    "fly secrets set DATABASE_URL=postgres://$USERNAME:***@$DB_APP.flycast:5432/$DBNAME -a $FLY_APP"; then
-    fly secrets set "DATABASE_URL=$DB_URL" -a "$FLY_APP"
+    "fly secrets set --stage DATABASE_URL=postgres://$USERNAME:***@$DB_APP.flycast:5432/$DBNAME -a $FLY_APP"; then
+    fly secrets set --stage "DATABASE_URL=$DB_URL" -a "$FLY_APP"
   fi
 fi
 
