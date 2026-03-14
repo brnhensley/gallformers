@@ -1413,7 +1413,7 @@ defmodule GallformersWeb.Admin.HostLive.Form do
                   Cancel
                 </button>
                 <button
-                  :if={@mode == :edit && @host_traits && !@host_traits.range_confirmed}
+                  :if={@mode == :edit && !(@host_traits && @host_traits.range_confirmed)}
                   type="submit"
                   name="confirm_range"
                   value="true"
