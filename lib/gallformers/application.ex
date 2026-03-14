@@ -5,12 +5,14 @@ defmodule Gallformers.Application do
 
   use Application
 
+  alias Gallformers.Repo
+
   @impl true
   def start(_type, _args) do
     children =
       [
         GallformersWeb.Telemetry,
-        Gallformers.Repo,
+        Repo,
         {Ecto.Migrator,
          repos: Application.fetch_env!(:gallformers, :ecto_repos), skip: skip_migrations?()}
       ] ++
@@ -54,20 +56,20 @@ defmodule Gallformers.Application do
   end
 
   defp wcvp_repo_child_spec do
-    db_path = Application.get_env(:gallformers, Gallformers.Repo.WCVP)[:database]
+    db_path = Application.get_env(:gallformers, Repo.WCVP)[:database]
 
     if db_path && File.exists?(db_path) do
-      [Gallformers.Repo.WCVP]
+      [Repo.WCVP]
     else
       []
     end
   end
 
   defp warm_wcvp_repo do
-    db_path = Application.get_env(:gallformers, Gallformers.Repo.WCVP)[:database]
+    db_path = Application.get_env(:gallformers, Repo.WCVP)[:database]
 
     if db_path && File.exists?(db_path) do
-      Gallformers.Repo.WCVP.query!("SELECT 1", [])
+      Repo.WCVP.query!("SELECT 1", [])
     end
   rescue
     _ -> :ok

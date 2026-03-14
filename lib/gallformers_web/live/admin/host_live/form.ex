@@ -737,7 +737,8 @@ defmodule GallformersWeb.Admin.HostLive.Form do
       socket.assigns.genus_is_new && is_nil(socket.assigns.selected_family_id) ->
         {:noreply, put_flash(socket, :error, "Please select a Family for the new genus")}
 
-      socket.assigns.range_entries == %{} && socket.assigns[:wcvp_effective_place_ids] in [nil, []] ->
+      socket.assigns.range_entries == %{} &&
+          socket.assigns[:wcvp_effective_place_ids] in [nil, []] ->
         {:noreply, put_flash(socket, :error, "Host must have at least one range entry")}
 
       true ->
