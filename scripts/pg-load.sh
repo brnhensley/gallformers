@@ -6,60 +6,52 @@
 # instance. Used for both preview refreshes and production cutover.
 #
 # Usage:
-#   scripts/pg-load.sh -u <username> -a <fly-db-app> [-d <dbname>] [-A <fly-app>]
+#   scripts/pg-load.sh -e <env-file> [-u <username>] [-a <fly-db-app>] [-d <dbname>] [-A <fly-app>]
 #
-# Credentials are loaded from .env.pg-load if present. Command-line flags
-# override the file. Any values still missing are prompted interactively.
+# Credentials are loaded from the env file specified with -e. Without -e,
+# all values must be passed as flags or will be prompted interactively.
 #
 # See runbooks/postgres-cutover.md for full documentation.
 
 set -euo pipefail
 
+# Resolve project root from script location
+PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+
 # Defaults
-USERNAME="${PG_USERNAME:-}"
-PASSWORD="${PG_PASSWORD:-}"
-DB_APP="${PG_DB_APP:-}"
-DBNAME="${PG_DBNAME:-}"
-FLY_APP="${PG_FLY_APP:-}"
+USERNAME=""
+PASSWORD=""
+DB_APP=""
+DBNAME=""
+FLY_APP=""
+FLAG_USERNAME=""
+FLAG_DB_APP=""
+FLAG_DBNAME=""
+FLAG_FLY_APP=""
 LOCAL_DB="gallformers_dev"
 DUMP_FILE="/tmp/gallformers.dump"
 PROXY_PORT=15432
 PROXY_PID=""
-SQLITE_FILE="priv/gallformers.sqlite"
-ENV_FILE=".env.pg-load"
+SQLITE_FILE="$PROJECT_ROOT/priv/gallformers.sqlite"
+ENV_FILE=""
 
-# --- Load config file ---
-
-if [ -f "$ENV_FILE" ]; then
-  echo "Loading config from $ENV_FILE"
-  set -a
-  # shellcheck source=/dev/null
-  . "$ENV_FILE"
-  set +a
-  # Map env file vars to script vars (env file takes precedence over defaults,
-  # but command-line flags will override below)
-  USERNAME="${PG_USERNAME:-$USERNAME}"
-  PASSWORD="${PG_PASSWORD:-$PASSWORD}"
-  DB_APP="${PG_DB_APP:-$DB_APP}"
-  DBNAME="${PG_DBNAME:-$DBNAME}"
-  FLY_APP="${PG_FLY_APP:-$FLY_APP}"
-fi
+# --- Helpers ---
 
 usage() {
   cat <<EOF
-Usage: $0 -u <username> -a <fly-db-app> [-d <dbname>] [-A <fly-app>]
+Usage: $0 -e <env-file> [-u <username>] [-a <fly-db-app>] [-d <dbname>] [-A <fly-app>]
 
 Loads local Postgres data into a Fly Postgres instance.
 
-Required (via flags, .env.pg-load, or interactive prompt):
+Options:
+  -e  Path to env file (default: .env.pg-load)
   -u  Postgres username on Fly (PG_USERNAME)
   -a  Fly Postgres app name (PG_DB_APP)
-
-Optional:
   -d  Database name, defaults to username (PG_DBNAME)
   -A  Fly app name for DATABASE_URL and deploy (PG_FLY_APP)
+  -h  Show this help
 
-Config file (.env.pg-load):
+Config file format:
   PG_USERNAME=gallformers_preview
   PG_PASSWORD=<password>
   PG_DB_APP=gallformers-db
@@ -68,23 +60,52 @@ Config file (.env.pg-load):
   LITESTREAM_ACCESS_KEY_ID=<key>
   LITESTREAM_SECRET_ACCESS_KEY=<secret>
 
-Priority: command-line flags > .env.pg-load > interactive prompt
+Priority: command-line flags > env file > interactive prompt
 EOF
   exit 1
 }
 
-# --- Argument parsing (overrides config file) ---
+# --- Argument parsing ---
 
-while getopts "u:a:d:A:h" opt; do
+while getopts "e:u:a:d:A:h" opt; do
   case $opt in
-    u) USERNAME=$OPTARG ;;
-    a) DB_APP=$OPTARG ;;
-    d) DBNAME=$OPTARG ;;
-    A) FLY_APP=$OPTARG ;;
+    e) ENV_FILE=$OPTARG ;;
+    u) FLAG_USERNAME=$OPTARG ;;
+    a) FLAG_DB_APP=$OPTARG ;;
+    d) FLAG_DBNAME=$OPTARG ;;
+    A) FLAG_FLY_APP=$OPTARG ;;
     h) usage ;;
     *) usage ;;
   esac
 done
+
+# --- Load config file ---
+
+echo ""
+if [ -n "$ENV_FILE" ]; then
+  if [ ! -f "$ENV_FILE" ]; then
+    echo "ERROR: Config file not found: $ENV_FILE" >&2
+    exit 1
+  fi
+  echo "Loading config from: $(cd "$(dirname "$ENV_FILE")" && pwd)/$(basename "$ENV_FILE")"
+  set -a
+  # shellcheck source=/dev/null
+  . "$ENV_FILE"
+  set +a
+  USERNAME="${PG_USERNAME:-}"
+  PASSWORD="${PG_PASSWORD:-}"
+  DB_APP="${PG_DB_APP:-}"
+  DBNAME="${PG_DBNAME:-}"
+  FLY_APP="${PG_FLY_APP:-}"
+else
+  echo "No config file specified. All values will be prompted or must be passed as flags."
+fi
+
+# Command-line flags override env file
+USERNAME="${FLAG_USERNAME:-$USERNAME}"
+DB_APP="${FLAG_DB_APP:-$DB_APP}"
+DBNAME="${FLAG_DBNAME:-$DBNAME}"
+FLY_APP="${FLAG_FLY_APP:-$FLY_APP}"
 
 # Prompt for any required values still missing
 if [ -z "$USERNAME" ]; then
@@ -234,16 +255,45 @@ if [ "$NEED_SQLITE" = true ]; then
         echo
         export LITESTREAM_ACCESS_KEY_ID LITESTREAM_SECRET_ACCESS_KEY
       fi
+      if [ -f "$SQLITE_FILE" ]; then
+        SQLITE_SIZE=$(ls -lh "$SQLITE_FILE" | awk '{print $5}')
+        echo "  Existing file found: $SQLITE_FILE ($SQLITE_SIZE)"
+        echo "  Litestream cannot restore over an existing file."
+        read -p "  Delete it and proceed? [y/N] " -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+          fail "Cannot restore with existing file at $SQLITE_FILE. Delete it manually or choose a different data source."
+        fi
+        rm "$SQLITE_FILE"
+        echo "  Deleted."
+      fi
+      # Generate a litestream config with debug logging so restore isn't silent
+      LS_CONFIG=$(mktemp /tmp/litestream-XXXXXX.yml)
+      cat > "$LS_CONFIG" <<LSEOF
+logging:
+  level: info
+  type: text
+dbs:
+  - path: $SQLITE_FILE
+    replicas:
+      - type: s3
+        bucket: gallformers-backups
+        path: litestream
+        region: us-east-1
+        access-key-id: \${LITESTREAM_ACCESS_KEY_ID}
+        secret-access-key: \${LITESTREAM_SECRET_ACCESS_KEY}
+LSEOF
       if confirm "Restore latest SQLite from Litestream" \
-        "litestream restore -o $SQLITE_FILE s3://gallformers-backups/litestream"; then
-        litestream restore -o "$SQLITE_FILE" s3://gallformers-backups/litestream
+        "litestream restore -config $LS_CONFIG $SQLITE_FILE"; then
+        litestream restore -config "$LS_CONFIG" "$SQLITE_FILE"
+        rm -f "$LS_CONFIG"
         SQLITE_SIZE=$(ls -lh "$SQLITE_FILE" | awk '{print $5}')
         echo "  ✓ Restored: $SQLITE_FILE ($SQLITE_SIZE)"
       fi
       ;;
     *)
       if confirm "Download SQLite from S3" "make download-db"; then
-        make download-db
+        (cd "$PROJECT_ROOT" && make download-db)
       fi
       ;;
   esac
@@ -256,6 +306,8 @@ fi
 
 echo ""
 echo "Pipeline: SQLite → local Postgres → pg_dump → fly proxy → pg_restore → Fly Postgres"
+echo "  Project:     $PROJECT_ROOT"
+echo "  SQLite:      $SQLITE_FILE"
 echo "  Local DB:    $LOCAL_DB"
 echo "  Remote:      $USERNAME@$DB_APP / $DBNAME"
 echo "  Dump file:   $DUMP_FILE"
@@ -266,8 +318,8 @@ fi
 # --- Step 1: Convert SQLite to local Postgres ---
 
 if confirm "Reset local database and convert SQLite data" "mix ecto.reset && mix convert_sqlite"; then
-  mix ecto.reset
-  mix convert_sqlite
+  (cd "$PROJECT_ROOT" && mix ecto.reset)
+  (cd "$PROJECT_ROOT" && mix convert_sqlite)
 fi
 
 # --- Step 2: Verify local conversion ---
@@ -365,7 +417,7 @@ fi
 
 if [ -n "$FLY_APP" ]; then
   if confirm "Deploy to $FLY_APP" "make preview"; then
-    make preview
+    (cd "$PROJECT_ROOT" && make preview)
   fi
 fi
 
