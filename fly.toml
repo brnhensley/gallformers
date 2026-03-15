@@ -1,5 +1,5 @@
-# Gallformers V2 - Fly.io Configuration (Phoenix)
-# Deploy with: fly deploy (from v2/ directory)
+# Gallformers - Fly.io Configuration (Phoenix)
+# Deploy with: fly deploy
 
 app = "gallformers"
 primary_region = "iad"
@@ -38,7 +38,7 @@ kill_timeout = "5s"
 [[vm]]
   memory = "1024mb"
   cpu_kind = "shared"
-  cpus = 2
+  cpus = 1
 
 [mounts]
   source = "gallformers_data"

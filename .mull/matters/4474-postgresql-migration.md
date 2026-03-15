@@ -2,10 +2,10 @@
 status: active
 effort: 5-7 days
 created: 2026-02-13
-updated: 2026-03-13
+updated: 2026-03-15
 epic: postgres
 docs: [docs/plans/2026-02-12-sqlite-to-postgres-research.md]
-relates: [1501, 9ca2, cd9d, eff3]
+relates: [1501, 9ca2, cd9d, eff3, 973c]
 blocks: [f6bb]
 docket: true
 ---

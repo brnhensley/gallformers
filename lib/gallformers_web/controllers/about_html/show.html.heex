@@ -186,11 +186,13 @@
 
       <h2>Database Download</h2>
       <p>
-        A sanitized snapshot of the Gallformers database is available for download. It is updated daily and
-        provided as a SQLite file.
+        A snapshot of the Gallformers database is available for download as a PostgreSQL dump file, updated
+        daily. It includes all species, host, gall, source, and range data but excludes images, user accounts,
+        and analytics. To use it, restore into a local PostgreSQL instance with <code>pg_restore</code>.
+        Alternatively, use the public API below for structured access.
       </p>
       <p>
-        <.link href="https://gallformers-backups.s3.amazonaws.com/public/gallformers.sqlite">
+        <.link href="https://gallformers-backups.s3.amazonaws.com/public/gallformers.dump">
           Download the Gallformers database
         </.link>
       </p>

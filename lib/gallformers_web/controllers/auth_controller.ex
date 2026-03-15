@@ -31,7 +31,7 @@ defmodule GallformersWeb.AuthController do
       conn
       |> put_flash(
         :error,
-        "Auth0 is not configured. Set AUTH0_DOMAIN, AUTH0_CLIENT_ID, and AUTH0_SECRET environment variables."
+        "Auth0 is not configured. Set AUTH0_DOMAIN, AUTH0_CLIENT_ID, and AUTH0_CLIENT_SECRET environment variables."
       )
       |> redirect(to: ~p"/")
       |> halt()

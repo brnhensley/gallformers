@@ -1,91 +1,158 @@
-# Runbook: Restore Database
+# Runbook: Restore Postgres Database
 
 ## Purpose
-Restore the PostgreSQL database from backup after corruption or data loss.
+
+Restore the Fly Postgres database from a pg_dump backup after corruption, data loss, or for testing.
 
 ## When to Use
-- Migration failed and corrupted data
-- Accidental data deletion
-- Need to recover to a point-in-time state
+
+- Accidental data deletion or corruption
+- Need to recover to a known-good state
+- Testing backup/restore as part of operational readiness
+- Refreshing preview data
 
 ## Prerequisites
-- `flyctl` CLI installed and authenticated
-- Access to Fly.io app `gallformers`
-- Access to backup storage (S3 bucket `gallformers-backups`)
+
+- `psql`, `pg_dump`, `pg_restore` installed locally
+- Fly CLI authenticated (`fly auth login`)
+- A pg_dump backup file (`.dump` in custom format)
 
 ## Important
-Database restoration will cause **data loss** for any changes made after the backup point. Coordinate with stakeholders before proceeding.
 
-## Understanding the Setup
+Database restoration will cause **data loss** for any changes made after the backup was taken. For production, coordinate with stakeholders and consider putting the site in read-only mode first.
 
-- Database: Fly Postgres (managed by Fly.io)
-- Backup strategy: TBD (previously Litestream for SQLite; Postgres backup approach pending)
+## Setup
 
-## Procedure
+### 1. Set environment variables
 
-### 1. Assess the Situation
-
-Determine:
-- [ ] What caused the corruption/loss?
-- [ ] When did the problem start?
-- [ ] What is the acceptable data loss window?
-
-### 2. Stop the Application
-
-Prevent further writes while restoring:
+Source your `.env` file (copy from `.env.sample` if needed):
 
 ```bash
-fly machines list -a gallformers
-fly machines stop <MACHINE_ID> -a gallformers
+set -a; source .env; set +a
 ```
 
-### 3. Restore from Backup
-
-If restoring from a daily snapshot (pg_dump format):
+Then set the variables for the target environment. For production:
 
 ```bash
-# Download the backup from S3
-aws s3 cp s3://gallformers-backups/public/<date>/gallformers.dump .
-
-# Restore via pg_restore or psql (exact command depends on backup format and Fly Postgres setup)
-# This section will be updated once the Postgres backup strategy is finalized.
+PG_PASSWORD="$PG_PROD_PASSWORD"
+PG_USERNAME="$PG_PROD_USERNAME"
+PG_DB_APP="$PG_PROD_DB_APP"
+PG_DBNAME="$PG_PROD_DBNAME"
 ```
 
-### 4. Restart Application
+For preview:
 
 ```bash
-fly machines start <MACHINE_ID> -a gallformers
+PG_PASSWORD="$PG_PREVIEW_PASSWORD"
+PG_USERNAME="$PG_PREVIEW_USERNAME"
+PG_DB_APP="$PG_PREVIEW_DB_APP"
+PG_DBNAME="$PG_PREVIEW_DBNAME"
 ```
 
-### 5. Verify Application
+### 2. Start the proxy
+
+Run the proxy in the background:
 
 ```bash
-curl -s -o /dev/null -w "%{http_code}" https://gallformers.fly.dev/health
+fly proxy 15432:5432 -a "$PG_DB_APP" &
+PROXY_PID=$!
+sleep 2
 ```
 
-Expected: `200`
-
-Check logs:
+Verify it's working:
 
 ```bash
-fly logs -a gallformers --no-tail | head -30
+PGPASSWORD="$PG_PASSWORD" psql -h localhost -p 15432 -U "$PG_USERNAME" -d postgres -c "SELECT 1"
 ```
 
-## Verification Checklist
+When done with all steps, stop the proxy:
 
-- [ ] Application starts without errors
-- [ ] Health endpoint returns 200
-- [ ] Data appears correct (spot check key records)
+```bash
+kill $PROXY_PID
+```
+
+## Getting a Backup
+
+> **TODO:** Automated backup infrastructure (pg_dump cron to S3) is not yet in place. For now, backups must be created manually before they are needed.
+
+### Create a manual backup
+
+If the database is still accessible, dump it before proceeding:
+
+```bash
+PGPASSWORD="$PG_PASSWORD" pg_dump \
+  --format=custom --no-owner --no-acl \
+  -h localhost -p 15432 \
+  -U "$PG_USERNAME" "$PG_DBNAME" \
+  > /tmp/gallformers-backup.dump
+```
+
+If the database is in a bad state, this may not be possible — proceed directly to restore from whatever backup is available.
+
+### Locate an existing backup
+
+> **TODO:** Once automated backups are in place, document the S3 path and how to list/download available backups here.
+
+## Restore Procedure
+
+### 1. Drop and recreate the database
+
+The `--clean` flag on pg_restore doesn't work reliably with Fly Postgres due to extension and schema ownership conflicts. Drop and recreate instead.
+
+```bash
+PGPASSWORD="$PG_PASSWORD" psql \
+  -h localhost -p 15432 \
+  -U "$PG_USERNAME" -d postgres <<SQL
+SELECT pg_terminate_backend(pid)
+  FROM pg_stat_activity
+  WHERE datname = '$PG_DBNAME' AND pid <> pg_backend_pid();
+DROP DATABASE $PG_DBNAME;
+CREATE DATABASE $PG_DBNAME OWNER $PG_USERNAME;
+SQL
+```
+
+### 2. Restore from backup
+
+```bash
+PGPASSWORD="$PG_PASSWORD" pg_restore \
+  -h localhost -p 15432 \
+  -U "$PG_USERNAME" -d "$PG_DBNAME" \
+  --no-owner --no-acl \
+  /tmp/gallformers-backup.dump
+```
+
+### 3. Verify data
+
+```bash
+PGPASSWORD="$PG_PASSWORD" psql \
+  -h localhost -p 15432 \
+  -U "$PG_USERNAME" -d "$PG_DBNAME" \
+  -c "SELECT count(*) FROM species; SELECT count(*) FROM sources; SELECT count(*) FROM images; SELECT count(*) FROM gall_traits;"
+```
+
+### 4. Verify the application
+
+Browse the site and check:
+- Species pages load with correct data
+- Search returns results
+- Maps render
+- Admin pages work (if not in read-only mode)
+
+### 5. Stop the proxy
+
+```bash
+kill $PROXY_PID
+```
 
 ## If Restoration Fails
 
-1. Try an older backup
-2. If no valid backup available, escalate immediately
+1. Check `pg_restore` output for errors — some non-fatal warnings about extensions are normal
+2. Try an older backup if available
+3. Rollback: see [Rollback Deployment](./rollback-deployment.md)
 
 ## Post-Restoration
 
 1. Document the incident and data loss window
 2. Notify affected users if data was lost
 3. Investigate root cause
-4. Verify backup system is functioning correctly
-5. Consider if code rollback is also needed (see [Rollback Deployment](./rollback-deployment.md))
+4. Verify the site is functioning correctly

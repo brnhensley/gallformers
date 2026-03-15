@@ -44,14 +44,14 @@ Usage: $0 -e <env-file> [-u <username>] [-a <fly-db-app>] [-d <dbname>] [-A <fly
 Loads local Postgres data into a Fly Postgres instance.
 
 Options:
-  -e  Path to env file (default: .env.pg-load)
+  -e  Path to env file (e.g. .env)
   -u  Postgres username on Fly (PG_USERNAME)
   -a  Fly Postgres app name (PG_DB_APP)
   -d  Database name, defaults to username (PG_DBNAME)
   -A  Fly app name for DATABASE_URL and deploy (PG_FLY_APP)
   -h  Show this help
 
-Config file format:
+Config file (.env — copy from .env.sample):
   PG_USERNAME=gallformers_preview
   PG_PASSWORD=<password>
   PG_DB_APP=gallformers-db
@@ -92,11 +92,12 @@ if [ -n "$ENV_FILE" ]; then
   # shellcheck source=/dev/null
   . "$ENV_FILE"
   set +a
-  USERNAME="${PG_USERNAME:-}"
-  PASSWORD="${PG_PASSWORD:-}"
-  DB_APP="${PG_DB_APP:-}"
-  DBNAME="${PG_DBNAME:-}"
-  FLY_APP="${PG_FLY_APP:-}"
+  # Change PG_PREVIEW to PG_PROD when ready for production cutover
+  USERNAME="${PG_PREVIEW_USERNAME:-}"
+  PASSWORD="${PG_PREVIEW_PASSWORD:-}"
+  DB_APP="${PG_PREVIEW_DB_APP:-}"
+  DBNAME="${PG_PREVIEW_DBNAME:-}"
+  FLY_APP="${PG_PREVIEW_FLY_APP:-}"
 else
   echo "No config file specified. All values will be prompted or must be passed as flags."
 fi

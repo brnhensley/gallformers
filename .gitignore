@@ -96,11 +96,10 @@ npm-debug.log
 # API compiled binaries
 api/bin/
 
-# Environment secrets
+# Environment secrets (copy .env.sample to .env)
 .env
 .env.local
 .env*.local
-.env.pg-load
 
 # E2E test artifacts (Wallaby)
 /test/screenshots/*.png

@@ -5,15 +5,24 @@
 .PHONY: dev dev-lan test test-db test-prod-data test-prod-data-e2e test-prod-data-all download-db ci preflight help deps assets setup clean check-db check-sqlite build run-local-release dump-schema upload-reset-db preview preview-stop preview-destroy
 
 # Download production database for local dev
-# Uses public S3 snapshot (updated daily by GitHub Actions)
-DB_URL ?= https://gallformers-backups.s3.amazonaws.com/public/gallformers.sqlite
+# Downloads full pg_dump from private S3 bucket and restores into local Postgres
+# Requires AWS credentials (AWS_ACCESS_KEY_ID/SECRET_ACCESS_KEY in .env or ~/.aws)
+DUMP_BUCKET ?= gallformers-full-backups
 
 download-db:
-	@echo "Downloading database from S3..."
-	@mkdir -p priv
-	@rm -f priv/gallformers.sqlite-wal priv/gallformers.sqlite-shm
-	curl -L -o priv/gallformers.sqlite $(DB_URL)
-	@echo "Database downloaded to priv/gallformers.sqlite"
+	@echo "Finding latest backup..."
+	$(eval LATEST_DATE := $(shell aws s3 ls s3://$(DUMP_BUCKET)/ | tail -1 | awk '{print $$2}' | tr -d '/'))
+	@echo "Downloading backup from $(LATEST_DATE)..."
+	aws s3 cp s3://$(DUMP_BUCKET)/$(LATEST_DATE)/gallformers.dump /tmp/gallformers.dump
+	@echo "Restoring into gallformers_dev..."
+	mix ecto.reset
+	pg_restore --no-owner --no-acl -d gallformers_dev /tmp/gallformers.dump || true
+	@echo "Verifying..."
+	@psql -d gallformers_dev -tAc "SELECT count(*) FROM species" | grep -qE '^[1-9]' || { \
+		echo "ERROR: Restore failed — no species data found"; \
+		exit 1; \
+	}
+	@echo "Database restored to gallformers_dev"
 
 # Upload a database for production reset
 # Usage: make upload-reset-db FILE=path/to/database.sqlite
@@ -64,7 +73,7 @@ check-db:
 		echo ""; \
 		echo "ERROR: Dev database not found or has no species data"; \
 		echo "Set it up with:"; \
-		echo "  mix ecto.create && mix ecto.migrate && make download-db && mix convert_sqlite"; \
+		echo "  make download-db"; \
 		echo ""; \
 		exit 1; \
 	}
