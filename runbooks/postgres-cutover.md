@@ -72,6 +72,13 @@ The pg-load script uses debug-level litestream logging so WAL replay progress is
 
 At any point before step 7 (enabling writes), rollback is zero-data-loss:
 
+Run
+```bash
+fly releases -a gallformers --image
+```
+to find the previous release image name (DOCKER IMAGE column).
+
+Then run
 ```bash
 fly deploy --image <previous-release-image>   # Reverts to SQLite-backed release
 ```
