@@ -127,7 +127,7 @@ PGPASSWORD="$PG_PASSWORD" pg_restore \
 PGPASSWORD="$PG_PASSWORD" psql \
   -h localhost -p 15432 \
   -U "$PG_USERNAME" -d "$PG_DBNAME" \
-  -c "SELECT count(*) FROM species; SELECT count(*) FROM sources; SELECT count(*) FROM images; SELECT count(*) FROM gall_traits;"
+  -c "SELECT count(*) FROM species; SELECT count(*) FROM source; SELECT count(*) FROM image; SELECT count(*) FROM gall_traits;"
 ```
 
 ### 4. Verify the application

@@ -1,7 +1,7 @@
 ---
-status: active
+status: done
 created: 2026-03-11
-updated: 2026-03-13
+updated: 2026-03-15
 epic: postgres
 blocks: [1858]
 needs: [1c9b]
