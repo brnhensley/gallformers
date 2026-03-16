@@ -39,12 +39,7 @@ defmodule Gallformers.Application do
     # Attach request logger telemetry handler (must happen after app starts)
     Gallformers.RequestLogger.attach()
 
-    result = Supervisor.start_link(children, opts)
-
-    # Pre-warm WCVP connection pool so the first real request isn't slow
-    warm_wcvp_repo()
-
-    result
+    Supervisor.start_link(children, opts)
   end
 
   # Tell Phoenix to update the endpoint configuration
@@ -63,16 +58,6 @@ defmodule Gallformers.Application do
     else
       []
     end
-  end
-
-  defp warm_wcvp_repo do
-    db_path = Application.get_env(:gallformers, Repo.WCVP)[:database]
-
-    if db_path && File.exists?(db_path) do
-      Repo.WCVP.query!("SELECT 1", [])
-    end
-  rescue
-    _ -> :ok
   end
 
   defp skip_migrations? do
