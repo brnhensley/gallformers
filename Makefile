@@ -15,7 +15,8 @@ download-db:
 	@echo "Downloading backup from $(LATEST_DATE)..."
 	aws s3 cp s3://$(DUMP_BUCKET)/$(LATEST_DATE)/gallformers.dump /tmp/gallformers.dump
 	@echo "Restoring into gallformers_dev..."
-	mix ecto.reset
+	mix ecto.drop
+	mix ecto.create
 	pg_restore --no-owner --no-acl -d gallformers_dev /tmp/gallformers.dump || true
 	@echo "Verifying..."
 	@psql -d gallformers_dev -tAc "SELECT count(*) FROM species" | grep -qE '^[1-9]' || { \
@@ -130,7 +131,6 @@ load-prod-data-test:
 	fi
 	@MIX_ENV=test mix ecto.drop --quiet 2>/dev/null || true
 	@MIX_ENV=test mix ecto.create --quiet
-	@MIX_ENV=test mix ecto.migrate --quiet
 	@pg_restore --no-owner --no-acl -d gallformers_test /tmp/gallformers.dump || true
 	@echo "Production data loaded into gallformers_test"
 
