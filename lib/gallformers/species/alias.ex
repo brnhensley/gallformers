@@ -6,6 +6,7 @@ defmodule Gallformers.Species.Alias do
   """
   use Ecto.Schema
   import Ecto.Changeset
+  import Gallformers.ChangesetHelpers, only: [trim_strings: 1]
 
   @behaviour Gallformers.SchemaFields
 
@@ -43,6 +44,7 @@ defmodule Gallformers.Species.Alias do
   def changeset(alias_record, attrs) do
     alias_record
     |> cast(attrs, [:name, :type, :description])
+    |> trim_strings()
     |> validate_required(@required_fields)
     |> validate_length(:name, min: 1, max: 500)
   end

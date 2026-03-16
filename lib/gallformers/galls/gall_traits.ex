@@ -7,6 +7,7 @@ defmodule Gallformers.Galls.GallTraits do
   """
   use Ecto.Schema
   import Ecto.Changeset
+  import Gallformers.ChangesetHelpers, only: [trim_strings: 1]
 
   @behaviour Gallformers.SchemaFields
 
@@ -97,6 +98,7 @@ defmodule Gallformers.Galls.GallTraits do
   def changeset(gall_traits, attrs) do
     gall_traits
     |> cast(attrs, @required_fields ++ @optional_fields)
+    |> trim_strings()
     |> validate_required(@required_fields)
     |> validate_inclusion(:detachable, ~w(unknown integral detachable both),
       message: "must be one of: unknown, integral, detachable, both"

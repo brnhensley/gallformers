@@ -102,7 +102,16 @@ defmodule Gallformers.Taxonomy.SpeciesLink do
     :ok
   end
 
-  def link_species_taxonomy(_species_id, _taxonomy, false, _parent_id), do: :ok
+  def link_species_taxonomy(_species_id, taxonomy, false, _parent_id) do
+    require Logger
+
+    Logger.error(
+      "link_species_taxonomy called with genus_is_new=false but missing genus ID. " <>
+        "Taxonomy: #{inspect(taxonomy)}"
+    )
+
+    raise "link_species_taxonomy: genus_is_new=false but missing genus ID in taxonomy"
+  end
 
   @doc """
   Creates a new genus under a family and links a species to it.

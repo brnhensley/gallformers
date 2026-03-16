@@ -608,6 +608,27 @@ defmodule Gallformers.TaxonomyTest do
       assert unknown_count == 1
     end
 
+    test "link_species_taxonomy raises when genus_is_new=false but taxonomy has no genus_id" do
+      {:ok, species} =
+        Repo.insert(%Species{
+          name: "Orphan species",
+          taxoncode: "gall",
+          datacomplete: false
+        })
+
+      # genus_is_new=false but taxonomy is nil — should raise, not silently succeed
+      assert_raise RuntimeError, ~r/missing genus/, fn ->
+        Taxonomy.link_species_taxonomy(species.id, nil, false, nil)
+      end
+
+      # genus_is_new=false but genus.id is nil — should also raise
+      taxonomy_no_id = %Lineage{genus: %Genus{name: "SomeGenus"}}
+
+      assert_raise RuntimeError, ~r/missing genus/, fn ->
+        Taxonomy.link_species_taxonomy(species.id, taxonomy_no_id, false, nil)
+      end
+    end
+
     test "empty_unknown_genus_ids returns IDs of Unknown genera with no species" do
       # Create a family (will auto-create an empty Unknown genus)
       {:ok, family} =

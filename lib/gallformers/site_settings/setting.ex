@@ -6,6 +6,7 @@ defmodule Gallformers.SiteSettings.Setting do
   """
   use Ecto.Schema
   import Ecto.Changeset
+  import Gallformers.ChangesetHelpers, only: [trim_strings: 1]
 
   schema "site_settings" do
     field :key, :string
@@ -20,6 +21,7 @@ defmodule Gallformers.SiteSettings.Setting do
   def changeset(setting, attrs) do
     setting
     |> cast(attrs, [:key, :value])
+    |> trim_strings()
     |> validate_required([:key])
     |> unique_constraint(:key)
   end

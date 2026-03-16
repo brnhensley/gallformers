@@ -733,16 +733,11 @@ defmodule GallformersWeb.Admin.HostLive.Form do
   end
 
   defp do_save(socket, params, confirm_range) do
-    cond do
-      socket.assigns.genus_is_new && is_nil(socket.assigns.selected_family_id) ->
-        {:noreply, put_flash(socket, :error, "Please select a Family for the new genus")}
+    case validate_save(socket) do
+      {:error, message} ->
+        {:noreply, put_flash(socket, :error, message)}
 
-      socket.assigns.range_entries == %{} &&
-          socket.assigns[:wcvp_effective_place_ids] in [nil, []] ->
-        {:noreply, put_flash(socket, :error, "Host must have at least one range entry")}
-
-      true ->
-        # Name is captured via typeahead (outside the form), so add it from socket assigns
+      :ok ->
         params =
           params
           |> Map.put("taxoncode", "plant")
@@ -758,6 +753,32 @@ defmodule GallformersWeb.Admin.HostLive.Form do
 
         save_host(socket, socket.assigns.mode, params)
     end
+  end
+
+  defp validate_save(socket) do
+    cond do
+      socket.assigns.genus_is_new && is_nil(socket.assigns.selected_family_id) ->
+        {:error, "Please select a Family for the new genus"}
+
+      missing_taxonomy?(socket) ->
+        {:error, "Could not resolve genus from species name. Check for typos."}
+
+      missing_range?(socket) ->
+        {:error, "Host must have at least one range entry"}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp missing_taxonomy?(socket) do
+    socket.assigns.mode == :new && !socket.assigns.genus_is_new &&
+      (is_nil(socket.assigns.taxonomy) || is_nil(socket.assigns.taxonomy.genus.id))
+  end
+
+  defp missing_range?(socket) do
+    socket.assigns.range_entries == %{} &&
+      socket.assigns[:wcvp_effective_place_ids] in [nil, []]
   end
 
   defp save_host(socket, :new, params) do
