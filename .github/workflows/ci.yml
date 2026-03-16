@@ -13,7 +13,7 @@ on:
       - 'mix.lock'
       - '.github/workflows/ci.yml'
   pull_request:
-    branches: [postgres-migration]
+    branches: [main]
     paths:
       - 'lib/**'
       - 'config/**'

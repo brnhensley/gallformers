@@ -2,7 +2,7 @@ defmodule GallformersWeb.Plugs.EnforceReadOnlyTest do
   @moduledoc """
   Tests for the EnforceReadOnly plug.
   """
-  # async: false — SiteSettings.set writes to persistent_term (global, not sandbox-isolated).
+  # async: false — tests write to persistent_term (global, not sandbox-isolated).
   # Running async would leak read_only: true to concurrent admin tests.
   use GallformersWeb.ConnCase, async: false
 
@@ -10,8 +10,15 @@ defmodule GallformersWeb.Plugs.EnforceReadOnlyTest do
   alias Gallformers.SiteSettings
   alias GallformersWeb.Plugs.EnforceReadOnly
 
+  # Write directly to persistent_term instead of using SiteSettings.set/2.
+  # SiteSettings.set writes to DB + persistent_term + broadcasts via PubSub.
+  # The PubSub broadcast triggers the GenServer to reload from DB, which can
+  # race with the Ecto sandbox rollback — the GenServer reloads read_only: true
+  # from the DB before the sandbox rolls back, poisoning persistent_term for
+  # subsequent tests (e.g. admin LiveView tests that hit the EnforceReadOnly plug).
+  #
   # Reset the persistent_term cache before each test so we start from a clean
-  # state. The Ecto sandbox rolls back DB changes, but persistent_term is global.
+  # state.
   setup do
     cache_key = {Gallformers.SiteSettings, :cache}
     previous = :persistent_term.get(cache_key, %{})
@@ -48,7 +55,7 @@ defmodule GallformersWeb.Plugs.EnforceReadOnlyTest do
     end
 
     test "halts with 503 when read-only mode is on", %{conn: conn} do
-      SiteSettings.set("read_only", true)
+      :persistent_term.put({Gallformers.SiteSettings, :cache}, %{"read_only" => true})
 
       conn =
         conn
@@ -62,7 +69,7 @@ defmodule GallformersWeb.Plugs.EnforceReadOnlyTest do
     end
 
     test "exempts /admin/ops when read-only mode is on", %{conn: conn} do
-      SiteSettings.set("read_only", true)
+      :persistent_term.put({Gallformers.SiteSettings, :cache}, %{"read_only" => true})
 
       conn =
         conn
@@ -74,7 +81,7 @@ defmodule GallformersWeb.Plugs.EnforceReadOnlyTest do
     end
 
     test "exempts /admin/ops subpaths when read-only mode is on", %{conn: conn} do
-      SiteSettings.set("read_only", true)
+      :persistent_term.put({Gallformers.SiteSettings, :cache}, %{"read_only" => true})
 
       conn =
         conn
