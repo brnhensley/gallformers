@@ -7,6 +7,7 @@ defmodule Gallformers.Plants.HostTraits do
   """
   use Ecto.Schema
   import Ecto.Changeset
+  import Gallformers.ChangesetHelpers, only: [trim_strings: 1]
 
   @behaviour Gallformers.SchemaFields
 
@@ -45,6 +46,7 @@ defmodule Gallformers.Plants.HostTraits do
   def changeset(host_traits, attrs) do
     host_traits
     |> cast(attrs, @required_fields ++ @optional_fields)
+    |> trim_strings()
     |> validate_required(@required_fields)
     |> foreign_key_constraint(:species_id)
   end

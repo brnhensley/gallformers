@@ -138,6 +138,18 @@ defmodule Gallformers.Taxonomy.TaxonNameTest do
     test "returns original when single word doesn't match" do
       assert TaxonName.replace_genus("Andricus", "Quercus", "Oakus") == "Andricus"
     end
+
+    test "handles empty old_genus by falling back to first-word replacement" do
+      # This occurs when a species has a leading space (e.g. " Synchytrium tillaeae")
+      # causing TaxonName.parse to return genus: "", which previously crashed
+      # String.replace_leading with "cannot use an empty string as the match to replace"
+      assert TaxonName.replace_genus(" Synchytrium tillaeae", "", "Synchytrium") ==
+               "Synchytrium tillaeae"
+    end
+
+    test "handles empty old_genus with single-word name" do
+      assert TaxonName.replace_genus("Synchytrium", "", "Newgenus") == "Newgenus"
+    end
   end
 
   describe "build/2" do

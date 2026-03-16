@@ -6,6 +6,7 @@ defmodule Gallformers.FilterFields.Alignment do
   """
   use Ecto.Schema
   import Ecto.Changeset
+  import Gallformers.ChangesetHelpers, only: [trim_strings: 1]
 
   @type t :: %__MODULE__{
           id: integer() | nil,
@@ -22,6 +23,7 @@ defmodule Gallformers.FilterFields.Alignment do
   def changeset(alignment, attrs) do
     alignment
     |> cast(attrs, [:alignment, :description])
+    |> trim_strings()
     |> validate_required([:alignment])
     |> unique_constraint(:alignment)
   end

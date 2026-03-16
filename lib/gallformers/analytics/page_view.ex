@@ -8,6 +8,7 @@ defmodule Gallformers.Analytics.PageView do
 
   use Ecto.Schema
   import Ecto.Changeset
+  import Gallformers.ChangesetHelpers, only: [trim_strings: 1]
 
   schema "page_views" do
     field :path, :string
@@ -26,6 +27,7 @@ defmodule Gallformers.Analytics.PageView do
   def changeset(page_view, attrs) do
     page_view
     |> cast(attrs, @required_fields ++ @optional_fields)
+    |> trim_strings()
     |> validate_required(@required_fields)
   end
 end

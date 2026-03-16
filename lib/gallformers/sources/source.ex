@@ -60,6 +60,7 @@ defmodule Gallformers.Sources.Source do
       :license,
       :licenselink
     ])
+    |> trim_strings()
     |> normalize_empty_strings([:licenselink])
     |> validate_required(@required_fields)
     |> validate_length(:title, min: 1, max: 500)

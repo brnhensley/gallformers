@@ -74,6 +74,7 @@ defmodule Gallformers.Accounts.User do
       :personal_url,
       :show_on_about
     ])
+    |> trim_strings()
     |> validate_required(@required_fields)
     |> unique_constraint(:auth0_id)
     |> validate_url(:inaturalist_url)
@@ -98,6 +99,7 @@ defmodule Gallformers.Accounts.User do
       :personal_url,
       :show_on_about
     ])
+    |> trim_strings()
     |> validate_required([:display_name])
     |> validate_url(:inaturalist_url)
     |> validate_url(:social_url)

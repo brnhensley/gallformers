@@ -7,6 +7,7 @@ defmodule Gallformers.Taxonomy.Taxonomy do
   """
   use Ecto.Schema
   import Ecto.Changeset
+  import Gallformers.ChangesetHelpers, only: [trim_strings: 1]
 
   @behaviour Gallformers.SchemaFields
 
@@ -57,6 +58,7 @@ defmodule Gallformers.Taxonomy.Taxonomy do
   def changeset(taxonomy, attrs) do
     taxonomy
     |> cast(attrs, [:name, :description, :type, :rank, :parent_id, :is_placeholder])
+    |> trim_strings()
     |> validate_required(@required_fields)
     |> validate_inclusion(:type, @taxonomy_types)
     |> validate_length(:name, min: 1, max: 255)

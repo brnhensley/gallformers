@@ -6,6 +6,7 @@ defmodule Gallformers.FilterFields.Walls do
   """
   use Ecto.Schema
   import Ecto.Changeset
+  import Gallformers.ChangesetHelpers, only: [trim_strings: 1]
 
   @type t :: %__MODULE__{
           id: integer() | nil,
@@ -22,6 +23,7 @@ defmodule Gallformers.FilterFields.Walls do
   def changeset(walls, attrs) do
     walls
     |> cast(attrs, [:walls, :description])
+    |> trim_strings()
     |> validate_required([:walls])
     |> unique_constraint(:walls)
   end

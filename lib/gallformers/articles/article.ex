@@ -7,6 +7,7 @@ defmodule Gallformers.Articles.Article do
   """
   use Ecto.Schema
   import Ecto.Changeset
+  import Gallformers.ChangesetHelpers, only: [trim_strings: 1]
 
   @behaviour Gallformers.SchemaFields
 
@@ -53,6 +54,7 @@ defmodule Gallformers.Articles.Article do
   def changeset(article, attrs) do
     article
     |> cast(attrs, [:slug, :title, :author, :description, :content, :tags, :is_published])
+    |> trim_strings()
     |> validate_required(@required_fields)
     |> maybe_generate_slug()
     |> validate_required([:slug])

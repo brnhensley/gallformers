@@ -8,6 +8,7 @@ defmodule Gallformers.ContentImages.ContentImage do
 
   use Ecto.Schema
   import Ecto.Changeset
+  import Gallformers.ChangesetHelpers, only: [trim_strings: 1]
 
   @type t :: %__MODULE__{}
 
@@ -52,6 +53,7 @@ defmodule Gallformers.ContentImages.ContentImage do
   def changeset(content_image, attrs) do
     content_image
     |> cast(attrs, @required_fields ++ @optional_fields)
+    |> trim_strings()
     |> validate_required(@required_fields)
     |> validate_exactly_one_owner()
     |> unique_constraint(:path)

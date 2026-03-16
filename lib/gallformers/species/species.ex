@@ -7,6 +7,7 @@ defmodule Gallformers.Species.Species do
   """
   use Ecto.Schema
   import Ecto.Changeset
+  import Gallformers.ChangesetHelpers, only: [trim_strings: 1]
 
   alias Gallformers.Galls.GallTraits
 
@@ -79,6 +80,7 @@ defmodule Gallformers.Species.Species do
   def changeset(species, attrs) do
     species
     |> cast(attrs, [:name, :taxoncode, :datacomplete, :abundance_id])
+    |> trim_strings()
     |> validate_required(@required_fields)
     |> validate_length(:name, min: 1, max: 500)
     |> validate_inclusion(:taxoncode, taxoncodes())

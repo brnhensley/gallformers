@@ -8,6 +8,7 @@ defmodule Gallformers.Ranges.HostRange do
   """
   use Ecto.Schema
   import Ecto.Changeset
+  import Gallformers.ChangesetHelpers, only: [trim_strings: 1]
 
   @behaviour Gallformers.SchemaFields
 
@@ -33,6 +34,7 @@ defmodule Gallformers.Ranges.HostRange do
   def changeset(host_range, attrs) do
     host_range
     |> cast(attrs, @required_fields ++ @optional_fields)
+    |> trim_strings()
     |> validate_required(@required_fields)
     |> validate_inclusion(:precision, @valid_precisions)
     |> validate_inclusion(:distribution_type, @valid_distribution_types)

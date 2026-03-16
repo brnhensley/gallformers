@@ -7,6 +7,7 @@ defmodule Gallformers.Keys.Key do
   """
   use Ecto.Schema
   import Ecto.Changeset
+  import Gallformers.ChangesetHelpers, only: [trim_strings: 1]
 
   @behaviour Gallformers.SchemaFields
 
@@ -53,6 +54,7 @@ defmodule Gallformers.Keys.Key do
   def changeset(key, attrs) do
     key
     |> cast(attrs, @required_fields ++ @optional_fields)
+    |> trim_strings()
     |> validate_required(@required_fields)
     |> maybe_generate_slug()
     |> validate_required([:slug])
