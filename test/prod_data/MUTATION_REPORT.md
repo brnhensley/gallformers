@@ -2,7 +2,7 @@
 
 **Date**: 2026-02-12
 **Branch**: reclassify-taxa
-**Test database**: Copy of production (`priv/gallformers.sqlite`)
+**Test database**: Copy of production (pg_dump restored into `gallformers_test`)
 
 ## Summary
 

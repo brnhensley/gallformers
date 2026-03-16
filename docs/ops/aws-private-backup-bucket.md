@@ -14,10 +14,11 @@ This document describes the private S3 bucket used for storing full (unsanitized
 
 ## Purpose
 
-This bucket stores **full database backups containing PII** (user emails, etc.). These backups are NOT sanitized and should never be made public.
+This bucket stores **full daily pg_dump backups containing all tables including PII** (user emails, etc.). These backups are NOT filtered and should never be made public.
 
 Use cases:
-- Disaster recovery requiring user data
+- Disaster recovery (24hr RPO)
+- Developer local database (`make download-db` pulls from this bucket)
 - Legal/compliance data retention
 - Point-in-time recovery with full user context
 
@@ -34,12 +35,12 @@ The same credentials used for database backups have access to this bucket. No ad
 | Bucket | Access | Contains PII | Use |
 |--------|--------|--------------|-----|
 | `gallformers-images-us-east-1` | Public | No | Production images |
-| `gallformers-backups` | Mixed | No | Database backups (private) + sanitized snapshots (public) |
-| `gallformers-full-backups` | Private | **Yes** | Full unsanitized backups |
+| `gallformers-backups` | Mixed | No | Public pg_dump snapshots (filtered, no PII) + legacy Litestream data |
+| `gallformers-full-backups` | Private | **Yes** | Full daily pg_dump backups (all tables) |
 
 ## GitHub Actions Usage
 
-The daily backup workflow can optionally upload a full backup here before sanitization:
+The daily snapshot workflow (`db-snapshot.yml`) uploads a full pg_dump here:
 
 ```yaml
 - name: Upload full backup (private)
