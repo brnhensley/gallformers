@@ -92,12 +92,11 @@ if [ -n "$ENV_FILE" ]; then
   # shellcheck source=/dev/null
   . "$ENV_FILE"
   set +a
-  # Change PG_PREVIEW to PG_PROD when ready for production cutover
-  USERNAME="${PG_PREVIEW_USERNAME:-}"
-  PASSWORD="${PG_PREVIEW_PASSWORD:-}"
-  DB_APP="${PG_PREVIEW_DB_APP:-}"
-  DBNAME="${PG_PREVIEW_DBNAME:-}"
-  FLY_APP="${PG_PREVIEW_FLY_APP:-}"
+  USERNAME="${PG_PROD_USERNAME:-}"
+  PASSWORD="${PG_PROD_PASSWORD:-}"
+  DB_APP="${PG_PROD_DB_APP:-}"
+  DBNAME="${PG_PROD_DBNAME:-}"
+  FLY_APP="${PG_PROD_FLY_APP:-}"
 else
   echo "No config file specified. All values will be prompted or must be passed as flags."
 fi
