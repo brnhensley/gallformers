@@ -56,8 +56,10 @@ defmodule GallformersWeb.Admin.OpsLiveTest do
     end
 
     test "shows current settings state", %{conn: conn} do
-      Gallformers.SiteSettings.set("banner_enabled", true)
-      Gallformers.SiteSettings.set("banner_text", "Maintenance in progress")
+      :persistent_term.put({Gallformers.SiteSettings, :cache}, %{
+        "banner_enabled" => true,
+        "banner_text" => "Maintenance in progress"
+      })
 
       {:ok, _view, html} = live(operator_conn(conn), ~p"/admin/ops")
 
@@ -76,7 +78,7 @@ defmodule GallformersWeb.Admin.OpsLiveTest do
     end
 
     test "toggling banner_enabled off updates the setting", %{conn: conn} do
-      Gallformers.SiteSettings.set("banner_enabled", true)
+      :persistent_term.put({Gallformers.SiteSettings, :cache}, %{"banner_enabled" => true})
 
       {:ok, view, _html} = live(operator_conn(conn), ~p"/admin/ops")
 

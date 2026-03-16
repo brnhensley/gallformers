@@ -7,7 +7,6 @@ defmodule GallformersWeb.Plugs.EnforceReadOnlyTest do
   use GallformersWeb.ConnCase, async: false
 
   alias Gallformers.Accounts.Auth0User
-  alias Gallformers.SiteSettings
   alias GallformersWeb.Plugs.EnforceReadOnly
 
   # Write directly to persistent_term instead of using SiteSettings.set/2.

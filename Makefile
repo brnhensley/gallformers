@@ -2,7 +2,7 @@
 #
 # Phoenix/LiveView development commands
 
-.PHONY: dev dev-lan test test-db test-prod-data test-prod-data-e2e test-prod-data-all download-db ci preflight help deps assets setup clean check-db check-sqlite build run-local-release dump-schema upload-reset-db preview preview-stop preview-destroy
+.PHONY: dev dev-lan test test-db test-prod-data test-prod-data-e2e test-prod-data-all download-db ci preflight help deps assets setup clean check-db build run-local-release dump-schema preview preview-stop preview-destroy
 
 # Download production database for local dev
 # Downloads full pg_dump from private S3 bucket and restores into local Postgres
@@ -23,32 +23,6 @@ download-db:
 		exit 1; \
 	}
 	@echo "Database restored to gallformers_dev"
-
-# Upload a database for production reset
-# Usage: make upload-reset-db FILE=path/to/database.sqlite
-upload-reset-db:
-	@if [ -z "$(FILE)" ]; then \
-		echo "Usage: make upload-reset-db FILE=path/to/database.sqlite"; \
-		exit 1; \
-	fi
-	@if [ ! -f "$(FILE)" ]; then \
-		echo "ERROR: File not found: $(FILE)"; \
-		exit 1; \
-	fi
-	@echo "Validating database integrity..."
-	@RESULT=$$(sqlite3 "$(FILE)" "PRAGMA integrity_check;"); \
-	if [ "$$RESULT" != "ok" ]; then \
-		echo "INTEGRITY CHECK FAILED:"; \
-		echo "$$RESULT"; \
-		exit 1; \
-	fi
-	@SPECIES=$$(sqlite3 "$(FILE)" "SELECT COUNT(*) FROM species;"); \
-	echo "Database has $$SPECIES species"
-	@echo "Uploading to s3://gallformers-backups/reset/gallformers.sqlite..."
-	@aws s3 cp "$(FILE)" s3://gallformers-backups/reset/gallformers.sqlite
-	@echo ""
-	@echo "Done! Now run the 'Reset Production Database' workflow in GitHub Actions."
-	@echo "The default S3 path is already set to this location."
 
 # =============================================================================
 # Build Dependencies
@@ -77,16 +51,6 @@ check-db:
 		echo ""; \
 		exit 1; \
 	}
-
-# Check that the SQLite production copy exists (needed for convert_sqlite)
-check-sqlite:
-	@if [ ! -f priv/gallformers.sqlite ]; then \
-		echo ""; \
-		echo "ERROR: SQLite database not found at priv/gallformers.sqlite"; \
-		echo "Run 'make download-db' to download the database"; \
-		echo ""; \
-		exit 1; \
-	fi
 
 # Dump database schema
 dump-schema:
@@ -153,15 +117,28 @@ test-db:
 test: test-db
 	mix test
 
-# Run context-level tests against production data loaded into Postgres (no browser)
-# Validates data integrity and exercises write paths against real data
-# All writes use Ecto sandbox (rolled back automatically)
-test-prod-data: check-sqlite
+# Load production data into the test database from the daily pg_dump backup
+# Requires AWS credentials (same as download-db)
+load-prod-data-test:
 	@echo "Loading production data into test database..."
+	@if [ ! -f /tmp/gallformers.dump ]; then \
+		echo "Downloading latest backup..."; \
+		$(eval LATEST_DATE := $(shell aws s3 ls s3://$(DUMP_BUCKET)/ | tail -1 | awk '{print $$2}' | tr -d '/')) \
+		aws s3 cp s3://$(DUMP_BUCKET)/$(LATEST_DATE)/gallformers.dump /tmp/gallformers.dump; \
+	else \
+		echo "Using cached /tmp/gallformers.dump"; \
+	fi
 	@MIX_ENV=test mix ecto.drop --quiet 2>/dev/null || true
 	@MIX_ENV=test mix ecto.create --quiet
 	@MIX_ENV=test mix ecto.migrate --quiet
-	@MIX_ENV=test mix convert_sqlite
+	@pg_restore --no-owner --no-acl -d gallformers_test /tmp/gallformers.dump || true
+	@echo "Production data loaded into gallformers_test"
+
+# Run context-level tests against production data (no browser)
+# Validates data integrity and exercises write paths against real data
+# All writes use Ecto sandbox (rolled back automatically)
+# Requires AWS credentials for downloading the backup
+test-prod-data: load-prod-data-test
 	@echo "Running prod data context tests..."
 	@mix test test/prod_data/invariants_test.exs test/prod_data/write_operations_test.exs --include prod_data; \
 		status=$$?; \
@@ -169,15 +146,10 @@ test-prod-data: check-sqlite
 		$(MAKE) test-db; \
 		exit $$status
 
-# Run E2E browser tests against production data loaded into Postgres
+# Run E2E browser tests against production data
 # Requires chromedriver: brew install chromedriver
-test-prod-data-e2e: check-sqlite
+test-prod-data-e2e: load-prod-data-test
 	$(call check_chromedriver)
-	@echo "Loading production data into test database..."
-	@MIX_ENV=test mix ecto.drop --quiet 2>/dev/null || true
-	@MIX_ENV=test mix ecto.create --quiet
-	@MIX_ENV=test mix ecto.migrate --quiet
-	@MIX_ENV=test mix convert_sqlite
 	@echo "Running prod data E2E tests..."
 	@GALLFORMERS_E2E=1 mix test test/prod_data/e2e --include prod_data; \
 		status=$$?; \
@@ -186,14 +158,8 @@ test-prod-data-e2e: check-sqlite
 		exit $$status
 
 # Run all prod data tests (context + E2E in separate passes)
-# Non-browser tests run first without the endpoint, then E2E tests with browser
-test-prod-data-all: check-sqlite
+test-prod-data-all: load-prod-data-test
 	$(call check_chromedriver)
-	@echo "Loading production data into test database..."
-	@MIX_ENV=test mix ecto.drop --quiet 2>/dev/null || true
-	@MIX_ENV=test mix ecto.create --quiet
-	@MIX_ENV=test mix ecto.migrate --quiet
-	@MIX_ENV=test mix convert_sqlite
 	@echo "Running prod data context tests..."
 	@mix test test/prod_data/invariants_test.exs test/prod_data/write_operations_test.exs --include prod_data
 	@echo "Running prod data E2E tests..."
@@ -326,7 +292,7 @@ ci: assets/node_modules test-db
 	@echo "==> All CI checks passed!"
 
 # Run everything before pushing (local only, not for CI)
-# Requires: chromedriver (make e2e-setup) and SQLite prod copy (make download-db)
+# Requires: chromedriver (make e2e-setup) and AWS credentials (for prod data tests)
 preflight: ci
 	$(call check_chromedriver)
 	@echo ""
@@ -457,7 +423,7 @@ help:
 	@echo "  make clean             Clean build artifacts (node_modules, _build, deps)"
 	@echo ""
 	@echo "Database:"
-	@echo "  make download-db       Download SQLite snapshot from S3 (for convert_sqlite)"
+	@echo "  make download-db       Download pg_dump from S3 and restore to local Postgres"
 	@echo "  make test-db           Rebuild test database (drop, create, migrate, seed)"
 	@echo ""
 	@echo "Preview Deploys:"

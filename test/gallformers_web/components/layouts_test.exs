@@ -65,8 +65,10 @@ defmodule GallformersWeb.LayoutsTest do
     end
 
     test "shows maintenance banner when enabled", %{conn: conn} do
-      Gallformers.SiteSettings.set("banner_enabled", true)
-      Gallformers.SiteSettings.set("banner_text", "Scheduled maintenance tonight")
+      :persistent_term.put({Gallformers.SiteSettings, :cache}, %{
+        "banner_enabled" => true,
+        "banner_text" => "Scheduled maintenance tonight"
+      })
 
       conn = get(conn, "/")
       html = html_response(conn, 200)
@@ -81,7 +83,7 @@ defmodule GallformersWeb.LayoutsTest do
     end
 
     test "does not show maintenance banner when explicitly set to false", %{conn: conn} do
-      Gallformers.SiteSettings.set("banner_enabled", false)
+      :persistent_term.put({Gallformers.SiteSettings, :cache}, %{"banner_enabled" => false})
 
       conn = get(conn, "/")
       html = html_response(conn, 200)
