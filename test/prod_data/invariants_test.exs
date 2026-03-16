@@ -235,7 +235,7 @@ defmodule Gallformers.ProdData.InvariantsTest do
         Repo.all(
           from s in "species",
             where: s.taxoncode == "gall",
-            where: s.datacomplete == 1,
+            where: s.datacomplete == true,
             where: s.id not in subquery(from(ss in "species_source", select: ss.species_id)),
             select: %{id: s.id, name: s.name}
         )
@@ -251,8 +251,8 @@ defmodule Gallformers.ProdData.InvariantsTest do
             join: gt in "gall_traits",
             on: gt.species_id == s.id,
             where: s.taxoncode == "gall",
-            where: gt.undescribed == 1,
-            where: s.datacomplete == 1,
+            where: gt.undescribed == true,
+            where: s.datacomplete == true,
             select: %{id: s.id, name: s.name}
         )
 
@@ -286,8 +286,8 @@ defmodule Gallformers.ProdData.InvariantsTest do
             on: s.id == gt.species_id,
             where:
               s.taxoncode == "gall" and
-                t.is_placeholder == 1 and
-                gt.undescribed != 1,
+                t.is_placeholder == true and
+                gt.undescribed != true,
             select: %{id: s.id, name: s.name, genus: t.name}
         )
 
@@ -307,7 +307,7 @@ defmodule Gallformers.ProdData.InvariantsTest do
           from t in "taxonomy",
             where:
               t.type == "genus" and
-                t.is_placeholder == 1 and
+                t.is_placeholder == true and
                 not fragment("? LIKE 'Unknown (%)'", t.name),
             select: %{id: t.id, name: t.name}
         )
