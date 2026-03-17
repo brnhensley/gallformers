@@ -51,6 +51,8 @@ defmodule Mix.Tasks.Gallformers.Wcvp.BuildDb do
     names_path = opts[:names] || @default_names
     dist_path = opts[:dist] || @default_dist
 
+    {:ok, _} = Application.ensure_all_started(:postgrex)
+
     Logger.info("Building WCVP Postgres database...")
     Logger.info("  Names: #{names_path}")
     Logger.info("  Distributions: #{dist_path}")
@@ -214,7 +216,8 @@ defmodule Mix.Tasks.Gallformers.Wcvp.BuildDb do
   defp upload_to_s3 do
     Mix.Task.run("app.start")
 
-    dump_path = Path.join(System.tmp_dir!(), "wcvp.dump")
+    dump_path = Path.join("priv/data", "wcvp.dump")
+    File.mkdir_p!("priv/data")
     pg_dump(dump_path)
 
     Logger.info("Uploading to s3://#{@s3_bucket}/#{@s3_key}...")
@@ -230,12 +233,12 @@ defmodule Mix.Tasks.Gallformers.Wcvp.BuildDb do
     case result do
       {:ok, _} ->
         Logger.info("Upload complete")
+        File.rm(dump_path)
 
       {:error, reason} ->
         Logger.error("Upload failed: #{inspect(reason)}")
+        Logger.info("Dump file retained at: #{dump_path}")
     end
-
-    File.rm(dump_path)
   end
 
   defp pg_dump(dump_path) do
