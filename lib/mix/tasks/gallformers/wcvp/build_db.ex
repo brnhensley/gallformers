@@ -29,22 +29,13 @@ defmodule Mix.Tasks.Gallformers.Wcvp.BuildDb do
   @s3_bucket "gallformers-backups"
   @s3_key "public/wcvp.dump"
 
+  alias Gallformers.Wcvp.{WcvpDistribution, WcvpName}
+
   @batch_size 1000
 
-  @names_columns ~w[
-    plant_name_id ipni_id taxon_rank taxon_status family genus_hybrid genus
-    species_hybrid species infraspecific_rank infraspecies parenthetical_author
-    primary_author publication_author place_of_publication volume_and_page
-    first_published nomenclatural_remarks geographic_area lifeform_description
-    climate_description taxon_name taxon_authors accepted_plant_name_id
-    basionym_plant_name_id replaced_synonym_author homotypic_synonym
-    parent_plant_name_id powo_id hybrid_formula reviewed
-  ]
-
-  @dist_columns ~w[
-    plant_locality_id plant_name_id continent_code_l1 continent region_code_l2
-    region area_code_l3 area introduced extinct location_doubtful
-  ]
+  # Derive column lists from the Ecto schemas — single source of truth
+  @names_columns WcvpName.__schema__(:fields) |> Enum.map(&Atom.to_string/1)
+  @dist_columns WcvpDistribution.__schema__(:fields) |> Enum.map(&Atom.to_string/1)
 
   @impl Mix.Task
   def run(args) do
@@ -68,7 +59,9 @@ defmodule Mix.Tasks.Gallformers.Wcvp.BuildDb do
     create_distributions_table(conn)
     create_meta_table(conn)
 
-    # Insert all data
+    # Insert all data in a single transaction for atomicity and performance
+    Postgrex.query!(conn, "BEGIN", [])
+
     names_count = insert_rows(conn, "wcvp_names", @names_columns, names_path)
     Logger.info("  Inserted #{names_count} name records")
 
@@ -76,6 +69,8 @@ defmodule Mix.Tasks.Gallformers.Wcvp.BuildDb do
     Logger.info("  Inserted #{dist_count} distribution records")
 
     insert_meta(conn)
+
+    Postgrex.query!(conn, "COMMIT", [])
 
     # Create indexes after bulk insert for performance
     create_indexes(conn)
@@ -91,18 +86,7 @@ defmodule Mix.Tasks.Gallformers.Wcvp.BuildDb do
 
   @doc false
   def connect! do
-    # Derive connection config from Repo.WCVP configuration
-    repo_config = Application.get_env(:gallformers, Gallformers.Repo.WCVP, [])
-
-    conn_opts = [
-      database: repo_config[:database] || "wcvp",
-      username: repo_config[:username] || System.get_env("PGUSER") || System.get_env("USER"),
-      password: repo_config[:password] || System.get_env("PGPASSWORD"),
-      hostname: repo_config[:hostname] || System.get_env("PGHOST") || "localhost"
-    ]
-
-    {:ok, conn} = Postgrex.start_link(conn_opts)
-    conn
+    Gallformers.Wcvp.Conn.start_link!()
   end
 
   defp drop_tables(conn) do
@@ -162,17 +146,19 @@ defmodule Mix.Tasks.Gallformers.Wcvp.BuildDb do
   end
 
   defp build_batch_params(lines, col_count) do
-    {placeholder_groups, flat_params, _idx} =
+    {rev_groups, rev_params, _idx} =
       Enum.reduce(lines, {[], [], 1}, fn line, {groups, params, idx} ->
         values = line |> String.split("|") |> pad_values(col_count)
 
         group =
           Enum.map_join(idx..(idx + col_count - 1), ", ", fn i -> "$#{i}" end)
 
-        {groups ++ ["(#{group})"], params ++ values, idx + col_count}
+        {["(#{group})" | groups], [values | params], idx + col_count}
       end)
 
-    {Enum.join(placeholder_groups, ", "), flat_params}
+    placeholders = rev_groups |> Enum.reverse() |> Enum.join(", ")
+    flat_params = rev_params |> Enum.reverse() |> List.flatten()
+    {placeholders, flat_params}
   end
 
   defp pad_values(values, expected) do
@@ -230,16 +216,16 @@ defmodule Mix.Tasks.Gallformers.Wcvp.BuildDb do
   end
 
   defp pg_dump(dump_path) do
-    repo_config = Application.get_env(:gallformers, Gallformers.Repo.WCVP, [])
-    database = repo_config[:database] || "wcvp"
-    hostname = repo_config[:hostname] || System.get_env("PGHOST") || "localhost"
+    conn_opts = Gallformers.Wcvp.Conn.opts()
+    database = conn_opts[:database]
+    hostname = conn_opts[:hostname]
 
     Logger.info("Dumping #{database} to #{dump_path}...")
 
     args = ["-Fc", "-h", hostname, "-d", database, "-f", dump_path]
 
     args =
-      case repo_config[:username] do
+      case conn_opts[:username] do
         nil -> args
         user -> ["-U", user | args]
       end

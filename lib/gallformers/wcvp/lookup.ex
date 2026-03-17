@@ -59,7 +59,8 @@ defmodule Gallformers.Wcvp.Lookup do
   @doc """
   Fuzzy name search on taxon_name via prefix match.
 
-  Uses case-insensitive matching via Postgres `ilike`.
+  Uses case-insensitive prefix matching via `lower()` + `LIKE`
+  (optimized for the `text_pattern_ops` index on `lower(taxon_name)`).
   Returns a list of WcvpName structs.
 
   ## Options
@@ -74,11 +75,11 @@ defmodule Gallformers.Wcvp.Lookup do
   def search(query, opts \\ []) do
     limit = Keyword.get(opts, :limit, 20)
     include_synonyms = Keyword.get(opts, :include_synonyms, false)
-    pattern = "#{query}%"
+    pattern = "#{String.downcase(query)}%"
 
     base =
       from(n in name_query(),
-        where: ilike(n.taxon_name, ^pattern),
+        where: like(fragment("lower(?)", n.taxon_name), ^pattern),
         order_by: n.taxon_name,
         limit: ^limit,
         select_merge: %{

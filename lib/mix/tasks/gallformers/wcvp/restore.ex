@@ -98,8 +98,7 @@ defmodule Mix.Tasks.Gallformers.Wcvp.Restore do
 
   defp verify(database) do
     Logger.info("  Verifying...")
-    config = Application.get_env(:gallformers, Gallformers.Repo.WCVP)
-    {:ok, conn} = Postgrex.start_link(Keyword.put(config, :database, database))
+    conn = Gallformers.Wcvp.Conn.start_link!(database: database)
 
     case Postgrex.query(conn, "SELECT COUNT(*) FROM wcvp_names", []) do
       {:ok, %{rows: [[count]]}} ->
