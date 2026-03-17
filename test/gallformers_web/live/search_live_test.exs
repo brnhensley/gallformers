@@ -175,6 +175,56 @@ defmodule GallformersWeb.SearchLiveTest do
     end
   end
 
+  describe "region filter visibility" do
+    test "no-results message mentions active region filter", %{conn: conn} do
+      # Set continent to Europe via change_region event, search for nonsense
+      {:ok, view, _html} = live(conn, ~p"/globalsearch?q=zzzznonexistent123abc")
+
+      # Activate a region filter
+      render_click(view, "change_region", %{"code" => "XE"})
+      html = render(view)
+
+      # Should mention the region and suggest removing the filter
+      assert html =~ "Europe"
+      assert html =~ "region filter"
+      assert html =~ "All Regions"
+    end
+
+    test "no-results message without region filter does not mention region", %{conn: conn} do
+      {:ok, _view, html} = live(conn, ~p"/globalsearch?q=zzzznonexistent123abc")
+
+      assert html =~ "No results"
+      refute html =~ "region filter"
+    end
+
+    test "region scope bar uses amber styling when filter is active", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/globalsearch")
+
+      # Activate a region filter
+      render_click(view, "change_region", %{"code" => "XN"})
+      html = render(view)
+
+      assert html =~ "bg-amber-50"
+    end
+
+    test "region scope bar uses neutral styling when no filter active", %{conn: conn} do
+      {:ok, _view, html} = live(conn, ~p"/globalsearch")
+
+      assert html =~ "bg-gray-100"
+      refute html =~ "bg-amber-50"
+    end
+
+    test "no-results region hint has clickable All Regions link", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/globalsearch?q=zzzznonexistent123abc")
+
+      # Activate a region filter
+      render_click(view, "change_region", %{"code" => "XE"})
+
+      # The "All Regions" text in the no-results hint should be a clickable element
+      assert has_element?(view, "#search-no-results [phx-click=change_region][phx-value-code='']")
+    end
+  end
+
   describe "URL handling" do
     test "empty query parameter shows empty state", %{conn: conn} do
       {:ok, _view, html} = live(conn, ~p"/globalsearch?q=")
