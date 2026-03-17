@@ -9,7 +9,8 @@ Operational runbooks for Gallformers.
 | [Diagnose Deployment Issue](./diagnose-deployment-issue.md) | Identify what's wrong after a deployment |
 | [Rollback Deployment](./rollback-deployment.md) | Revert to a previous release |
 | [Restore Database](./restore-database.md) | Recover PostgreSQL database from backup |
-| [PostgreSQL Migration Cutover](./postgres-cutover.md) | Cutover procedures and ongoing Postgres operations |
+| [Postgres Maintenance](./postgres-maintenance.md) | Day-to-day Postgres operations, monitoring, and queries |
+| [PostgreSQL Migration Cutover](./postgres-cutover.md) | Cutover procedures and post-migration cleanup |
 | [Incident Response](./incident-response.md) | Coordinate response to production incidents |
 | [Fly Operations](./fly-operations.md) | Fly.io infrastructure operations and safety rules |
 | [WCVP](./wcvp.md) | WCVP secondary database (SQLite) operations |

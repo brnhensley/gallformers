@@ -1,49 +1,40 @@
 ---
 status: raw
 created: 2026-03-15
-updated: 2026-03-15
+updated: 2026-03-16
 epic: postgres
-relates: [4474]
+relates: [4474, 2574]
 ---
 
 # WCVP migration from SQLite to Postgres
 
-## Context
+## Design
 
-WCVP database is ~700MB SQLite, read-only, containing global plant data. It was kept on SQLite when the main DB migration was planned because the main DB was also SQLite at the time. Now that the main DB is moving to Postgres, the rationale for keeping WCVP on SQLite no longer holds.
+Two-pronged approach: fix the admin UX now, migrate to Postgres later.
 
-## Problem
+### Prong 1: Async WCVP queries + loading feedback (do now)
 
-- 700MB SQLite file is sluggish — single connection, slow first load after deploy
-- Pre-warm helps first connection but general query performance is poor
-- The data ballooned when we took on all world plant data
+All WCVP lookups in HostLive.Form are synchronous and blocking with no loading state. On cold SQLite this means 15+ seconds of dead UI.
 
-## Why move to Postgres
+**Changes:**
+- Make WCVP typeahead search async (Task.async + handle_info) with loading_spinner in dropdown
+- Make select/refresh actions async with loading_overlay on the form section
+- If first query takes >2s, show "WCVP database warming up..." message
+- HostRangeLive bulk sync already has progress bar — no changes needed there
 
-- Connection pooling and concurrent reads (SQLite is single-writer/reader)
-- Better query planning and indexing for a 700MB dataset
-- Consolidates infrastructure — one database engine instead of two
-- Eliminates the ecto_sqlite3 dependency entirely
-- No more downloading a 700MB file at build/deploy time
+**Why:** Doesn't make SQLite faster but makes slowness visible and tolerable. Small scope, immediate payoff for admins.
 
-## Sizing concerns
+### Prong 2: Migrate WCVP to Postgres (do after main cutover is stable)
 
-Current Postgres provisioning: shared-cpu-1x, 1GB RAM, 2GB volume.
-Main DB is ~140MB. WCVP is ~700MB. Combined ~840MB.
+- Import WCVP tables into main Postgres instance using a separate `wcvp` schema
+- Replace Repo.WCVP calls with main Repo queries scoped to wcvp schema
+- Bump Fly volume to 3-4GB, possibly RAM to 2GB
+- Adapt build pipeline: mix gallformers.wcvp.build_db writes to Postgres instead of SQLite
+- Drop ecto_sqlite3 dependency
+- Full dataset stays — no trimming
 
-- **Volume**: 2GB should be sufficient for 840MB data + indexes + WAL, but may need to bump to 3-4GB for comfort
-- **RAM**: 1GB total is tight. Postgres shared_buffers + OS page cache won't hold 700MB of WCVP data in memory. Hot working set is likely much smaller, but need to evaluate actual query patterns
-- May need to bump to 2GB RAM or use a separate Postgres instance for WCVP
+**Why:** Eliminates cold starts (connection pool always warm), better query planning on 700MB, consolidates to one DB engine, removes operational oddity of managing SQLite in a Postgres project.
 
-## Sequencing
+### Sequencing
 
-Do this AFTER the main Postgres cutover is complete and stable. Not before.
-
-## Open questions
-
-- Can we trim the WCVP data back to only what's needed (relevant families/regions)?
-- What are the actual slow queries — is it the data volume or missing indexes?
-- Same Postgres instance (separate database) or separate instance?
-- How does the WCVP build pipeline change — currently builds SQLite externally and downloads from S3
-- Impact on the `services/usda_plants/` Rust tool that may interact with WCVP
-
+Prong 1 first (small, immediate). Prong 2 after main Postgres cutover (matter 4474) is stable.

@@ -1,7 +1,7 @@
 ---
-status: planned
+status: active
 created: 2026-03-11
-updated: 2026-03-15
+updated: 2026-03-16
 epic: postgres
 needs: [1858]
 parent: 4474
@@ -19,15 +19,9 @@ All cutover procedures, checklists, and rollback plans are in `runbooks/postgres
 
 ## Status
 
-- [ ] Production Postgres provisioned (repurpose gallformers-db)
-- [ ] Cutover rehearsed on preview
-- [ ] Cutover executed
-- [ ] Post-cutover soak verified
+- [x] Production Postgres provisioned (repurpose gallformers-db)
+- [x] Cutover rehearsed on preview
+- [x] Cutover executed (2026-03-16)
+- [ ] Post-cutover soak verified (7-day window, ends ~2026-03-23)
 - [ ] Cleanup completed (SQLite, Litestream secrets, IAM, S3, pg-load script)
 - [ ] Preview Postgres re-provisioned (gallformers-preview-db)
-
-## Open questions
-
-- How long should the read-only soak period be before enabling writes? Hours? A day?
-- Rollback window: how long do we keep the ability to roll back to SQLite?
-
