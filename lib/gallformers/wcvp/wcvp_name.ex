@@ -11,6 +11,8 @@ defmodule Gallformers.Wcvp.WcvpName do
 
   @primary_key {:plant_name_id, :string, autogenerate: false}
 
+  @type t :: %__MODULE__{}
+
   schema "wcvp_names" do
     field :ipni_id, :string
     field :taxon_rank, :string

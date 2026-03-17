@@ -18,6 +18,8 @@ defmodule Mix.Tasks.Gallformers.Wcvp.Restore do
   use Mix.Task
   require Logger
 
+  alias Gallformers.Wcvp.Conn, as: WcvpConn
+
   @shortdoc "Restore WCVP database from S3 pg_dump"
 
   @s3_base "https://gallformers-backups.s3.amazonaws.com/public"
@@ -98,7 +100,7 @@ defmodule Mix.Tasks.Gallformers.Wcvp.Restore do
 
   defp verify(database) do
     Logger.info("  Verifying...")
-    conn = Gallformers.Wcvp.Conn.start_link!(database: database)
+    conn = WcvpConn.start_link!(database: database)
 
     case Postgrex.query(conn, "SELECT COUNT(*) FROM wcvp_names", []) do
       {:ok, %{rows: [[count]]}} ->

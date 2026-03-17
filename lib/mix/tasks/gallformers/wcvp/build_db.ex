@@ -21,6 +21,8 @@ defmodule Mix.Tasks.Gallformers.Wcvp.BuildDb do
   use Mix.Task
   require Logger
 
+  alias Gallformers.Wcvp.Conn, as: WcvpConn
+
   @shortdoc "Build WCVP Postgres database from CSV files"
 
   @default_names "priv/repo/data/wcvp/wcvp_names.csv"
@@ -29,6 +31,8 @@ defmodule Mix.Tasks.Gallformers.Wcvp.BuildDb do
   @s3_bucket "gallformers-backups"
   @s3_key "public/wcvp.dump"
 
+  alias ExAws.S3, as: AwsS3
+  alias Gallformers.S3
   alias Gallformers.Wcvp.{WcvpDistribution, WcvpName}
 
   @batch_size 1000
@@ -86,7 +90,7 @@ defmodule Mix.Tasks.Gallformers.Wcvp.BuildDb do
 
   @doc false
   def connect! do
-    Gallformers.Wcvp.Conn.start_link!()
+    WcvpConn.start_link!()
   end
 
   defp drop_tables(conn) do
@@ -219,9 +223,9 @@ defmodule Mix.Tasks.Gallformers.Wcvp.BuildDb do
     # The WCVP dump can be 100-300MB; multipart upload handles this efficiently.
     result =
       dump_path
-      |> ExAws.S3.Upload.stream_file()
-      |> ExAws.S3.upload(@s3_bucket, @s3_key)
-      |> Gallformers.S3.request()
+      |> AwsS3.Upload.stream_file()
+      |> AwsS3.upload(@s3_bucket, @s3_key)
+      |> S3.request()
 
     case result do
       {:ok, _} ->
@@ -235,7 +239,7 @@ defmodule Mix.Tasks.Gallformers.Wcvp.BuildDb do
   end
 
   defp pg_dump(dump_path) do
-    conn_opts = Gallformers.Wcvp.Conn.opts()
+    conn_opts = WcvpConn.opts()
     database = conn_opts[:database]
     hostname = conn_opts[:hostname]
 
