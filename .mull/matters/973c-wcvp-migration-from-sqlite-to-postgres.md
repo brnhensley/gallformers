@@ -1,9 +1,9 @@
 ---
-status: planned
+status: done
 created: 2026-03-15
 updated: 2026-03-17
 epic: postgres
-relates: [4474, 2574, 0ae0]
+relates: [4474, 2574, 0ae0, f465]
 ---
 
 # WCVP migration from SQLite to Postgres
