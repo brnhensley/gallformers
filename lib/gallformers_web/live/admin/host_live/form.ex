@@ -23,6 +23,10 @@ defmodule GallformersWeb.Admin.HostLive.Form do
 
   import GallformersWeb.Admin.ReclassifyHelpers
 
+  defp wcvp_lookup do
+    Application.get_env(:gallformers, :wcvp_lookup, Wcvp.Lookup)
+  end
+
   @impl true
   def mount(_params, session, socket) do
     current_user = session["current_user"]
@@ -181,33 +185,28 @@ defmodule GallformersWeb.Admin.HostLive.Form do
 
   @impl true
   def handle_event("search_wcvp", %{"value" => query}, socket) do
-    results =
-      if String.length(query) >= 3 do
-        Wcvp.Lookup.search(query, limit: 10)
-        |> Enum.map(fn r -> Map.put(r, :id, r.plant_name_id) end)
-      else
-        []
-      end
+    socket = assign(socket, :wcvp_search_query, query)
 
-    {:noreply,
-     socket
-     |> assign(:wcvp_search_query, query)
-     |> assign(:wcvp_search_results, results)}
+    if String.length(query) >= 3 do
+      {:noreply,
+       socket
+       |> assign(:wcvp_searching, true)
+       |> start_async(:wcvp_search, fn ->
+         wcvp_lookup().search(query, limit: 10)
+         |> Enum.map(fn r -> Map.put(r, :id, r.plant_name_id) end)
+       end)}
+    else
+      {:noreply, assign(socket, :wcvp_search_results, [])}
+    end
   end
 
   @impl true
   def handle_event("select_wcvp", %{"id" => plant_name_id}, socket) do
-    case Wcvp.Lookup.get(plant_name_id) do
-      nil ->
-        {:noreply, put_flash(socket, :error, "WCVP species not found")}
-
-      wcvp_data ->
-        {:noreply,
-         socket
-         |> assign(:wcvp_selected, wcvp_data)
-         |> assign(:wcvp_search_results, [])
-         |> init_new_host_from_wcvp(wcvp_data)}
-    end
+    {:noreply,
+     socket
+     |> assign(:wcvp_loading, true)
+     |> assign(:wcvp_search_results, [])
+     |> start_async(:wcvp_select, fn -> wcvp_lookup().get(plant_name_id) end)}
   end
 
   @impl true
@@ -244,35 +243,36 @@ defmodule GallformersWeb.Admin.HostLive.Form do
   @impl true
   def handle_event("refresh_from_wcvp", _params, socket) do
     host_traits = socket.assigns[:host_traits]
-    host = socket.assigns.host
+    host_name = socket.assigns.host.name
 
-    # Look up by wcvp_id if available, otherwise by name
-    wcvp_data =
-      if host_traits && host_traits.wcvp_id not in [nil, ""] do
-        Wcvp.Lookup.get(host_traits.wcvp_id)
-      else
-        case Wcvp.Lookup.match_by_name(host.name, resolve_synonyms: true) do
-          %{plant_name_id: id} -> Wcvp.Lookup.get(id)
-          nil -> nil
-        end
-      end
+    wcvp_id =
+      if host_traits && host_traits.wcvp_id not in [nil, ""],
+        do: host_traits.wcvp_id,
+        else: nil
 
-    case wcvp_data do
-      nil ->
-        host_name = socket.assigns.host.name
-        results = Wcvp.Lookup.search_contains(host_name, limit: 20)
+    {:noreply,
+     socket
+     |> assign(:wcvp_refreshing, true)
+     |> start_async(:wcvp_refresh, fn ->
+       wcvp_data =
+         if wcvp_id do
+           wcvp_lookup().get(wcvp_id)
+         else
+           case wcvp_lookup().match_by_name(host_name, resolve_synonyms: true) do
+             %{plant_name_id: id} -> wcvp_lookup().get(id)
+             nil -> nil
+           end
+         end
 
-        {:noreply,
-         assign(socket, :wcvp_nomatch_search, %{
-           query: host_name,
-           results: results,
-           selected: nil
-         })}
+       case wcvp_data do
+         nil ->
+           results = wcvp_lookup().search_contains(host_name, limit: 20)
+           {:nomatch, host_name, results}
 
-      data ->
-        diff = build_powo_diff(data, socket.assigns.range_entries)
-        {:noreply, assign(socket, :powo_diff, diff)}
-    end
+         data ->
+           {:match, data}
+       end
+     end)}
   end
 
   @impl true
@@ -286,15 +286,20 @@ defmodule GallformersWeb.Admin.HostLive.Form do
 
   @impl true
   def handle_event("wcvp_nomatch_search", %{"value" => query}, socket) do
-    results =
-      if String.length(query) >= 2 do
-        Wcvp.Lookup.search_contains(query, limit: 20)
-      else
-        []
-      end
+    search = %{socket.assigns.wcvp_nomatch_search | query: query}
+    socket = assign(socket, :wcvp_nomatch_search, search)
 
-    search = %{socket.assigns.wcvp_nomatch_search | query: query, results: results}
-    {:noreply, assign(socket, :wcvp_nomatch_search, search)}
+    if String.length(query) >= 2 do
+      {:noreply,
+       socket
+       |> assign(:wcvp_searching, true)
+       |> start_async(:wcvp_nomatch_search, fn ->
+         wcvp_lookup().search_contains(query, limit: 20)
+       end)}
+    else
+      search = %{search | results: []}
+      {:noreply, assign(socket, :wcvp_nomatch_search, search)}
+    end
   end
 
   @impl true
@@ -312,18 +317,10 @@ defmodule GallformersWeb.Admin.HostLive.Form do
   def handle_event("continue_wcvp_search", _params, socket) do
     search = socket.assigns.wcvp_nomatch_search
 
-    case Wcvp.Lookup.get(search.selected) do
-      nil ->
-        {:noreply, put_flash(socket, :error, "WCVP species not found")}
-
-      data ->
-        diff = build_powo_diff(data, socket.assigns.range_entries)
-
-        {:noreply,
-         socket
-         |> assign(:wcvp_nomatch_search, nil)
-         |> assign(:powo_diff, diff)}
-    end
+    {:noreply,
+     socket
+     |> assign(:wcvp_loading, true)
+     |> start_async(:wcvp_continue, fn -> wcvp_lookup().get(search.selected) end)}
   end
 
   @impl true
@@ -558,8 +555,12 @@ defmodule GallformersWeb.Admin.HostLive.Form do
     |> assign(:wcvp_search_query, "")
     |> assign(:wcvp_search_results, [])
     |> assign(:wcvp_selected, nil)
-    |> assign(:wcvp_available, Wcvp.Lookup.available?())
-    |> assign(:wcvp_built_at, Wcvp.Lookup.built_at())
+    # WCVP async loading states
+    |> assign(:wcvp_searching, false)
+    |> assign(:wcvp_loading, false)
+    |> assign(:wcvp_refreshing, false)
+    |> assign(:wcvp_available, wcvp_lookup().available?())
+    |> assign(:wcvp_built_at, wcvp_lookup().built_at())
     |> assign(:wcvp_prefilled, nil)
     |> assign(:wcvp_effective_place_ids, nil)
     |> assign(:powo_diff, nil)
@@ -1075,6 +1076,116 @@ defmodule GallformersWeb.Admin.HostLive.Form do
   end
 
   # =================================================================
+  # Async callbacks — WCVP queries run in background tasks
+  # =================================================================
+
+  @impl true
+  def handle_async(:wcvp_search, {:ok, results}, socket) do
+    {:noreply,
+     socket
+     |> assign(:wcvp_searching, false)
+     |> assign(:wcvp_search_results, results)}
+  end
+
+  def handle_async(:wcvp_search, {:exit, _reason}, socket) do
+    {:noreply,
+     socket
+     |> assign(:wcvp_searching, false)
+     |> assign(:wcvp_search_results, [])}
+  end
+
+  @impl true
+  def handle_async(:wcvp_select, {:ok, nil}, socket) do
+    {:noreply,
+     socket
+     |> assign(:wcvp_loading, false)
+     |> put_flash(:error, "WCVP species not found")}
+  end
+
+  def handle_async(:wcvp_select, {:ok, wcvp_data}, socket) do
+    {:noreply,
+     socket
+     |> assign(:wcvp_loading, false)
+     |> assign(:wcvp_selected, wcvp_data)
+     |> init_new_host_from_wcvp(wcvp_data)}
+  end
+
+  def handle_async(:wcvp_select, {:exit, _reason}, socket) do
+    {:noreply,
+     socket
+     |> assign(:wcvp_loading, false)
+     |> put_flash(:error, "WCVP lookup failed. Please try again.")}
+  end
+
+  @impl true
+  def handle_async(:wcvp_refresh, {:ok, {:match, data}}, socket) do
+    diff = build_powo_diff(data, socket.assigns.range_entries)
+
+    {:noreply,
+     socket
+     |> assign(:wcvp_refreshing, false)
+     |> assign(:powo_diff, diff)}
+  end
+
+  def handle_async(:wcvp_refresh, {:ok, {:nomatch, host_name, results}}, socket) do
+    {:noreply,
+     socket
+     |> assign(:wcvp_refreshing, false)
+     |> assign(:wcvp_nomatch_search, %{
+       query: host_name,
+       results: results,
+       selected: nil
+     })}
+  end
+
+  def handle_async(:wcvp_refresh, {:exit, _reason}, socket) do
+    {:noreply,
+     socket
+     |> assign(:wcvp_refreshing, false)
+     |> put_flash(:error, "WCVP refresh failed. Please try again.")}
+  end
+
+  @impl true
+  def handle_async(:wcvp_nomatch_search, {:ok, results}, socket) do
+    search = socket.assigns.wcvp_nomatch_search
+    search = %{search | results: results}
+
+    {:noreply,
+     socket
+     |> assign(:wcvp_searching, false)
+     |> assign(:wcvp_nomatch_search, search)}
+  end
+
+  def handle_async(:wcvp_nomatch_search, {:exit, _reason}, socket) do
+    {:noreply, assign(socket, :wcvp_searching, false)}
+  end
+
+  @impl true
+  def handle_async(:wcvp_continue, {:ok, nil}, socket) do
+    {:noreply,
+     socket
+     |> assign(:wcvp_loading, false)
+     |> put_flash(:error, "WCVP species not found")}
+  end
+
+  def handle_async(:wcvp_continue, {:ok, data}, socket) do
+    diff = build_powo_diff(data, socket.assigns.range_entries)
+
+    {:noreply,
+     socket
+     |> assign(:wcvp_loading, false)
+     |> assign(:wcvp_nomatch_search, nil)
+     |> assign(:powo_diff, diff)}
+  end
+
+  def handle_async(:wcvp_continue, {:exit, _reason}, socket) do
+    {:noreply,
+     socket
+     |> assign(:wcvp_loading, false)
+     |> put_flash(:error, "WCVP lookup failed. Please try again.")}
+  end
+
+  # =================================================================
   # Render
   # =================================================================
 
@@ -1133,7 +1244,8 @@ defmodule GallformersWeb.Admin.HostLive.Form do
 
         <%!-- WCVP pre-fill search (new mode only) --%>
         <div :if={@wcvp_available && @mode != :edit} class="mb-4">
-          <.card title="Look up species on POWO-WCVP" icon="ph-leaf" class="overflow-visible">
+          <.card title="Look up species on POWO-WCVP" icon="ph-leaf" class="overflow-visible relative">
+            <.loading_overlay :if={@wcvp_loading} label="Loading WCVP data..." />
             <p class="text-sm text-gray-600 mb-3">
               Search the
               <a
@@ -1164,6 +1276,14 @@ defmodule GallformersWeb.Admin.HostLive.Form do
                 <span class="text-gray-400 text-xs ml-2">({item.family})</span>
               </:result>
             </.typeahead>
+            <div
+              :if={@wcvp_searching}
+              id="wcvp-search-loading"
+              class="flex items-center gap-2 mt-2 text-sm text-gray-500"
+            >
+              <.loading_spinner size="sm" label="Searching WCVP..." />
+              <span>Searching WCVP...</span>
+            </div>
             <div
               :if={@wcvp_prefilled && @wcvp_prefilled[:place_ids] != []}
               class="mt-3 text-sm text-green-700 bg-green-50 border border-green-200 rounded px-3 py-2"
@@ -1342,15 +1462,22 @@ defmodule GallformersWeb.Admin.HostLive.Form do
 
             <%!-- WCVP Refresh (edit mode only) --%>
             <div :if={@mode == :edit && @wcvp_available} class="mb-4">
-              <.button
-                :if={is_nil(@powo_diff)}
-                phx-click="refresh_from_wcvp"
-                type="button"
-                variant="secondary"
-                size="sm"
-              >
-                Refresh from POWO-WCVP
-              </.button>
+              <%= if @wcvp_refreshing do %>
+                <div id="wcvp-refresh-loading" class="flex items-center gap-2 text-sm text-gray-500">
+                  <.loading_spinner size="sm" label="Refreshing from WCVP..." />
+                  <span>Refreshing from WCVP...</span>
+                </div>
+              <% else %>
+                <.button
+                  :if={is_nil(@powo_diff)}
+                  phx-click="refresh_from_wcvp"
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                >
+                  Refresh from POWO-WCVP
+                </.button>
+              <% end %>
 
               <.live_component
                 :if={@powo_diff}
@@ -1490,8 +1617,16 @@ defmodule GallformersWeb.Admin.HostLive.Form do
                 class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 autofocus
               />
+              <div
+                :if={@wcvp_searching}
+                id="wcvp-nomatch-loading"
+                class="flex items-center gap-2 mt-2 text-sm text-gray-500"
+              >
+                <.loading_spinner size="sm" label="Searching..." />
+                <span>Searching...</span>
+              </div>
               <ul
-                :if={@wcvp_nomatch_search.results != []}
+                :if={!@wcvp_searching && @wcvp_nomatch_search.results != []}
                 class="mt-2 max-h-60 overflow-y-auto border border-gray-200 rounded-md divide-y divide-gray-100"
               >
                 <li
@@ -1509,7 +1644,8 @@ defmodule GallformersWeb.Admin.HostLive.Form do
               </ul>
               <p
                 :if={
-                  @wcvp_nomatch_search.results == [] && String.length(@wcvp_nomatch_search.query) >= 2
+                  !@wcvp_searching && @wcvp_nomatch_search.results == [] &&
+                    String.length(@wcvp_nomatch_search.query) >= 2
                 }
                 class="mt-2 text-sm text-gray-500"
               >
@@ -1528,16 +1664,22 @@ defmodule GallformersWeb.Admin.HostLive.Form do
             <button
               type="button"
               phx-click="continue_wcvp_search"
-              disabled={is_nil(@wcvp_nomatch_search.selected)}
+              disabled={is_nil(@wcvp_nomatch_search.selected) || @wcvp_loading}
               class={[
                 "px-4 py-2 rounded-md",
-                if(@wcvp_nomatch_search.selected,
+                if(@wcvp_nomatch_search.selected && !@wcvp_loading,
                   do: "bg-blue-600 text-white hover:bg-blue-700",
                   else: "bg-gray-300 text-gray-500 cursor-not-allowed"
                 )
               ]}
             >
-              Continue
+              <%= if @wcvp_loading do %>
+                <span class="flex items-center gap-2">
+                  <.loading_spinner size="sm" label="Loading..." /> Loading...
+                </span>
+              <% else %>
+                Continue
+              <% end %>
             </button>
           </:footer>
         </.modal>

@@ -15,8 +15,6 @@ defmodule GallformersWeb.Admin.HostLive.FormTest do
 
   alias Gallformers.Accounts.Auth0User
   alias Gallformers.Plants
-  alias Gallformers.Repo
-  alias Gallformers.Wcvp.Lookup
 
   # Helper to set up admin session
   defp setup_admin_session(conn) do
@@ -794,343 +792,31 @@ defmodule GallformersWeb.Admin.HostLive.FormTest do
     end
   end
 
-  describe "WCVP refresh — no match modal" do
+  # WCVP SQLite-dependent tests moved to wcvp_test.exs (async: false)
+  # to avoid SQLite concurrency issues between test processes.
+
+  describe "WCVP async loading states" do
     setup %{conn: conn} do
-      # Create a minimal WCVP test DB with names that won't match any test host
-      db_path = Application.get_env(:gallformers, Gallformers.Repo.WCVP)[:database]
-      db_path |> Path.dirname() |> File.mkdir_p!()
-      {:ok, db} = Exqlite.Sqlite3.open(db_path)
-
-      :ok = Exqlite.Sqlite3.execute(db, "DROP TABLE IF EXISTS wcvp_distributions")
-      :ok = Exqlite.Sqlite3.execute(db, "DROP TABLE IF EXISTS wcvp_names")
-
-      :ok =
-        Exqlite.Sqlite3.execute(db, """
-        CREATE TABLE wcvp_names (
-          plant_name_id TEXT PRIMARY KEY,
-          taxon_name TEXT NOT NULL,
-          taxon_status TEXT NOT NULL DEFAULT 'Accepted',
-          accepted_plant_name_id TEXT,
-          family TEXT NOT NULL,
-          genus TEXT NOT NULL,
-          species TEXT NOT NULL,
-          taxon_authors TEXT,
-          powo_id TEXT
-        )
-        """)
-
-      :ok =
-        Exqlite.Sqlite3.execute(db, """
-        CREATE TABLE wcvp_distributions (
-          plant_name_id TEXT NOT NULL,
-          area_code_l3 TEXT NOT NULL,
-          introduced TEXT NOT NULL DEFAULT '0',
-          extinct TEXT NOT NULL DEFAULT '0',
-          location_doubtful TEXT NOT NULL DEFAULT '0',
-          PRIMARY KEY (plant_name_id, area_code_l3, introduced)
-        )
-        """)
-
-      # Insert WCVP names that won't prefix-match any test host
-      # but are findable via contains-search
-      :ok =
-        Exqlite.Sqlite3.execute(
-          db,
-          "INSERT INTO wcvp_names VALUES ('500', 'Zzyzx wcvponly', 'Accepted', '500', 'Testaceae', 'Zzyzx', 'wcvponly', 'Test', NULL)"
-        )
-
-      # A subspecies entry searchable by "Quercus alba" contains-match
-      :ok =
-        Exqlite.Sqlite3.execute(
-          db,
-          "INSERT INTO wcvp_names VALUES ('501', 'Quercus alnobetula subsp. alba', 'Accepted', '501', 'Fagaceae', 'Quercus', 'alnobetula', 'L.', 'urn:test')"
-        )
-
-      :ok =
-        Exqlite.Sqlite3.execute(
-          db,
-          "INSERT INTO wcvp_distributions VALUES ('501', 'ALB', '0', '0', '0')"
-        )
-
-      Exqlite.Sqlite3.close(db)
-
-      case Repo.WCVP.start_link() do
-        {:ok, _pid} -> :ok
-        {:error, {:already_started, _pid}} -> :ok
-      end
-
-      on_exit(fn -> File.rm(db_path) end)
-
       {:ok, conn: setup_admin_session(conn)}
     end
 
-    test "opens search modal instead of flash when no WCVP match", %{conn: conn} do
-      # Verify WCVP is available for this test
-      assert Lookup.available?(), "WCVP repo must be available for this test"
+    test "initializes wcvp_searching assign to false on mount", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/new")
 
-      host = require_host()
-      {:ok, view, html} = live(conn, ~p"/admin/hosts/#{host.id}")
-
-      # WCVP refresh button should be visible
-      assert html =~ "Refresh from POWO-WCVP",
-             "WCVP refresh button not rendered — wcvp_available may be false"
-
-      html = render_click(view, "refresh_from_wcvp", %{})
-
-      # Should show the search modal, not a flash toast
-      assert html =~ "No exact match found"
-      assert html =~ "wcvp-nomatch-search"
+      assert get_assign(view, :wcvp_searching) == false
     end
 
-    test "search modal pre-fills with host name", %{conn: conn} do
+    test "initializes wcvp_loading assign to false on mount", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/new")
+
+      assert get_assign(view, :wcvp_loading) == false
+    end
+
+    test "initializes wcvp_refreshing assign to false on mount", %{conn: conn} do
       host = require_host()
       {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
 
-      html = render_click(view, "refresh_from_wcvp", %{})
-
-      assert html =~ host.name
-    end
-
-    test "search updates results in modal", %{conn: conn} do
-      host = require_host()
-      {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
-
-      render_click(view, "refresh_from_wcvp", %{})
-
-      # Search for something that exists in WCVP
-      html = render_keyup(view, "wcvp_nomatch_search", %{"value" => "Zzyzx"})
-
-      assert html =~ "Zzyzx wcvponly"
-    end
-
-    test "select highlights result and enables Continue", %{conn: conn} do
-      host = require_host()
-      {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
-
-      render_click(view, "refresh_from_wcvp", %{})
-      html = render_click(view, "select_wcvp_nomatch", %{"id" => "501"})
-
-      # Continue button should now be enabled (no disabled attribute)
-      assert html =~ "continue_wcvp_search"
-      assert html =~ "bg-blue-600"
-    end
-
-    test "continue with selection opens diff modal", %{conn: conn} do
-      host = require_host()
-      {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
-
-      render_click(view, "refresh_from_wcvp", %{})
-      render_click(view, "select_wcvp_nomatch", %{"id" => "501"})
-      html = render_click(view, "continue_wcvp_search", %{})
-
-      # Search modal should be gone, diff should be showing
-      refute html =~ "No exact match found"
-      assert html =~ "POWO-WCVP Data Comparison"
-    end
-
-    test "cancel closes the search modal", %{conn: conn} do
-      host = require_host()
-      {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
-
-      render_click(view, "refresh_from_wcvp", %{})
-      html = render_click(view, "cancel_wcvp_search", %{})
-
-      refute html =~ "No exact match found"
-    end
-  end
-
-  describe "POWO diff integration" do
-    setup %{conn: conn} do
-      # Set up a WCVP DB with a name that matches our test host (Thymus alpinus, host 6)
-      # and distribution data that differs from the host's current range
-      db_path = Application.get_env(:gallformers, Gallformers.Repo.WCVP)[:database]
-      db_path |> Path.dirname() |> File.mkdir_p!()
-      {:ok, db} = Exqlite.Sqlite3.open(db_path)
-
-      :ok = Exqlite.Sqlite3.execute(db, "DROP TABLE IF EXISTS wcvp_distributions")
-      :ok = Exqlite.Sqlite3.execute(db, "DROP TABLE IF EXISTS wcvp_names")
-
-      :ok =
-        Exqlite.Sqlite3.execute(db, """
-        CREATE TABLE wcvp_names (
-          plant_name_id TEXT PRIMARY KEY,
-          taxon_name TEXT NOT NULL,
-          taxon_status TEXT NOT NULL DEFAULT 'Accepted',
-          accepted_plant_name_id TEXT,
-          family TEXT NOT NULL,
-          genus TEXT NOT NULL,
-          species TEXT NOT NULL,
-          taxon_authors TEXT,
-          powo_id TEXT
-        )
-        """)
-
-      :ok =
-        Exqlite.Sqlite3.execute(db, """
-        CREATE TABLE wcvp_distributions (
-          plant_name_id TEXT NOT NULL,
-          area_code_l3 TEXT NOT NULL,
-          introduced TEXT NOT NULL DEFAULT '0',
-          extinct TEXT NOT NULL DEFAULT '0',
-          location_doubtful TEXT NOT NULL DEFAULT '0',
-          PRIMARY KEY (plant_name_id, area_code_l3, introduced)
-        )
-        """)
-
-      # Host 6 is "Thymus alpinus" with US-CA as native
-      # WCVP says: native in NWY (Norway), introduced in ALB (Albania)
-      # This means: add_native=[NWY], add_introduced=[ALB], remove=[US-CA]
-      :ok =
-        Exqlite.Sqlite3.execute(
-          db,
-          "INSERT INTO wcvp_names VALUES ('600', 'Thymus alpinus', 'Accepted', '600', 'Lamiaceae', 'Thymus', 'alpinus', 'L.', 'urn:lsid:ipni.org:names:test')"
-        )
-
-      # NWY = Norway (TDWG L3 code that maps to NO in our places)
-      :ok =
-        Exqlite.Sqlite3.execute(
-          db,
-          "INSERT INTO wcvp_distributions VALUES ('600', 'NWY', '0', '0', '0')"
-        )
-
-      # ALB = Albania (TDWG L3 code that maps to AL in our places)
-      :ok =
-        Exqlite.Sqlite3.execute(
-          db,
-          "INSERT INTO wcvp_distributions VALUES ('600', 'ALB', '1', '0', '0')"
-        )
-
-      Exqlite.Sqlite3.close(db)
-
-      case Repo.WCVP.start_link() do
-        {:ok, _pid} -> :ok
-        {:error, {:already_started, _pid}} -> :ok
-      end
-
-      on_exit(fn -> File.rm(db_path) end)
-
-      {:ok, conn: setup_admin_session(conn)}
-    end
-
-    test "refresh from POWO shows diff component", %{conn: conn} do
-      assert Lookup.available?(), "WCVP repo must be available"
-      {:ok, view, _html} = live(conn, ~p"/admin/hosts/6")
-
-      html = render_click(view, "refresh_from_wcvp", %{})
-
-      assert html =~ "POWO-WCVP Data Comparison"
-      # powo_diff assign should be populated
-      assert get_assign(view, :powo_diff) != nil
-    end
-
-    test "cancel from diff component dismisses it", %{conn: conn} do
-      assert Lookup.available?(), "WCVP repo must be available"
-      {:ok, view, _html} = live(conn, ~p"/admin/hosts/6")
-
-      render_click(view, "refresh_from_wcvp", %{})
-      assert get_assign(view, :powo_diff) != nil
-
-      # Send cancel message as the PowoDiffReview component would
-      alias GallformersWeb.Admin.PowoDiffReview
-      send(view.pid, {PowoDiffReview, :cancel})
-
-      # Allow the handle_info to process
-      _ = render(view)
-
-      assert get_assign(view, :powo_diff) == nil
-    end
-
-    test "apply from diff component updates range_entries and stages host_traits", %{conn: conn} do
-      assert Lookup.available?(), "WCVP repo must be available"
-      {:ok, view, _html} = live(conn, ~p"/admin/hosts/6")
-
-      render_click(view, "refresh_from_wcvp", %{})
-      diff = get_assign(view, :powo_diff)
-      assert diff != nil
-
-      # Simulate applying with all defaults selected (which is what the component does).
-      # In the component, init_selections selects ALL codes in every bucket.
-      # For remove: selected = codes to KEEP. So all-selected means nothing removed.
-      # To test actual removal, we deselect remove codes (pass empty set).
-      alias GallformersWeb.Admin.PowoDiffReview
-
-      selections = %{
-        add_native: MapSet.new(diff.add_native),
-        add_introduced: MapSet.new(diff.add_introduced),
-        remove: MapSet.new(),
-        reclassify_to_introduced: MapSet.new(diff.reclassify_to_introduced),
-        reclassify_to_native: MapSet.new(diff.reclassify_to_native)
-      }
-
-      send(view.pid, {PowoDiffReview, {:apply, selections}})
-      _ = render(view)
-
-      # Diff should be cleared
-      assert get_assign(view, :powo_diff) == nil
-
-      # pending_host_traits should be set
-      pending = get_assign(view, :pending_host_traits)
-      assert pending != nil
-      assert pending.wcvp_id == "600"
-      assert pending.powo_id == "urn:lsid:ipni.org:names:test"
-
-      # Range entries should reflect the diff
-      range_entries = get_assign(view, :range_entries)
-
-      # The add_native codes should be present
-      for code <- diff.add_native do
-        assert Map.has_key?(range_entries, code),
-               "Expected add_native code #{code} in range_entries"
-
-        assert range_entries[code].distribution_type == "native"
-      end
-
-      # The add_introduced codes should be present
-      for code <- diff.add_introduced do
-        assert Map.has_key?(range_entries, code),
-               "Expected add_introduced code #{code} in range_entries"
-
-        assert range_entries[code].distribution_type == "introduced"
-      end
-
-      # The remove codes should be gone (empty selections.remove = keep nothing)
-      for code <- diff.remove do
-        refute Map.has_key?(range_entries, code),
-               "Expected remove code #{code} to be gone from range_entries"
-      end
-
-      # Form should be dirty
-      assert get_assign(view, :form_dirty) == true
-    end
-
-    test "apply with empty selections changes nothing except host_traits", %{conn: conn} do
-      assert Lookup.available?(), "WCVP repo must be available"
-      {:ok, view, _html} = live(conn, ~p"/admin/hosts/6")
-
-      original_entries = get_assign(view, :range_entries)
-
-      render_click(view, "refresh_from_wcvp", %{})
-
-      alias GallformersWeb.Admin.PowoDiffReview
-
-      # Empty selections: nothing added, nothing reclassified.
-      # For remove: selected = codes to KEEP. Empty = keep nothing = remove all in diff.remove.
-      # So we need to test with remove populated to keep the removes.
-      diff = get_assign(view, :powo_diff)
-
-      selections = %{
-        add_native: MapSet.new(),
-        add_introduced: MapSet.new(),
-        remove: MapSet.new(diff.remove),
-        reclassify_to_introduced: MapSet.new(),
-        reclassify_to_native: MapSet.new()
-      }
-
-      send(view.pid, {PowoDiffReview, {:apply, selections}})
-      _ = render(view)
-
-      # Range entries should be unchanged (nothing added, removes all kept)
-      assert get_assign(view, :range_entries) == original_entries
+      assert get_assign(view, :wcvp_refreshing) == false
     end
   end
 

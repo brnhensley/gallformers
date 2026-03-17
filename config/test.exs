@@ -15,6 +15,9 @@ config :gallformers, Gallformers.Repo,
   pool_size: 5,
   pool: Ecto.Adapters.SQL.Sandbox
 
+# Use stub instead of real SQLite for WCVP lookups in tests
+config :gallformers, wcvp_lookup: Gallformers.Wcvp.LookupStub
+
 config :gallformers, Gallformers.Repo.WCVP,
   database: Path.expand("../priv/data/wcvp_test.sqlite", __DIR__)
 

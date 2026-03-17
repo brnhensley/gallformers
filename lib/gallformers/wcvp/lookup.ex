@@ -7,6 +7,8 @@ defmodule Gallformers.Wcvp.Lookup do
   (not errors) when the repo is unavailable.
   """
 
+  @behaviour Gallformers.Wcvp.LookupBehaviour
+
   import Ecto.Query
 
   alias Gallformers.Repo
