@@ -2,189 +2,95 @@ defmodule Gallformers.Wcvp.LookupTest do
   use ExUnit.Case, async: true
 
   alias Gallformers.Repo
-  alias Gallformers.Wcvp.Lookup
-
-  @db_path Application.compile_env(:gallformers, Repo.WCVP)[:database]
+  alias Gallformers.Wcvp.{Lookup, WcvpName}
 
   setup_all do
-    # Ensure the directory exists
-    @db_path |> Path.dirname() |> File.mkdir_p!()
+    # Create tables and load fixture data into wcvp_test via Repo.WCVP
+    Repo.WCVP.query!("DROP TABLE IF EXISTS wcvp_distributions")
+    Repo.WCVP.query!("DROP TABLE IF EXISTS wcvp_names")
+    Repo.WCVP.query!("DROP TABLE IF EXISTS meta")
 
-    # Create a minimal WCVP test database (drop first in case a prior run left stale files)
-    {:ok, conn} = Exqlite.Sqlite3.open(@db_path)
+    Repo.WCVP.query!("""
+    CREATE TABLE wcvp_names (
+      plant_name_id TEXT PRIMARY KEY,
+      taxon_name TEXT NOT NULL,
+      taxon_status TEXT NOT NULL DEFAULT 'Accepted',
+      accepted_plant_name_id TEXT,
+      family TEXT NOT NULL,
+      genus TEXT NOT NULL,
+      species TEXT NOT NULL,
+      taxon_authors TEXT,
+      powo_id TEXT
+    )
+    """)
 
-    :ok = Exqlite.Sqlite3.execute(conn, "DROP TABLE IF EXISTS wcvp_distributions")
-    :ok = Exqlite.Sqlite3.execute(conn, "DROP TABLE IF EXISTS wcvp_names")
+    Repo.WCVP.query!("""
+    CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)
+    """)
 
-    :ok =
-      Exqlite.Sqlite3.execute(conn, """
-      CREATE TABLE wcvp_names (
-        plant_name_id TEXT PRIMARY KEY,
-        taxon_name TEXT NOT NULL,
-        taxon_status TEXT NOT NULL DEFAULT 'Accepted',
-        accepted_plant_name_id TEXT,
-        family TEXT NOT NULL,
-        genus TEXT NOT NULL,
-        species TEXT NOT NULL,
-        taxon_authors TEXT,
-        powo_id TEXT
-      )
-      """)
+    Repo.WCVP.query!("INSERT INTO meta (key, value) VALUES ('built_at', '2026-03-01T00:00:00Z')")
 
-    :ok = Exqlite.Sqlite3.execute(conn, "DROP TABLE IF EXISTS meta")
-
-    :ok =
-      Exqlite.Sqlite3.execute(conn, """
-      CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)
-      """)
-
-    :ok =
-      Exqlite.Sqlite3.execute(
-        conn,
-        "INSERT INTO meta (key, value) VALUES ('built_at', '2026-03-01T00:00:00Z')"
-      )
-
-    :ok =
-      Exqlite.Sqlite3.execute(conn, """
-      CREATE TABLE wcvp_distributions (
-        plant_name_id TEXT NOT NULL,
-        area_code_l3 TEXT NOT NULL,
-        introduced TEXT NOT NULL DEFAULT '0',
-        extinct TEXT NOT NULL DEFAULT '0',
-        location_doubtful TEXT NOT NULL DEFAULT '0',
-        PRIMARY KEY (plant_name_id, area_code_l3, introduced),
-        FOREIGN KEY (plant_name_id) REFERENCES wcvp_names(plant_name_id)
-      )
-      """)
+    Repo.WCVP.query!("""
+    CREATE TABLE wcvp_distributions (
+      plant_locality_id TEXT PRIMARY KEY,
+      plant_name_id TEXT NOT NULL,
+      area_code_l3 TEXT NOT NULL,
+      introduced TEXT NOT NULL DEFAULT '0',
+      extinct TEXT NOT NULL DEFAULT '0',
+      location_doubtful TEXT NOT NULL DEFAULT '0',
+      FOREIGN KEY (plant_name_id) REFERENCES wcvp_names(plant_name_id)
+    )
+    """)
 
     # Insert test names
-    {:ok, name_stmt} =
-      Exqlite.Sqlite3.prepare(
-        conn,
-        "INSERT INTO wcvp_names (plant_name_id, taxon_name, taxon_status, accepted_plant_name_id, family, genus, species, taxon_authors, powo_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)"
-      )
-
     names = [
-      [
-        "100",
-        "Quercus alba",
-        "Accepted",
-        "100",
-        "Fagaceae",
-        "Quercus",
-        "alba",
-        "L.",
-        "urn:lsid:ipni.org:names:295763-1"
-      ],
-      [
-        "101",
-        "Quercus rubra",
-        "Accepted",
-        "101",
-        "Fagaceae",
-        "Quercus",
-        "rubra",
-        "L.",
-        "urn:lsid:ipni.org:names:295776-1"
-      ],
-      [
-        "102",
-        "Quercus velutina",
-        "Accepted",
-        "102",
-        "Fagaceae",
-        "Quercus",
-        "velutina",
-        "Lam.",
-        nil
-      ],
-      [
-        "200",
-        "Rosa carolina",
-        "Accepted",
-        "200",
-        "Rosaceae",
-        "Rosa",
-        "carolina",
-        "L.",
-        "urn:lsid:ipni.org:names:726498-1"
-      ],
-      [
-        "300",
-        "Alnus alnobetula subsp. sinuata",
-        "Accepted",
-        "300",
-        "Betulaceae",
-        "Alnus",
-        "alnobetula",
-        "(Regel) Raus",
-        nil
-      ],
-      [
-        "301",
-        "Alnus incana",
-        "Accepted",
-        "301",
-        "Betulaceae",
-        "Alnus",
-        "incana",
-        "(L.) Moench",
-        nil
-      ],
-      [
-        "400",
-        "Quercus borealis",
-        "Synonym",
-        "101",
-        "Fagaceae",
-        "Quercus",
-        "borealis",
-        "F.Michx.",
-        nil
-      ]
+      {"100", "Quercus alba", "Accepted", "100", "Fagaceae", "Quercus", "alba", "L.",
+       "urn:lsid:ipni.org:names:295763-1"},
+      {"101", "Quercus rubra", "Accepted", "101", "Fagaceae", "Quercus", "rubra", "L.",
+       "urn:lsid:ipni.org:names:295776-1"},
+      {"102", "Quercus velutina", "Accepted", "102", "Fagaceae", "Quercus", "velutina", "Lam.",
+       nil},
+      {"200", "Rosa carolina", "Accepted", "200", "Rosaceae", "Rosa", "carolina", "L.",
+       "urn:lsid:ipni.org:names:726498-1"},
+      {"300", "Alnus alnobetula subsp. sinuata", "Accepted", "300", "Betulaceae", "Alnus",
+       "alnobetula", "(Regel) Raus", nil},
+      {"301", "Alnus incana", "Accepted", "301", "Betulaceae", "Alnus", "incana", "(L.) Moench",
+       nil},
+      {"400", "Quercus borealis", "Synonym", "101", "Fagaceae", "Quercus", "borealis", "F.Michx.",
+       nil}
     ]
 
-    for params <- names do
-      :ok = Exqlite.Sqlite3.bind(name_stmt, params)
-      :done = Exqlite.Sqlite3.step(conn, name_stmt)
-      :ok = Exqlite.Sqlite3.reset(name_stmt)
-    end
-
-    Exqlite.Sqlite3.release(conn, name_stmt)
-
-    # Insert test distributions (plant_name_id, area_code_l3, introduced)
-    {:ok, dist_stmt} =
-      Exqlite.Sqlite3.prepare(
-        conn,
-        "INSERT INTO wcvp_distributions (plant_name_id, area_code_l3, introduced) VALUES (?1, ?2, ?3)"
+    for {id, name, status, accepted, family, genus, species, authors, powo} <- names do
+      Repo.WCVP.query!(
+        """
+        INSERT INTO wcvp_names
+          (plant_name_id, taxon_name, taxon_status, accepted_plant_name_id,
+           family, genus, species, taxon_authors, powo_id)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        """,
+        [id, name, status, accepted, family, genus, species, authors, powo]
       )
+    end
 
+    # Insert test distributions
     distributions = [
-      ["100", "ALB", "0"],
-      ["100", "FLA", "0"],
-      ["100", "NCA", "1"],
-      ["101", "NCA", "0"],
-      ["200", "NCA", "0"]
+      {"1", "100", "ALB", "0"},
+      {"2", "100", "FLA", "0"},
+      {"3", "100", "NCA", "1"},
+      {"4", "101", "NCA", "0"},
+      {"5", "200", "NCA", "0"}
     ]
 
-    for params <- distributions do
-      :ok = Exqlite.Sqlite3.bind(dist_stmt, params)
-      :done = Exqlite.Sqlite3.step(conn, dist_stmt)
-      :ok = Exqlite.Sqlite3.reset(dist_stmt)
+    for {loc_id, name_id, area, introduced} <- distributions do
+      Repo.WCVP.query!(
+        """
+        INSERT INTO wcvp_distributions
+          (plant_locality_id, plant_name_id, area_code_l3, introduced)
+        VALUES ($1, $2, $3, $4)
+        """,
+        [loc_id, name_id, area, introduced]
+      )
     end
-
-    Exqlite.Sqlite3.release(conn, dist_stmt)
-    Exqlite.Sqlite3.close(conn)
-
-    # Start the WCVP repo (may already be running from another test module)
-    case Repo.WCVP.start_link() do
-      {:ok, _pid} -> :ok
-      {:error, {:already_started, _pid}} -> :ok
-    end
-
-    on_exit(fn ->
-      File.rm(@db_path)
-    end)
 
     :ok
   end
@@ -204,6 +110,11 @@ defmodule Gallformers.Wcvp.LookupTest do
   end
 
   describe "search/2" do
+    test "returns WcvpName structs" do
+      [result | _] = Lookup.search("Quercus")
+      assert %WcvpName{} = result
+    end
+
     test "finds species by genus prefix" do
       results = Lookup.search("Quercus")
       assert length(results) == 3
@@ -268,6 +179,11 @@ defmodule Gallformers.Wcvp.LookupTest do
   end
 
   describe "get/1" do
+    test "returns WcvpName struct with virtual distribution fields populated" do
+      result = Lookup.get("100")
+      assert %WcvpName{} = result
+    end
+
     test "returns species with separate native and introduced distributions" do
       result = Lookup.get("100")
       assert result.taxon_name == "Quercus alba"
@@ -306,9 +222,8 @@ defmodule Gallformers.Wcvp.LookupTest do
 
     test "includes taxon_status and accepted_plant_name_id in results" do
       [result | _] = Lookup.search("Quercus alba")
-      assert Map.has_key?(result, :taxon_status)
-      assert Map.has_key?(result, :accepted_plant_name_id)
       assert result.taxon_status == "Accepted"
+      assert result.accepted_plant_name_id == "100"
     end
   end
 
@@ -326,9 +241,10 @@ defmodule Gallformers.Wcvp.LookupTest do
     end
   end
 
-  describe "match_by_name/1" do
+  describe "match_by_name/2" do
     test "returns accepted name record for exact match" do
       result = Lookup.match_by_name("Quercus alba")
+      assert %WcvpName{} = result
       assert result.plant_name_id == "100"
       assert result.taxon_name == "Quercus alba"
       assert result.taxon_status == "Accepted"
@@ -368,6 +284,7 @@ defmodule Gallformers.Wcvp.LookupTest do
   describe "get_accepted_name/1" do
     test "returns accepted name for a synonym" do
       result = Lookup.get_accepted_name("400")
+      assert %WcvpName{} = result
       assert result.plant_name_id == "101"
       assert result.taxon_name == "Quercus rubra"
       assert result.taxon_status == "Accepted"

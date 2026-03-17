@@ -2,7 +2,7 @@
 #
 # Phoenix/LiveView development commands
 
-.PHONY: dev dev-lan test test-db test-prod-data test-prod-data-e2e test-prod-data-all download-db ci preflight help deps assets setup clean check-db build run-local-release dump-schema preview preview-stop preview-destroy
+.PHONY: dev dev-lan test test-db test-prod-data test-prod-data-e2e test-prod-data-all download-db ci preflight help deps assets setup clean check-db build run-local-release dump-schema preview preview-stop preview-destroy wcvp-restore wcvp-check
 
 # Download production database for local dev
 # Downloads full pg_dump from private S3 bucket and restores into local Postgres
@@ -59,8 +59,23 @@ dump-schema:
 	mix ecto.dump
 	@echo "Schema dumped to priv/repo/structure.sql"
 
+# Restore WCVP data from S3 into local wcvp database
+wcvp-restore:
+	@createdb wcvp 2>/dev/null || true
+	mix gallformers.wcvp.restore
+
+# Check that local wcvp database has data
+wcvp-check:
+	@psql -d wcvp -tAc "SELECT count(*) FROM wcvp_names" 2>/dev/null | grep -qE '^[1-9]' || { \
+		echo ""; \
+		echo "WARNING: WCVP database not found or has no data"; \
+		echo "Set it up with:"; \
+		echo "  make wcvp-restore"; \
+		echo ""; \
+	}
+
 # Full setup (deps + assets + database)
-setup: deps assets check-db
+setup: deps assets check-db wcvp-check
 
 # =============================================================================
 # Development
@@ -113,6 +128,8 @@ test-db:
 	@MIX_ENV=test mix ecto.create --quiet
 	@MIX_ENV=test mix ecto.migrate --quiet
 	@psql -d gallformers_test -f priv/repo/test_seeds.sql --quiet
+	@createdb wcvp_test 2>/dev/null || true
+	@psql -d wcvp_test -f priv/repo/wcvp_test_setup.sql --quiet
 	@echo "Test database ready"
 
 # Run tests (rebuilds test DB first, excludes E2E tests)
@@ -370,6 +387,8 @@ help:
 	@echo "Database:"
 	@echo "  make download-db       Download pg_dump from S3 and restore to local Postgres"
 	@echo "  make test-db           Rebuild test database (drop, create, migrate, seed)"
+	@echo "  make wcvp-restore      Restore WCVP data from S3 into local wcvp database"
+	@echo "  make wcvp-check        Check that local wcvp database has data"
 	@echo ""
 	@echo "Preview Deploys:"
 	@echo "  make preview           Deploy current branch to preview (gallformers-preview.fly.dev)"

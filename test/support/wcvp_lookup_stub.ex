@@ -1,6 +1,6 @@
 defmodule Gallformers.Wcvp.LookupStub do
   @moduledoc """
-  Test stub for Wcvp.Lookup that returns canned data without SQLite.
+  Test stub for Wcvp.Lookup that returns canned data without a database.
 
   Data:
     - "500" / "Zzyzx wcvponly" — no-match species for search tests (no distributions)
@@ -8,8 +8,10 @@ defmodule Gallformers.Wcvp.LookupStub do
   """
   @behaviour Gallformers.Wcvp.LookupBehaviour
 
+  alias Gallformers.Wcvp.WcvpName
+
   @names %{
-    "500" => %{
+    "500" => %WcvpName{
       plant_name_id: "500",
       taxon_name: "Zzyzx wcvponly",
       family: "Testaceae",
@@ -17,10 +19,11 @@ defmodule Gallformers.Wcvp.LookupStub do
       species: "wcvponly",
       taxon_authors: "Test",
       powo_id: nil,
+      taxon_status: "Accepted",
       native_distribution: [],
       introduced_distribution: []
     },
-    "600" => %{
+    "600" => %WcvpName{
       plant_name_id: "600",
       taxon_name: "Thymus alpinus",
       family: "Lamiaceae",
@@ -28,6 +31,7 @@ defmodule Gallformers.Wcvp.LookupStub do
       species: "alpinus",
       taxon_authors: "L.",
       powo_id: "urn:lsid:ipni.org:names:test",
+      taxon_status: "Accepted",
       native_distribution: ["NWY"],
       introduced_distribution: ["ALB"]
     }
@@ -76,5 +80,10 @@ defmodule Gallformers.Wcvp.LookupStub do
   @impl true
   def get(plant_name_id) do
     Map.get(@names, plant_name_id)
+  end
+
+  @impl true
+  def get_accepted_name(_plant_name_id) do
+    nil
   end
 end

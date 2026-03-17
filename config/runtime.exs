@@ -65,11 +65,6 @@ if s3_image_prefix = System.get_env("S3_IMAGE_PREFIX") do
   config :gallformers, :s3_image_prefix, s3_image_prefix
 end
 
-# WCVP secondary database (optional — app handles missing gracefully)
-if wcvp_path = System.get_env("WCVP_DATABASE_PATH") do
-  config :gallformers, Gallformers.Repo.WCVP, database: wcvp_path
-end
-
 if config_env() == :prod do
   database_url =
     System.get_env("DATABASE_URL") ||
@@ -83,6 +78,14 @@ if config_env() == :prod do
   config :gallformers, Gallformers.Repo,
     url: database_url,
     pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10"),
+    socket_options: maybe_ipv6
+
+  # WCVP database: same Postgres cluster, different database name
+  wcvp_url = String.replace(database_url, ~r"/[^/]+$", "/wcvp")
+
+  config :gallformers, Gallformers.Repo.WCVP,
+    url: wcvp_url,
+    pool_size: 2,
     socket_options: maybe_ipv6
 
   # The secret key base is used to sign/encrypt cookies and other secrets.

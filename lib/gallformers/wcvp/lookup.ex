@@ -2,7 +2,7 @@ defmodule Gallformers.Wcvp.Lookup do
   @moduledoc """
   Search and lookup functions for the WCVP secondary database.
 
-  All queries use `Gallformers.Repo.WCVP` against the raw `wcvp_names`
+  All queries use `Gallformers.Repo.WCVP` against the `wcvp_names`
   and `wcvp_distributions` tables. Functions return empty results
   (not errors) when the repo is unavailable.
   """
@@ -12,11 +12,13 @@ defmodule Gallformers.Wcvp.Lookup do
   import Ecto.Query
 
   alias Gallformers.Repo
+  alias Gallformers.Wcvp.{WcvpDistribution, WcvpName}
 
   @doc """
   Returns the built_at timestamp from the WCVP database meta table.
   Returns nil if the repo is unavailable or the meta table doesn't exist.
   """
+  @impl true
   @spec built_at() :: DateTime.t() | nil
   def built_at do
     case Repo.WCVP.one(
@@ -43,6 +45,7 @@ defmodule Gallformers.Wcvp.Lookup do
   @doc """
   Returns whether the WCVP repo is started and queryable.
   """
+  @impl true
   @spec available?() :: boolean()
   def available? do
     Repo.WCVP.query("SELECT 1")
@@ -56,16 +59,18 @@ defmodule Gallformers.Wcvp.Lookup do
   @doc """
   Fuzzy name search on taxon_name via prefix match.
 
-  Uses case-insensitive matching (SQLite-compatible, no ilike).
-  Returns a list of maps with name fields.
+  Uses case-insensitive matching via Postgres `ilike`.
+  Returns a list of WcvpName structs.
 
   ## Options
 
     * `:limit` - maximum results to return (default 20)
+    * `:include_synonyms` - include non-Accepted records (default false)
 
   Returns an empty list if the repo is unavailable.
   """
-  @spec search(String.t(), keyword()) :: [map()]
+  @impl true
+  @spec search(String.t(), keyword()) :: [WcvpName.t()]
   def search(query, opts \\ []) do
     limit = Keyword.get(opts, :limit, 20)
     include_synonyms = Keyword.get(opts, :include_synonyms, false)
@@ -73,7 +78,7 @@ defmodule Gallformers.Wcvp.Lookup do
 
     base =
       from(n in name_query(),
-        where: like(n.taxon_name, ^pattern),
+        where: ilike(n.taxon_name, ^pattern),
         order_by: n.taxon_name,
         limit: ^limit,
         select_merge: %{
@@ -100,16 +105,18 @@ defmodule Gallformers.Wcvp.Lookup do
   Contains-based name search on taxon_name.
 
   Splits the query on whitespace and requires each term to appear
-  anywhere in the name (case-insensitive). This handles subspecies,
-  varieties, and partial matches.
+  anywhere in the name (case-insensitive via `ilike`). This handles
+  subspecies, varieties, and partial matches.
 
   ## Options
 
     * `:limit` - maximum results to return (default 20)
+    * `:include_synonyms` - include non-Accepted records (default false)
 
   Returns an empty list if the repo is unavailable.
   """
-  @spec search_contains(String.t(), keyword()) :: [map()]
+  @impl true
+  @spec search_contains(String.t(), keyword()) :: [WcvpName.t()]
   def search_contains(query, opts \\ []) do
     limit = Keyword.get(opts, :limit, 20)
     include_synonyms = Keyword.get(opts, :include_synonyms, false)
@@ -117,7 +124,7 @@ defmodule Gallformers.Wcvp.Lookup do
     terms =
       query
       |> String.split(~r/\s+/, trim: true)
-      |> Enum.map(&"%#{String.downcase(&1)}%")
+      |> Enum.map(&"%#{&1}%")
 
     base =
       from(n in name_query(),
@@ -138,7 +145,7 @@ defmodule Gallformers.Wcvp.Lookup do
 
     query =
       Enum.reduce(terms, base, fn pattern, q ->
-        from(n in q, where: like(fragment("lower(?)", n.taxon_name), ^pattern))
+        from(n in q, where: ilike(n.taxon_name, ^pattern))
       end)
 
     Repo.WCVP.all(query)
@@ -151,10 +158,11 @@ defmodule Gallformers.Wcvp.Lookup do
   @doc """
   Finds a WCVP accepted name record by exact species name match.
 
-  Returns the matching record as a map (same shape as search results)
-  or nil if no match found. Only matches accepted names.
+  Returns the matching record as a WcvpName struct or nil if no match found.
+  Only matches accepted names.
   """
-  @spec match_by_name(String.t(), keyword()) :: map() | nil
+  @impl true
+  @spec match_by_name(String.t(), keyword()) :: WcvpName.t() | nil
   def match_by_name(name, opts \\ []) do
     case Repo.WCVP.one(
            from(n in name_query(),
@@ -163,7 +171,7 @@ defmodule Gallformers.Wcvp.Lookup do
              select_merge: %{taxon_status: n.taxon_status}
            )
          ) do
-      %{} = accepted ->
+      %WcvpName{} = accepted ->
         accepted
 
       nil ->
@@ -179,7 +187,7 @@ defmodule Gallformers.Wcvp.Lookup do
 
   defp resolve_synonym_by_name(name) do
     case Repo.WCVP.one(
-           from(n in "wcvp_names",
+           from(n in WcvpName,
              where: n.taxon_name == ^name and n.taxon_status == "Synonym",
              select: %{
                plant_name_id: n.plant_name_id,
@@ -204,19 +212,20 @@ defmodule Gallformers.Wcvp.Lookup do
   @doc """
   Exact lookup by plant_name_id.
 
-  Returns a map with all name fields plus `:native_distribution` and
-  `:introduced_distribution` (each a list of area_code_l3 strings).
-  Returns nil if not found or repo unavailable.
+  Returns a WcvpName struct with `:native_distribution` and
+  `:introduced_distribution` virtual fields populated (each a list of
+  area_code_l3 strings). Returns nil if not found or repo unavailable.
   """
-  @spec get(String.t()) :: map() | nil
+  @impl true
+  @spec get(String.t()) :: WcvpName.t() | nil
   def get(plant_name_id) do
     case Repo.WCVP.one(from(n in name_query(), where: n.plant_name_id == ^plant_name_id)) do
       nil ->
         nil
 
-      name ->
+      %WcvpName{} = name ->
         distributions =
-          from(d in "wcvp_distributions",
+          from(d in WcvpDistribution,
             where:
               d.plant_name_id == ^plant_name_id and
                 d.extinct == "0" and d.location_doubtful == "0",
@@ -227,9 +236,11 @@ defmodule Gallformers.Wcvp.Lookup do
 
         {introduced, native} = Enum.split_with(distributions, &(&1.introduced == "1"))
 
-        name
-        |> Map.put(:native_distribution, Enum.map(native, & &1.area_code_l3))
-        |> Map.put(:introduced_distribution, Enum.map(introduced, & &1.area_code_l3))
+        %{
+          name
+          | native_distribution: Enum.map(native, & &1.area_code_l3),
+            introduced_distribution: Enum.map(introduced, & &1.area_code_l3)
+        }
     end
   rescue
     _ -> nil
@@ -241,13 +252,14 @@ defmodule Gallformers.Wcvp.Lookup do
   Resolves synonyms by looking up the accepted name for a given plant_name_id.
 
   If the record's `accepted_plant_name_id` differs from its own `plant_name_id`
-  (i.e., it's a synonym), returns the accepted name record as a map.
+  (i.e., it's a synonym), returns the accepted name record as a WcvpName struct.
   Returns `nil` if the record is already accepted, not found, or the repo is unavailable.
   """
-  @spec get_accepted_name(String.t()) :: map() | nil
+  @impl true
+  @spec get_accepted_name(String.t()) :: WcvpName.t() | nil
   def get_accepted_name(plant_name_id) do
     case Repo.WCVP.one(
-           from(n in "wcvp_names",
+           from(n in WcvpName,
              where: n.plant_name_id == ^plant_name_id,
              select: %{
                plant_name_id: n.plant_name_id,
@@ -279,11 +291,11 @@ defmodule Gallformers.Wcvp.Lookup do
     :exit, _ -> nil
   end
 
-  # Base query with the 7 core name fields shared across all lookup functions.
+  # Base query selecting core name fields as a WcvpName struct.
   # Callers use select_merge to add taxon_status, accepted_plant_name_id, etc.
   defp name_query do
-    from(n in "wcvp_names",
-      select: %{
+    from(n in WcvpName,
+      select: %WcvpName{
         plant_name_id: n.plant_name_id,
         taxon_name: n.taxon_name,
         family: n.family,

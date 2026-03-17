@@ -15,11 +15,14 @@ config :gallformers, Gallformers.Repo,
   pool_size: 5,
   pool: Ecto.Adapters.SQL.Sandbox
 
-# Use stub instead of real SQLite for WCVP lookups in tests
+# Use stub instead of real WCVP database for WCVP lookups in most tests
 config :gallformers, wcvp_lookup: Gallformers.Wcvp.LookupStub
 
 config :gallformers, Gallformers.Repo.WCVP,
-  database: Path.expand("../priv/data/wcvp_test.sqlite", __DIR__)
+  database: "wcvp_test",
+  username: System.get_env("PGUSER", System.get_env("USER")),
+  password: System.get_env("PGPASSWORD"),
+  hostname: System.get_env("PGHOST", "localhost")
 
 # Server is disabled by default for fast unit tests.
 # E2E tests enable the server via GALLFORMERS_E2E=1 environment variable (in runtime.exs).

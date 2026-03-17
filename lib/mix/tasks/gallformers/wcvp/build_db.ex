@@ -1,7 +1,11 @@
 defmodule Mix.Tasks.Gallformers.Wcvp.BuildDb do
   @moduledoc """
-  Reads raw WCVP CSV files and produces a SQLite database containing ALL data
-  from both files — no filtering by taxon_status, taxon_rank, or TDWG region.
+  Reads raw WCVP CSV files and loads ALL data into the WCVP Postgres database —
+  no filtering by taxon_status, taxon_rank, or TDWG region.
+
+  The task opens a direct Postgrex connection (not through Repo.WCVP) and manages
+  the entire lifecycle: drop existing tables, create tables, bulk insert data,
+  create indexes.
 
   ## Usage
 
@@ -11,140 +15,164 @@ defmodule Mix.Tasks.Gallformers.Wcvp.BuildDb do
 
       --names   Path to wcvp_names.csv (default: priv/repo/data/wcvp/wcvp_names.csv)
       --dist    Path to wcvp_distribution.csv (default: priv/repo/data/wcvp/wcvp_distribution.csv)
-      --output  Output SQLite path (default: priv/data/wcvp.sqlite)
-      --upload  Upload to S3 after building
+      --upload  Upload pg_dump to S3 after building
   """
 
   use Mix.Task
   require Logger
 
-  @shortdoc "Build WCVP SQLite database from CSV files"
+  @shortdoc "Build WCVP Postgres database from CSV files"
 
   @default_names "priv/repo/data/wcvp/wcvp_names.csv"
   @default_dist "priv/repo/data/wcvp/wcvp_distribution.csv"
-  @default_output "priv/data/wcvp.sqlite"
 
   @s3_bucket "gallformers-backups"
-  @s3_key "public/wcvp.sqlite"
+  @s3_key "public/wcvp.dump"
+
+  @batch_size 1000
+
+  @names_columns ~w[
+    plant_name_id ipni_id taxon_rank taxon_status family genus_hybrid genus
+    species_hybrid species infraspecific_rank infraspecies parenthetical_author
+    primary_author publication_author place_of_publication volume_and_page
+    first_published nomenclatural_remarks geographic_area lifeform_description
+    climate_description taxon_name taxon_authors accepted_plant_name_id
+    basionym_plant_name_id replaced_synonym_author homotypic_synonym
+    parent_plant_name_id powo_id hybrid_formula reviewed
+  ]
+
+  @dist_columns ~w[
+    plant_locality_id plant_name_id continent_code_l1 continent region_code_l2
+    region area_code_l3 area introduced extinct location_doubtful
+  ]
 
   @impl Mix.Task
   def run(args) do
     {opts, _, _} =
       OptionParser.parse(args,
-        strict: [names: :string, dist: :string, output: :string, upload: :boolean]
+        strict: [names: :string, dist: :string, upload: :boolean]
       )
 
     names_path = opts[:names] || @default_names
     dist_path = opts[:dist] || @default_dist
-    output_path = opts[:output] || @default_output
 
-    Logger.info("Building WCVP SQLite database...")
+    Logger.info("Building WCVP Postgres database...")
     Logger.info("  Names: #{names_path}")
     Logger.info("  Distributions: #{dist_path}")
-    Logger.info("  Output: #{output_path}")
 
-    File.mkdir_p!(Path.dirname(output_path))
-    File.rm(output_path)
+    conn = connect!()
 
-    {:ok, conn} = Exqlite.Sqlite3.open(output_path)
-
-    # Read headers from CSVs
-    names_header = read_header(names_path)
-    dist_header = read_header(dist_path)
-
-    # Create tables
-    create_names_table(conn, names_header)
-    create_distributions_table(conn, dist_header)
+    # Drop and recreate tables
+    drop_tables(conn)
+    create_names_table(conn)
+    create_distributions_table(conn)
     create_meta_table(conn)
 
-    # Insert all data in a single transaction
-    :ok = Exqlite.Sqlite3.execute(conn, "BEGIN")
-
-    names_count = insert_rows(conn, "wcvp_names", names_header, names_path)
+    # Insert all data
+    names_count = insert_rows(conn, "wcvp_names", @names_columns, names_path)
     Logger.info("  Inserted #{names_count} name records")
 
-    dist_count = insert_rows(conn, "wcvp_distributions", dist_header, dist_path)
+    dist_count = insert_rows(conn, "wcvp_distributions", @dist_columns, dist_path)
     Logger.info("  Inserted #{dist_count} distribution records")
 
-    # Insert meta
     insert_meta(conn)
-
-    :ok = Exqlite.Sqlite3.execute(conn, "COMMIT")
 
     # Create indexes after bulk insert for performance
     create_indexes(conn)
 
-    :ok = Exqlite.Sqlite3.close(conn)
+    GenServer.stop(conn)
 
-    Logger.info("WCVP database built: #{output_path}")
+    Logger.info("WCVP database built successfully")
 
     if opts[:upload] do
-      upload_to_s3(output_path)
+      upload_to_s3()
     end
   end
 
-  defp read_header(path) do
-    [header_line | _] = File.stream!(path) |> Enum.take(1)
-    header_line |> String.trim() |> String.split("|")
+  @doc false
+  def connect! do
+    # Derive connection config from Repo.WCVP configuration
+    repo_config = Application.get_env(:gallformers, Gallformers.Repo.WCVP, [])
+
+    conn_opts = [
+      database: repo_config[:database] || "wcvp",
+      username: repo_config[:username] || System.get_env("PGUSER") || System.get_env("USER"),
+      password: repo_config[:password] || System.get_env("PGPASSWORD"),
+      hostname: repo_config[:hostname] || System.get_env("PGHOST") || "localhost"
+    ]
+
+    {:ok, conn} = Postgrex.start_link(conn_opts)
+    conn
   end
 
-  defp create_names_table(conn, columns) do
+  defp drop_tables(conn) do
+    Postgrex.query!(conn, "DROP TABLE IF EXISTS wcvp_distributions CASCADE", [])
+    Postgrex.query!(conn, "DROP TABLE IF EXISTS wcvp_names CASCADE", [])
+    Postgrex.query!(conn, "DROP TABLE IF EXISTS meta CASCADE", [])
+  end
+
+  defp create_names_table(conn) do
     col_defs =
-      Enum.map_join(columns, ", ", fn col ->
-        if col == "plant_name_id", do: "plant_name_id TEXT PRIMARY KEY", else: "#{col} TEXT"
+      Enum.map_join(@names_columns, ", ", fn col ->
+        if col == "plant_name_id",
+          do: "plant_name_id TEXT PRIMARY KEY",
+          else: "#{col} TEXT"
       end)
 
-    :ok = Exqlite.Sqlite3.execute(conn, "CREATE TABLE wcvp_names (#{col_defs})")
+    Postgrex.query!(conn, "CREATE TABLE wcvp_names (#{col_defs})", [])
   end
 
-  defp create_distributions_table(conn, columns) do
+  defp create_distributions_table(conn) do
     col_defs =
-      Enum.map_join(columns, ", ", fn col ->
+      Enum.map_join(@dist_columns, ", ", fn col ->
         if col == "plant_locality_id",
           do: "plant_locality_id TEXT PRIMARY KEY",
           else: "#{col} TEXT"
       end)
 
-    :ok = Exqlite.Sqlite3.execute(conn, "CREATE TABLE wcvp_distributions (#{col_defs})")
+    Postgrex.query!(conn, "CREATE TABLE wcvp_distributions (#{col_defs})", [])
   end
 
   defp create_meta_table(conn) do
-    :ok =
-      Exqlite.Sqlite3.execute(
-        conn,
-        "CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)"
-      )
+    Postgrex.query!(
+      conn,
+      "CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)",
+      []
+    )
   end
 
   defp insert_rows(conn, table, columns, csv_path) do
     col_count = length(columns)
-    placeholders = Enum.map_join(1..col_count, ", ", fn i -> "?#{i}" end)
     col_names = Enum.join(columns, ", ")
 
-    {:ok, stmt} =
-      Exqlite.Sqlite3.prepare(
-        conn,
-        "INSERT INTO #{table} (#{col_names}) VALUES (#{placeholders})"
-      )
+    csv_path
+    |> File.stream!()
+    |> Stream.drop(1)
+    |> Stream.map(&String.trim/1)
+    |> Stream.reject(&(&1 == ""))
+    |> Stream.chunk_every(@batch_size)
+    |> Enum.reduce(0, fn batch, total ->
+      {placeholders, flat_params} = build_batch_params(batch, col_count)
 
-    count =
-      csv_path
-      |> File.stream!()
-      |> Stream.drop(1)
-      |> Stream.map(&String.trim/1)
-      |> Stream.reject(&(&1 == ""))
-      |> Enum.reduce(0, fn line, count ->
-        values = String.split(line, "|")
-        # Pad or trim to match column count
-        values = pad_values(values, col_count)
-        :ok = Exqlite.Sqlite3.bind(stmt, values)
-        :done = Exqlite.Sqlite3.step(conn, stmt)
-        :ok = Exqlite.Sqlite3.reset(stmt)
-        count + 1
+      sql = "INSERT INTO #{table} (#{col_names}) VALUES #{placeholders}"
+      Postgrex.query!(conn, sql, flat_params)
+
+      total + length(batch)
+    end)
+  end
+
+  defp build_batch_params(lines, col_count) do
+    {placeholder_groups, flat_params, _idx} =
+      Enum.reduce(lines, {[], [], 1}, fn line, {groups, params, idx} ->
+        values = line |> String.split("|") |> pad_values(col_count)
+
+        group =
+          Enum.map_join(idx..(idx + col_count - 1), ", ", fn i -> "$#{i}" end)
+
+        {groups ++ ["(#{group})"], params ++ values, idx + col_count}
       end)
 
-    Exqlite.Sqlite3.release(conn, stmt)
-    count
+    {Enum.join(placeholder_groups, ", "), flat_params}
   end
 
   defp pad_values(values, expected) do
@@ -160,17 +188,16 @@ defmodule Mix.Tasks.Gallformers.Wcvp.BuildDb do
   defp insert_meta(conn) do
     timestamp = DateTime.utc_now() |> DateTime.to_iso8601()
 
-    {:ok, stmt} =
-      Exqlite.Sqlite3.prepare(conn, "INSERT INTO meta (key, value) VALUES (?1, ?2)")
-
-    :ok = Exqlite.Sqlite3.bind(stmt, ["built_at", timestamp])
-    :done = Exqlite.Sqlite3.step(conn, stmt)
-    Exqlite.Sqlite3.release(conn, stmt)
+    Postgrex.query!(
+      conn,
+      "INSERT INTO meta (key, value) VALUES ($1, $2)",
+      ["built_at", timestamp]
+    )
   end
 
   defp create_indexes(conn) do
     indexes = [
-      "CREATE INDEX idx_wcvp_names_taxon_name ON wcvp_names(taxon_name COLLATE NOCASE)",
+      "CREATE INDEX idx_wcvp_names_taxon_name ON wcvp_names(lower(taxon_name) text_pattern_ops)",
       "CREATE INDEX idx_wcvp_names_genus ON wcvp_names(genus)",
       "CREATE INDEX idx_wcvp_names_family ON wcvp_names(family)",
       "CREATE INDEX idx_wcvp_names_accepted ON wcvp_names(accepted_plant_name_id)",
@@ -179,13 +206,17 @@ defmodule Mix.Tasks.Gallformers.Wcvp.BuildDb do
       "CREATE INDEX idx_wcvp_dist_area ON wcvp_distributions(area_code_l3)"
     ]
 
-    Enum.each(indexes, fn sql -> :ok = Exqlite.Sqlite3.execute(conn, sql) end)
+    Enum.each(indexes, fn sql -> Postgrex.query!(conn, sql, []) end)
   end
 
-  defp upload_to_s3(path) do
+  defp upload_to_s3 do
     Mix.Task.run("app.start")
 
-    data = File.read!(path)
+    dump_path = Path.join(System.tmp_dir!(), "wcvp.dump")
+    pg_dump(dump_path)
+
+    data = File.read!(dump_path)
+    File.rm(dump_path)
 
     Logger.info("Uploading to s3://#{@s3_bucket}/#{@s3_key}...")
 
@@ -195,6 +226,31 @@ defmodule Mix.Tasks.Gallformers.Wcvp.BuildDb do
 
       {:error, reason} ->
         Logger.error("Upload failed: #{inspect(reason)}")
+    end
+  end
+
+  defp pg_dump(dump_path) do
+    repo_config = Application.get_env(:gallformers, Gallformers.Repo.WCVP, [])
+    database = repo_config[:database] || "wcvp"
+    hostname = repo_config[:hostname] || System.get_env("PGHOST") || "localhost"
+
+    Logger.info("Dumping #{database} to #{dump_path}...")
+
+    args = ["-Fc", "-h", hostname, "-d", database, "-f", dump_path]
+
+    args =
+      case repo_config[:username] do
+        nil -> args
+        user -> ["-U", user | args]
+      end
+
+    case System.cmd("pg_dump", args, stderr_to_stdout: true) do
+      {_, 0} ->
+        :ok
+
+      {output, code} ->
+        Logger.error("pg_dump failed (exit #{code}): #{output}")
+        raise "pg_dump failed"
     end
   end
 end

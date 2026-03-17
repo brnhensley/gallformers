@@ -13,7 +13,10 @@ config :gallformers, Gallformers.Repo,
   show_sensitive_data_on_connection_error: true
 
 config :gallformers, Gallformers.Repo.WCVP,
-  database: Path.expand("../priv/data/wcvp.sqlite", __DIR__)
+  database: "wcvp",
+  username: System.get_env("PGUSER", System.get_env("USER")),
+  password: System.get_env("PGPASSWORD"),
+  hostname: System.get_env("PGHOST", "localhost")
 
 # For development, we disable any cache and enable
 # debugging and code reloading.

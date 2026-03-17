@@ -35,16 +35,8 @@ if [ ! -f /data/boundaries.pmtiles ]; then
   fi
 fi
 
-if [ ! -f /data/wcvp.sqlite ]; then
-  echo "Downloading wcvp.sqlite from S3..."
-  if curl -fSL -o /data/wcvp.sqlite "$S3_BASE/wcvp.sqlite"; then
-    chown gallformers:gallformers /data/wcvp.sqlite
-    echo "wcvp.sqlite downloaded."
-  else
-    echo "WARNING: Failed to download wcvp.sqlite — WCVP lookups will not be available"
-    rm -f /data/wcvp.sqlite
-  fi
-fi
+# WCVP data lives in Postgres now (separate database on the same cluster).
+# Loaded via pg_restore — see runbooks/wcvp.md.
 
 # Symlink boundaries PMTiles from volume into static assets
 if [ -f /data/boundaries.pmtiles ]; then

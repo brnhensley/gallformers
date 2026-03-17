@@ -149,14 +149,11 @@ defmodule GallformersWeb.Admin.HostRangeLiveTest do
       assert has_element?(view, "a[href='/admin']")
     end
 
-    test "renders without crash when WCVP built_at is unavailable", %{conn: conn} do
-      # WCVP repo is not started in test env, so built_at returns nil.
-      # The page should render without error.
+    test "renders WCVP data date when available", %{conn: conn} do
       {:ok, _view, html} = live(conn, ~p"/admin/host-range")
 
       assert html =~ "Host Range Review"
-      # WCVP data date should not appear when built_at is nil
-      refute html =~ "WCVP data:"
+      assert html =~ "WCVP data:"
     end
 
     # TODO: sync_host_from_wcvp raises when WCVP repo isn't available in test env.

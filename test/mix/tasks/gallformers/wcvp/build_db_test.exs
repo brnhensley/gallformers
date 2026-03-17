@@ -1,5 +1,5 @@
 defmodule Mix.Tasks.Gallformers.Wcvp.BuildDbTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias Mix.Tasks.Gallformers.Wcvp.BuildDb
 
@@ -7,106 +7,156 @@ defmodule Mix.Tasks.Gallformers.Wcvp.BuildDbTest do
   @dist_path "test/support/fixtures/wcvp_distributions_sample.csv"
 
   setup do
-    output =
-      Path.join(System.tmp_dir!(), "test_wcvp_#{System.unique_integer([:positive])}.sqlite")
+    # Connect to wcvp_test database for verification queries
+    conn_opts = [
+      database: "wcvp_test",
+      username: System.get_env("PGUSER") || System.get_env("USER"),
+      password: System.get_env("PGPASSWORD"),
+      hostname: System.get_env("PGHOST") || "localhost"
+    ]
 
-    on_exit(fn -> File.rm(output) end)
-    {:ok, output: output}
+    on_exit(fn ->
+      # Clean up tables after test
+      {:ok, conn} = Postgrex.start_link(conn_opts)
+      Postgrex.query!(conn, "DROP TABLE IF EXISTS wcvp_distributions CASCADE", [])
+      Postgrex.query!(conn, "DROP TABLE IF EXISTS wcvp_names CASCADE", [])
+      Postgrex.query!(conn, "DROP TABLE IF EXISTS meta CASCADE", [])
+      GenServer.stop(conn)
+    end)
+
+    {:ok, conn_opts: conn_opts}
   end
 
   describe "build_db" do
-    test "creates all three tables", %{output: output} do
-      BuildDb.run(["--names", @names_path, "--dist", @dist_path, "--output", output])
+    test "creates all three tables", %{conn_opts: conn_opts} do
+      BuildDb.run(["--names", @names_path, "--dist", @dist_path])
 
-      {:ok, conn} = Exqlite.Sqlite3.open(output)
+      {:ok, conn} = Postgrex.start_link(conn_opts)
 
-      tables = query_all(conn, "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
-      assert tables == [["meta"], ["wcvp_distributions"], ["wcvp_names"]]
+      %{rows: rows} =
+        Postgrex.query!(
+          conn,
+          """
+          SELECT table_name FROM information_schema.tables
+          WHERE table_schema = 'public'
+          ORDER BY table_name
+          """,
+          []
+        )
 
-      :ok = Exqlite.Sqlite3.close(conn)
+      tables = Enum.map(rows, fn [name] -> name end)
+      assert tables == ["meta", "wcvp_distributions", "wcvp_names"]
+
+      GenServer.stop(conn)
     end
 
-    test "wcvp_names has ALL rows from sample (including synonyms, unplaced, varieties)", %{
-      output: output
-    } do
-      BuildDb.run(["--names", @names_path, "--dist", @dist_path, "--output", output])
+    test "wcvp_names has ALL rows from sample (including synonyms, unplaced, varieties)",
+         %{conn_opts: conn_opts} do
+      BuildDb.run(["--names", @names_path, "--dist", @dist_path])
 
-      {:ok, conn} = Exqlite.Sqlite3.open(output)
+      {:ok, conn} = Postgrex.start_link(conn_opts)
 
-      [[count]] = query_all(conn, "SELECT COUNT(*) FROM wcvp_names")
+      %{rows: [[count]]} = Postgrex.query!(conn, "SELECT COUNT(*) FROM wcvp_names", [])
       assert count == 9
 
       # Verify synonym is present
-      [[status]] =
-        query_all(conn, "SELECT taxon_status FROM wcvp_names WHERE plant_name_id = '102'")
+      %{rows: [[status]]} =
+        Postgrex.query!(
+          conn,
+          "SELECT taxon_status FROM wcvp_names WHERE plant_name_id = $1",
+          ["102"]
+        )
 
       assert status == "Synonym"
 
       # Verify unplaced is present
-      [[status]] =
-        query_all(conn, "SELECT taxon_status FROM wcvp_names WHERE plant_name_id = '107'")
+      %{rows: [[status]]} =
+        Postgrex.query!(
+          conn,
+          "SELECT taxon_status FROM wcvp_names WHERE plant_name_id = $1",
+          ["107"]
+        )
 
       assert status == "Unplaced"
 
       # Verify variety is present
-      [[rank]] =
-        query_all(conn, "SELECT taxon_rank FROM wcvp_names WHERE plant_name_id = '108'")
+      %{rows: [[rank]]} =
+        Postgrex.query!(
+          conn,
+          "SELECT taxon_rank FROM wcvp_names WHERE plant_name_id = $1",
+          ["108"]
+        )
 
       assert rank == "Variety"
 
-      :ok = Exqlite.Sqlite3.close(conn)
+      GenServer.stop(conn)
     end
 
-    test "wcvp_distributions has ALL rows (including introduced and extinct)", %{output: output} do
-      BuildDb.run(["--names", @names_path, "--dist", @dist_path, "--output", output])
+    test "wcvp_distributions has ALL rows (including introduced and extinct)",
+         %{conn_opts: conn_opts} do
+      BuildDb.run(["--names", @names_path, "--dist", @dist_path])
 
-      {:ok, conn} = Exqlite.Sqlite3.open(output)
+      {:ok, conn} = Postgrex.start_link(conn_opts)
 
-      [[count]] = query_all(conn, "SELECT COUNT(*) FROM wcvp_distributions")
+      %{rows: [[count]]} =
+        Postgrex.query!(conn, "SELECT COUNT(*) FROM wcvp_distributions", [])
+
       assert count == 13
 
       # Verify introduced row is present
-      [[introduced]] =
-        query_all(
+      %{rows: [[introduced]]} =
+        Postgrex.query!(
           conn,
-          "SELECT introduced FROM wcvp_distributions WHERE plant_locality_id = '12'"
+          "SELECT introduced FROM wcvp_distributions WHERE plant_locality_id = $1",
+          ["12"]
         )
 
       assert introduced == "1"
 
       # Verify extinct row is present
-      [[extinct]] =
-        query_all(
+      %{rows: [[extinct]]} =
+        Postgrex.query!(
           conn,
-          "SELECT extinct FROM wcvp_distributions WHERE plant_locality_id = '13'"
+          "SELECT extinct FROM wcvp_distributions WHERE plant_locality_id = $1",
+          ["13"]
         )
 
       assert extinct == "1"
 
-      :ok = Exqlite.Sqlite3.close(conn)
+      GenServer.stop(conn)
     end
 
-    test "meta table has built_at with ISO 8601 timestamp", %{output: output} do
-      BuildDb.run(["--names", @names_path, "--dist", @dist_path, "--output", output])
+    test "meta table has built_at with ISO 8601 timestamp", %{conn_opts: conn_opts} do
+      BuildDb.run(["--names", @names_path, "--dist", @dist_path])
 
-      {:ok, conn} = Exqlite.Sqlite3.open(output)
+      {:ok, conn} = Postgrex.start_link(conn_opts)
 
-      [[value]] = query_all(conn, "SELECT value FROM meta WHERE key = 'built_at'")
+      %{rows: [[value]]} =
+        Postgrex.query!(conn, "SELECT value FROM meta WHERE key = $1", ["built_at"])
+
       # ISO 8601 format: 2026-03-09T...
       assert value =~ ~r/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/
 
-      :ok = Exqlite.Sqlite3.close(conn)
+      GenServer.stop(conn)
     end
 
-    test "all 31 name columns are present", %{output: output} do
-      BuildDb.run(["--names", @names_path, "--dist", @dist_path, "--output", output])
+    test "all 31 name columns are present", %{conn_opts: conn_opts} do
+      BuildDb.run(["--names", @names_path, "--dist", @dist_path])
 
-      {:ok, conn} = Exqlite.Sqlite3.open(output)
+      {:ok, conn} = Postgrex.start_link(conn_opts)
 
-      columns =
-        query_all(conn, "PRAGMA table_info(wcvp_names)")
-        |> Enum.map(fn row -> Enum.at(row, 1) end)
+      %{rows: rows} =
+        Postgrex.query!(
+          conn,
+          """
+          SELECT column_name FROM information_schema.columns
+          WHERE table_name = 'wcvp_names' AND table_schema = 'public'
+          ORDER BY ordinal_position
+          """,
+          []
+        )
 
+      columns = Enum.map(rows, fn [name] -> name end)
       assert length(columns) == 31
 
       expected = ~w[
@@ -122,15 +172,23 @@ defmodule Mix.Tasks.Gallformers.Wcvp.BuildDbTest do
       assert columns == expected
     end
 
-    test "all 11 distribution columns are present", %{output: output} do
-      BuildDb.run(["--names", @names_path, "--dist", @dist_path, "--output", output])
+    test "all 11 distribution columns are present", %{conn_opts: conn_opts} do
+      BuildDb.run(["--names", @names_path, "--dist", @dist_path])
 
-      {:ok, conn} = Exqlite.Sqlite3.open(output)
+      {:ok, conn} = Postgrex.start_link(conn_opts)
 
-      columns =
-        query_all(conn, "PRAGMA table_info(wcvp_distributions)")
-        |> Enum.map(fn row -> Enum.at(row, 1) end)
+      %{rows: rows} =
+        Postgrex.query!(
+          conn,
+          """
+          SELECT column_name FROM information_schema.columns
+          WHERE table_name = 'wcvp_distributions' AND table_schema = 'public'
+          ORDER BY ordinal_position
+          """,
+          []
+        )
 
+      columns = Enum.map(rows, fn [name] -> name end)
       assert length(columns) == 11
 
       expected = ~w[
@@ -141,35 +199,21 @@ defmodule Mix.Tasks.Gallformers.Wcvp.BuildDbTest do
       assert columns == expected
     end
 
-    test "synonym record has correct accepted_plant_name_id", %{output: output} do
-      BuildDb.run(["--names", @names_path, "--dist", @dist_path, "--output", output])
+    test "synonym record has correct accepted_plant_name_id", %{conn_opts: conn_opts} do
+      BuildDb.run(["--names", @names_path, "--dist", @dist_path])
 
-      {:ok, conn} = Exqlite.Sqlite3.open(output)
+      {:ok, conn} = Postgrex.start_link(conn_opts)
 
-      [[accepted_id]] =
-        query_all(
+      %{rows: [[accepted_id]]} =
+        Postgrex.query!(
           conn,
-          "SELECT accepted_plant_name_id FROM wcvp_names WHERE plant_name_id = '102'"
+          "SELECT accepted_plant_name_id FROM wcvp_names WHERE plant_name_id = $1",
+          ["102"]
         )
 
       assert accepted_id == "101"
 
-      :ok = Exqlite.Sqlite3.close(conn)
-    end
-  end
-
-  # Helper to run a query and collect all rows
-  defp query_all(conn, sql) do
-    {:ok, stmt} = Exqlite.Sqlite3.prepare(conn, sql)
-    rows = collect_rows(conn, stmt, [])
-    Exqlite.Sqlite3.release(conn, stmt)
-    rows
-  end
-
-  defp collect_rows(conn, stmt, acc) do
-    case Exqlite.Sqlite3.step(conn, stmt) do
-      {:row, row} -> collect_rows(conn, stmt, acc ++ [row])
-      :done -> acc
+      GenServer.stop(conn)
     end
   end
 end
