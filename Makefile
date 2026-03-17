@@ -15,6 +15,7 @@ download-db:
 	@echo "Downloading backup from $(LATEST_DATE)..."
 	aws s3 cp s3://$(DUMP_BUCKET)/$(LATEST_DATE)/gallformers.dump /tmp/gallformers.dump
 	@echo "Restoring into gallformers_dev..."
+	@psql -d postgres -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = 'gallformers_dev' AND pid <> pg_backend_pid();" --quiet 2>/dev/null || true
 	mix ecto.drop
 	mix ecto.create
 	pg_restore --no-owner --no-acl -d gallformers_dev /tmp/gallformers.dump || true
