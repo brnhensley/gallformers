@@ -1,5 +1,5 @@
 ---
-status: planned
+status: done
 created: 2026-03-17
 updated: 2026-03-17
 epic: identification
@@ -29,4 +29,3 @@ Region filter is set once at first login and forgotten. Users don't connect empt
 - Scope: `search_live.ex` render function
 
 No new queries, no new assigns. ~20 lines of template changes.
-

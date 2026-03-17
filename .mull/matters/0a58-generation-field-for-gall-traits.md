@@ -2,9 +2,10 @@
 status: planned
 effort: 1-2 days
 created: 2026-02-13
-updated: 2026-02-25
-epic: cynipid
+updated: 2026-03-17
+epic: gall-traits
 docs: ['']
+relates: [eb47]
 ---
 
 # Generation field for gall traits
