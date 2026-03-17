@@ -81,7 +81,7 @@ if config_env() == :prod do
     socket_options: maybe_ipv6
 
   # WCVP database: same Postgres cluster, different database name
-  wcvp_url = String.replace(database_url, ~r"/[^/]+$", "/wcvp")
+  wcvp_url = String.replace(database_url, ~r"/[^/?]+(\?|$)", "/wcvp\\1")
 
   config :gallformers, Gallformers.Repo.WCVP,
     url: wcvp_url,

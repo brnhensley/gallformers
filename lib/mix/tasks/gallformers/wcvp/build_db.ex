@@ -129,6 +129,18 @@ defmodule Mix.Tasks.Gallformers.Wcvp.BuildDb do
     col_count = length(columns)
     col_names = Enum.join(columns, ", ")
 
+    # Validate CSV header matches expected columns
+    [header_line | _] = File.stream!(csv_path) |> Enum.take(1)
+    csv_columns = header_line |> String.trim() |> String.split("|")
+
+    if csv_columns != columns do
+      raise """
+      CSV column mismatch in #{csv_path}.
+      Expected: #{inspect(columns)}
+      Got:      #{inspect(csv_columns)}
+      """
+    end
+
     csv_path
     |> File.stream!()
     |> Stream.drop(1)

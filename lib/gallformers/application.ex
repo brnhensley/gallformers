@@ -48,8 +48,8 @@ defmodule Gallformers.Application do
   end
 
   defp skip_migrations? do
-    # Skip migrations by default since we use an existing database managed by Prisma.
-    # Set RUN_MIGRATIONS=true to explicitly enable Ecto migrations.
+    # Migrations are opt-in via RUN_MIGRATIONS=true (set in docker-entrypoint.sh).
+    # Default off so `mix phx.server` doesn't auto-migrate the dev database.
     System.get_env("RUN_MIGRATIONS") != "true"
   end
 end
