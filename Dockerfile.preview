@@ -74,9 +74,8 @@ RUN addgroup -g 1000 gallformers && \
 COPY --from=builder --chown=gallformers:gallformers /app/_build/prod/rel/gallformers ./
 
 # Download data files from public S3 (no auth needed)
+# WCVP data lives in Postgres now — loaded via pg_restore, not baked into the image.
 RUN mkdir -p /app/data && \
-    curl -fSL -o /app/data/wcvp.sqlite \
-      https://gallformers-backups.s3.amazonaws.com/public/wcvp.sqlite && \
     curl -fSL -o /app/data/boundaries.pmtiles \
       https://gallformers-backups.s3.amazonaws.com/public/boundaries.pmtiles
 

@@ -48,7 +48,7 @@ Key settings in `fly.toml`:
 fly secrets list
 fly secrets set SECRET_KEY_BASE=xxx
 fly secrets set AUTH0_CLIENT_ID=xxx AUTH0_CLIENT_SECRET=xxx AUTH0_DOMAIN=xxx
-fly secrets set WCVP_DATABASE_PATH=/data/wcvp.sqlite
+# WCVP data lives in a separate Postgres database — no secret needed
 ```
 
 ## Infrastructure Operations
@@ -85,14 +85,13 @@ The `/data` volume holds files that must persist across deploys. The main databa
 
 | File | Purpose | How to populate |
 |------|---------|-----------------|
-| `wcvp.sqlite` | WCVP plant name lookup database (SQLite) | SFTP upload: `echo "put priv/data/wcvp.sqlite /data/wcvp.sqlite" \| fly ssh sftp shell` |
 | `boundaries.pmtiles` | Geographic boundary tiles for range maps (~370MB) | SFTP upload: `echo "put priv/static/data/boundaries.pmtiles /data/boundaries.pmtiles" \| fly ssh sftp shell` |
 
-**WCVP** is configured via the `WCVP_DATABASE_PATH` secret (set to `/data/wcvp.sqlite`).
+**WCVP** data lives in a separate Postgres database (`wcvp`) on the same cluster. See `runbooks/wcvp.md` for setup and update procedures.
 
 **Boundaries PMTiles** is symlinked into the static assets directory at startup by `docker-entrypoint.sh`. The symlink makes it available at the URL `/data/boundaries.pmtiles` without baking the 370MB file into the Docker image.
 
-**After a fresh machine or volume replacement**, both `wcvp.sqlite` and `boundaries.pmtiles` must be re-uploaded manually via SFTP.
+**After a fresh machine or volume replacement**, `boundaries.pmtiles` must be re-uploaded manually via SFTP. WCVP data persists in Postgres and is unaffected by machine replacement.
 
 ## Before ANY Fly.io operation
 

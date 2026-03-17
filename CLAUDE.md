@@ -147,7 +147,7 @@ Gallformers (gallformers.org) is a comprehensive online database and reference g
 - **Tailwind CSS v4** - Styling
 - **Fly.io** - Production hosting
 
-> **Note**: The WCVP secondary repo still uses SQLite (ecto_sqlite3). See `runbooks/wcvp.md`.
+> **Note**: WCVP reference data lives in a separate Postgres database (`wcvp`) on the same cluster. See `runbooks/wcvp.md`.
 
 ## Project Structure
 

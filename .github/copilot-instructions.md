@@ -13,7 +13,7 @@
 ## Tech Stack
 
 - **Framework**: Phoenix 1.8 with LiveView
-- **Database**: PostgreSQL via Ecto/Postgrex (WCVP secondary repo uses SQLite)
+- **Database**: PostgreSQL via Ecto/Postgrex (WCVP uses a separate Postgres database on the same cluster)
 - **Styling**: Tailwind CSS v4
 - **Auth**: Auth0 (admin features only)
 - **Infrastructure**: Fly.io, AWS S3

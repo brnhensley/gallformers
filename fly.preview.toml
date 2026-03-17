@@ -16,7 +16,6 @@ kill_timeout = "5s"
   PORT = "4000"
   S3_IMAGE_PREFIX = "preview"
   PREVIEW_DEPLOY = "true"
-  WCVP_DATABASE_PATH = "/app/data/wcvp.sqlite"
   ECTO_IPV6 = "true"
 
 [http_service]

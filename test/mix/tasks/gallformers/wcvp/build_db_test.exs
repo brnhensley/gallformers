@@ -16,12 +16,11 @@ defmodule Mix.Tasks.Gallformers.Wcvp.BuildDbTest do
     ]
 
     on_exit(fn ->
-      # Clean up tables after test
-      {:ok, conn} = Postgrex.start_link(conn_opts)
-      Postgrex.query!(conn, "DROP TABLE IF EXISTS wcvp_distributions CASCADE", [])
-      Postgrex.query!(conn, "DROP TABLE IF EXISTS wcvp_names CASCADE", [])
-      Postgrex.query!(conn, "DROP TABLE IF EXISTS meta CASCADE", [])
-      GenServer.stop(conn)
+      # Restore fixture state for other tests that query wcvp_test directly
+      # (e.g., host_range_live_test calls Wcvp.Lookup.built_at() which hits the real DB)
+      System.cmd("psql", ["-d", "wcvp_test", "-f", "priv/repo/wcvp_test_setup.sql", "--quiet"],
+        stderr_to_stdout: true
+      )
     end)
 
     {:ok, conn_opts: conn_opts}
