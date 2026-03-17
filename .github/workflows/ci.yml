@@ -80,6 +80,8 @@ jobs:
           MIX_ENV=test mix ecto.create --quiet
           MIX_ENV=test mix ecto.migrate --quiet
           psql -U postgres -h localhost -d gallformers_test -f priv/repo/test_seeds.sql --quiet
+          createdb -U postgres -h localhost wcvp_test
+          psql -U postgres -h localhost -d wcvp_test -f priv/repo/wcvp_test_setup.sql --quiet
 
       - name: Setup ChromeDriver for E2E tests
         run: |
