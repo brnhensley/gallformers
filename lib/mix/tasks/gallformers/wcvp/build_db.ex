@@ -213,18 +213,25 @@ defmodule Mix.Tasks.Gallformers.Wcvp.BuildDb do
     dump_path = Path.join(System.tmp_dir!(), "wcvp.dump")
     pg_dump(dump_path)
 
-    data = File.read!(dump_path)
-    File.rm(dump_path)
-
     Logger.info("Uploading to s3://#{@s3_bucket}/#{@s3_key}...")
 
-    case ExAws.S3.put_object(@s3_bucket, @s3_key, data) |> Gallformers.S3.request() do
+    # Stream the dump file in chunks to avoid loading it all into memory.
+    # The WCVP dump can be 100-300MB; multipart upload handles this efficiently.
+    result =
+      dump_path
+      |> ExAws.S3.Upload.stream_file()
+      |> ExAws.S3.upload(@s3_bucket, @s3_key)
+      |> Gallformers.S3.request()
+
+    case result do
       {:ok, _} ->
         Logger.info("Upload complete")
 
       {:error, reason} ->
         Logger.error("Upload failed: #{inspect(reason)}")
     end
+
+    File.rm(dump_path)
   end
 
   defp pg_dump(dump_path) do
