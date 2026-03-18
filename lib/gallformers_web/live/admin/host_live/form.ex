@@ -19,7 +19,7 @@ defmodule GallformersWeb.Admin.HostLive.Form do
   alias GallformersWeb.Admin.PowoDiffReview
 
   import GallformersWeb.Admin.FormComponents,
-    only: [alias_collision_warning: 1, alias_editor: 1]
+    only: [alias_editor: 1, duplicate_host_warning: 1]
 
   import GallformersWeb.Admin.ReclassifyHelpers
 
@@ -543,8 +543,8 @@ defmodule GallformersWeb.Admin.HostLive.Form do
     |> assign(:sections_for_family, [])
     |> assign(:new_alias_name, "")
     |> assign(:new_alias_type, "common")
-    # Alias collision warnings
-    |> assign(:alias_collisions, [])
+    # Duplicate detection warnings
+    |> assign(:duplicate_warnings, [])
     # Genus disambiguation modal state
     |> assign(:show_genus_disambiguation, false)
     |> assign(:possible_families, [])
@@ -607,7 +607,7 @@ defmodule GallformersWeb.Admin.HostLive.Form do
     |> assign(:selected_section_id, selected_section_id)
     |> assign(:sections_for_family, sections_for_family)
     |> assign(:possible_families, possible_families)
-    |> assign(:alias_collisions, Species.find_species_with_alias(name))
+    |> assign(:duplicate_warnings, Plants.find_duplicate_host_candidates(name))
     |> mark_dirty()
   end
 
@@ -669,7 +669,16 @@ defmodule GallformersWeb.Admin.HostLive.Form do
         do: " (+ #{length(introduced_place_ids)} introduced)",
         else: ""
 
+    # Enhance duplicate warnings with WCVP ID check (init_new_host_state already
+    # checked name + aliases; now also check if this WCVP record is already linked)
+    wcvp_warnings =
+      Plants.find_duplicate_host_candidates(
+        wcvp_data.taxon_name,
+        wcvp_id: wcvp_data.plant_name_id
+      )
+
     socket
+    |> assign(:duplicate_warnings, wcvp_warnings)
     |> assign(:wcvp_prefilled, %{
       wcvp_id: wcvp_data.plant_name_id,
       powo_id: wcvp_data.powo_id,
@@ -1379,7 +1388,7 @@ defmodule GallformersWeb.Admin.HostLive.Form do
           <% end %>
         </div>
 
-        <.alias_collision_warning collisions={@alias_collisions} />
+        <.duplicate_host_warning warnings={@duplicate_warnings} />
 
         <%!-- Rest of form - disabled until host selected/created --%>
         <fieldset disabled={@mode == :search} class={[@mode == :search && "opacity-50"]}>

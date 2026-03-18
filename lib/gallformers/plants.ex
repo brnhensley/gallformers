@@ -371,6 +371,69 @@ defmodule Gallformers.Plants do
   end
 
   # ============================================
+  # Duplicate Detection
+  # ============================================
+
+  @doc """
+  Finds existing host species that might be duplicates of a new host being added.
+
+  Checks three sources:
+  - **Name match**: existing plant species with the same name (case-insensitive)
+  - **Alias match**: existing aliases that match the name
+  - **WCVP ID match**: existing host_traits with the same wcvp_id (when provided)
+
+  Returns a list of `%{species_id, species_name, reason, ...}` maps.
+  Results are not deduplicated — a single species may appear with multiple reasons.
+
+  ## Options
+  - `:wcvp_id` — WCVP plant_name_id to check against existing host_traits
+  """
+  @spec find_duplicate_host_candidates(String.t(), keyword()) :: [map()]
+  def find_duplicate_host_candidates(name, opts \\ []) do
+    wcvp_id = Keyword.get(opts, :wcvp_id)
+
+    name_matches =
+      from(s in Species,
+        where: s.taxoncode == "plant",
+        where: fragment("lower(?) = lower(?)", s.name, ^name),
+        select: %{species_id: s.id, species_name: s.name, reason: :name_match}
+      )
+      |> Repo.all()
+
+    alias_matches =
+      from(a in Gallformers.Species.Alias,
+        join: as in "alias_species",
+        on: as.alias_id == a.id,
+        join: s in Species,
+        on: s.id == as.species_id,
+        where: s.taxoncode == "plant",
+        where: fragment("lower(?) = lower(?)", a.name, ^name),
+        select: %{
+          species_id: s.id,
+          species_name: s.name,
+          reason: :alias_match,
+          alias_type: a.type
+        }
+      )
+      |> Repo.all()
+
+    wcvp_matches =
+      if wcvp_id do
+        from(ht in HostTraits,
+          join: s in Species,
+          on: s.id == ht.species_id,
+          where: ht.wcvp_id == ^wcvp_id,
+          select: %{species_id: s.id, species_name: s.name, reason: :wcvp_id_match}
+        )
+        |> Repo.all()
+      else
+        []
+      end
+
+    name_matches ++ alias_matches ++ wcvp_matches
+  end
+
+  # ============================================
   # PubSub
   # ============================================
 

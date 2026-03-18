@@ -2686,4 +2686,60 @@ defmodule Gallformers.TaxonomyTest do
       assert count >= 2
     end
   end
+
+  describe "search_families/2" do
+    test "finds new gall family with no species by taxoncode" do
+      {:ok, family} =
+        Taxonomy.create_taxonomy(%{
+          name: "Thyrididae",
+          type: "family",
+          description: "Moth"
+        })
+
+      results = Taxonomy.search_families("Thyrid", taxoncode: "gall")
+      assert Enum.any?(results, &(&1.id == family.id))
+    end
+
+    test "does not return plant families when filtering by gall taxoncode" do
+      {:ok, plant_family} =
+        Taxonomy.create_taxonomy(%{
+          name: "SomePlantFamily",
+          type: "family",
+          description: "Plant"
+        })
+
+      results = Taxonomy.search_families("SomePlantFam", taxoncode: "gall")
+      refute Enum.any?(results, &(&1.id == plant_family.id))
+    end
+
+    test "finds gall family that already has species" do
+      {:ok, family} =
+        Taxonomy.create_taxonomy(%{
+          name: "TestGallFamily",
+          type: "family",
+          description: "Wasp"
+        })
+
+      {:ok, genus} =
+        Taxonomy.create_taxonomy(%{
+          name: "TestGallGenus",
+          type: "genus",
+          description: "Wasp",
+          parent_id: family.id
+        })
+
+      species =
+        Repo.insert!(%Species{
+          name: "Test galler",
+          taxoncode: "gall"
+        })
+
+      Repo.insert_all("species_taxonomy", [
+        %{species_id: species.id, taxonomy_id: genus.id}
+      ])
+
+      results = Taxonomy.search_families("TestGallFam", taxoncode: "gall")
+      assert Enum.any?(results, &(&1.id == family.id))
+    end
+  end
 end

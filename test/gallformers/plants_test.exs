@@ -11,6 +11,25 @@ defmodule Gallformers.PlantsTest do
   alias Gallformers.Taxonomy
   alias Gallformers.Taxonomy.{Genus, Lineage}
 
+  # ============================================
+  # Test helpers — create own data, no seed IDs
+  # ============================================
+
+  defp create_species(name, taxoncode) do
+    Repo.insert!(%Species{name: name, taxoncode: taxoncode})
+  end
+
+  defp create_host(name), do: create_species(name, "plant")
+  defp create_gall(name), do: create_species(name, "gall")
+
+  defp create_alias_for_species(species, alias_name, type) do
+    alias_record =
+      Repo.insert!(%Gallformers.Species.Alias{name: alias_name, type: type, description: ""})
+
+    Repo.insert_all("alias_species", [%{alias_id: alias_record.id, species_id: species.id}])
+    alias_record
+  end
+
   describe "create_host_with_associations/1" do
     setup do
       {:ok, family} =
@@ -478,6 +497,73 @@ defmodule Gallformers.PlantsTest do
       assert result.reclassify_to_native == []
       assert result.agree_count == 0
       assert result.has_changes == false
+    end
+  end
+
+  describe "find_duplicate_host_candidates/2" do
+    test "returns empty list when no matches" do
+      assert Plants.find_duplicate_host_candidates("Zzzyxia nonexistens") == []
+    end
+
+    test "finds existing host by exact species name (case-insensitive)" do
+      host = create_host("Testplantus duplicata")
+
+      results = Plants.find_duplicate_host_candidates("testplantus duplicata")
+      assert [%{species_id: id, reason: :name_match}] = results
+      assert id == host.id
+    end
+
+    test "finds existing host by alias match" do
+      host = create_host("Testplantus aliashost")
+      create_alias_for_species(host, "Fuzzy Leafmaker", "common")
+
+      results = Plants.find_duplicate_host_candidates("Fuzzy Leafmaker")
+      match = Enum.find(results, &(&1.reason == :alias_match))
+      assert match != nil
+      assert match.species_id == host.id
+      assert match.alias_type == "common"
+    end
+
+    test "finds existing host by wcvp_id match" do
+      host = create_host("Testplantus wcvphost")
+      Plants.upsert_host_traits(host.id, %{wcvp_id: "999999"})
+
+      results =
+        Plants.find_duplicate_host_candidates("Something else entirely", wcvp_id: "999999")
+
+      match = Enum.find(results, &(&1.reason == :wcvp_id_match))
+      assert match != nil
+      assert match.species_id == host.id
+      assert match.species_name == "Testplantus wcvphost"
+    end
+
+    test "does not return wcvp_id matches when wcvp_id not provided" do
+      host = create_host("Testplantus nowcvp")
+      Plants.upsert_host_traits(host.id, %{wcvp_id: "999999"})
+
+      results = Plants.find_duplicate_host_candidates("Something else entirely")
+      assert results == []
+    end
+
+    test "deduplicates when same species matches multiple checks" do
+      host = create_host("Testplantus multicheck")
+      Plants.upsert_host_traits(host.id, %{wcvp_id: "888888"})
+
+      results =
+        Plants.find_duplicate_host_candidates("Testplantus multicheck", wcvp_id: "888888")
+
+      species_ids = Enum.map(results, & &1.species_id) |> Enum.uniq()
+      assert species_ids == [host.id]
+      reasons = Enum.map(results, & &1.reason) |> MapSet.new()
+      assert :name_match in reasons
+      assert :wcvp_id_match in reasons
+    end
+
+    test "only matches plant species, not galls" do
+      _gall = create_gall("Testgallus notaplant")
+
+      results = Plants.find_duplicate_host_candidates("Testgallus notaplant")
+      assert results == []
     end
   end
 end

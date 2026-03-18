@@ -43,6 +43,13 @@ defmodule Gallformers.Taxonomy.Search do
   defp search_families_by_taxoncode(query, taxoncode, limit) do
     name_pattern = "#{String.downcase(query)}%"
 
+    # The description filter mirrors list_families_for_select/1:
+    # gall → description != 'Plant', plant → description = 'Plant'.
+    desc_filter =
+      if taxoncode == "plant",
+        do: "f.description = 'Plant'",
+        else: "f.description != 'Plant'"
+
     sql = """
     WITH RECURSIVE family_descendants AS (
       SELECT f.id, f.id as family_id, f.name as family_name, f.type
@@ -54,12 +61,24 @@ defmodule Gallformers.Taxonomy.Search do
       SELECT t.id, fd.family_id, fd.family_name, t.type
       FROM taxonomy t
       JOIN family_descendants fd ON t.parent_id = fd.id
+    ),
+    -- Families that already have species with the matching taxoncode
+    by_species AS (
+      SELECT DISTINCT fd.family_id as id, fd.family_name as name
+      FROM family_descendants fd
+      JOIN species_taxonomy st ON st.taxonomy_id = fd.id AND fd.type = 'genus'
+      JOIN species s ON st.species_id = s.id AND s.taxoncode = $2::text
+    ),
+    -- Families whose description matches the taxoncode (catches new families with no species)
+    by_description AS (
+      SELECT f.id, f.name
+      FROM taxonomy f
+      WHERE f.type = 'family' AND f.name ILIKE $1::text AND #{desc_filter}
     )
-    SELECT DISTINCT fd.family_id as id, fd.family_name as name
-    FROM family_descendants fd
-    JOIN species_taxonomy st ON st.taxonomy_id = fd.id AND fd.type = 'genus'
-    JOIN species s ON st.species_id = s.id AND s.taxoncode = $2::text
-    ORDER BY fd.family_name
+    SELECT id, name FROM by_species
+    UNION
+    SELECT id, name FROM by_description
+    ORDER BY name
     LIMIT $3::integer
     """
 

@@ -4,6 +4,8 @@ defmodule Gallformers.StorageTest do
   """
   use ExUnit.Case, async: true
 
+  import ExUnit.CaptureLog
+
   alias Gallformers.Storage
 
   describe "generate_content_image_path/4" do
@@ -53,7 +55,10 @@ defmodule Gallformers.StorageTest do
     test "1-arity version still uses default 4 sizes" do
       # We can't easily test the actual S3 upload, but we can verify the function exists
       # and returns the expected error when CDN is not available in test
-      assert {:error, _} = Storage.generate_size_variants("nonexistent/path/original.jpg")
+      assert capture_log(fn ->
+               assert {:error, _} =
+                        Storage.generate_size_variants("nonexistent/path/original.jpg")
+             end) =~ "Failed to generate size variants"
     end
   end
 end
