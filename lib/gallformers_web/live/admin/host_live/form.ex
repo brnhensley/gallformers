@@ -1478,9 +1478,17 @@ defmodule GallformersWeb.Admin.HostLive.Form do
                   Refresh from POWO-WCVP
                 </.button>
               <% end %>
+            </div>
 
+            <%!-- PowoDiffReview: wrapped to stop change events from bubbling
+                 to the parent form's phx-change="validate", which triggers
+                 form recovery and resets checkbox state. --%>
+            <div
+              :if={@powo_diff}
+              onchange="event.stopPropagation()"
+              oninput="event.stopPropagation()"
+            >
               <.live_component
-                :if={@powo_diff}
                 module={PowoDiffReview}
                 id="powo-diff"
                 diff={@powo_diff}

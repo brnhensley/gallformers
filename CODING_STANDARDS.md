@@ -300,6 +300,26 @@ end
 </.form>
 ```
 
+### LiveComponents with Interactive State Must Not Be Inside Forms
+
+**Never** nest a LiveComponent that manages its own checkbox/input state inside a
+`<.form phx-change="validate">`. The form's change event fires on every input
+mutation inside it — including inputs owned by the component. LiveView's form
+recovery then resets those inputs to their server-rendered defaults, clobbering
+the component's local state.
+
+If you must place such a component visually within a form's layout, wrap it in a
+div that stops event propagation:
+
+```heex
+<div onchange="event.stopPropagation()" oninput="event.stopPropagation()">
+  <.live_component module={MyStatefulComponent} id="my-component" ... />
+</div>
+```
+
+**Symptoms:** checkboxes snap back on click, "one step behind" toggle behavior,
+phantom `validate` events with `"_target" => ["undefined"]` in server logs.
+
 ### Function Components vs LiveComponents
 
 **Function components** (default choice) are simple, stateless, and render as part of the parent:

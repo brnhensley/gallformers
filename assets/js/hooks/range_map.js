@@ -822,3 +822,4 @@ function forEachCoord(geometry, fn) {
 }
 
 export default RangeMap
+export { computeEffectiveSets, buildFillExpression, pickSubdivisionCode, setsEqual, forEachCoord }

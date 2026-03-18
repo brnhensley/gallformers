@@ -24,6 +24,10 @@ defmodule Gallformers.Plants do
 
   @topic "hosts"
 
+  defp wcvp_lookup do
+    Application.get_env(:gallformers, :wcvp_lookup, Wcvp.Lookup)
+  end
+
   # ============================================
   # Explore Tree
   # ============================================
@@ -894,7 +898,7 @@ defmodule Gallformers.Plants do
 
       # No wcvp_id — try name matching
       true ->
-        case Wcvp.Lookup.match_by_name(species.name, resolve_synonyms: true) do
+        case wcvp_lookup().match_by_name(species.name, resolve_synonyms: true) do
           nil ->
             {:error, "No WCVP match found for #{species.name}"}
 
@@ -929,7 +933,7 @@ defmodule Gallformers.Plants do
   end
 
   defp do_sync_host_from_wcvp(species_id, host_traits, ref_data) do
-    case Wcvp.Lookup.get(host_traits.wcvp_id) do
+    case wcvp_lookup().get(host_traits.wcvp_id) do
       nil ->
         {:error, "WCVP record not found for ID #{host_traits.wcvp_id}"}
 

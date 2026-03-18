@@ -156,10 +156,6 @@ defmodule GallformersWeb.Admin.HostRangeLiveTest do
       assert html =~ "WCVP data:"
     end
 
-    # TODO: sync_host_from_wcvp raises when WCVP repo isn't available in test env.
-    # Needs either a WCVP test fixture or rescue in sync_host_from_wcvp.
-    # See matter 9ace for related WCVP fixes.
-    @tag :skip
     test "sync selected shows results modal after completion", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/admin/host-range")
 
@@ -170,11 +166,12 @@ defmodule GallformersWeb.Admin.HostRangeLiveTest do
       view |> element("button", "Sync Selected from WCVP") |> render_click()
       view |> element("#sync-confirm-modal button[phx-click=do_sync_selected]") |> render_click()
 
-      # Wait for async sync to complete
-      assert_receive _, 500
+      # The sync processes via handle_info message chain ({:sync_next, ...}).
+      # Render flushes pending messages in the LiveView process.
+      # Two renders: one for the sync step, one for the completion.
+      render(view)
       html = render(view)
 
-      # Should show results modal (no WCVP DB in test env, so hosts fail/not matched)
       assert html =~ "WCVP Sync Complete"
       assert has_element?(view, "#sync-results-modal")
     end

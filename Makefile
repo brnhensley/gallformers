@@ -132,8 +132,12 @@ test-db:
 	@psql -d wcvp_test -f priv/repo/wcvp_test_setup.sql --quiet
 	@echo "Test database ready"
 
+# Run JS unit tests (hooks, etc.)
+test-js: assets/node_modules
+	@cd assets && npm test
+
 # Run tests (rebuilds test DB first, excludes E2E tests)
-test: test-db
+test: test-db test-js
 	mix test
 
 # Load production data into the test database from the daily pg_dump backup

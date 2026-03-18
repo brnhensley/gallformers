@@ -175,8 +175,9 @@ defmodule Gallformers.GallHosts do
 
       host_relation ->
         species_id = host_relation.gall_species_id
-        Repo.delete(host_relation)
+        result = Repo.delete(host_relation)
         broadcast_species_change(species_id, :species_updated)
+        result
     end
   end
 
