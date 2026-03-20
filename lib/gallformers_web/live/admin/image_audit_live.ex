@@ -158,6 +158,12 @@ defmodule GallformersWeb.Admin.ImageAuditLive do
     ~H"""
     <Layouts.admin flash={@flash} current_user={@current_user} page_title="Image Audit">
       <div class="space-y-6">
+        <div class="mb-4 p-3 bg-gray-50 border border-gray-200 rounded flex items-center gap-4">
+          <span class="text-sm font-medium text-gray-700">Quick Links:</span>
+          <.link navigate={~p"/admin"} class="text-sm hover:underline">← Back to Admin</.link>
+          <.link navigate={~p"/admin/images"} class="text-sm hover:underline">Manage Images</.link>
+        </div>
+
         <%!-- Header with description --%>
         <div class="bg-white rounded-lg border border-gray-200 p-6">
           <h2 class="text-lg font-medium text-gray-900 mb-2">Image Audit Tool</h2>

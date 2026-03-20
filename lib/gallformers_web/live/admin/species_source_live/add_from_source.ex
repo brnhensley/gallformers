@@ -356,9 +356,13 @@ defmodule GallformersWeb.Admin.SpeciesSourceLive.AddFromSource do
     ~H"""
     <Layouts.admin flash={@flash} current_user={@current_user} page_title={@page_title}>
       <div class="max-w-5xl mx-auto">
-        <div class="mb-4">
-          <.link navigate={~p"/admin/sources"} class="hover:underline text-sm">
+        <div class="mb-4 p-3 bg-gray-50 border border-gray-200 rounded flex items-center gap-4">
+          <span class="text-sm font-medium text-gray-700">Quick Links:</span>
+          <.link navigate={~p"/admin/sources"} class="text-sm hover:underline">
             &larr; Back to Sources
+          </.link>
+          <.link navigate={~p"/admin/species-sources/find"} class="text-sm hover:underline">
+            Quick Find Mappings
           </.link>
         </div>
 

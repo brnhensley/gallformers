@@ -94,6 +94,49 @@ defmodule GallformersWeb.Admin.ImagesLive do
       page_title="Image Management"
     >
       <div class="space-y-6">
+        <%!-- Quick Links --%>
+        <div class="mb-4 p-3 bg-gray-50 border border-gray-200 rounded flex items-center gap-4">
+          <span class="text-sm font-medium text-gray-700">Quick Links:</span>
+          <.link navigate={~p"/admin"} class="text-sm hover:underline">
+            &larr; Back to Admin
+          </.link>
+          <.link
+            :if={@selected_species && @selected_species.taxoncode == "gall"}
+            navigate={~p"/gall/#{@selected_species.id}"}
+            class="text-sm hover:underline inline-flex items-center gap-1"
+          >
+            <.icon name="ph-eye" class="h-4 w-4" /> View public page
+          </.link>
+          <.link
+            :if={@selected_species && @selected_species.taxoncode == "plant"}
+            navigate={~p"/host/#{@selected_species.id}"}
+            class="text-sm hover:underline inline-flex items-center gap-1"
+          >
+            <.icon name="ph-eye" class="h-4 w-4" /> View public page
+          </.link>
+          <.link
+            :if={@selected_species && @selected_species.taxoncode == "gall"}
+            navigate={~p"/admin/galls/#{@selected_species.id}"}
+            class="text-sm hover:underline"
+          >
+            Edit species
+          </.link>
+          <.link
+            :if={@selected_species && @selected_species.taxoncode == "plant"}
+            navigate={~p"/admin/hosts/#{@selected_species.id}"}
+            class="text-sm hover:underline"
+          >
+            Edit species
+          </.link>
+          <.link
+            :if={@selected_species}
+            navigate={~p"/admin/species-sources/find?species_id=#{@selected_species.id}"}
+            class="text-sm hover:underline"
+          >
+            Species-Source Mappings
+          </.link>
+        </div>
+
         <%!-- Species Search --%>
         <div class="bg-white rounded-lg border border-gray-200 p-6">
           <h2 class="text-lg font-medium text-gray-900 mb-4">Select Species</h2>

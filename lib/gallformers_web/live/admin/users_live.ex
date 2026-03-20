@@ -52,6 +52,11 @@ defmodule GallformersWeb.Admin.UsersLive do
     ~H"""
     <Layouts.admin flash={@flash} current_user={@current_user} page_title="User Management">
       <div class="space-y-6">
+        <div class="mb-4 p-3 bg-gray-50 border border-gray-200 rounded flex items-center gap-4">
+          <span class="text-sm font-medium text-gray-700">Quick Links:</span>
+          <.link navigate={~p"/admin"} class="text-sm hover:underline">← Back to Admin</.link>
+        </div>
+
         <%!-- Info banner --%>
         <div class="gf-admin-info">
           <.icon name="ph-info" class="h-5 w-5 text-blue-400 mr-2 flex-shrink-0" />

@@ -261,9 +261,13 @@ defmodule GallformersWeb.Admin.SpeciesSourceLive.QuickFind do
     ~H"""
     <Layouts.admin flash={@flash} current_user={@current_user} page_title={@page_title}>
       <div class="max-w-5xl mx-auto">
-        <div class="mb-4">
-          <.link navigate={~p"/admin/sources"} class="hover:underline text-sm">
+        <div class="mb-4 p-3 bg-gray-50 border border-gray-200 rounded flex items-center gap-4">
+          <span class="text-sm font-medium text-gray-700">Quick Links:</span>
+          <.link navigate={~p"/admin/sources"} class="text-sm hover:underline">
             &larr; Back to Sources
+          </.link>
+          <.link navigate={~p"/admin/species-sources/add"} class="text-sm hover:underline">
+            Add from Source
           </.link>
         </div>
 
@@ -273,15 +277,6 @@ defmodule GallformersWeb.Admin.SpeciesSourceLive.QuickFind do
             <p class="text-sm text-gray-600 mt-1">
               Search by species name, source title, author, or description text.
             </p>
-          </div>
-          <%!-- Quick link to Add from Source --%>
-          <div class="mt-4 text-center">
-            <.link
-              navigate={~p"/admin/species-sources/add"}
-              class="text-sm hover:underline"
-            >
-              Need to add new mappings? Use Add from Source &rarr;
-            </.link>
           </div>
 
           <div class="p-4">

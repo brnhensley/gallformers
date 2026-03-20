@@ -505,9 +505,38 @@ defmodule GallformersWeb.Admin.GallHostLive do
       page_title={@page_title}
     >
       <div class="max-w-7xl mx-auto">
-        <div class="mb-4">
-          <.link navigate={~p"/admin"} class="hover:underline text-sm">
+        <div class="mb-4 p-3 bg-gray-50 border border-gray-200 rounded flex items-center gap-4">
+          <span class="text-sm font-medium text-gray-700">Quick Links:</span>
+          <.link navigate={~p"/admin"} class="text-sm hover:underline">
             &larr; Back to Admin
+          </.link>
+          <.link
+            :if={@selected_gall}
+            navigate={~p"/gall/#{@selected_gall.id}"}
+            class="text-sm hover:underline inline-flex items-center gap-1"
+          >
+            <.icon name="ph-eye" class="h-4 w-4" /> View public page
+          </.link>
+          <.link
+            :if={@selected_gall}
+            navigate={~p"/admin/galls/#{@selected_gall.id}"}
+            class="text-sm hover:underline"
+          >
+            Edit gall
+          </.link>
+          <.link
+            :if={@selected_gall}
+            navigate={~p"/admin/images?species_id=#{@selected_gall.id}"}
+            class="text-sm hover:underline"
+          >
+            Manage Images
+          </.link>
+          <.link
+            :if={@selected_gall}
+            navigate={~p"/admin/species-sources/find?species_id=#{@selected_gall.id}"}
+            class="text-sm hover:underline"
+          >
+            Species-Source Mappings
           </.link>
         </div>
 
@@ -548,22 +577,6 @@ defmodule GallformersWeb.Admin.GallHostLive do
                   <.taxon_name name={gall.name} />
                 </:result>
               </.typeahead>
-              <div :if={@selected_gall} class="mt-1 flex items-center gap-2">
-                <.link
-                  navigate={~p"/gall/#{@selected_gall.id}"}
-                  class="text-gray-400 hover:text-gf-maroon"
-                  title="View public page"
-                >
-                  <.icon name="ph-arrow-square-out" class="h-4 w-4" />
-                </.link>
-                <.link
-                  navigate={~p"/admin/galls/#{@selected_gall.id}"}
-                  class="text-gray-400 hover:text-gf-maroon"
-                  title="Edit gall details"
-                >
-                  <.icon name="ph-pencil-simple" class="h-4 w-4" />
-                </.link>
-              </div>
             </div>
 
             <%!-- Bidirectional Arrow --%>

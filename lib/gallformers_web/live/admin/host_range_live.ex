@@ -316,10 +316,10 @@ defmodule GallformersWeb.Admin.HostRangeLive do
     ~H"""
     <Layouts.admin flash={@flash} current_user={@current_user} page_title={@page_title}>
       <div class="max-w-7xl mx-auto">
-        <div class="mb-4">
-          <.link navigate={~p"/admin"} class="hover:underline text-sm">
-            <.icon name="ph-arrow-left" class="h-4 w-4 inline" /> Back to Admin
-          </.link>
+        <div class="mb-4 p-3 bg-gray-50 border border-gray-200 rounded flex items-center gap-4">
+          <span class="text-sm font-medium text-gray-700">Quick Links:</span>
+          <.link navigate={~p"/admin"} class="text-sm hover:underline">← Back to Admin</.link>
+          <.link navigate={~p"/admin/images"} class="text-sm hover:underline">Manage Images</.link>
         </div>
 
         <div class="bg-white border border-gray-200 rounded shadow-sm">
