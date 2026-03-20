@@ -4,6 +4,7 @@ defmodule Gallformers.ChangesetHelpersTest do
   import Gallformers.ChangesetHelpers
 
   alias Ecto.Changeset
+  alias Gallformers.Species.Species
 
   defmodule TestSchema do
     use Ecto.Schema
@@ -15,6 +16,58 @@ defmodule Gallformers.ChangesetHelpersTest do
 
   defp changeset(attrs) do
     Changeset.cast(%TestSchema{}, attrs, [:url])
+  end
+
+  describe "trim_strings/1" do
+    test "trims leading whitespace from string fields" do
+      cs =
+        %Species{}
+        |> Changeset.cast(%{name: " Synchytrium tillaeae", taxoncode: "gall"}, [:name, :taxoncode])
+        |> trim_strings()
+
+      assert Changeset.get_change(cs, :name) == "Synchytrium tillaeae"
+    end
+
+    test "trims trailing whitespace from string fields" do
+      cs =
+        %Species{}
+        |> Changeset.cast(%{name: "Andricus quercuslanigera  "}, [:name])
+        |> trim_strings()
+
+      assert Changeset.get_change(cs, :name) == "Andricus quercuslanigera"
+    end
+
+    test "preserves inner whitespace" do
+      cs =
+        %Species{}
+        |> Changeset.cast(%{name: "Andricus  quercuslanigera"}, [:name])
+        |> trim_strings()
+
+      assert Changeset.get_change(cs, :name) == "Andricus  quercuslanigera"
+    end
+
+    test "does not modify already-clean strings" do
+      cs =
+        %Species{}
+        |> Changeset.cast(%{name: "Andricus quercuslanigera"}, [:name])
+        |> trim_strings()
+
+      assert Changeset.get_change(cs, :name) == "Andricus quercuslanigera"
+    end
+
+    test "handles nil values without error" do
+      cs =
+        %Species{}
+        |> Changeset.cast(%{name: nil}, [:name])
+        |> trim_strings()
+
+      assert Changeset.get_change(cs, :name) == nil
+    end
+
+    test "Species.changeset trims names automatically" do
+      cs = Species.changeset(%Species{}, %{name: " Synchytrium tillaeae ", taxoncode: "gall"})
+      assert Changeset.get_change(cs, :name) == "Synchytrium tillaeae"
+    end
   end
 
   describe "validate_url/2" do

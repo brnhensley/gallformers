@@ -1,5 +1,5 @@
 defmodule Gallformers.PlacesTest do
-  use Gallformers.DataCase, async: false
+  use Gallformers.DataCase, async: true
 
   alias Gallformers.Places
 
@@ -61,6 +61,35 @@ defmodule Gallformers.PlacesTest do
     test "leaf_descendant_ids/1 for a leaf country returns itself" do
       bahamas = Places.get_place_by_code("BS")
       assert Places.leaf_descendant_ids(bahamas.id) == [bahamas.id]
+    end
+
+    test "batch_leaf_descendant_ids/1 returns leaf descendants for multiple places" do
+      us = Places.get_place_by_code("US")
+      ca = Places.get_place_by_code("CA")
+      california = Places.get_place_by_code("US-CA")
+      alberta = Places.get_place_by_code("CA-AB")
+
+      ids = Places.batch_leaf_descendant_ids([us.id, ca.id])
+
+      assert california.id in ids
+      assert alberta.id in ids
+      # Non-leaf parents should be excluded
+      refute us.id in ids
+      refute ca.id in ids
+    end
+
+    test "batch_leaf_descendant_ids/1 with empty list returns empty" do
+      assert Places.batch_leaf_descendant_ids([]) == []
+    end
+
+    test "batch_leaf_descendant_ids/1 with leaf places returns them" do
+      california = Places.get_place_by_code("US-CA")
+      bahamas = Places.get_place_by_code("BS")
+
+      ids = Places.batch_leaf_descendant_ids([california.id, bahamas.id])
+
+      assert california.id in ids
+      assert bahamas.id in ids
     end
   end
 

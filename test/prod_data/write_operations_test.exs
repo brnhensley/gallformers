@@ -736,11 +736,11 @@ defmodule Gallformers.ProdData.WriteOperationsTest do
           )
         )
 
-      # NOTE: reclassify_species with an invalid species_id raises an
-      # Exqlite.Error (FK constraint) rather than returning {:error, _}.
+      # NOTE: reclassify_species with an invalid species_id raises a
+      # Postgrex.Error (FK constraint) rather than returning {:error, _}.
       # The transaction does not catch the raised error. This documents
       # that callers must ensure the species_id is valid before calling.
-      assert_raise Exqlite.Error, ~r/FOREIGN KEY/i, fn ->
+      assert_raise Postgrex.Error, ~r/foreign_key_violation/i, fn ->
         Taxonomy.reclassify_species(-1, %{
           genus_id: genus.id,
           new_name: "Fake testspecies",

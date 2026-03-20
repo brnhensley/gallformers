@@ -6,6 +6,7 @@ defmodule Gallformers.Images.Image do
   """
   use Ecto.Schema
   import Ecto.Changeset
+  import Gallformers.ChangesetHelpers, only: [trim_strings: 1]
 
   @behaviour Gallformers.SchemaFields
 
@@ -107,6 +108,7 @@ defmodule Gallformers.Images.Image do
       :lastchangedby,
       :caption
     ])
+    |> trim_strings()
     |> validate_required(@required_fields)
     |> foreign_key_constraint(:species_id)
     |> foreign_key_constraint(:source_id)

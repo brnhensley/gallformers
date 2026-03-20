@@ -9,69 +9,89 @@ jobs:
   snapshot:
     runs-on: ubuntu-latest
     steps:
-      - name: Install Litestream
+      - name: Install Fly CLI
         run: |
-          wget -q https://github.com/benbjohnson/litestream/releases/download/v0.3.13/litestream-v0.3.13-linux-amd64.tar.gz
-          tar -xzf litestream-v0.3.13-linux-amd64.tar.gz
-          sudo mv litestream /usr/local/bin/
+          curl -L https://fly.io/install.sh | sh
+          echo "$HOME/.fly/bin" >> $GITHUB_PATH
 
-      - name: Restore latest backup
+      - name: Install PostgreSQL 17 client
+        run: |
+          sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/postgresql.gpg
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-17
+
+      - name: Start Fly proxy
         env:
-          LITESTREAM_ACCESS_KEY_ID: ${{ secrets.LITESTREAM_ACCESS_KEY_ID }}
-          LITESTREAM_SECRET_ACCESS_KEY: ${{ secrets.LITESTREAM_SECRET_ACCESS_KEY }}
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
         run: |
-          litestream restore -o gallformers.sqlite \
-            s3://gallformers-backups/litestream
+          fly proxy 15432:5432 -a gallformers-db &
+          sleep 3
+          echo "Proxy started"
 
-      - name: Validate database integrity
+      - name: Full backup (private, all tables)
+        env:
+          PGPASSWORD: ${{ secrets.PG_PASSWORD }}
         run: |
-          echo "Running integrity check..."
-          RESULT=$(sqlite3 gallformers.sqlite "PRAGMA integrity_check;")
-          if [ "$RESULT" != "ok" ]; then
-            echo "INTEGRITY CHECK FAILED:"
-            echo "$RESULT"
-            exit 1
-          fi
-          echo "Integrity check passed."
+          pg_dump --format=custom --no-owner --no-acl \
+            -h localhost -p 15432 \
+            -U ${{ secrets.PG_USERNAME }} ${{ secrets.PG_DBNAME }} \
+            > gallformers-full.dump
 
-          echo "Running sanity checks..."
-          SPECIES_COUNT=$(sqlite3 gallformers.sqlite "SELECT COUNT(*) FROM species;")
+          echo "Full dump size: $(du -h gallformers-full.dump | cut -f1)"
+
+      - name: Validate full backup
+        env:
+          PGPASSWORD: ${{ secrets.PG_PASSWORD }}
+        run: |
+          echo "Running sanity check against live database..."
+          SPECIES_COUNT=$(psql -h localhost -p 15432 \
+            -U ${{ secrets.PG_USERNAME }} -d ${{ secrets.PG_DBNAME }} \
+            -t -c "SELECT COUNT(*) FROM species;")
+          SPECIES_COUNT=$(echo "$SPECIES_COUNT" | tr -d ' ')
           if [ "$SPECIES_COUNT" -lt 5000 ]; then
             echo "Sanity check failed: only $SPECIES_COUNT species (expected 5000+)"
             exit 1
           fi
-          echo "Database validated: $SPECIES_COUNT species, integrity OK"
+          echo "Database validated: $SPECIES_COUNT species"
 
-      - name: Upload full backup (private, contains PII)
+      - name: Upload full backup
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.LITESTREAM_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.LITESTREAM_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: us-east-1
         run: |
-          aws s3 cp gallformers.sqlite s3://gallformers-full-backups/$(date +%Y-%m-%d)/gallformers.sqlite
+          aws s3 cp gallformers-full.dump \
+            s3://gallformers-full-backups/$(date +%Y-%m-%d)/gallformers.dump
 
-      - name: Sanitize user data (remove PII)
+      - name: Public snapshot (excludes PII, analytics, internal content)
+        env:
+          PGPASSWORD: ${{ secrets.PG_PASSWORD }}
         run: |
-          # Check if users table exists before attempting sanitization
-          TABLE_EXISTS=$(sqlite3 gallformers.sqlite "SELECT name FROM sqlite_master WHERE type='table' AND name='users';")
-          if [ -n "$TABLE_EXISTS" ]; then
-            echo "Sanitizing users table..."
-            sqlite3 gallformers.sqlite "UPDATE users SET
-              display_name = NULL,
-              nickname = NULL,
-              inaturalist_url = NULL,
-              social_url = NULL,
-              personal_url = NULL,
-              auth0_id = 'redacted-' || id;"
-            echo "Sanitization complete"
-          else
-            echo "Users table does not exist, skipping sanitization"
-          fi
+          pg_dump --format=custom --no-owner --no-acl \
+            -h localhost -p 15432 \
+            -U ${{ secrets.PG_USERNAME }} ${{ secrets.PG_DBNAME }} \
+            --exclude-table=articles \
+            --exclude-table=keys \
+            --exclude-table=content_images \
+            --exclude-table=daily_stats \
+            --exclude-table=daily_page_stats \
+            --exclude-table=daily_referrer_stats \
+            --exclude-table=daily_device_stats \
+            --exclude-table=daily_browser_stats \
+            --exclude-table=schema_migrations \
+            --exclude-table=users \
+            --exclude-table=page_views \
+            --exclude-table=site_settings \
+            > gallformers-public.dump
 
-      - name: Upload public snapshot (sanitized)
+          echo "Public dump size: $(du -h gallformers-public.dump | cut -f1)"
+
+      - name: Upload public snapshot
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.LITESTREAM_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.LITESTREAM_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: us-east-1
         run: |
-          aws s3 cp gallformers.sqlite s3://gallformers-backups/public/gallformers.sqlite
+          aws s3 cp gallformers-public.dump \
+            s3://gallformers-backups/public/gallformers.dump

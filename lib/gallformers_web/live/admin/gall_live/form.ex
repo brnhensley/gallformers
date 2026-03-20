@@ -120,6 +120,7 @@ defmodule GallformersWeb.Admin.GallLive.Form do
     |> assign(:datacomplete_lock_reason, nil)
     |> assign(:gallformers_code, nil)
     |> assign(:gallformers_code_error, nil)
+    |> assign(:range_confirmed, false)
     |> assign(:new_alias_name, "")
     |> assign(:new_alias_type, "common")
     |> assign(:host_search_query, "")
@@ -307,6 +308,7 @@ defmodule GallformersWeb.Admin.GallLive.Form do
           |> assign(:detachable, detachable)
           |> assign(:undescribed, undescribed)
           |> assign(:gallformers_code, gallformers_code)
+          |> assign(:range_confirmed, gall_data.range_confirmed || false)
           |> apply_undescribed_lock(taxonomy, species_id)
           |> apply_datacomplete_lock(species_id)
         end
@@ -413,24 +415,31 @@ defmodule GallformersWeb.Admin.GallLive.Form do
 
   @impl true
   def handle_event("save", %{"species" => params}, socket) do
-    if socket.assigns.genus_is_new && is_nil(socket.assigns.selected_family_id) do
-      {:noreply, put_flash(socket, :error, "Please select a Family for the new genus")}
-    else
-      # Name is captured via typeahead (outside the form), so add it from socket assigns
-      params =
-        params
-        |> Map.put("taxoncode", "gall")
-        |> Map.put("name", socket.assigns.gall.name)
+    cond do
+      socket.assigns.genus_is_new && is_nil(socket.assigns.selected_family_id) ->
+        {:noreply, put_flash(socket, :error, "Please select a Family for the new genus")}
 
-      # Enforce datacomplete lock server-side
-      params =
-        if socket.assigns.datacomplete_locked do
-          Map.put(params, "datacomplete", "false")
-        else
+      socket.assigns.mode == :new && !socket.assigns.genus_is_new &&
+          (is_nil(socket.assigns.taxonomy) || is_nil(socket.assigns.taxonomy.genus.id)) ->
+        {:noreply,
+         put_flash(socket, :error, "Could not resolve genus from species name. Check for typos.")}
+
+      true ->
+        # Name is captured via typeahead (outside the form), so add it from socket assigns
+        params =
           params
-        end
+          |> Map.put("taxoncode", "gall")
+          |> Map.put("name", socket.assigns.gall.name)
 
-      save_gall(socket, socket.assigns.mode, params)
+        # Enforce datacomplete lock server-side
+        params =
+          if socket.assigns.datacomplete_locked do
+            Map.put(params, "datacomplete", "false")
+          else
+            params
+          end
+
+        save_gall(socket, socket.assigns.mode, params)
     end
   end
 
@@ -907,6 +916,23 @@ defmodule GallformersWeb.Admin.GallLive.Form do
             Add Source Mapping
           </.link>
         </:quick_links>
+
+        <%!-- Range confirmation warning --%>
+        <div
+          :if={@mode == :edit && !@range_confirmed}
+          class="mb-4 p-3 bg-amber-50 border border-amber-200 rounded flex items-center gap-2"
+        >
+          <.icon name="ph-warning" class="h-5 w-5 text-amber-600 flex-shrink-0" />
+          <p class="text-sm text-amber-800">
+            This gall's range has not been confirmed.
+            <.link
+              navigate={~p"/admin/gallhost?id=#{@gall.id}"}
+              class="underline font-medium"
+            >
+              Review and confirm in Gall-Host Mappings
+            </.link>
+          </p>
+        </div>
 
         <%!-- Name field with typeahead for search/create --%>
         <div class="mb-3">

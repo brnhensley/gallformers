@@ -5,6 +5,32 @@ defmodule Gallformers.ChangesetHelpers do
   import Ecto.Changeset
 
   @doc """
+  Trims leading and trailing whitespace from all string field changes.
+
+  Introspects the changeset's schema to find string fields, then trims any
+  changed values. Place this in the changeset pipeline right after `cast/3`
+  and before any `validate_*` calls.
+  """
+  def trim_strings(changeset) do
+    schema = changeset.data.__struct__
+
+    schema.__schema__(:fields)
+    |> Enum.filter(fn field -> schema.__schema__(:type, field) == :string end)
+    |> Enum.reduce(changeset, &maybe_trim_field/2)
+  end
+
+  defp maybe_trim_field(field, changeset) do
+    case get_change(changeset, field) do
+      value when is_binary(value) ->
+        trimmed = String.trim(value)
+        if trimmed == value, do: changeset, else: put_change(changeset, field, trimmed)
+
+      _ ->
+        changeset
+    end
+  end
+
+  @doc """
   Validates and normalizes a URL field.
 
   Normalization (applied before validation):

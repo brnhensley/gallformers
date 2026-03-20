@@ -2,7 +2,7 @@ defmodule Gallformers.TaxonomyTest do
   @moduledoc """
   Unit tests for the Taxonomy context.
   """
-  use Gallformers.DataCase, async: false
+  use Gallformers.DataCase, async: true
 
   alias Gallformers.Repo
   alias Gallformers.Species.Alias
@@ -606,6 +606,27 @@ defmodule Gallformers.TaxonomyTest do
         )
 
       assert unknown_count == 1
+    end
+
+    test "link_species_taxonomy raises when genus_is_new=false but taxonomy has no genus_id" do
+      {:ok, species} =
+        Repo.insert(%Species{
+          name: "Orphan species",
+          taxoncode: "gall",
+          datacomplete: false
+        })
+
+      # genus_is_new=false but taxonomy is nil — should raise, not silently succeed
+      assert_raise RuntimeError, ~r/missing genus/, fn ->
+        Taxonomy.link_species_taxonomy(species.id, nil, false, nil)
+      end
+
+      # genus_is_new=false but genus.id is nil — should also raise
+      taxonomy_no_id = %Lineage{genus: %Genus{name: "SomeGenus"}}
+
+      assert_raise RuntimeError, ~r/missing genus/, fn ->
+        Taxonomy.link_species_taxonomy(species.id, taxonomy_no_id, false, nil)
+      end
     end
 
     test "empty_unknown_genus_ids returns IDs of Unknown genera with no species" do
@@ -2663,6 +2684,62 @@ defmodule Gallformers.TaxonomyTest do
     test "count_taxonomies counts intermediates" do
       count = Taxonomy.count_taxonomies("intermediate")
       assert count >= 2
+    end
+  end
+
+  describe "search_families/2" do
+    test "finds new gall family with no species by taxoncode" do
+      {:ok, family} =
+        Taxonomy.create_taxonomy(%{
+          name: "Thyrididae",
+          type: "family",
+          description: "Moth"
+        })
+
+      results = Taxonomy.search_families("Thyrid", taxoncode: "gall")
+      assert Enum.any?(results, &(&1.id == family.id))
+    end
+
+    test "does not return plant families when filtering by gall taxoncode" do
+      {:ok, plant_family} =
+        Taxonomy.create_taxonomy(%{
+          name: "SomePlantFamily",
+          type: "family",
+          description: "Plant"
+        })
+
+      results = Taxonomy.search_families("SomePlantFam", taxoncode: "gall")
+      refute Enum.any?(results, &(&1.id == plant_family.id))
+    end
+
+    test "finds gall family that already has species" do
+      {:ok, family} =
+        Taxonomy.create_taxonomy(%{
+          name: "TestGallFamily",
+          type: "family",
+          description: "Wasp"
+        })
+
+      {:ok, genus} =
+        Taxonomy.create_taxonomy(%{
+          name: "TestGallGenus",
+          type: "genus",
+          description: "Wasp",
+          parent_id: family.id
+        })
+
+      species =
+        Repo.insert!(%Species{
+          name: "Test galler",
+          taxoncode: "gall"
+        })
+
+      Repo.insert_all("species_taxonomy", [
+        %{species_id: species.id, taxonomy_id: genus.id}
+      ])
+
+      results = Taxonomy.search_families("TestGallFam", taxoncode: "gall")
+      assert Enum.any?(results, &(&1.id == family.id))
     end
   end
 end

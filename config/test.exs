@@ -8,18 +8,24 @@ config :gallformers, async_tasks: false
 # Configure your database
 # Use a schema-only test database (no production data)
 config :gallformers, Gallformers.Repo,
-  database: Path.expand("../priv/gallformers_test.sqlite", __DIR__),
+  database: "gallformers_test",
+  username: System.get_env("PGUSER", System.get_env("USER")),
+  password: System.get_env("PGPASSWORD"),
+  hostname: System.get_env("PGHOST", "localhost"),
   pool_size: 5,
-  pool: Ecto.Adapters.SQL.Sandbox,
-  # Use :wal (the adapter's default) for better concurrency
-  # WAL allows reads during write transactions, preventing "Database busy" errors
-  journal_mode: :wal,
-  busy_timeout: 5000,
-  # Override ecto_sqlite3's default of -64000 (62.5 MB per connection)
-  cache_size: -2000
+  pool: Ecto.Adapters.SQL.Sandbox
 
+# Use stub instead of real WCVP database for WCVP lookups in most tests
+config :gallformers, wcvp_lookup: Gallformers.Wcvp.LookupStub
+
+# No `pool: Ecto.Adapters.SQL.Sandbox` — WCVP is read-only reference data.
+# Fixture data is loaded once by `make test-db` (via wcvp_test_setup.sql).
+# Tests read concurrently without write isolation.
 config :gallformers, Gallformers.Repo.WCVP,
-  database: Path.expand("../priv/data/wcvp_test.sqlite", __DIR__)
+  database: "wcvp_test",
+  username: System.get_env("PGUSER", System.get_env("USER")),
+  password: System.get_env("PGPASSWORD"),
+  hostname: System.get_env("PGHOST", "localhost")
 
 # Server is disabled by default for fast unit tests.
 # E2E tests enable the server via GALLFORMERS_E2E=1 environment variable (in runtime.exs).

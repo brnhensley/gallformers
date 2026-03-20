@@ -7,17 +7,26 @@ defmodule Gallformers.Galls.GallTraits do
   """
   use Ecto.Schema
   import Ecto.Changeset
+  import Gallformers.ChangesetHelpers, only: [trim_strings: 1]
 
   @behaviour Gallformers.SchemaFields
 
   @required_fields [:species_id]
-  @optional_fields [:detachable, :undescribed, :gallformers_code]
+  @optional_fields [
+    :detachable,
+    :undescribed,
+    :gallformers_code,
+    :range_confirmed,
+    :range_computed_at
+  ]
 
   @type t :: %__MODULE__{
           species_id: integer(),
           detachable: String.t() | nil,
           undescribed: boolean(),
-          gallformers_code: String.t() | nil
+          gallformers_code: String.t() | nil,
+          range_confirmed: boolean(),
+          range_computed_at: DateTime.t() | nil
         }
 
   @primary_key {:species_id, :integer, autogenerate: false}
@@ -28,6 +37,8 @@ defmodule Gallformers.Galls.GallTraits do
     field :detachable, :string
     field :undescribed, :boolean, default: false
     field :gallformers_code, :string
+    field :range_confirmed, :boolean, default: false
+    field :range_computed_at, :utc_datetime, default: nil
 
     # 1:1 relationship to species
     belongs_to :species, Gallformers.Species.Species,
@@ -87,11 +98,12 @@ defmodule Gallformers.Galls.GallTraits do
   def changeset(gall_traits, attrs) do
     gall_traits
     |> cast(attrs, @required_fields ++ @optional_fields)
+    |> trim_strings()
     |> validate_required(@required_fields)
     |> validate_inclusion(:detachable, ~w(unknown integral detachable both),
       message: "must be one of: unknown, integral, detachable, both"
     )
     |> foreign_key_constraint(:species_id)
-    |> unique_constraint(:gallformers_code, name: :gall_traits_gallformers_code_index)
+    |> unique_constraint(:gallformers_code, name: :gall_traits_gallformers_code_unique)
   end
 end

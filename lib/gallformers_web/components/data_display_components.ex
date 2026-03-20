@@ -659,13 +659,13 @@ defmodule GallformersWeb.DataDisplayComponents do
           class="hover:underline"
         >
           <.taxon_name name={field(@genus, :name)} rank="genus" />
-          <span :if={field(@genus, :description)} class="text-gray-600">
+          <span :if={field(@genus, :description) not in [nil, ""]} class="text-gray-600">
             - {field(@genus, :description)}
           </span>
         </.link>
         <span :if={!field(@genus, :id)}>
           <.taxon_name name={field(@genus, :name)} rank="genus" />
-          <span :if={field(@genus, :description)} class="text-gray-600">
+          <span :if={field(@genus, :description) not in [nil, ""]} class="text-gray-600">
             - {field(@genus, :description)}
           </span>
         </span>
@@ -1013,7 +1013,7 @@ defmodule GallformersWeb.DataDisplayComponents do
 
   - `:public` — Documented, Country-level (for gall and host detail pages)
   - `:host_admin` — Documented, Country-level, Out of Range
-  - `:gall_admin` — Gall & Host, Country-level, Host Only, Neither
+  - `:gall_admin` — In Gall Range, Country-level, Host Only (not in gall range), Not in Range
   """
   attr :mode, :atom, required: true, values: [:public, :host_admin, :gall_admin]
 
@@ -1023,7 +1023,7 @@ defmodule GallformersWeb.DataDisplayComponents do
       <div class="flex items-center gap-2">
         <div class="w-4 h-4 rounded border border-gray-400 bg-[#228B22]"></div>
         <span class="text-xs text-gray-600">
-          {if @mode == :gall_admin, do: "Gall & Host", else: "Documented"}
+          {if @mode == :gall_admin, do: "In Gall Range", else: "Documented"}
         </span>
       </div>
       <div class="flex items-center gap-2">
@@ -1032,14 +1032,43 @@ defmodule GallformersWeb.DataDisplayComponents do
       </div>
       <div :if={@mode == :gall_admin} class="flex items-center gap-2">
         <div class="w-4 h-4 rounded border border-gray-400 bg-red-300"></div>
-        <span class="text-xs text-gray-600">Host Only</span>
+        <span class="text-xs text-gray-600">Host Only (not in gall range)</span>
       </div>
       <div :if={@mode in [:host_admin, :gall_admin]} class="flex items-center gap-2">
         <div class="w-4 h-4 rounded border border-gray-300 bg-white"></div>
         <span class="text-xs text-gray-600">
-          {if @mode == :gall_admin, do: "Neither", else: "Out of Range"}
+          {if @mode == :gall_admin, do: "Not in Range", else: "Out of Range"}
         </span>
       </div>
+      <%!-- Hatched entries for introduced range --%>
+      <.hatched_legend_swatch
+        :if={@mode == :gall_admin}
+        color="#228B22"
+        label="Introduced (in gall range)"
+      />
+      <.hatched_legend_swatch
+        :if={@mode == :gall_admin}
+        color="#FCA5A5"
+        label="Introduced (not in gall range)"
+      />
+      <.hatched_legend_swatch
+        :if={@mode in [:public, :host_admin]}
+        color="#228B22"
+        label="Introduced range"
+      />
+    </div>
+    """
+  end
+
+  @hatch_gradient "repeating-linear-gradient(-45deg, transparent, transparent 2px, rgba(0,0,0,0.25) 2px, rgba(0,0,0,0.25) 4px)"
+
+  defp hatched_legend_swatch(assigns) do
+    assigns = assign(assigns, :style, "background: #{@hatch_gradient}, #{assigns.color};")
+
+    ~H"""
+    <div class="flex items-center gap-2">
+      <div class="w-4 h-4 rounded border border-gray-400" style={@style}></div>
+      <span class="text-xs text-gray-600">{@label}</span>
     </div>
     """
   end
@@ -1070,6 +1099,10 @@ defmodule GallformersWeb.DataDisplayComponents do
   attr :inherited_range, :list,
     default: [],
     doc: "list of postal codes with country/continent-level range (shown lighter green)"
+
+  attr :introduced_range, :list,
+    default: [],
+    doc: "list of codes with introduced host range (shown with hatching pattern)"
 
   attr :editable, :boolean,
     default: false,
@@ -1111,12 +1144,14 @@ defmodule GallformersWeb.DataDisplayComponents do
     in_range_json = Jason.encode!(assigns.in_range)
     excluded_range_json = Jason.encode!(assigns.excluded_range)
     inherited_range_json = Jason.encode!(assigns.inherited_range)
+    introduced_range_json = Jason.encode!(assigns.introduced_range)
 
     assigns =
       assigns
       |> assign(:in_range_json, in_range_json)
       |> assign(:excluded_range_json, excluded_range_json)
       |> assign(:inherited_range_json, inherited_range_json)
+      |> assign(:introduced_range_json, introduced_range_json)
       |> assign(:max_bounds_json, if(assigns.max_bounds, do: Jason.encode!(assigns.max_bounds)))
       |> assign(:bounds_json, if(assigns.bounds, do: Jason.encode!(assigns.bounds)))
 
@@ -1129,6 +1164,7 @@ defmodule GallformersWeb.DataDisplayComponents do
       data-in-range={@in_range_json}
       data-excluded-range={@excluded_range_json}
       data-inherited-range={@inherited_range_json}
+      data-introduced-range={@introduced_range_json}
       data-editable={to_string(@editable)}
       data-navigable={to_string(@navigable)}
       data-place-mode={to_string(@place_mode)}

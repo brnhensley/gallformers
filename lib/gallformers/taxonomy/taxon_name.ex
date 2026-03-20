@@ -172,6 +172,15 @@ defmodule Gallformers.Taxonomy.TaxonName do
       "Callirhytis"
   """
   @spec replace_genus(String.t(), String.t(), String.t()) :: String.t()
+  def replace_genus(species_name, "", new_genus) do
+    # Empty old_genus (e.g. from a name with leading whitespace like " Genus epithet")
+    # — fall back to first-word replacement on the trimmed name
+    case String.split(String.trim(species_name), " ", parts: 2) do
+      [_genus, ep] -> "#{new_genus} #{ep}"
+      _ -> new_genus
+    end
+  end
+
   def replace_genus(species_name, old_genus, new_genus) do
     if String.starts_with?(species_name, old_genus) do
       rest = String.trim_leading(species_name, old_genus) |> String.trim_leading()

@@ -2,13 +2,33 @@ defmodule Gallformers.PlantsTest do
   @moduledoc """
   Unit tests for the Plants context.
   """
-  use Gallformers.DataCase, async: false
+  use Gallformers.DataCase, async: true
 
   alias Gallformers.Plants
+  alias Gallformers.Plants.HostTraits
   alias Gallformers.Ranges
   alias Gallformers.Species.Species
   alias Gallformers.Taxonomy
   alias Gallformers.Taxonomy.{Genus, Lineage}
+
+  # ============================================
+  # Test helpers — create own data, no seed IDs
+  # ============================================
+
+  defp create_species(name, taxoncode) do
+    Repo.insert!(%Species{name: name, taxoncode: taxoncode})
+  end
+
+  defp create_host(name), do: create_species(name, "plant")
+  defp create_gall(name), do: create_species(name, "gall")
+
+  defp create_alias_for_species(species, alias_name, type) do
+    alias_record =
+      Repo.insert!(%Gallformers.Species.Alias{name: alias_name, type: type, description: ""})
+
+    Repo.insert_all("alias_species", [%{alias_id: alias_record.id, species_id: species.id}])
+    alias_record
+  end
 
   describe "create_host_with_associations/1" do
     setup do
@@ -135,7 +155,7 @@ defmodule Gallformers.PlantsTest do
 
     test "creates host_traits with WCVP and POWO IDs", %{species: species} do
       {:ok, traits} =
-        Repo.insert(%Gallformers.Plants.HostTraits{
+        Repo.insert(%HostTraits{
           species_id: species.id,
           wcvp_id: "12345",
           powo_id: "urn:lsid:ipni.org:names:12345-1"
@@ -146,9 +166,28 @@ defmodule Gallformers.PlantsTest do
       assert traits.powo_id == "urn:lsid:ipni.org:names:12345-1"
     end
 
+    test "creates host_traits with range_confirmed defaulting to false", %{species: species} do
+      {:ok, traits} = Repo.insert(%HostTraits{species_id: species.id})
+      assert traits.range_confirmed == false
+      assert traits.wcvp_synced_at == nil
+    end
+
+    test "updates range_confirmed and wcvp_synced_at", %{species: species} do
+      {:ok, traits} = Repo.insert(%HostTraits{species_id: species.id})
+      now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+      {:ok, updated} =
+        traits
+        |> HostTraits.changeset(%{range_confirmed: true, wcvp_synced_at: now})
+        |> Repo.update()
+
+      assert updated.range_confirmed == true
+      assert updated.wcvp_synced_at == now
+    end
+
     test "species can preload host_traits", %{species: species} do
       {:ok, _} =
-        Repo.insert(%Gallformers.Plants.HostTraits{
+        Repo.insert(%HostTraits{
           species_id: species.id,
           wcvp_id: "99999"
         })
@@ -236,10 +275,8 @@ defmodule Gallformers.PlantsTest do
         species_attrs: %{"datacomplete" => true},
         alias_changes: {[], []},
         place_changes: %{
-          original_exact_places: [],
-          original_country_places: [],
-          exact_places: [],
-          country_places: [],
+          range_entries: %{},
+          original_range_entries: %{},
           all_places: []
         },
         section_update: %{
@@ -263,10 +300,10 @@ defmodule Gallformers.PlantsTest do
         species_attrs: %{},
         alias_changes: {[], []},
         place_changes: %{
-          original_exact_places: [],
-          original_country_places: [],
-          exact_places: [place.code],
-          country_places: [],
+          range_entries: %{
+            place.code => %{precision: "exact", distribution_type: "native"}
+          },
+          original_range_entries: %{},
           all_places: all_places
         },
         section_update: %{
@@ -288,10 +325,8 @@ defmodule Gallformers.PlantsTest do
         species_attrs: %{"name" => ""},
         alias_changes: {[], []},
         place_changes: %{
-          original_exact_places: [],
-          original_country_places: [],
-          exact_places: [],
-          country_places: [],
+          range_entries: %{},
+          original_range_entries: %{},
           all_places: []
         },
         section_update: %{
@@ -304,6 +339,231 @@ defmodule Gallformers.PlantsTest do
 
       assert {:error, %Ecto.Changeset{}} =
                Plants.update_host_with_associations(species, params)
+    end
+  end
+
+  describe "compute_powo_diff/3" do
+    test "empty range with POWO data returns add_native and add_introduced" do
+      range_entries = %{}
+      native_codes = MapSet.new(["US-AL", "US-CA"])
+      introduced_codes = MapSet.new(["CA-ON"])
+
+      result = Plants.compute_powo_diff(range_entries, native_codes, introduced_codes)
+
+      assert Enum.sort(result.add_native) == ["US-AL", "US-CA"]
+      assert result.add_introduced == ["CA-ON"]
+      assert result.remove == []
+      assert result.reclassify_to_introduced == []
+      assert result.reclassify_to_native == []
+      assert result.agree_count == 0
+      assert result.has_changes == true
+    end
+
+    test "exact match returns agree_count and no changes" do
+      range_entries = %{
+        "US-AL" => %{precision: "exact", distribution_type: "native"},
+        "CA-ON" => %{precision: "exact", distribution_type: "introduced"}
+      }
+
+      native_codes = MapSet.new(["US-AL"])
+      introduced_codes = MapSet.new(["CA-ON"])
+
+      result = Plants.compute_powo_diff(range_entries, native_codes, introduced_codes)
+
+      assert result.add_native == []
+      assert result.add_introduced == []
+      assert result.remove == []
+      assert result.reclassify_to_introduced == []
+      assert result.reclassify_to_native == []
+      assert result.agree_count == 2
+      assert result.has_changes == false
+    end
+
+    test "range has places POWO doesn't lists them in remove" do
+      range_entries = %{
+        "US-AL" => %{precision: "exact", distribution_type: "native"},
+        "US-CA" => %{precision: "exact", distribution_type: "introduced"}
+      }
+
+      native_codes = MapSet.new()
+      introduced_codes = MapSet.new()
+
+      result = Plants.compute_powo_diff(range_entries, native_codes, introduced_codes)
+
+      assert Enum.sort(result.remove) == ["US-AL", "US-CA"]
+      assert result.add_native == []
+      assert result.add_introduced == []
+      assert result.agree_count == 0
+      assert result.has_changes == true
+    end
+
+    test "range has native but POWO says introduced → reclassify_to_introduced" do
+      range_entries = %{
+        "US-AL" => %{precision: "exact", distribution_type: "native"}
+      }
+
+      native_codes = MapSet.new()
+      introduced_codes = MapSet.new(["US-AL"])
+
+      result = Plants.compute_powo_diff(range_entries, native_codes, introduced_codes)
+
+      assert result.reclassify_to_introduced == ["US-AL"]
+      assert result.reclassify_to_native == []
+      assert result.remove == []
+      assert result.agree_count == 0
+      assert result.has_changes == true
+    end
+
+    test "range has introduced but POWO says native → reclassify_to_native" do
+      range_entries = %{
+        "US-AL" => %{precision: "exact", distribution_type: "introduced"}
+      }
+
+      native_codes = MapSet.new(["US-AL"])
+      introduced_codes = MapSet.new()
+
+      result = Plants.compute_powo_diff(range_entries, native_codes, introduced_codes)
+
+      assert result.reclassify_to_native == ["US-AL"]
+      assert result.reclassify_to_introduced == []
+      assert result.remove == []
+      assert result.agree_count == 0
+      assert result.has_changes == true
+    end
+
+    test "mixed scenario distributes correctly across all buckets" do
+      range_entries = %{
+        "US-AL" => %{precision: "exact", distribution_type: "native"},
+        "US-CA" => %{precision: "exact", distribution_type: "introduced"},
+        "US-TX" => %{precision: "exact", distribution_type: "native"},
+        "US-FL" => %{precision: "exact", distribution_type: "introduced"},
+        "US-NY" => %{precision: "exact", distribution_type: "native"}
+      }
+
+      # US-AL: native in both → agree
+      # US-CA: we have introduced, POWO says native → reclassify_to_native
+      # US-TX: we have native, POWO says introduced → reclassify_to_introduced
+      # US-FL: introduced in both → agree
+      # US-NY: we have native, POWO doesn't list → remove
+      # CA-ON: POWO says native, we don't have → add_native
+      # CA-BC: POWO says introduced, we don't have → add_introduced
+      native_codes = MapSet.new(["US-AL", "US-CA", "CA-ON"])
+      introduced_codes = MapSet.new(["US-TX", "US-FL", "CA-BC"])
+
+      result = Plants.compute_powo_diff(range_entries, native_codes, introduced_codes)
+
+      assert result.add_native == ["CA-ON"]
+      assert result.add_introduced == ["CA-BC"]
+      assert result.remove == ["US-NY"]
+      assert result.reclassify_to_introduced == ["US-TX"]
+      assert result.reclassify_to_native == ["US-CA"]
+      assert result.agree_count == 2
+      assert result.has_changes == true
+
+      # No place appears in multiple buckets
+      all_changed =
+        result.add_native ++
+          result.add_introduced ++
+          result.remove ++ result.reclassify_to_introduced ++ result.reclassify_to_native
+
+      assert length(all_changed) == length(Enum.uniq(all_changed))
+    end
+
+    test "POWO data empty puts all current entries in remove" do
+      range_entries = %{
+        "US-AL" => %{precision: "exact", distribution_type: "native"},
+        "US-CA" => %{precision: "exact", distribution_type: "introduced"}
+      }
+
+      native_codes = MapSet.new()
+      introduced_codes = MapSet.new()
+
+      result = Plants.compute_powo_diff(range_entries, native_codes, introduced_codes)
+
+      assert Enum.sort(result.remove) == ["US-AL", "US-CA"]
+      assert result.add_native == []
+      assert result.add_introduced == []
+      assert result.agree_count == 0
+      assert result.has_changes == true
+    end
+
+    test "both empty returns no changes" do
+      result = Plants.compute_powo_diff(%{}, MapSet.new(), MapSet.new())
+
+      assert result.add_native == []
+      assert result.add_introduced == []
+      assert result.remove == []
+      assert result.reclassify_to_introduced == []
+      assert result.reclassify_to_native == []
+      assert result.agree_count == 0
+      assert result.has_changes == false
+    end
+  end
+
+  describe "find_duplicate_host_candidates/2" do
+    test "returns empty list when no matches" do
+      assert Plants.find_duplicate_host_candidates("Zzzyxia nonexistens") == []
+    end
+
+    test "finds existing host by exact species name (case-insensitive)" do
+      host = create_host("Testplantus duplicata")
+
+      results = Plants.find_duplicate_host_candidates("testplantus duplicata")
+      assert [%{species_id: id, reason: :name_match}] = results
+      assert id == host.id
+    end
+
+    test "finds existing host by alias match" do
+      host = create_host("Testplantus aliashost")
+      create_alias_for_species(host, "Fuzzy Leafmaker", "common")
+
+      results = Plants.find_duplicate_host_candidates("Fuzzy Leafmaker")
+      match = Enum.find(results, &(&1.reason == :alias_match))
+      assert match != nil
+      assert match.species_id == host.id
+      assert match.alias_type == "common"
+    end
+
+    test "finds existing host by wcvp_id match" do
+      host = create_host("Testplantus wcvphost")
+      Plants.upsert_host_traits(host.id, %{wcvp_id: "999999"})
+
+      results =
+        Plants.find_duplicate_host_candidates("Something else entirely", wcvp_id: "999999")
+
+      match = Enum.find(results, &(&1.reason == :wcvp_id_match))
+      assert match != nil
+      assert match.species_id == host.id
+      assert match.species_name == "Testplantus wcvphost"
+    end
+
+    test "does not return wcvp_id matches when wcvp_id not provided" do
+      host = create_host("Testplantus nowcvp")
+      Plants.upsert_host_traits(host.id, %{wcvp_id: "999999"})
+
+      results = Plants.find_duplicate_host_candidates("Something else entirely")
+      assert results == []
+    end
+
+    test "deduplicates when same species matches multiple checks" do
+      host = create_host("Testplantus multicheck")
+      Plants.upsert_host_traits(host.id, %{wcvp_id: "888888"})
+
+      results =
+        Plants.find_duplicate_host_candidates("Testplantus multicheck", wcvp_id: "888888")
+
+      species_ids = Enum.map(results, & &1.species_id) |> Enum.uniq()
+      assert species_ids == [host.id]
+      reasons = Enum.map(results, & &1.reason) |> MapSet.new()
+      assert :name_match in reasons
+      assert :wcvp_id_match in reasons
+    end
+
+    test "only matches plant species, not galls" do
+      _gall = create_gall("Testgallus notaplant")
+
+      results = Plants.find_duplicate_host_candidates("Testgallus notaplant")
+      assert results == []
     end
   end
 end

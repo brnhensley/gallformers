@@ -27,7 +27,7 @@ defmodule Gallformers.Taxonomy.Search do
     base =
       from(f in Taxonomy,
         where: f.type == "family",
-        where: fragment("lower(?) LIKE ?", f.name, ^name_pattern),
+        where: ilike(f.name, ^name_pattern),
         order_by: f.name,
         limit: ^limit,
         select: %{id: f.id, name: f.name}
@@ -43,24 +43,43 @@ defmodule Gallformers.Taxonomy.Search do
   defp search_families_by_taxoncode(query, taxoncode, limit) do
     name_pattern = "#{String.downcase(query)}%"
 
+    # The description filter mirrors list_families_for_select/1:
+    # gall → description != 'Plant', plant → description = 'Plant'.
+    desc_filter =
+      if taxoncode == "plant",
+        do: "f.description = 'Plant'",
+        else: "f.description != 'Plant'"
+
     sql = """
     WITH RECURSIVE family_descendants AS (
       SELECT f.id, f.id as family_id, f.name as family_name, f.type
       FROM taxonomy f
-      WHERE f.type = 'family' AND lower(f.name) LIKE ?1
+      WHERE f.type = 'family' AND f.name ILIKE $1::text
 
       UNION ALL
 
       SELECT t.id, fd.family_id, fd.family_name, t.type
       FROM taxonomy t
       JOIN family_descendants fd ON t.parent_id = fd.id
+    ),
+    -- Families that already have species with the matching taxoncode
+    by_species AS (
+      SELECT DISTINCT fd.family_id as id, fd.family_name as name
+      FROM family_descendants fd
+      JOIN species_taxonomy st ON st.taxonomy_id = fd.id AND fd.type = 'genus'
+      JOIN species s ON st.species_id = s.id AND s.taxoncode = $2::text
+    ),
+    -- Families whose description matches the taxoncode (catches new families with no species)
+    by_description AS (
+      SELECT f.id, f.name
+      FROM taxonomy f
+      WHERE f.type = 'family' AND f.name ILIKE $1::text AND #{desc_filter}
     )
-    SELECT DISTINCT fd.family_id as id, fd.family_name as name
-    FROM family_descendants fd
-    JOIN species_taxonomy st ON st.taxonomy_id = fd.id AND fd.type = 'genus'
-    JOIN species s ON st.species_id = s.id AND s.taxoncode = ?2
-    ORDER BY fd.family_name
-    LIMIT ?3
+    SELECT id, name FROM by_species
+    UNION
+    SELECT id, name FROM by_description
+    ORDER BY name
+    LIMIT $3::integer
     """
 
     case Repo.query(sql, [name_pattern, taxoncode, limit]) do
@@ -89,15 +108,15 @@ defmodule Gallformers.Taxonomy.Search do
     taxoncode = Keyword.get(opts, :taxoncode)
     limit = Keyword.get(opts, :limit, 20)
 
-    # Build parameterized query — params are numbered ?1, ?2, etc.
-    # ?1 = name_pattern, ?2 = limit, then optional ?3 for taxoncode, ?4 for family_id
+    # Build parameterized query — params are numbered $1, $2, etc.
+    # $1 = name_pattern, $2 = limit, then optional $3 for taxoncode, $4 for family_id
     {taxoncode_filter, taxoncode_params, next_param} =
       if taxoncode do
         {"""
          AND (
            EXISTS (
              SELECT 1 FROM species_taxonomy st
-             JOIN species s ON st.species_id = s.id AND s.taxoncode = ?3
+             JOIN species s ON st.species_id = s.id AND s.taxoncode = $3::text
              WHERE st.taxonomy_id = g.id
            )
            OR NOT EXISTS (
@@ -112,7 +131,7 @@ defmodule Gallformers.Taxonomy.Search do
 
     {family_filter, family_params} =
       if family_id do
-        {"AND ancestors.family_id = ?#{next_param}", [family_id]}
+        {"AND ancestors.family_id = $#{next_param}::bigint", [family_id]}
       else
         {"", []}
       end
@@ -121,7 +140,7 @@ defmodule Gallformers.Taxonomy.Search do
     WITH RECURSIVE genus_ancestors AS (
       SELECT g.id as genus_id, g.id as current_id, g.parent_id as current_parent_id, g.type as current_type
       FROM taxonomy g
-      WHERE g.type = 'genus' AND lower(g.name) LIKE ?1
+      WHERE g.type = 'genus' AND g.name ILIKE $1::text
       #{taxoncode_filter}
 
       UNION ALL
@@ -140,11 +159,11 @@ defmodule Gallformers.Taxonomy.Search do
     FROM taxonomy g
     LEFT JOIN ancestors ON ancestors.genus_id = g.id
     LEFT JOIN taxonomy f ON f.id = ancestors.family_id
-    WHERE g.type = 'genus' AND lower(g.name) LIKE ?1
+    WHERE g.type = 'genus' AND g.name ILIKE $1::text
     #{taxoncode_filter}
     #{family_filter}
     ORDER BY g.name
-    LIMIT ?2
+    LIMIT $2::integer
     """
 
     params = [name_pattern, limit] ++ taxoncode_params ++ family_params
@@ -157,7 +176,7 @@ defmodule Gallformers.Taxonomy.Search do
             name: name,
             family_name: family_name,
             family_id: fam_id,
-            is_placeholder: is_placeholder == 1 || is_placeholder == true
+            is_placeholder: is_placeholder == true
           }
         end)
 
@@ -187,8 +206,8 @@ defmodule Gallformers.Taxonomy.Search do
       from(t in Taxonomy,
         where: t.type in ["genus", "intermediate", "section"],
         where:
-          fragment("lower(?) LIKE ?", t.name, ^name_pattern) or
-            fragment("lower(?) LIKE ?", t.description, ^description_pattern),
+          ilike(t.name, ^name_pattern) or
+            ilike(t.description, ^description_pattern),
         order_by: [t.type, t.name],
         limit: ^limit,
         select: %{
@@ -253,7 +272,7 @@ defmodule Gallformers.Taxonomy.Search do
 
     base_query =
       from(t in Taxonomy,
-        where: fragment("lower(?) LIKE ?", t.name, ^search_pattern),
+        where: ilike(t.name, ^search_pattern),
         order_by: t.name,
         limit: ^limit
       )
@@ -281,7 +300,7 @@ defmodule Gallformers.Taxonomy.Search do
       left_join: st in "species_taxonomy",
       on: st.taxonomy_id == s.id,
       where: s.type == "section",
-      where: fragment("lower(?) LIKE ?", s.name, ^search_pattern),
+      where: ilike(s.name, ^search_pattern),
       group_by: [s.id, s.name, s.description, g.id, g.name],
       order_by: [g.name, s.name],
       select: %{

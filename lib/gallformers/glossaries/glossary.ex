@@ -6,6 +6,7 @@ defmodule Gallformers.Glossaries.Glossary do
   """
   use Ecto.Schema
   import Ecto.Changeset
+  import Gallformers.ChangesetHelpers, only: [trim_strings: 1]
 
   @behaviour Gallformers.SchemaFields
 
@@ -33,6 +34,7 @@ defmodule Gallformers.Glossaries.Glossary do
   def changeset(glossary, attrs) do
     glossary
     |> cast(attrs, [:word, :definition, :urls])
+    |> trim_strings()
     |> validate_required(@required_fields)
     |> validate_length(:word, min: 1, max: 100)
     |> validate_length(:definition, min: 1)

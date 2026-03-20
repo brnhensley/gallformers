@@ -1,6 +1,6 @@
 # Place Reference — Canonical Map Coverage
 
-Generated from `priv/gallformers.sqlite` place table, cross-referenced against
+Generated from the `place` table in the production database, cross-referenced against
 `build_boundaries.sh` COUNTRIES, STATE_COUNTRIES, and subunit arrays.
 
 ## Summary

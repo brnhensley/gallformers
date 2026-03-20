@@ -2,7 +2,7 @@ defmodule Gallformers.AccountsTest do
   @moduledoc """
   Unit tests for the Accounts context.
   """
-  use Gallformers.DataCase, async: false
+  use Gallformers.DataCase, async: true
 
   alias Gallformers.Accounts
   alias Gallformers.Accounts.Auth0User
@@ -532,6 +532,66 @@ defmodule Gallformers.AccountsTest do
     end
   end
 
+  describe "operator?/1" do
+    test "returns false for nil" do
+      assert Accounts.operator?(nil) == false
+    end
+
+    test "returns true for user with operator role" do
+      user = %Auth0User{
+        id: "auth0|123",
+        email: "operator@test.com",
+        name: "Operator",
+        nickname: nil,
+        picture: nil,
+        roles: ["operator"]
+      }
+
+      assert Accounts.operator?(user) == true
+    end
+
+    test "returns false for user with only admin role" do
+      user = %Auth0User{
+        id: "auth0|123",
+        email: "admin@test.com",
+        name: "Admin",
+        nickname: nil,
+        picture: nil,
+        roles: ["admin"]
+      }
+
+      assert Accounts.operator?(user) == false
+    end
+
+    test "returns false for user without any roles" do
+      user = %Auth0User{
+        id: "auth0|123",
+        email: "user@test.com",
+        name: "Regular User",
+        nickname: nil,
+        picture: nil,
+        roles: []
+      }
+
+      assert Accounts.operator?(user) == false
+    end
+
+    test "returns true for map with operator role (session deserialization fallback)" do
+      user_map = %{roles: ["operator"]}
+      assert Accounts.operator?(user_map) == true
+    end
+
+    test "returns false for map with only admin role" do
+      user_map = %{roles: ["admin"]}
+      assert Accounts.operator?(user_map) == false
+    end
+
+    test "returns false for map without roles key" do
+      user_map = %{id: "auth0|123"}
+      assert Accounts.operator?(user_map) == false
+    end
+  end
+
   describe "Auth0User struct" do
     test "admin?/1 returns true for admin or superadmin" do
       admin = %Auth0User{
@@ -590,6 +650,29 @@ defmodule Gallformers.AccountsTest do
 
       assert Auth0User.superadmin?(admin) == false
       assert Auth0User.superadmin?(superadmin) == true
+    end
+
+    test "operator?/1 returns true only for operator" do
+      admin = %Auth0User{
+        id: "1",
+        email: nil,
+        name: nil,
+        nickname: nil,
+        picture: nil,
+        roles: ["admin"]
+      }
+
+      operator = %Auth0User{
+        id: "2",
+        email: nil,
+        name: nil,
+        nickname: nil,
+        picture: nil,
+        roles: ["operator"]
+      }
+
+      assert Auth0User.operator?(admin) == false
+      assert Auth0User.operator?(operator) == true
     end
 
     test "display_name/1 prefers name over nickname over email" do

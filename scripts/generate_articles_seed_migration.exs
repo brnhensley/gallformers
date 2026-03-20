@@ -1,5 +1,9 @@
 #!/usr/bin/env elixir
-# Script to generate a migration that seeds articles data
+# ARCHIVED: This script was a one-off migration from the V1 SQLite database.
+# It requires the exqlite dependency which has been removed.
+# Kept for historical reference only — do not run.
+#
+# Original description: Generate a migration that seeds articles data
 # Run with: mix run scripts/generate_articles_seed_migration.exs
 
 defmodule GenerateArticlesSeedMigration do

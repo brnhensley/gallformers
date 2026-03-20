@@ -22,8 +22,8 @@ defmodule GallformersWeb.IntegrationTest do
     end
 
     test "about page loads successfully", %{conn: conn} do
-      {:ok, _view, html} = live(conn, ~p"/about")
-      assert is_binary(html)
+      conn = get(conn, ~p"/about")
+      assert html_response(conn, 200) =~ "About Us"
     end
 
     test "glossary page loads successfully", %{conn: conn} do
@@ -32,8 +32,8 @@ defmodule GallformersWeb.IntegrationTest do
     end
 
     test "filter guide page loads successfully", %{conn: conn} do
-      {:ok, _view, html} = live(conn, ~p"/filterguide")
-      assert is_binary(html)
+      conn = get(conn, ~p"/filterguide")
+      assert html_response(conn, 200) =~ "ID Tool Filter Guide"
     end
 
     test "galls browse page loads successfully", %{conn: conn} do
@@ -52,8 +52,8 @@ defmodule GallformersWeb.IntegrationTest do
     end
 
     test "articles page loads successfully", %{conn: conn} do
-      {:ok, _view, html} = live(conn, ~p"/articles")
-      assert is_binary(html)
+      conn = get(conn, ~p"/articles")
+      assert html_response(conn, 200) =~ "Articles"
     end
 
     test "ID tool page loads successfully", %{conn: conn} do
@@ -250,6 +250,80 @@ defmodule GallformersWeb.IntegrationTest do
 
       # Should return 404 with JSON
       assert conn.status == 404
+    end
+  end
+
+  describe "Host range admin flows" do
+    setup %{conn: conn} do
+      user = %Auth0User{
+        id: "test-user-id",
+        email: "admin@test.com",
+        name: "Test Admin",
+        nickname: nil,
+        picture: nil,
+        roles: ["admin"]
+      }
+
+      conn =
+        conn
+        |> init_test_session(%{})
+        |> put_session(:current_user, user)
+        |> put_session(:db_display_name, "Test User")
+
+      {:ok, conn: conn}
+    end
+
+    test "bulk confirm on review page reflects on host edit page", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/admin/host-range")
+
+      # Select host 1, open confirm modal, and confirm
+      view |> element("input[phx-click=toggle_select][phx-value-id='1']") |> render_click()
+      view |> element("button[phx-click=confirm_selected]") |> render_click()
+      view |> element("#confirm-modal button[phx-click=do_confirm_selected]") |> render_click()
+
+      assert render(view) =~ "Confirmed range for 1 host(s)"
+
+      # Navigate to host edit and verify confirmed state
+      {:ok, _edit_view, html} = live(conn, ~p"/admin/hosts/1")
+      assert html =~ "Range confirmed"
+    end
+
+    test "review page links navigate to host edit", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/admin/host-range")
+
+      # Verify host link exists and points to the right place
+      assert has_element?(view, "a[href='/admin/hosts/1']")
+    end
+
+    test "filter params persist through page reload", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/admin/host-range")
+
+      # Change filter to confirmed
+      view |> element("form#filter") |> render_change(%{value: "confirmed"})
+
+      # Simulate reload by opening a new live view with the patched URL params
+      {:ok, _view2, html} = live(conn, ~p"/admin/host-range?filter=confirmed")
+
+      # Should show confirmed filter (no confirmed hosts = empty state)
+      assert html =~ "No hosts found"
+    end
+
+    test "search from review page filters correctly then clears", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/admin/host-range")
+
+      # Search for specific host
+      view |> element("input[phx-keyup=search]") |> render_keyup(%{value: "Quercus"})
+
+      html = render(view)
+      assert html =~ "Quercus alba"
+      refute html =~ "Acer rubrum"
+
+      # Clear search
+      view |> element("input[phx-keyup=search]") |> render_keyup(%{value: ""})
+
+      html = render(view)
+      assert html =~ "Quercus alba"
+      assert html =~ "Acer rubrum"
     end
   end
 

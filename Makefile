@@ -1,45 +1,30 @@
-# Gallformers V2 - Makefile
+# Gallformers - Makefile
 #
 # Phoenix/LiveView development commands
 
-.PHONY: dev dev-lan test test-db test-prod-data test-prod-data-e2e test-prod-data-all download-db ci preflight help deps assets setup clean check-db build run-local-release dump-schema upload-reset-db preview preview-stop preview-destroy
+.PHONY: dev dev-lan test test-db test-prod-data test-prod-data-e2e test-prod-data-all download-db ci preflight help deps assets setup clean check-db build run-local-release dump-schema preview preview-stop preview-destroy wcvp-restore wcvp-check
 
 # Download production database for local dev
-# Uses public S3 snapshot (updated daily by GitHub Actions)
-DB_URL ?= https://gallformers-backups.s3.amazonaws.com/public/gallformers.sqlite
+# Downloads full pg_dump from private S3 bucket and restores into local Postgres
+# Requires AWS credentials (AWS_ACCESS_KEY_ID/SECRET_ACCESS_KEY in .env or ~/.aws)
+DUMP_BUCKET ?= gallformers-full-backups
 
 download-db:
-	@echo "Downloading database from S3..."
-	@mkdir -p priv
-	@rm -f priv/gallformers.sqlite-wal priv/gallformers.sqlite-shm
-	curl -L -o priv/gallformers.sqlite $(DB_URL)
-	@echo "Database downloaded to priv/gallformers.sqlite"
-
-# Upload a database for production reset
-# Usage: make upload-reset-db FILE=path/to/database.sqlite
-upload-reset-db:
-	@if [ -z "$(FILE)" ]; then \
-		echo "Usage: make upload-reset-db FILE=path/to/database.sqlite"; \
+	@echo "Finding latest backup..."
+	$(eval LATEST_DATE := $(shell aws s3 ls s3://$(DUMP_BUCKET)/ | tail -1 | awk '{print $$2}' | tr -d '/'))
+	@echo "Downloading backup from $(LATEST_DATE)..."
+	aws s3 cp s3://$(DUMP_BUCKET)/$(LATEST_DATE)/gallformers.dump /tmp/gallformers.dump
+	@echo "Restoring into gallformers_dev..."
+	@psql -d postgres -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = 'gallformers_dev' AND pid <> pg_backend_pid();" --quiet 2>/dev/null || true
+	mix ecto.drop
+	mix ecto.create
+	pg_restore --no-owner --no-acl -d gallformers_dev /tmp/gallformers.dump || true
+	@echo "Verifying..."
+	@psql -d gallformers_dev -tAc "SELECT count(*) FROM species" | grep -qE '^[1-9]' || { \
+		echo "ERROR: Restore failed — no species data found"; \
 		exit 1; \
-	fi
-	@if [ ! -f "$(FILE)" ]; then \
-		echo "ERROR: File not found: $(FILE)"; \
-		exit 1; \
-	fi
-	@echo "Validating database integrity..."
-	@RESULT=$$(sqlite3 "$(FILE)" "PRAGMA integrity_check;"); \
-	if [ "$$RESULT" != "ok" ]; then \
-		echo "INTEGRITY CHECK FAILED:"; \
-		echo "$$RESULT"; \
-		exit 1; \
-	fi
-	@SPECIES=$$(sqlite3 "$(FILE)" "SELECT COUNT(*) FROM species;"); \
-	echo "Database has $$SPECIES species"
-	@echo "Uploading to s3://gallformers-backups/reset/gallformers.sqlite..."
-	@aws s3 cp "$(FILE)" s3://gallformers-backups/reset/gallformers.sqlite
-	@echo ""
-	@echo "Done! Now run the 'Reset Production Database' workflow in GitHub Actions."
-	@echo "The default S3 path is already set to this location."
+	}
+	@echo "Database restored to gallformers_dev"
 
 # =============================================================================
 # Build Dependencies
@@ -58,34 +43,39 @@ assets: assets/node_modules
 	mix assets.setup
 	mix assets.build
 
-# Ensure database exists and has data (not just Ecto's empty schema_migrations)
+# Ensure dev database exists and has data
 check-db:
-	@if [ ! -f priv/gallformers.sqlite ]; then \
+	@psql -d gallformers_dev -tAc "SELECT count(*) FROM species" 2>/dev/null | grep -qE '^[1-9]' || { \
 		echo ""; \
-		echo "ERROR: Database not found at priv/gallformers.sqlite"; \
-		echo "Run 'make download-db' to download the database"; \
-		echo ""; \
-		exit 1; \
-	fi
-	@DB_SIZE=$$(stat -f%z priv/gallformers.sqlite 2>/dev/null || stat -c%s priv/gallformers.sqlite 2>/dev/null); \
-	if [ "$$DB_SIZE" -lt 100000 ]; then \
-		echo ""; \
-		echo "ERROR: Database appears empty (only $$DB_SIZE bytes)"; \
-		echo "Run 'make download-db' to download the production database"; \
+		echo "ERROR: Dev database not found or has no species data"; \
+		echo "Set it up with:"; \
+		echo "  make download-db"; \
 		echo ""; \
 		exit 1; \
-	fi
+	}
 
-# Dump database schema (removes SQLite internal tables that break ecto.load)
+# Dump database schema (Postgres SQL format)
 dump-schema:
 	mix ecto.dump
-	@echo "Cleaning SQLite internal tables from structure.sql..."
-	@grep -v -E "species_fts_|sqlite_sequence" priv/repo/structure.sql > priv/repo/structure_clean.sql
-	@mv priv/repo/structure_clean.sql priv/repo/structure.sql
 	@echo "Schema dumped to priv/repo/structure.sql"
 
+# Restore WCVP data from S3 into local wcvp database
+wcvp-restore:
+	@createdb wcvp 2>/dev/null || true
+	mix gallformers.wcvp.restore
+
+# Check that local wcvp database has data
+wcvp-check:
+	@psql -d wcvp -tAc "SELECT count(*) FROM wcvp_names" 2>/dev/null | grep -qE '^[1-9]' || { \
+		echo ""; \
+		echo "WARNING: WCVP database not found or has no data"; \
+		echo "Set it up with:"; \
+		echo "  make wcvp-restore"; \
+		echo ""; \
+	}
+
 # Full setup (deps + assets + database)
-setup: deps assets check-db
+setup: deps assets check-db wcvp-check
 
 # =============================================================================
 # Development
@@ -116,13 +106,13 @@ build: deps
 	MIX_ENV=prod mix release --overwrite
 
 # Run the locally built production release
-# Requires SECRET_KEY_BASE and DATABASE_PATH environment variables
+# Requires SECRET_KEY_BASE and DATABASE_URL environment variables
 run-local-release:
 	@if [ -z "$$SECRET_KEY_BASE" ]; then \
 		echo "Generating SECRET_KEY_BASE..."; \
 		export SECRET_KEY_BASE=$$(mix phx.gen.secret); \
 	fi; \
-	DATABASE_PATH=$${DATABASE_PATH:-$(PWD)/priv/gallformers.sqlite} \
+	DATABASE_URL=$${DATABASE_URL:-postgres://localhost/gallformers_dev} \
 	PHX_HOST=localhost \
 	PORT=4000 \
 	_build/prod/rel/gallformers/bin/gallformers start
@@ -131,28 +121,46 @@ run-local-release:
 # Testing
 # =============================================================================
 
-# Set up fresh test database from structure.sql + test_seeds.sql
+# Set up fresh test database with migrations + seed data
 test-db:
 	@echo "Setting up test database..."
-	@rm -f priv/gallformers_test.sqlite*
+	@MIX_ENV=test mix ecto.drop --quiet 2>/dev/null || true
 	@MIX_ENV=test mix ecto.create --quiet
-	@MIX_ENV=test mix ecto.load --quiet
 	@MIX_ENV=test mix ecto.migrate --quiet
-	@sqlite3 priv/gallformers_test.sqlite < priv/repo/test_seeds.sql
+	@psql -d gallformers_test -f priv/repo/test_seeds.sql --quiet
+	@createdb wcvp_test 2>/dev/null || true
+	@psql -d wcvp_test -f priv/repo/wcvp_test_setup.sql --quiet
 	@echo "Test database ready"
 
+# Run JS unit tests (hooks, etc.)
+test-js: assets/node_modules
+	@cd assets && npm test
+
 # Run tests (rebuilds test DB first, excludes E2E tests)
-test: test-db
+test: test-db test-js
 	mix test
 
-# Run context-level tests against a copy of the production database (no browser)
+# Load production data into the test database from the daily pg_dump backup
+# Requires AWS credentials (same as download-db)
+load-prod-data-test:
+	@echo "Loading production data into test database..."
+	@if [ ! -f /tmp/gallformers.dump ]; then \
+		echo "Downloading latest backup..."; \
+		$(eval LATEST_DATE := $(shell aws s3 ls s3://$(DUMP_BUCKET)/ | tail -1 | awk '{print $$2}' | tr -d '/')) \
+		aws s3 cp s3://$(DUMP_BUCKET)/$(LATEST_DATE)/gallformers.dump /tmp/gallformers.dump; \
+	else \
+		echo "Using cached /tmp/gallformers.dump"; \
+	fi
+	@MIX_ENV=test mix ecto.drop --quiet 2>/dev/null || true
+	@MIX_ENV=test mix ecto.create --quiet
+	@pg_restore --no-owner --no-acl -d gallformers_test /tmp/gallformers.dump || true
+	@echo "Production data loaded into gallformers_test"
+
+# Run context-level tests against production data (no browser)
 # Validates data integrity and exercises write paths against real data
 # All writes use Ecto sandbox (rolled back automatically)
-test-prod-data: check-db
-	@echo "Copying production database for testing..."
-	@cp priv/gallformers.sqlite priv/gallformers_test.sqlite
-	@echo "Applying pending migrations to test copy..."
-	@MIX_ENV=test mix ecto.migrate --quiet
+# Requires AWS credentials for downloading the backup
+test-prod-data: load-prod-data-test
 	@echo "Running prod data context tests..."
 	@mix test test/prod_data/invariants_test.exs test/prod_data/write_operations_test.exs --include prod_data; \
 		status=$$?; \
@@ -160,14 +168,10 @@ test-prod-data: check-db
 		$(MAKE) test-db; \
 		exit $$status
 
-# Run E2E browser tests against a copy of the production database
+# Run E2E browser tests against production data
 # Requires chromedriver: brew install chromedriver
-test-prod-data-e2e: check-db
+test-prod-data-e2e: load-prod-data-test
 	$(call check_chromedriver)
-	@echo "Copying production database for testing..."
-	@cp priv/gallformers.sqlite priv/gallformers_test.sqlite
-	@echo "Applying pending migrations to test copy..."
-	@MIX_ENV=test mix ecto.migrate --quiet
 	@echo "Running prod data E2E tests..."
 	@GALLFORMERS_E2E=1 mix test test/prod_data/e2e --include prod_data; \
 		status=$$?; \
@@ -175,14 +179,9 @@ test-prod-data-e2e: check-db
 		$(MAKE) test-db; \
 		exit $$status
 
-# Run all prod data tests (context + E2E in separate passes to avoid SQLite contention)
-# Non-browser tests run first without the endpoint, then E2E tests with browser
-test-prod-data-all: check-db
+# Run all prod data tests (context + E2E in separate passes)
+test-prod-data-all: load-prod-data-test
 	$(call check_chromedriver)
-	@echo "Copying production database for testing..."
-	@cp priv/gallformers.sqlite priv/gallformers_test.sqlite
-	@echo "Applying pending migrations to test copy..."
-	@MIX_ENV=test mix ecto.migrate --quiet
 	@echo "Running prod data context tests..."
 	@mix test test/prod_data/invariants_test.exs test/prod_data/write_operations_test.exs --include prod_data
 	@echo "Running prod data E2E tests..."
@@ -314,9 +313,9 @@ ci: assets/node_modules test-db
 	mix dialyzer
 	@echo "==> All CI checks passed!"
 
-# Run everything before pushing to main (local only, not for CI)
-# Requires: chromedriver (make e2e-setup) and prod DB copy (make download-db)
-preflight: ci download-db
+# Run everything before pushing (local only, not for CI)
+# Requires: chromedriver (make e2e-setup) and AWS credentials (for prod data tests)
+preflight: ci
 	$(call check_chromedriver)
 	@echo ""
 	@echo "==> CI checks passed. Running E2E browser tests..."
@@ -326,16 +325,7 @@ preflight: ci download-db
 	@sleep 1
 	@echo ""
 	@echo "==> E2E tests passed. Running prod data tests..."
-	@cp priv/gallformers.sqlite priv/gallformers_test.sqlite
-	@MIX_ENV=test mix ecto.migrate --quiet
-	@echo "Running prod data context tests..."
-	@mix test test/prod_data/invariants_test.exs test/prod_data/write_operations_test.exs --include prod_data
-	@echo "Running prod data E2E tests..."
-	@GALLFORMERS_E2E=1 mix test test/prod_data/e2e --include prod_data; \
-		status=$$?; \
-		echo "Restoring test database..."; \
-		$(MAKE) test-db; \
-		exit $$status
+	$(MAKE) test-prod-data-all
 	@echo ""
 	@echo "==> All preflight checks passed! Safe to push."
 
@@ -347,7 +337,7 @@ preflight: ci download-db
 
 # Build and deploy preview from current local branch
 preview:
-	fly deploy --config fly.preview.toml --dockerfile Dockerfile.preview
+	fly deploy --config fly.preview.toml
 
 # Stop the preview machine (preserves app config and secrets)
 preview-stop:
@@ -356,62 +346,6 @@ preview-stop:
 # Destroy the preview app entirely
 preview-destroy:
 	fly apps destroy gallformers-preview --yes
-
-# =============================================================================
-# Git Sync Targets (for multi-agent workflow)
-# =============================================================================
-# Integration branch for Phoenix work
-INTEGRATION_BRANCH ?= adopt-phoenix-liveview
-
-.PHONY: sync-start sync-finish sync-bugfix sync-main-to-integration
-
-# For code1/code2 agents - run BEFORE starting work
-# Resets current branch to match integration branch
-sync-start:
-	@echo "Syncing with integration branch ($(INTEGRATION_BRANCH))..."
-	git fetch origin
-	git reset --hard origin/$(INTEGRATION_BRANCH)
-	@echo "Ready to work. Branch is now in sync with $(INTEGRATION_BRANCH)."
-
-# For code1/code2 agents - run AFTER work is complete
-# Pushes branch, creates PR to integration, and merges it
-# Usage: MSG="search LiveView" make sync-finish
-sync-finish:
-	@BRANCH=$$(git rev-parse --abbrev-ref HEAD); \
-	if [ "$$BRANCH" = "$(INTEGRATION_BRANCH)" ] || [ "$$BRANCH" = "main" ]; then \
-		echo "Error: sync-finish is for code1/code2 branches, not $$BRANCH"; \
-		exit 1; \
-	fi; \
-	echo "Pushing $$BRANCH to origin..."; \
-	git push origin $$BRANCH; \
-	echo "Creating PR to $(INTEGRATION_BRANCH)..."; \
-	gh pr create --base $(INTEGRATION_BRANCH) --head $$BRANCH \
-		--title "Merge $$BRANCH: $${MSG:-completed work}" \
-		--body "Automated merge from $$BRANCH"; \
-	echo "Merging PR..."; \
-	gh pr merge --merge --delete-branch=false; \
-	echo "Done. Changes merged to $(INTEGRATION_BRANCH)."
-
-# For bugfix agent - sync with integration branch (works directly on it)
-sync-bugfix:
-	@echo "Syncing with integration branch ($(INTEGRATION_BRANCH))..."
-	git fetch origin
-	git pull origin $(INTEGRATION_BRANCH)
-	@echo "Ready to work on $(INTEGRATION_BRANCH)."
-
-# For planning (main worktree) - sync main specs INTO integration branch via PR
-# If conflicts exist, PR will be created but not merged - resolve manually
-sync-main-to-integration:
-	@echo "Creating PR to sync main into $(INTEGRATION_BRANCH)..."
-	git fetch origin
-	gh pr create --base $(INTEGRATION_BRANCH) --head main \
-		--title "Sync main specs into integration" \
-		--body "Sync latest spec/planning changes from main into $(INTEGRATION_BRANCH)" || true
-	@echo "Attempting to merge PR..."
-	@gh pr merge --merge 2>/dev/null && echo "Done. Main synced into $(INTEGRATION_BRANCH)." || \
-		echo "PR has conflicts. Resolve via: gh pr view --web, or use bugfix worktree to merge manually."
-
-# =============================================================================
 
 # Clean build artifacts
 clean:
@@ -422,7 +356,7 @@ clean:
 
 # Show help
 help:
-	@echo "Gallformers V2 Makefile"
+	@echo "Gallformers Makefile"
 	@echo ""
 	@echo "Development:"
 	@echo "  make dev               Start Phoenix dev server (:4000) - auto-installs deps"
@@ -455,15 +389,12 @@ help:
 	@echo "  make clean             Clean build artifacts (node_modules, _build, deps)"
 	@echo ""
 	@echo "Database:"
-	@echo "  make download-db       Download database snapshot from S3"
+	@echo "  make download-db       Download pg_dump from S3 and restore to local Postgres"
+	@echo "  make test-db           Rebuild test database (drop, create, migrate, seed)"
+	@echo "  make wcvp-restore      Restore WCVP data from S3 into local wcvp database"
+	@echo "  make wcvp-check        Check that local wcvp database has data"
 	@echo ""
 	@echo "Preview Deploys:"
 	@echo "  make preview           Deploy current branch to preview (gallformers-preview.fly.dev)"
 	@echo "  make preview-stop      Stop the preview machine (preserves config)"
 	@echo "  make preview-destroy   Destroy the preview app entirely"
-	@echo ""
-	@echo "Git Sync (multi-agent workflow):"
-	@echo "  make sync-start              Reset branch to integration (for code1/code2)"
-	@echo "  MSG=\"desc\" make sync-finish  Push, PR, merge to integration (for code1/code2)"
-	@echo "  make sync-bugfix             Pull latest integration (for bugfix)"
-	@echo "  make sync-main-to-integration  Sync main specs into integration via PR"

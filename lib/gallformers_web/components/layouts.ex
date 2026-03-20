@@ -529,12 +529,14 @@ defmodule GallformersWeb.Layouts do
     superadmin_nav_links = []
 
     is_superadmin = Gallformers.Accounts.superadmin?(assigns.current_user)
+    is_operator = Gallformers.Accounts.operator?(assigns.current_user)
 
     assigns =
       assigns
       |> assign(:admin_nav_links, admin_nav_links)
       |> assign(:superadmin_nav_links, superadmin_nav_links)
       |> assign(:is_superadmin, is_superadmin)
+      |> assign(:is_operator, is_operator)
 
     ~H"""
     <div class="flex min-h-screen flex-col">
@@ -564,6 +566,16 @@ defmodule GallformersWeb.Layouts do
             >
               <.icon name={link.icon} class="h-5 w-5" />
               {link.label}
+            </a>
+
+            <%!-- Operator link --%>
+            <a
+              :if={@is_operator}
+              href="/admin/ops"
+              data-nav-href="/admin/ops"
+              class="flex items-center gap-2 text-lg font-medium text-gf-maroon hover:text-gf-autumn"
+            >
+              <.icon name="ph-shield-check" class="h-5 w-5" /> Ops
             </a>
 
             <%!-- My Profile link --%>

@@ -3,20 +3,20 @@ import Config
 config :gallformers, env: :dev
 
 # Configure your database
-# DATABASE_PATH env var overrides the default for migration testing
-# Falls back to local database in priv/ for normal development
 config :gallformers, Gallformers.Repo,
-  database: System.get_env("DATABASE_PATH", Path.expand("../priv/gallformers.sqlite", __DIR__)),
+  database: "gallformers_dev",
+  username: System.get_env("PGUSER", System.get_env("USER")),
+  password: System.get_env("PGPASSWORD"),
+  hostname: System.get_env("PGHOST", "localhost"),
   pool_size: 5,
   stacktrace: true,
-  show_sensitive_data_on_connection_error: true,
-  # Match test.exs settings for SQLite consistency
-  busy_timeout: 5000,
-  # Override ecto_sqlite3's default of -64000 (62.5 MB per connection)
-  cache_size: -2000
+  show_sensitive_data_on_connection_error: true
 
 config :gallformers, Gallformers.Repo.WCVP,
-  database: Path.expand("../priv/data/wcvp.sqlite", __DIR__)
+  database: "wcvp",
+  username: System.get_env("PGUSER", System.get_env("USER")),
+  password: System.get_env("PGPASSWORD"),
+  hostname: System.get_env("PGHOST", "localhost")
 
 # For development, we disable any cache and enable
 # debugging and code reloading.
@@ -25,6 +25,7 @@ config :gallformers, Gallformers.Repo.WCVP,
 # watchers to your application. For example, we can use it
 # to bundle .js and .css sources.
 config :gallformers, GallformersWeb.Endpoint,
+  url: [host: "localhost", port: 4000],
   http: [ip: {127, 0, 0, 1}],
   check_origin: false,
   code_reloader: true,

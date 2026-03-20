@@ -6,6 +6,7 @@ defmodule Gallformers.FilterFields.Shape do
   """
   use Ecto.Schema
   import Ecto.Changeset
+  import Gallformers.ChangesetHelpers, only: [trim_strings: 1]
 
   @type t :: %__MODULE__{
           id: integer() | nil,
@@ -22,6 +23,7 @@ defmodule Gallformers.FilterFields.Shape do
   def changeset(shape, attrs) do
     shape
     |> cast(attrs, [:shape, :description])
+    |> trim_strings()
     |> validate_required([:shape])
     |> unique_constraint(:shape)
   end

@@ -100,10 +100,10 @@ defmodule Gallformers.Galls do
         JOIN species s ON s.id = st.species_id AND s.taxoncode = 'gall'
         JOIN gall_traits gt ON gt.species_id = s.id
         WHERE f.description != 'Plant'
-          AND (?1 = 0 OR gt.undescribed = 1)
+          AND ($1::boolean = false OR gt.undescribed = true)
         ORDER BY f.name, gf.genus_name, s.name
         """,
-        [if(undescribed_only, do: 1, else: 0)]
+        [if(undescribed_only, do: true, else: false)]
       )
 
     Enum.map(rows, fn [fid, fname, fdesc, gid, gname, gdesc, sid, sname, undescribed] ->
@@ -116,7 +116,7 @@ defmodule Gallformers.Galls do
         genus_description: gdesc,
         species_id: sid,
         species_name: sname,
-        undescribed: undescribed == 1
+        undescribed: undescribed == true
       }
     end)
   end
@@ -280,6 +280,7 @@ defmodule Gallformers.Galls do
           detachable: gt.detachable,
           undescribed: gt.undescribed,
           gallformers_code: gt.gallformers_code,
+          range_confirmed: gt.range_confirmed,
           inserted_at: s.inserted_at,
           updated_at: s.updated_at
         }
@@ -782,6 +783,108 @@ defmodule Gallformers.Galls do
     else
       :ok
     end
+  end
+
+  # ============================================
+  # Gall Traits Queries
+  # ============================================
+
+  @doc """
+  Gets the gall_traits record for a species.
+  """
+  @spec get_gall_traits(integer()) :: GallTraits.t() | nil
+  def get_gall_traits(species_id) do
+    Repo.get(GallTraits, species_id)
+  end
+
+  @doc """
+  Marks a gall's range as confirmed by an admin.
+
+  Sets `range_confirmed = true` and `range_computed_at` to the current time.
+  """
+  @spec confirm_gall_range(integer()) :: {non_neg_integer(), nil}
+  def confirm_gall_range(species_id) do
+    from(gt in GallTraits, where: gt.species_id == ^species_id)
+    |> Repo.update_all(
+      set: [
+        range_confirmed: true,
+        range_computed_at: DateTime.utc_now() |> DateTime.truncate(:second)
+      ]
+    )
+  end
+
+  @doc """
+  Lists galls with their range confirmation status and counts.
+  Used by the bulk range admin page.
+
+  Options:
+    - :unconfirmed_only (boolean, default true) - only show galls with range_confirmed = false
+  """
+  @spec list_galls_for_range_review(keyword()) :: [map()]
+  def list_galls_for_range_review(opts \\ []) do
+    unconfirmed_only = Keyword.get(opts, :unconfirmed_only, true)
+
+    query =
+      from s in Species,
+        join: gt in GallTraits,
+        on: gt.species_id == s.id,
+        where: s.taxoncode == "gall",
+        order_by: s.name,
+        select: %{
+          id: s.id,
+          name: s.name,
+          range_confirmed: gt.range_confirmed,
+          range_computed_at: gt.range_computed_at,
+          undescribed: gt.undescribed
+        }
+
+    query =
+      if unconfirmed_only do
+        from [s, gt] in query, where: gt.range_confirmed == false
+      else
+        query
+      end
+
+    results = Repo.all(query)
+
+    # Batch load host counts and range counts
+    gall_ids = Enum.map(results, & &1.id)
+    host_counts = Gallformers.GallHosts.get_host_counts_for_galls(gall_ids)
+    range_counts = get_range_counts_for_galls(gall_ids)
+
+    Enum.map(results, fn gall ->
+      gall
+      |> Map.put(:host_count, Map.get(host_counts, gall.id, 0))
+      |> Map.put(:range_count, Map.get(range_counts, gall.id, 0))
+    end)
+  end
+
+  defp get_range_counts_for_galls([]), do: %{}
+
+  defp get_range_counts_for_galls(gall_ids) do
+    from(gr in "gall_range",
+      where: gr.species_id in ^gall_ids,
+      group_by: gr.species_id,
+      select: {gr.species_id, count()}
+    )
+    |> Repo.all()
+    |> Enum.into(%{})
+  end
+
+  @doc """
+  Bulk confirms gall ranges for multiple gall species.
+  Sets range_confirmed = true and range_computed_at = now() for all specified galls.
+  """
+  @spec bulk_confirm_gall_ranges([integer()]) :: {integer(), nil}
+  def bulk_confirm_gall_ranges([]), do: {0, nil}
+
+  def bulk_confirm_gall_ranges(species_ids) do
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+    from(gt in GallTraits,
+      where: gt.species_id in ^species_ids
+    )
+    |> Repo.update_all(set: [range_confirmed: true, range_computed_at: now])
   end
 
   # ============================================

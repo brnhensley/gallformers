@@ -2,7 +2,7 @@ defmodule GallformersWeb.LayoutsTest do
   @moduledoc """
   Tests for layout components.
   """
-  use GallformersWeb.ConnCase, async: false
+  use GallformersWeb.ConnCase, async: true
   import Phoenix.LiveViewTest
 
   alias GallformersWeb.Layouts
@@ -52,6 +52,42 @@ defmodule GallformersWeb.LayoutsTest do
 
       assert html =~ "Resources"
       assert html =~ "resources-menu"
+    end
+  end
+
+  describe "maintenance banner" do
+    setup do
+      cache_key = {Gallformers.SiteSettings, :cache}
+      previous = :persistent_term.get(cache_key, %{})
+      :persistent_term.put(cache_key, %{})
+      on_exit(fn -> :persistent_term.put(cache_key, previous) end)
+      :ok
+    end
+
+    test "shows maintenance banner when enabled", %{conn: conn} do
+      :persistent_term.put({Gallformers.SiteSettings, :cache}, %{
+        "banner_enabled" => true,
+        "banner_text" => "Scheduled maintenance tonight"
+      })
+
+      conn = get(conn, "/")
+      html = html_response(conn, 200)
+      assert html =~ "maintenance-banner"
+      assert html =~ "Scheduled maintenance tonight"
+    end
+
+    test "does not show maintenance banner when disabled", %{conn: conn} do
+      conn = get(conn, "/")
+      html = html_response(conn, 200)
+      refute html =~ "maintenance-banner"
+    end
+
+    test "does not show maintenance banner when explicitly set to false", %{conn: conn} do
+      :persistent_term.put({Gallformers.SiteSettings, :cache}, %{"banner_enabled" => false})
+
+      conn = get(conn, "/")
+      html = html_response(conn, 200)
+      refute html =~ "maintenance-banner"
     end
   end
 end

@@ -102,7 +102,16 @@ defmodule Gallformers.Taxonomy.SpeciesLink do
     :ok
   end
 
-  def link_species_taxonomy(_species_id, _taxonomy, false, _parent_id), do: :ok
+  def link_species_taxonomy(_species_id, taxonomy, false, _parent_id) do
+    require Logger
+
+    Logger.error(
+      "link_species_taxonomy called with genus_is_new=false but missing genus ID. " <>
+        "Taxonomy: #{inspect(taxonomy)}"
+    )
+
+    raise "link_species_taxonomy: genus_is_new=false but missing genus ID in taxonomy"
+  end
 
   @doc """
   Creates a new genus under a family and links a species to it.
@@ -143,7 +152,6 @@ defmodule Gallformers.Taxonomy.SpeciesLink do
       )
 
     # Remove existing genus AND section links for this species
-    # (SQLite doesn't support JOINs in DELETE, so we use a subquery)
     from(st in "species_taxonomy",
       where:
         st.species_id == ^species_id and st.taxonomy_id in subquery(genus_and_section_ids_query)
@@ -427,7 +435,7 @@ defmodule Gallformers.Taxonomy.SpeciesLink do
   def get_taxonomy_for_species_batch(species_ids) do
     # Use a recursive CTE to walk from each genus up to its ancestor family,
     # handling intermediate ranks between genus and family.
-    placeholders = Enum.map_join(1..length(species_ids), ", ", &"?#{&1}")
+    placeholders = Enum.map_join(1..length(species_ids), ", ", &"$#{&1}::bigint")
 
     query = """
     WITH RECURSIVE genus_ancestors AS (
@@ -505,7 +513,7 @@ defmodule Gallformers.Taxonomy.SpeciesLink do
     # Use CTE to find all descendant genera (through intermediates) of the family
     query = """
     WITH RECURSIVE family_descendants AS (
-      SELECT id, type FROM taxonomy WHERE id = ?1
+      SELECT id, type FROM taxonomy WHERE id = $1::bigint
 
       UNION ALL
 

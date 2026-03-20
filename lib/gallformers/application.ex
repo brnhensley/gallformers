@@ -5,26 +5,29 @@ defmodule Gallformers.Application do
 
   use Application
 
+  alias Gallformers.Repo
+
   @impl true
   def start(_type, _args) do
-    children =
-      [
-        GallformersWeb.Telemetry,
-        Gallformers.Repo,
-        {Ecto.Migrator,
-         repos: Application.fetch_env!(:gallformers, :ecto_repos), skip: skip_migrations?()}
-      ] ++
-        wcvp_repo_child_spec() ++
-        [
-          {DNSCluster, query: Application.get_env(:gallformers, :dns_cluster_query) || :ignore},
-          {Phoenix.PubSub, name: Gallformers.PubSub},
-          # Image audit cache for orphan detection
-          Gallformers.Images.AuditCache,
-          # Nightly analytics rollup and pruning
-          Gallformers.Analytics.Rollup,
-          # Start to serve requests, typically the last entry
-          GallformersWeb.Endpoint
-        ]
+    children = [
+      GallformersWeb.Telemetry,
+      Repo,
+      {Ecto.Migrator,
+       repos: Application.fetch_env!(:gallformers, :ecto_repos), skip: skip_migrations?()},
+      Repo.WCVP,
+      {DNSCluster, query: Application.get_env(:gallformers, :dns_cluster_query) || :ignore},
+      {Phoenix.PubSub, name: Gallformers.PubSub},
+      # Stop VM if app becomes unresponsive so Fly restarts it
+      Gallformers.HealthWatchdog,
+      # Image audit cache for orphan detection
+      Gallformers.Images.AuditCache,
+      # Site-wide settings with persistent_term cache
+      Gallformers.SiteSettings,
+      # Nightly analytics rollup and pruning
+      Gallformers.Analytics.Rollup,
+      # Start to serve requests, typically the last entry
+      GallformersWeb.Endpoint
+    ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
@@ -44,19 +47,9 @@ defmodule Gallformers.Application do
     :ok
   end
 
-  defp wcvp_repo_child_spec do
-    db_path = Application.get_env(:gallformers, Gallformers.Repo.WCVP)[:database]
-
-    if db_path && File.exists?(db_path) do
-      [Gallformers.Repo.WCVP]
-    else
-      []
-    end
-  end
-
   defp skip_migrations? do
-    # Skip migrations by default since we use an existing database managed by Prisma.
-    # Set RUN_MIGRATIONS=true to explicitly enable Ecto migrations.
+    # Migrations are opt-in via RUN_MIGRATIONS=true (set in docker-entrypoint.sh).
+    # Default off so `mix phx.server` doesn't auto-migrate the dev database.
     System.get_env("RUN_MIGRATIONS") != "true"
   end
 end

@@ -96,7 +96,7 @@ npm-debug.log
 # API compiled binaries
 api/bin/
 
-# Environment secrets
+# Environment secrets (copy .env.sample to .env)
 .env
 .env.local
 .env*.local

@@ -24,10 +24,16 @@ defmodule GallformersWeb.Router do
 
   pipeline :admin do
     plug GallformersWeb.Plugs.RequireAdmin
+    plug GallformersWeb.Plugs.EnforceReadOnly
   end
 
   pipeline :superadmin do
     plug GallformersWeb.Plugs.RequireSuperAdmin
+    plug GallformersWeb.Plugs.EnforceReadOnly
+  end
+
+  pipeline :operator do
+    plug GallformersWeb.Plugs.RequireOperator
   end
 
   defp fetch_current_user(conn, _opts) do
@@ -79,6 +85,12 @@ defmodule GallformersWeb.Router do
     # Gall-Host mapping admin
     live "/gallhost", Admin.GallHostLive, :index
 
+    # Gall range review (disabled — not ready for production)
+    # live "/gall-range", Admin.GallRangeLive
+
+    # Host range review
+    live "/host-range", Admin.HostRangeLive
+
     # Host admin
     live "/hosts", Admin.HostLive.Index, :index
     live "/hosts/new", Admin.HostLive.Form, :new
@@ -129,9 +141,6 @@ defmodule GallformersWeb.Router do
   scope "/admin", GallformersWeb do
     pipe_through [:browser, :superadmin]
 
-    # Reconciliation reports (superadmin only)
-    live "/reconciliation", Admin.ReconciliationLive
-
     # Filter terms admin (superadmin only)
     live "/filter-terms", Admin.FilterTermsLive.Index, :index
     live "/filter-terms/new", Admin.FilterTermsLive.Form, :new
@@ -141,9 +150,23 @@ defmodule GallformersWeb.Router do
     live "/users", Admin.UsersLive, :index
   end
 
+  # Operator routes (require operator role)
+  scope "/admin", GallformersWeb do
+    pipe_through [:browser, :operator]
+
+    live "/ops", Admin.OpsLive, :index
+  end
+
   # Public routes
   scope "/", GallformersWeb do
     pipe_through :browser
+
+    # Controller-rendered pages (no WebSocket needed)
+    get "/about", AboutController, :show
+    get "/articles", ArticlesController, :index
+    get "/articles/:slug", ArticleController, :show
+    get "/privacy", PrivacyController, :show
+    get "/filterguide", FilterGuideController, :show
 
     live_session :public,
       on_mount: [
@@ -155,13 +178,8 @@ defmodule GallformersWeb.Router do
       live "/", HomeLive
 
       # Content pages
-      live "/about", AboutLive
-      live "/privacy", PrivacyLive
       live "/analytics", AnalyticsLive
-      live "/filterguide", FilterGuideLive
       live "/glossary", GlossaryLive
-      live "/articles", ArticlesLive
-      live "/articles/:slug", ArticleLive
       live "/globalsearch", SearchLive
       live "/galls", GallsBrowseLive
       live "/hosts", HostsBrowseLive

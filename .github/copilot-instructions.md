@@ -13,10 +13,10 @@
 ## Tech Stack
 
 - **Framework**: Phoenix 1.8 with LiveView
-- **Database**: SQLite via ecto_sqlite3
+- **Database**: PostgreSQL via Ecto/Postgrex (WCVP uses a separate Postgres database on the same cluster)
 - **Styling**: Tailwind CSS v4
 - **Auth**: Auth0 (admin features only)
-- **Infrastructure**: Fly.io, AWS S3, Litestream
+- **Infrastructure**: Fly.io, AWS S3
 - **Development**: Elixir, Mix, ExUnit, Credo
 
 ## Coding Guidelines
@@ -100,7 +100,7 @@ See `lib/gallformers/` for Ecto schemas. Key modules:
 1. Run `mix ecto.gen.migration migration_name`
 2. Edit the generated migration file
 3. Run `mix ecto.migrate`
-4. Update `priv/repo/structure.sql` if needed
+4. Run `mix ecto.migrate` to apply
 
 ## Important Rules
 

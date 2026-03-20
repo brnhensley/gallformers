@@ -8,6 +8,7 @@ defmodule Gallformers.Places do
   import Ecto.Query
   alias Gallformers.Places.Place
   alias Gallformers.Repo
+  alias Gallformers.Search.TextMatch
   alias Gallformers.Species.Species
 
   # Bounding boxes per place code, extracted from PMTiles by extract_bounds.py.
@@ -73,10 +74,14 @@ defmodule Gallformers.Places do
     shifted_east = shifted_ranges |> Enum.map(&elem(&1, 1)) |> Enum.max()
     shifted_span = shifted_east - shifted_west
 
-    # Pick the union with the smaller span
+    # Pick the union with the smaller span. Use a tolerance to avoid
+    # floating point noise — adding 360 to negative longitudes changes
+    # magnitudes enough to produce ~1e-14 differences in span calculations,
+    # which can falsely select the antimeridian-crossing union for ranges
+    # entirely in one hemisphere.
     {west, east} =
-      if shifted_span < normal_span do
-        # The antimeridian-crossing union is tighter — use it.
+      if shifted_span < normal_span - 0.01 do
+        # The antimeridian-crossing union is meaningfully tighter — use it.
         # MapLibre handles coordinates > 180, so pass as-is.
         {shifted_west, shifted_east}
       else
@@ -189,10 +194,10 @@ defmodule Gallformers.Places do
   """
   @spec search_places(String.t(), integer()) :: [Place.t()]
   def search_places(query, limit \\ 20) do
-    search_pattern = "%#{String.downcase(query)}%"
+    filter = TextMatch.build_filter(query, [:name])
 
     from(p in Place,
-      where: fragment("lower(?) LIKE ?", p.name, ^search_pattern),
+      where: ^filter,
       order_by: p.name,
       limit: ^limit
     )
@@ -218,7 +223,7 @@ defmodule Gallformers.Places do
         left_join: parent in Place,
         on: parent.id == ph.parent_id,
         where: p.type in ["country", "state", "province"],
-        where: fragment("lower(?) LIKE ?", p.name, ^like_query),
+        where: ilike(p.name, ^like_query),
         order_by: [
           fragment("CASE WHEN ? = 'country' THEN 0 ELSE 1 END", p.type),
           p.name
@@ -274,7 +279,7 @@ defmodule Gallformers.Places do
       Repo.query(
         """
         WITH RECURSIVE descendants(id) AS (
-          SELECT ?1
+          SELECT $1::bigint
           UNION ALL
           SELECT ph.place_id
           FROM place_hierarchy ph
@@ -297,7 +302,7 @@ defmodule Gallformers.Places do
       Repo.query(
         """
         WITH RECURSIVE ancestors(id) AS (
-          SELECT ?1
+          SELECT $1::bigint
           UNION ALL
           SELECT ph.parent_id
           FROM place_hierarchy ph
@@ -335,6 +340,44 @@ defmodule Gallformers.Places do
   end
 
   @doc """
+  Returns IDs for leaf descendants of multiple places in a single batched query.
+  Equivalent to calling `leaf_descendant_ids/1` for each place_id, but avoids N+1 queries.
+  """
+  @spec batch_leaf_descendant_ids([integer()]) :: [integer()]
+  def batch_leaf_descendant_ids([]), do: []
+
+  def batch_leaf_descendant_ids(place_ids) do
+    placeholders = Enum.map_join(1..length(place_ids), ", ", &"$#{&1}::bigint")
+
+    {:ok, %{rows: rows}} =
+      Repo.query(
+        """
+        WITH RECURSIVE descendants(id) AS (
+          SELECT id FROM place WHERE id IN (#{placeholders})
+          UNION ALL
+          SELECT ph.place_id
+          FROM place_hierarchy ph
+          JOIN descendants d ON ph.parent_id = d.id
+        )
+        SELECT DISTINCT id FROM descendants
+        """,
+        place_ids
+      )
+
+    all_ids = Enum.map(rows, fn [id] -> id end)
+
+    parent_ids =
+      from(ph in "place_hierarchy",
+        where: ph.parent_id in ^all_ids,
+        select: ph.parent_id,
+        distinct: true
+      )
+      |> Repo.all()
+
+    Enum.reject(all_ids, &(&1 in parent_ids))
+  end
+
+  @doc """
   Returns the ancestor places for a given place, ordered from root to immediate parent.
   Does not include the place itself.
   """
@@ -346,7 +389,7 @@ defmodule Gallformers.Places do
         WITH RECURSIVE ancestors(id, depth) AS (
           SELECT ph.parent_id, 1
           FROM place_hierarchy ph
-          WHERE ph.place_id = ?1
+          WHERE ph.place_id = $1::bigint
           UNION ALL
           SELECT ph.parent_id, a.depth + 1
           FROM place_hierarchy ph
@@ -464,14 +507,14 @@ defmodule Gallformers.Places do
   end
 
   @doc """
-  Gets gall range exclusions for a species (places excluded from gall's range).
+  Gets the curated gall range for a species (places where the gall occurs).
   """
-  @spec get_gall_range_exclusions(integer()) :: [Place.t()]
-  def get_gall_range_exclusions(species_id) do
+  @spec get_gall_ranges(integer()) :: [Place.t()]
+  def get_gall_ranges(species_id) do
     from(p in Place,
-      join: gre in "gall_range_exclusion",
-      on: gre.place_id == p.id,
-      where: gre.species_id == ^species_id,
+      join: gr in "gall_range",
+      on: gr.place_id == p.id,
+      where: gr.species_id == ^species_id,
       order_by: p.name
     )
     |> Repo.all()
@@ -480,7 +523,7 @@ defmodule Gallformers.Places do
   @doc """
   Gets the range for a species based on its taxoncode.
   For plants: returns places where the host exists
-  For galls: returns places EXCLUDED from the gall's range
+  For galls: returns places in the gall's curated range
   """
   @spec get_species_range(Species.t()) :: [Place.t()]
   def get_species_range(%Species{taxoncode: "plant", id: id}) do
@@ -488,7 +531,7 @@ defmodule Gallformers.Places do
   end
 
   def get_species_range(%Species{taxoncode: "gall", id: id}) do
-    get_gall_range_exclusions(id)
+    get_gall_ranges(id)
   end
 
   def get_species_range(_), do: []

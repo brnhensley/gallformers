@@ -48,6 +48,7 @@ defmodule Gallformers.Species.SpeciesSource do
       :externallink,
       :alias_id
     ])
+    |> trim_strings()
     |> validate_required(@required_fields)
     |> validate_url(:externallink)
     |> unique_constraint([:species_id, :source_id],

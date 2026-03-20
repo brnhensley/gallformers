@@ -25,16 +25,16 @@ Infrastructure as Code for Gallformers AWS resources using OpenTofu.
 │  ┌──────────────────────┐     ┌──────────────────────┐                     │
 │  │ S3: gallformers-     │     │ S3: gallformers-     │                     │
 │  │     backups          │     │     full-backups     │                     │
-│  │ (sanitized snapshots)│     │ (private, has PII)   │                     │
-│  │ + Litestream backups │     │                      │                     │
+│  │ (public pg_dump)     │     │ (private, has PII)   │                     │
+│  │                      │     │                      │                     │
 │  └──────────┬───────────┘     └──────────┬───────────┘                     │
 │             │                            │                                  │
 │             └────────────┬────────────────┘                                 │
 │                          │                                                  │
 │                          ▼                                                  │
 │          ┌──────────────────────────────┐                                   │
-│          │ IAM: litestream-gallformers  │◄──── Fly.io (Litestream)         │
-│          │ Policy: LitestreamGallforms  │◄──── GitHub Actions (snapshots)  │
+│          │ IAM: litestream-gallformers  │◄──── GitHub Actions (snapshots)  │
+│          │ Policy: LitestreamGallforms  │                                   │
 │          │         Backup               │                                   │
 │          └──────────────────────────────┘                                   │
 │                                                                             │
@@ -56,20 +56,18 @@ All AWS resources are deployed to **`us-east-1`** (N. Virginia) to match Fly.io'
 - **Upload:** `s3-upload` IAM user (Fly.io/V2 app secrets)
 
 #### gallformers-backups
-- **Purpose:** Database backups with mixed access patterns
-  - `litestream/*` - Continuous DB backups (private, used by Litestream for replication)
-  - `public/*` - Daily sanitized snapshots (public read, no PII)
-- **Access:**
-  - Private for Litestream backups (Fly.io via `litestream-gallformers` IAM user)
-  - Public read for `public/*` prefix only
+- **Purpose:** Public database snapshots
+  - `public/*` - Daily pg_dump snapshots (public read, excludes PII/analytics/internal content)
+  - `litestream/*` - Legacy Litestream backups (to be removed after post-cutover soak period)
+- **Access:** Public read for `public/*` prefix, private otherwise
 - **Versioning:** Enabled
-- **Public URL:** https://gallformers-backups.s3.amazonaws.com/public/gallformers.sqlite
+- **Public URL:** https://gallformers-backups.s3.amazonaws.com/public/gallformers.dump
 
 #### gallformers-full-backups
-- **Purpose:** Full database backups containing PII
+- **Purpose:** Full daily pg_dump backups (all tables, includes PII)
 - **Access:** Fully private (no public access)
 - **Versioning:** Enabled
-- **Used by:** `litestream-gallformers` IAM user (Fly.io + GitHub Actions)
+- **Used by:** GitHub Actions (daily snapshot workflow) and `make download-db`
 
 ### CDN
 
@@ -78,7 +76,7 @@ All AWS resources are deployed to **`us-east-1`** (N. Virginia) to match Fly.io'
 ### IAM
 
 - **`s3-upload`** - Image uploads to S3 (credentials in Fly.io/V2 app secrets)
-- **`litestream-gallformers`** - Database backups (credentials in Fly.io secrets + GitHub Actions secrets)
+- **`litestream-gallformers`** - Database backups (credentials in GitHub Actions secrets). Name is historical — to be renamed during post-cutover cleanup.
 
 ## Deployment
 

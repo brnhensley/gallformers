@@ -2,7 +2,9 @@ defmodule Gallformers.Analytics.Rollup do
   @moduledoc """
   GenServer that aggregates raw `page_views` into daily summary tables.
 
-  Runs nightly at ~00:05 UTC to roll up yesterday's data and prune old raw rows.
+  Runs nightly at ~07:00 UTC (3:00 AM ET) to roll up pending days and prune
+  old raw rows. Gap-aware: retries any previously failed days rather than
+  skipping over them.
   """
 
   use GenServer
@@ -14,7 +16,7 @@ defmodule Gallformers.Analytics.Rollup do
   alias Gallformers.Analytics.PageView
   alias Gallformers.Repo
 
-  @default_prune_days 90
+  @default_prune_days 30
 
   # -- Public API --
 
@@ -23,11 +25,11 @@ defmodule Gallformers.Analytics.Rollup do
   end
 
   @doc """
-  Rolls up all days from the last rolled-up date through yesterday.
+  Rolls up all pending days through yesterday.
 
-  Finds the most recent date in `daily_stats`, then processes each day
-  from the day after that through yesterday. If no rollups exist yet,
-  finds the earliest raw page view and starts from there.
+  Finds dates that have raw page_views but no corresponding daily_stats
+  entry, then processes each one. Gap-aware: previously failed days are
+  retried on the next run rather than skipped permanently.
 
   Individual day failures are logged and skipped — they don't prevent
   subsequent days from being processed.
@@ -36,58 +38,55 @@ defmodule Gallformers.Analytics.Rollup do
   """
   @spec rollup_pending_days() :: {:ok, non_neg_integer()}
   def rollup_pending_days do
-    yesterday = Date.add(Date.utc_today(), -1)
-    start_date = next_pending_date()
+    dates = pending_dates()
 
-    if start_date == nil or Date.compare(start_date, yesterday) == :gt do
-      {:ok, 0}
-    else
-      count =
-        Date.range(start_date, yesterday)
-        |> Enum.reduce(0, fn date, acc ->
-          try do
-            case rollup_day(date) do
-              :ok -> acc + 1
-              :noop -> acc
-            end
-          rescue
-            e ->
-              Logger.error("Analytics rollup failed for #{date}: #{Exception.message(e)}")
-
-              acc
+    count =
+      Enum.reduce(dates, 0, fn date, acc ->
+        try do
+          case rollup_day(date) do
+            :ok -> acc + 1
+            :noop -> acc
           end
-        end)
+        rescue
+          e ->
+            Logger.error("Analytics rollup failed for #{date}: #{Exception.message(e)}")
+            acc
+        end
+      end)
 
-      {:ok, count}
-    end
+    {:ok, count}
   end
 
-  # Returns the first date that needs rolling up, or nil if caught up.
-  defp next_pending_date do
-    case Repo.query!("SELECT MAX(date) FROM daily_stats") do
-      %{rows: [[nil]]} ->
-        # No rollups exist — find the earliest raw page view date
-        case Repo.query!("SELECT MIN(date(inserted_at)) FROM page_views") do
-          %{rows: [[nil]]} -> nil
-          %{rows: [[min_str]]} -> Date.from_iso8601!(min_str)
-        end
+  # Returns dates that need rolling up — finds gaps in daily_stats where
+  # page_views exist but no rollup has been recorded. This ensures failed
+  # days are retried rather than permanently skipped.
+  defp pending_dates do
+    yesterday = Date.utc_today() |> Date.add(-1)
 
-      %{rows: [[max_str]]} ->
-        Date.from_iso8601!(max_str) |> Date.add(1)
-    end
+    %{rows: rows} =
+      Repo.query!(
+        """
+        SELECT DISTINCT inserted_at::date FROM page_views
+        WHERE inserted_at::date NOT IN (SELECT date FROM daily_stats)
+          AND inserted_at::date <= $1
+        ORDER BY inserted_at::date
+        """,
+        [yesterday]
+      )
+
+    Enum.map(rows, fn [date] -> date end)
   end
 
   @doc """
   Aggregates a single day's raw page_views into the 5 summary tables.
 
-  Idempotent: uses DELETE + INSERT for multi-row tables, INSERT OR REPLACE
+  Idempotent: uses DELETE + INSERT for multi-row tables, INSERT ... ON CONFLICT
   for the single-row daily_stats. Returns `:noop` if no raw data exists
   for the given day.
   """
   @spec rollup_day(Date.t()) :: :ok | :noop
   def rollup_day(date) do
     {from_dt, to_dt} = date_bounds(date)
-    date_str = Date.to_iso8601(date)
 
     base_query =
       from(pv in PageView,
@@ -100,11 +99,11 @@ defmodule Gallformers.Analytics.Rollup do
       :noop
     else
       Repo.transaction(fn ->
-        rollup_daily_stats(base_query, date_str)
-        rollup_daily_page_stats(base_query, date_str)
-        rollup_daily_referrer_stats(base_query, date_str)
-        rollup_daily_device_stats(base_query, date_str)
-        rollup_daily_browser_stats(base_query, date_str)
+        rollup_daily_stats(base_query, date)
+        rollup_daily_page_stats(base_query, date)
+        rollup_daily_referrer_stats(base_query, date)
+        rollup_daily_device_stats(base_query, date)
+        rollup_daily_browser_stats(base_query, date)
       end)
 
       :ok
@@ -160,8 +159,8 @@ defmodule Gallformers.Analytics.Rollup do
   defp ms_until_next_run do
     now = NaiveDateTime.utc_now()
     today = NaiveDateTime.to_date(now)
-    # Target: next midnight + 5 minutes
-    target = NaiveDateTime.new!(Date.add(today, 1), ~T[00:05:00])
+    # Target: 07:00 UTC (3:00 AM ET) — low-traffic window
+    target = NaiveDateTime.new!(Date.add(today, 1), ~T[07:00:00])
     max(NaiveDateTime.diff(target, now, :millisecond), 1_000)
   end
 
@@ -169,7 +168,7 @@ defmodule Gallformers.Analytics.Rollup do
     {NaiveDateTime.new!(date, ~T[00:00:00]), NaiveDateTime.new!(Date.add(date, 1), ~T[00:00:00])}
   end
 
-  defp rollup_daily_stats(base_query, date_str) do
+  defp rollup_daily_stats(base_query, date) do
     %{page_views: pv, unique_visitors: uv} =
       from(pv in base_query,
         select: %{
@@ -180,12 +179,15 @@ defmodule Gallformers.Analytics.Rollup do
       |> Repo.one!()
 
     Repo.query!(
-      "INSERT OR REPLACE INTO daily_stats (date, page_views, unique_visitors) VALUES (?, ?, ?)",
-      [date_str, pv, uv]
+      """
+      INSERT INTO daily_stats (date, page_views, unique_visitors) VALUES ($1, $2, $3)
+      ON CONFLICT (date) DO UPDATE SET page_views = EXCLUDED.page_views, unique_visitors = EXCLUDED.unique_visitors
+      """,
+      [date, pv, uv]
     )
   end
 
-  defp rollup_daily_page_stats(base_query, date_str) do
+  defp rollup_daily_page_stats(base_query, date) do
     rows =
       from(pv in base_query,
         group_by: pv.path,
@@ -193,17 +195,17 @@ defmodule Gallformers.Analytics.Rollup do
       )
       |> Repo.all()
 
-    Repo.query!("DELETE FROM daily_page_stats WHERE date = ?", [date_str])
+    Repo.query!("DELETE FROM daily_page_stats WHERE date = $1", [date])
 
     for {path, views, unique} <- rows do
       Repo.query!(
-        "INSERT INTO daily_page_stats (date, path, page_views, unique_visitors) VALUES (?, ?, ?, ?)",
-        [date_str, path, views, unique]
+        "INSERT INTO daily_page_stats (date, path, page_views, unique_visitors) VALUES ($1, $2, $3, $4)",
+        [date, path, views, unique]
       )
     end
   end
 
-  defp rollup_daily_referrer_stats(base_query, date_str) do
+  defp rollup_daily_referrer_stats(base_query, date) do
     rows =
       from(pv in base_query,
         group_by: pv.referrer_host,
@@ -211,17 +213,17 @@ defmodule Gallformers.Analytics.Rollup do
       )
       |> Repo.all()
 
-    Repo.query!("DELETE FROM daily_referrer_stats WHERE date = ?", [date_str])
+    Repo.query!("DELETE FROM daily_referrer_stats WHERE date = $1", [date])
 
     for {referrer, views} <- rows do
       Repo.query!(
-        "INSERT INTO daily_referrer_stats (date, referrer_host, page_views) VALUES (?, ?, ?)",
-        [date_str, referrer, views]
+        "INSERT INTO daily_referrer_stats (date, referrer_host, page_views) VALUES ($1, $2, $3)",
+        [date, referrer, views]
       )
     end
   end
 
-  defp rollup_daily_device_stats(base_query, date_str) do
+  defp rollup_daily_device_stats(base_query, date) do
     rows =
       from(pv in base_query,
         group_by: pv.device_type,
@@ -229,17 +231,17 @@ defmodule Gallformers.Analytics.Rollup do
       )
       |> Repo.all()
 
-    Repo.query!("DELETE FROM daily_device_stats WHERE date = ?", [date_str])
+    Repo.query!("DELETE FROM daily_device_stats WHERE date = $1", [date])
 
     for {device, cnt} <- rows do
       Repo.query!(
-        "INSERT INTO daily_device_stats (date, device_type, count) VALUES (?, ?, ?)",
-        [date_str, device, cnt]
+        "INSERT INTO daily_device_stats (date, device_type, count) VALUES ($1, $2, $3)",
+        [date, device, cnt]
       )
     end
   end
 
-  defp rollup_daily_browser_stats(base_query, date_str) do
+  defp rollup_daily_browser_stats(base_query, date) do
     rows =
       from(pv in base_query,
         group_by: pv.browser,
@@ -247,12 +249,12 @@ defmodule Gallformers.Analytics.Rollup do
       )
       |> Repo.all()
 
-    Repo.query!("DELETE FROM daily_browser_stats WHERE date = ?", [date_str])
+    Repo.query!("DELETE FROM daily_browser_stats WHERE date = $1", [date])
 
     for {browser, cnt} <- rows do
       Repo.query!(
-        "INSERT INTO daily_browser_stats (date, browser, count) VALUES (?, ?, ?)",
-        [date_str, browser, cnt]
+        "INSERT INTO daily_browser_stats (date, browser, count) VALUES ($1, $2, $3)",
+        [date, browser, cnt]
       )
     end
   end

@@ -8,18 +8,21 @@ defmodule Gallformers.Ranges.HostRange do
   """
   use Ecto.Schema
   import Ecto.Changeset
+  import Gallformers.ChangesetHelpers, only: [trim_strings: 1]
 
   @behaviour Gallformers.SchemaFields
 
   @required_fields [:species_id, :place_id]
-  @optional_fields [:precision]
+  @optional_fields [:precision, :distribution_type]
   @valid_precisions ~w(exact country)
+  @valid_distribution_types ~w(native introduced)
 
   @primary_key false
   schema "host_range" do
     belongs_to :species, Gallformers.Species.Species
     belongs_to :place, Gallformers.Places.Place
     field :precision, :string, default: "exact"
+    field :distribution_type, :string, default: "native"
   end
 
   @impl Gallformers.SchemaFields
@@ -31,8 +34,10 @@ defmodule Gallformers.Ranges.HostRange do
   def changeset(host_range, attrs) do
     host_range
     |> cast(attrs, @required_fields ++ @optional_fields)
+    |> trim_strings()
     |> validate_required(@required_fields)
     |> validate_inclusion(:precision, @valid_precisions)
+    |> validate_inclusion(:distribution_type, @valid_distribution_types)
     |> unique_constraint([:species_id, :place_id], name: :host_range_pkey)
   end
 end

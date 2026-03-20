@@ -846,18 +846,32 @@ defmodule GallformersWeb.UIComponents do
       id="region-scope"
       phx-hook="RegionScope"
       data-default-code={@default_continent_code || ""}
-      class="bg-gray-100 border-b border-gray-200"
+      class={[
+        "border-b",
+        if(@continent_code, do: "bg-amber-50 border-amber-200", else: "bg-gray-100 border-gray-200")
+      ]}
     >
       <div class="px-6 sm:px-10 lg:px-16 py-1.5 flex items-center justify-between">
         <div class="flex items-center gap-1.5">
-          <.icon name="ph-globe" class="h-4 w-4 text-gray-500" />
+          <.icon
+            name="ph-globe"
+            class={if(@continent_code, do: "h-4 w-4 text-amber-700", else: "h-4 w-4 text-gray-500")}
+          />
           <div class="relative">
             <button
               type="button"
               data-region-toggle
-              class="flex items-center gap-1 text-sm text-gray-700 hover:text-gray-900"
+              class={[
+                "flex items-center gap-1 text-sm",
+                if(@continent_code,
+                  do: "text-amber-700 font-medium hover:text-amber-900",
+                  else: "text-gray-700 hover:text-gray-900"
+                )
+              ]}
             >
-              <span data-region-label>{@continent_name || "All Regions"}</span>
+              <span data-region-label>
+                {if @continent_code, do: "Filtered to #{@continent_name}", else: "All Regions"}
+              </span>
               <.icon name="ph-caret-down" class="h-3 w-3" />
             </button>
             <div

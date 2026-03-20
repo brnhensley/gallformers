@@ -143,6 +143,18 @@ defmodule Gallformers.Accounts do
   def superadmin?(_), do: false
 
   @doc """
+  Returns true if the user is an operator.
+
+  Accepts Auth0User structs or any map with a `roles` field (to handle
+  session deserialization where struct types may not be preserved).
+  """
+  @spec operator?(Auth0User.t() | map() | nil) :: boolean()
+  def operator?(nil), do: false
+  def operator?(%Auth0User{} = user), do: Auth0User.operator?(user)
+  def operator?(%{roles: roles}) when is_list(roles), do: "operator" in roles
+  def operator?(_), do: false
+
+  @doc """
   Returns the Auth0 logout URL.
 
   This URL will clear the Auth0 session and redirect back to the specified URL.
@@ -286,7 +298,7 @@ defmodule Gallformers.Accounts do
   def list_users_for_about_page do
     User
     |> where([u], u.show_on_about == true)
-    |> order_by([u], fragment("COALESCE(?, ?) COLLATE NOCASE", u.display_name, u.nickname))
+    |> order_by([u], fragment("lower(COALESCE(?, ?))", u.display_name, u.nickname))
     |> Repo.all()
   end
 
@@ -303,7 +315,7 @@ defmodule Gallformers.Accounts do
   @spec list_all_users() :: [User.t()]
   def list_all_users do
     User
-    |> order_by([u], fragment("COALESCE(?, ?) COLLATE NOCASE", u.display_name, u.nickname))
+    |> order_by([u], fragment("lower(COALESCE(?, ?))", u.display_name, u.nickname))
     |> Repo.all()
   end
 end

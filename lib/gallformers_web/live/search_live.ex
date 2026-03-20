@@ -360,10 +360,28 @@ defmodule GallformersWeb.SearchLive do
                 id="search-no-results"
                 class="bg-gray-50 border border-gray-200 px-6 py-4 rounded-lg"
               >
-                <p class="font-medium text-gray-900">No results for "{@query}"</p>
-                <p class="text-sm text-gray-600 mt-1">
-                  Try adjusting your search terms or use fewer keywords.
-                </p>
+                <%= if @continent_code do %>
+                  <p class="font-medium text-gray-900">
+                    No results for "{@query}" in {@continent_name}
+                  </p>
+                  <p class="text-sm text-gray-600 mt-1">
+                    You have a region filter active — try searching
+                    <button
+                      type="button"
+                      phx-click="change_region"
+                      phx-value-code=""
+                      class="text-gf-maroon font-medium underline hover:text-gf-maroon/80"
+                    >
+                      All Regions
+                    </button>
+                    or adjusting your search terms.
+                  </p>
+                <% else %>
+                  <p class="font-medium text-gray-900">No results for "{@query}"</p>
+                  <p class="text-sm text-gray-600 mt-1">
+                    Try adjusting your search terms or use fewer keywords.
+                  </p>
+                <% end %>
               </div>
             <% else %>
               <div id="results-count" class="mb-4 text-sm text-gray-600">

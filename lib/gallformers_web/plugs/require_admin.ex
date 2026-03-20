@@ -82,6 +82,48 @@ defmodule GallformersWeb.Plugs.RequireSuperAdmin do
   end
 end
 
+defmodule GallformersWeb.Plugs.RequireOperator do
+  @moduledoc """
+  Plug that requires the user to be an operator.
+
+  Redirects to the login page if the user is not authenticated.
+  Shows a 403 forbidden page if the user is authenticated but not an operator.
+  If the user has no display_name set, redirects to the profile page.
+  """
+
+  import Plug.Conn
+  import Phoenix.Controller
+
+  alias Gallformers.Accounts
+  alias GallformersWeb.Plugs.AdminSessionHelper
+
+  def init(opts), do: opts
+
+  def call(conn, _opts) do
+    user = get_session(conn, :current_user)
+
+    cond do
+      is_nil(user) ->
+        conn
+        |> put_flash(:error, "You must log in to access this page.")
+        |> redirect(to: "/auth/auth0")
+        |> halt()
+
+      not Accounts.operator?(user) ->
+        conn
+        |> put_status(:forbidden)
+        |> put_view(GallformersWeb.ErrorHTML)
+        |> render("403.html")
+        |> halt()
+
+      true ->
+        conn
+        |> assign(:current_user, user)
+        |> AdminSessionHelper.ensure_db_display_name(user)
+    end
+  end
+end
+
 defmodule GallformersWeb.Plugs.AdminSessionHelper do
   @moduledoc false
 
@@ -171,7 +213,7 @@ defmodule GallformersWeb.Plugs.FetchCurrentUser do
         email: "dev@localhost",
         name: "Dev Admin",
         nickname: "dev",
-        roles: ["admin"]
+        roles: ["admin", "superadmin", "operator"]
       }
 
       conn

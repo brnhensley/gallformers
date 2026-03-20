@@ -13,7 +13,7 @@ on:
       - 'mix.lock'
       - '.github/workflows/ci.yml'
   pull_request:
-    branches: [main]  # Only run CI on PRs targeting main
+    branches: [main]
     paths:
       - 'lib/**'
       - 'config/**'
@@ -26,13 +26,33 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-postgres-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   phoenix:
     name: Phoenix
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: gallformers_test
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      MIX_ENV: test
+      USER: postgres
 
     steps:
       - uses: actions/checkout@v4
@@ -57,11 +77,11 @@ jobs:
 
       - name: Setup test database
         run: |
-          rm -f priv/gallformers_test.sqlite*
           MIX_ENV=test mix ecto.create --quiet
-          MIX_ENV=test mix ecto.load --quiet
           MIX_ENV=test mix ecto.migrate --quiet
-          sqlite3 priv/gallformers_test.sqlite < priv/repo/test_seeds.sql
+          psql -U postgres -h localhost -d gallformers_test -f priv/repo/test_seeds.sql --quiet
+          createdb -U postgres -h localhost wcvp_test
+          psql -U postgres -h localhost -d wcvp_test -f priv/repo/wcvp_test_setup.sql --quiet
 
       - name: Setup ChromeDriver for E2E tests
         run: |

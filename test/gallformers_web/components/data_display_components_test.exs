@@ -2,7 +2,7 @@ defmodule GallformersWeb.DataDisplayComponentsTest do
   @moduledoc """
   Tests for data display components.
   """
-  use GallformersWeb.ConnCase, async: false
+  use GallformersWeb.ConnCase, async: true
   import Phoenix.LiveViewTest
 
   alias GallformersWeb.DataDisplayComponents
@@ -98,6 +98,17 @@ defmodule GallformersWeb.DataDisplayComponentsTest do
 
       assert html =~ "/section/Cerris"
       refute html =~ "/section/5"
+    end
+
+    test "does not render dash when genus description is empty string" do
+      html =
+        render_component(&DataDisplayComponents.taxonomy_breadcrumb/1,
+          family: %{id: 1, name: "Cynipidae"},
+          genus: %{id: 2, name: "Andricus", description: ""}
+        )
+
+      assert html =~ "Andricus"
+      refute html =~ "- "
     end
 
     test "renders identically to before when intermediates is nil or empty" do

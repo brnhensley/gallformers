@@ -85,6 +85,44 @@ defmodule GallformersWeb.Admin.FormComponents do
     """
   end
 
+  @doc """
+  Displays warnings for potential duplicate hosts found during creation.
+
+  Handles three types of matches from `Plants.find_duplicate_host_candidates/2`:
+  - `:name_match` — exact species name already exists
+  - `:alias_match` — name matches an existing alias
+  - `:wcvp_id_match` — same WCVP record already linked to another host
+
+  ## Attributes
+
+  * `:warnings` - Required. List of maps with `:species_id`, `:species_name`,
+    and `:reason` keys (plus `:alias_type` for alias matches).
+  """
+  attr :warnings, :list, required: true
+
+  def duplicate_host_warning(assigns) do
+    ~H"""
+    <.alert :if={@warnings != []} variant="warning">
+      <:title>Possible duplicate</:title>
+      <div :for={w <- @warnings}>
+        {duplicate_reason_text(w)}
+        <.link navigate={"/admin/hosts/#{w.species_id}"} class="underline font-medium">
+          {w.species_name}
+        </.link>
+      </div>
+    </.alert>
+    """
+  end
+
+  defp duplicate_reason_text(%{reason: :name_match}),
+    do: "A host with this exact name already exists: "
+
+  defp duplicate_reason_text(%{reason: :alias_match, alias_type: type}),
+    do: "This name is a #{alias_type_label(type)} of "
+
+  defp duplicate_reason_text(%{reason: :wcvp_id_match}),
+    do: "This WCVP record is already linked to "
+
   defp alias_type_label("common"), do: "common name"
   defp alias_type_label("scientific"), do: "scientific synonym"
   defp alias_type_label(other), do: other

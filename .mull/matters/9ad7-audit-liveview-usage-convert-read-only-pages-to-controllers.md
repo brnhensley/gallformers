@@ -1,81 +1,79 @@
 ---
-status: refined
-effort: 1 day
+status: planned
 created: 2026-02-18
-updated: 2026-03-03
+updated: 2026-03-08
 epic: platform
-relates: [1edb, 8ae6, 8c5c]
+relates: [1edb, 8ae6, 8c5c, 8166]
 ---
 
 # Audit LiveView usage — convert read-only pages to controllers
 
 # Audit LiveView usage — convert read-only pages to controllers
 
-Every page in gallformers is a LiveView, including read-only display pages that don't need server-driven interactivity. Each LiveView page means: double mount (dead render + WebSocket), a long-lived process per open tab, all assigns held in process heap indefinitely.
+## Problem
 
-## March 2-3 OOM incidents
+Every page in gallformers is a LiveView, including read-only display pages. This causes:
 
-Two OOM kills confirmed:
-- ~11:30 PM ET March 2 (user-reported, GitHub issue #525)
-- ~10:00 AM ET March 3 (confirmed oom_killed=true in fly machine events)
+1. **WebSocket fragility** — all `phx-*` bindings become inert when the socket dies (tab idle 5-10 min). Modals can't be dismissed, buttons stop working, forms fail silently.
+2. **Memory pressure** — long-lived process per open tab. Browse pages hold 670KB-1MB of tree data per process.
+3. **Double mount** — every page load does HTTP render + WebSocket connect, even for static content.
 
-Root cause: issue #525 — host edit page bug where genus/name handling went wrong, causing runaway state. Being addressed separately.
+## What we did (branch: liveview-to-controllers)
 
-Contributing factor: 75% bot traffic (GPTBot, ClaudeBot, Amazonbot, Meta) with ~42K requests/day, all hitting LiveView pages that hold process memory. The browse pages added in 9a14daf4 load full tree datasets (~1 MB for galls, ~670 KB for hosts, ~760 KB for places) into each process on mount.
+### Reconnection fix (landed on main)
+Added `visibilitychange` listener to force immediate WebSocket reconnection when a backgrounded tab regains focus. Fixes the dead-socket problem for all LiveView pages.
 
-## Candidate conversion list
+### Hook extraction
+Extracted 11 inline hooks from app.js into individual files in `assets/js/hooks/`. Pure refactor — app.js went from 714 lines to 95 lines. Benefits both LiveView and controller pages.
 
-| Page | Current | Traffic | Interactivity | Priority |
-|------|---------|---------|---------------|----------|
-| Browse galls (/galls) | LiveView | Moderate | Tree + search | High — 1 MB per mount |
-| Browse hosts (/hosts) | LiveView | Moderate | Tree + search | High — 670 KB per mount |
-| Browse places (/places) | LiveView | Moderate | Tree + search | High — 760 KB per mount |
-| Species detail (/gall/:id, /host/:id) | LiveView | Highest (bot + human) | Read-only display | High — volume |
-| Family (/family/:name) | LiveView | Moderate | Sort + search | Medium |
-| Genus (/genus/:name) | LiveView | Moderate | Read-only display | Medium |
-| Home (/) | LiveView | High | Mostly static | Low |
+### Converted 5 pages to controllers
+These pages are genuinely static content with zero or trivial interactivity:
 
-## JS strategy: no framework, better organization
+| Page | Route | Events | Notes |
+|------|-------|--------|-------|
+| Privacy | /privacy | 0 | Pure static |
+| Filter Guide | /filterguide | 0 | Pure static (loads filter field data) |
+| Articles index | /articles | handle_params | Tag filtering via URL params — clean conversion |
+| Article detail | /articles/:slug | 0 | Loads by slug, 404 handling |
+| About | /about | 1 (easter egg) | Toggle converted to JS.toggle — no WebSocket needed |
 
-Evaluated Alpine.js, Stimulus, and htmx. All rejected — they add a second reactivity system that conflicts with LiveView's DOM patching or duplicate what Phoenix already provides. The existing LiveView hooks pattern (mounted/updated/destroyed + pushEvent) is already a sufficient framework.
+### Keys reverted
+Initially converted Keys index to controller, then reverted. Keys is a growing feature (matter 85c0) that will need image galleries and interactivity — converting now means converting back later.
 
-Current JS is ~2,500 lines across 7 files, with only 3 npm deps (MapLibre, PMTiles, D3). The complexity feeling comes from app.js being a 714-line grab bag of 10 inline hooks.
+## Phase 2 findings — open questions
 
-### Extract inline hooks from app.js
+The original plan proposed converting pages with "client-side filtering" (genus, section, browse, search) to controllers, potentially using Alpine.js or hand-rolled JS. Implementation revealed concerns that need more investigation:
 
-Move each inline hook in app.js to its own file under hooks/:
+### JS bloat concern
+Every page with server-side interactivity would require rewriting Elixir logic in JavaScript:
+- **Genus/Section** — search filters and sort comparators duplicate domain knowledge (how to sort species names, which fields to search, common name fallbacks)
+- **Place** — range_map hook uses `pushEvent('navigate_to_place')` which requires a LiveView. Converting means modifying a shared hook to detect controller vs LiveView context.
+- **Browse pages** — tree expand/collapse, search filtering on 670KB-1MB of data
+- **Gall/Host detail** — 11-13 events each. Source modals, pagination, font size toggling all interact with data.
 
-- `hooks/tabs.js` — tab switching with keyboard nav
-- `hooks/image_gallery.js` — gallery navigation, lightbox, attribution
-- `hooks/typeahead.js` — keyboard nav for search dropdowns
-- `hooks/copy_to_clipboard.js` — clipboard API wrapper
-- `hooks/auto_dismiss.js` — flash message auto-dismiss
-- `hooks/input_event.js` — generic input event forwarder
-- `hooks/scroll_to_couplet.js` — dichotomous key navigation
-- `hooks/admin_nav.js` — active nav link highlighting
-- `hooks/region_scope.js` — continent scope widget
-- `hooks/region_prompt.js` — first-visit region prompt
-- `hooks/indeterminate_checkbox.js` — tri-state checkbox
+### Reconnection fix changes the calculus
+The `visibilitychange` listener addresses the dead-socket UX problem for all LiveView pages. The remaining reasons to convert (memory, double mount) are optimization concerns that may or may not matter at current scale.
 
-After extraction, app.js becomes ~30 lines: imports + LiveSocket setup.
+### Open questions
+- Is the JS duplication cost acceptable for the memory/performance gains?
+- Are there hybrid approaches (e.g., LiveView with reduced assigns, lazy loading) that address memory without full conversion?
+- Does Alpine.js or a similar lightweight framework change the equation for pages like genus/section?
+- What does the actual memory pressure look like in production — is it a real problem or theoretical?
 
-### Client interactivity on converted controller pages
+## Pages not yet decided
 
-Pages converted to controllers lose LiveView hooks. For pages that need client interactivity (browse tree search/filter, family sort/search):
+| Page | Current interactivity | Conversion concern |
+|------|----------------------|-------------------|
+| Keys index + detail | Static list (growing) | Will need galleries, interactivity |
+| Genus/Section | Search + sort | Duplicates domain logic in JS |
+| Place | Range map navigation | Hook needs pushEvent |
+| Gall/Host detail | Modals, pagination, galleries | 11-13 events, data interaction |
+| Browse (galls/hosts/places) | Tree data, search, filtering | 670KB-1MB data per process |
+| Home, Search | Debounced DB search | Genuinely interactive |
+| ID tool | Complex filter logic | Stays LiveView (no question) |
+| All admin pages | Forms, validation, PubSub | Stay LiveView (no question) |
 
-- Use standalone JS modules that attach via `data-` attributes on `DOMContentLoaded`
-- No framework — it's filtering/sorting a list that was already server-rendered
-- Tree data can be embedded as JSON in a `<script>` tag or `data-` attribute, filtered client-side
-- These modules live alongside hooks/ but don't depend on LiveSocket
+## Status
 
-### Sequencing
+Phase 1 complete. Phase 2 approach undecided — needs more investigation.
 
-1. Extract inline hooks (cleanup, no behavior change, can land independently)
-2. Convert read-only pages to controllers (species detail, genus — no client JS needed)
-3. Convert interactive-read pages (browse, family — needs standalone JS modules for search/filter)
-
-## Investigation artifacts
-
-- Request log analysis: 75% bot traffic, GPTBot (9.4K), Meta (9K), ClaudeBot (7.2K), Amazonbot (4K)
-- Tree memory measurements: galls ~1 MB, hosts ~670 KB, places ~760 KB per process
-- Machine: shared-cpu-1x with 1024 MB RAM

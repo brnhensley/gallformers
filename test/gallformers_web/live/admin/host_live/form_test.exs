@@ -10,7 +10,7 @@ defmodule GallformersWeb.Admin.HostLive.FormTest do
   - Rename modal
   - Dirty state tracking
   """
-  use GallformersWeb.ConnCase, async: false
+  use GallformersWeb.ConnCase, async: true
   import Phoenix.LiveViewTest
 
   alias Gallformers.Accounts.Auth0User
@@ -308,12 +308,14 @@ defmodule GallformersWeb.Admin.HostLive.FormTest do
       assert html =~ "Thymus alpinus"
     end
 
-    test "toggle_region twice removes code from host range", %{conn: conn} do
+    test "toggle_region three times removes code from host range", %{conn: conn} do
       # Host 6 (T. alpinus) has only US-CA in range
-      # Toggle MX-JAL on then off
+      # Tri-state: native → introduced → removed
       {:ok, view, _html} = live(conn, ~p"/admin/hosts/6")
 
-      # Add
+      # Add as native
+      render_click(view, "toggle_region", %{"code" => "MX-JAL"})
+      # Cycle to introduced
       render_click(view, "toggle_region", %{"code" => "MX-JAL"})
       # Remove
       html = render_click(view, "toggle_region", %{"code" => "MX-JAL"})
@@ -332,12 +334,25 @@ defmodule GallformersWeb.Admin.HostLive.FormTest do
       assert html =~ "Discard" or html =~ "unsaved"
     end
 
-    test "toggle_region on existing range code removes it", %{conn: conn} do
-      # Host 6 has US-CA in range; toggling it should remove
+    test "toggle_region on existing native code cycles to introduced", %{conn: conn} do
+      # Host 6 has US-CA as native; first toggle cycles to introduced
       {:ok, view, _html} = live(conn, ~p"/admin/hosts/6")
 
+      render_click(view, "toggle_region", %{"code" => "US-CA"})
+
+      range_entries = get_assign(view, :range_entries)
+      assert range_entries["US-CA"].distribution_type == "introduced"
+    end
+
+    test "toggle_region on existing native code twice removes it", %{conn: conn} do
+      # Host 6 has US-CA as native; native → introduced → removed
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/6")
+
+      render_click(view, "toggle_region", %{"code" => "US-CA"})
       html = render_click(view, "toggle_region", %{"code" => "US-CA"})
 
+      range_entries = get_assign(view, :range_entries)
+      refute Map.has_key?(range_entries, "US-CA")
       assert html =~ "Thymus alpinus"
     end
   end
@@ -532,6 +547,9 @@ defmodule GallformersWeb.Admin.HostLive.FormTest do
       # Select the section from the dropdown
       render_click(view, "select_section", %{"section_id" => to_string(section.id)})
 
+      # Add range data (required for save)
+      render_click(view, "toggle_region", %{"code" => "US-CA"})
+
       # Submit the form
       render_click(view, "save", %{"species" => %{}})
 
@@ -546,12 +564,319 @@ defmodule GallformersWeb.Admin.HostLive.FormTest do
     end
   end
 
+  describe "Range entries state" do
+    setup %{conn: conn} do
+      {:ok, conn: setup_admin_session(conn)}
+    end
+
+    test "loading host for edit builds range_entries map from place entries", %{conn: conn} do
+      # Host 6 (T. alpinus) has US-CA as exact/native
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/6")
+
+      # Verify range_entries is a map with expected structure
+      range_entries = get_assign(view, :range_entries)
+      assert is_map(range_entries)
+      assert Map.has_key?(range_entries, "US-CA")
+      assert range_entries["US-CA"].precision == "exact"
+      assert range_entries["US-CA"].distribution_type == "native"
+    end
+
+    test "loading host with introduced range includes distribution_type", %{conn: conn} do
+      # Host 7 (T. serpyllum) has US-CA as native and BS (Bahamas) as introduced
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/7")
+
+      range_entries = get_assign(view, :range_entries)
+      assert is_map(range_entries)
+
+      # Check introduced entry exists
+      bs_entry = range_entries["BS"]
+      assert bs_entry != nil
+      assert bs_entry.distribution_type == "introduced"
+    end
+
+    test "original_range_entries matches range_entries on load", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/6")
+
+      range_entries = get_assign(view, :range_entries)
+      original = get_assign(view, :original_range_entries)
+      assert range_entries == original
+    end
+
+    test "toggle_region updates range_entries map", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/6")
+
+      # Add MX-JAL
+      render_click(view, "toggle_region", %{"code" => "MX-JAL"})
+
+      range_entries = get_assign(view, :range_entries)
+      assert Map.has_key?(range_entries, "MX-JAL")
+      assert range_entries["MX-JAL"].precision == "exact"
+      assert range_entries["MX-JAL"].distribution_type == "native"
+    end
+
+    test "toggle_region second click changes native to introduced", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/6")
+
+      # First click: add as native
+      render_click(view, "toggle_region", %{"code" => "MX-JAL"})
+      # Second click: cycle to introduced
+      render_click(view, "toggle_region", %{"code" => "MX-JAL"})
+
+      range_entries = get_assign(view, :range_entries)
+      assert Map.has_key?(range_entries, "MX-JAL")
+      assert range_entries["MX-JAL"].distribution_type == "introduced"
+      assert range_entries["MX-JAL"].precision == "exact"
+    end
+
+    test "toggle_region third click removes from range_entries", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/6")
+
+      # native → introduced → removed
+      render_click(view, "toggle_region", %{"code" => "MX-JAL"})
+      render_click(view, "toggle_region", %{"code" => "MX-JAL"})
+      render_click(view, "toggle_region", %{"code" => "MX-JAL"})
+
+      range_entries = get_assign(view, :range_entries)
+      refute Map.has_key?(range_entries, "MX-JAL")
+    end
+
+    test "toggle_region full round-trip: add → introduced → remove → add again", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/6")
+
+      # Add as native
+      render_click(view, "toggle_region", %{"code" => "MX-JAL"})
+      assert get_assign(view, :range_entries)["MX-JAL"].distribution_type == "native"
+
+      # Cycle to introduced
+      render_click(view, "toggle_region", %{"code" => "MX-JAL"})
+      assert get_assign(view, :range_entries)["MX-JAL"].distribution_type == "introduced"
+
+      # Remove
+      render_click(view, "toggle_region", %{"code" => "MX-JAL"})
+      refute Map.has_key?(get_assign(view, :range_entries), "MX-JAL")
+
+      # Add again as native
+      render_click(view, "toggle_region", %{"code" => "MX-JAL"})
+      assert get_assign(view, :range_entries)["MX-JAL"].distribution_type == "native"
+    end
+
+    test "new host starts with empty range_entries", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/new")
+
+      render_click(view, "create_host", %{"name" => "GenusAlpha testspecies"})
+
+      range_entries = get_assign(view, :range_entries)
+      assert range_entries == %{}
+    end
+
+    test "save with edit mode reloads range_entries from DB", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/6")
+
+      # Add a new place
+      render_click(view, "toggle_region", %{"code" => "MX-JAL"})
+
+      # Save
+      render_click(view, "save", %{"species" => %{}})
+
+      # After save, range_entries and original should be equal and include new entry
+      range_entries = get_assign(view, :range_entries)
+      original = get_assign(view, :original_range_entries)
+      assert range_entries == original
+      assert Map.has_key?(range_entries, "MX-JAL")
+      assert Map.has_key?(range_entries, "US-CA")
+    end
+  end
+
+  describe "CountryDrillDown tri-state cycle" do
+    setup %{conn: conn} do
+      {:ok, conn: setup_admin_session(conn)}
+    end
+
+    test "cycle_entry adds subdivision as native, then introduced, then removes", %{conn: conn} do
+      # Host 7 (T. serpyllum) has US-CA as native
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/7")
+
+      # Open drill-down for US (has subdivisions)
+      render_click(view, "toggle_country", %{"code" => "US"})
+
+      # Simulate CountryDrillDown sending cycle_entry for US-NY (not in range)
+      alias GallformersWeb.Admin.CountryDrillDown
+      send(view.pid, {CountryDrillDown, {:cycle_entry, "US-NY"}})
+
+      # Should be added as native
+      range_entries = get_assign(view, :range_entries)
+      assert range_entries["US-NY"].distribution_type == "native"
+      assert range_entries["US-NY"].precision == "exact"
+
+      # Cycle again → introduced
+      send(view.pid, {CountryDrillDown, {:cycle_entry, "US-NY"}})
+      range_entries = get_assign(view, :range_entries)
+      assert range_entries["US-NY"].distribution_type == "introduced"
+
+      # Cycle again → removed
+      send(view.pid, {CountryDrillDown, {:cycle_entry, "US-NY"}})
+      range_entries = get_assign(view, :range_entries)
+      refute Map.has_key?(range_entries, "US-NY")
+    end
+
+    test "cycle_entry on existing native entry cycles to introduced", %{conn: conn} do
+      # Host 7 has US-CA as native
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/7")
+
+      alias GallformersWeb.Admin.CountryDrillDown
+      send(view.pid, {CountryDrillDown, {:cycle_entry, "US-CA"}})
+
+      range_entries = get_assign(view, :range_entries)
+      assert range_entries["US-CA"].distribution_type == "introduced"
+    end
+
+    test "toggle_exact still works for select_all/deselect_all", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/7")
+
+      alias GallformersWeb.Admin.CountryDrillDown
+
+      # select_all_exact adds entries as native
+      send(view.pid, {CountryDrillDown, {:select_all_exact, ["US-NY", "US-TX"]}})
+
+      range_entries = get_assign(view, :range_entries)
+      assert range_entries["US-NY"].distribution_type == "native"
+      assert range_entries["US-TX"].distribution_type == "native"
+
+      # deselect_all_exact removes entries
+      send(view.pid, {CountryDrillDown, {:deselect_all_exact, ["US-NY", "US-TX"]}})
+
+      range_entries = get_assign(view, :range_entries)
+      refute Map.has_key?(range_entries, "US-NY")
+      refute Map.has_key?(range_entries, "US-TX")
+    end
+  end
+
+  # Helper to extract assigns from a LiveView
+  defp get_assign(view, key) do
+    :sys.get_state(view.pid).socket.assigns[key]
+  end
+
+  describe "Range data validation" do
+    setup %{conn: conn} do
+      {:ok, conn: setup_admin_session(conn)}
+    end
+
+    test "save in edit mode fails when host has no range data", %{conn: conn} do
+      # Host 6 (Thymus alpinus) has range data - remove it by toggling its only region off
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/6")
+
+      # Tri-state: native → introduced → removed (2 clicks from native)
+      render_click(view, "toggle_region", %{"code" => "US-CA"})
+      render_click(view, "toggle_region", %{"code" => "US-CA"})
+
+      # Verify range_entries is actually empty
+      assert get_assign(view, :range_entries) == %{}
+
+      # Attempt to save — flash appears on the same page
+      render_click(view, "save", %{"species" => %{}})
+      html = render(view)
+
+      assert html =~ "at least one range"
+    end
+
+    test "save in new mode fails when host has no range data", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/new")
+
+      # Create a new host using a genus that exists in test DB
+      render_click(view, "create_host", %{"name" => "GenusAlpha norangehost"})
+
+      # Attempt to save without adding any range data
+      html = render_click(view, "save", %{"species" => %{}})
+
+      assert html =~ "at least one range"
+    end
+  end
+
+  # WCVP SQLite-dependent tests moved to wcvp_test.exs (async: false)
+  # to avoid SQLite concurrency issues between test processes.
+
+  describe "WCVP async loading states" do
+    setup %{conn: conn} do
+      {:ok, conn: setup_admin_session(conn)}
+    end
+
+    test "initializes wcvp_searching assign to false on mount", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/new")
+
+      assert get_assign(view, :wcvp_searching) == false
+    end
+
+    test "initializes wcvp_loading assign to false on mount", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/new")
+
+      assert get_assign(view, :wcvp_loading) == false
+    end
+
+    test "initializes wcvp_refreshing assign to false on mount", %{conn: conn} do
+      host = require_host()
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
+
+      assert get_assign(view, :wcvp_refreshing) == false
+    end
+  end
+
   describe "Access control" do
     test "page requires admin session", %{conn: _conn} do
       conn_without_admin = build_conn()
       conn_result = get(conn_without_admin, ~p"/admin/hosts/new")
 
       assert redirected_to(conn_result) =~ "/" or redirected_to(conn_result) =~ "/auth"
+    end
+  end
+
+  describe "WCVP sync status display" do
+    setup %{conn: conn} do
+      {:ok, conn: setup_admin_session(conn)}
+    end
+
+    test "shows 'Never synced with WCVP' when wcvp_synced_at is nil", %{conn: conn} do
+      host = require_host()
+
+      # Ensure host_traits exist with range_confirmed: false, wcvp_synced_at: nil
+      Plants.upsert_host_traits(host.id, %{range_confirmed: false, wcvp_synced_at: nil})
+
+      {:ok, _view, html} = live(conn, ~p"/admin/hosts/#{host.id}")
+
+      assert html =~ "Never synced with WCVP"
+      assert html =~ "Range needs review"
+    end
+
+    test "shows 'Range confirmed' and sync date when range_confirmed is true", %{conn: conn} do
+      host = require_host()
+
+      synced_at = ~U[2025-06-15 14:30:00Z]
+
+      Plants.upsert_host_traits(host.id, %{
+        range_confirmed: true,
+        wcvp_synced_at: synced_at
+      })
+
+      {:ok, _view, html} = live(conn, ~p"/admin/hosts/#{host.id}")
+
+      assert html =~ "Range confirmed"
+      assert html =~ "Jun 15, 2025"
+    end
+
+    test "shows 'Range needs review' with sync date when range_confirmed is false and synced_at is set",
+         %{conn: conn} do
+      host = require_host()
+
+      synced_at = ~U[2025-03-01 10:00:00Z]
+
+      Plants.upsert_host_traits(host.id, %{
+        range_confirmed: false,
+        wcvp_synced_at: synced_at
+      })
+
+      {:ok, _view, html} = live(conn, ~p"/admin/hosts/#{host.id}")
+
+      assert html =~ "Range needs review"
+      assert html =~ "Mar 01, 2025"
     end
   end
 end

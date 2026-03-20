@@ -300,6 +300,26 @@ end
 </.form>
 ```
 
+### LiveComponents with Interactive State Must Not Be Inside Forms
+
+**Never** nest a LiveComponent that manages its own checkbox/input state inside a
+`<.form phx-change="validate">`. The form's change event fires on every input
+mutation inside it — including inputs owned by the component. LiveView's form
+recovery then resets those inputs to their server-rendered defaults, clobbering
+the component's local state.
+
+If you must place such a component visually within a form's layout, wrap it in a
+div that stops event propagation:
+
+```heex
+<div onchange="event.stopPropagation()" oninput="event.stopPropagation()">
+  <.live_component module={MyStatefulComponent} id="my-component" ... />
+</div>
+```
+
+**Symptoms:** checkboxes snap back on click, "one step behind" toggle behavior,
+phantom `validate` events with `"_target" => ["undefined"]` in server logs.
+
 ### Function Components vs LiveComponents
 
 **Function components** (default choice) are simple, stateless, and render as part of the parent:
@@ -580,8 +600,8 @@ from(s in Species, where: s.name == ^user_input)
 # DANGEROUS - SQL injection risk
 from(s in Species, where: fragment("name = '#{user_input}'"))
 
-# SAFE - Use parameterized fragments
-from(s in Species, where: fragment("lower(?) LIKE ?", s.name, ^pattern))
+# SAFE - Use parameterized queries
+from(s in Species, where: ilike(s.name, ^pattern))
 ```
 
 ### HTML Output
@@ -827,7 +847,6 @@ Tailwind v4 uses CSS-based configuration (no `tailwind.config.js`):
 | `<%= for %>` blocks in HEEx | `:for` attribute: `<div :for={item <- @items}>` |
 | `live_redirect`/`live_patch` | `push_navigate`/`push_patch` or `<.link>` |
 | Raw `<script>` tags | Colocated hooks or external JS |
-| `ilike` in queries | `fragment("lower(?) LIKE ?", ...)` for SQLite |
 | Map access on structs | Dot notation: `struct.field` |
 | `Process.sleep` in tests | `Process.monitor` or proper synchronization |
 
@@ -867,31 +886,6 @@ Before committing:
 Or run: `mix precommit` (if configured)
 
 ---
-
-## SQLite Compatibility
-
-This project uses **SQLite** (via ecto_sqlite3), not PostgreSQL. Always ensure queries are SQLite-compatible.
-
-**WAL mode footgun — stale journal files:** SQLite in WAL mode uses three files: `.sqlite`, `.sqlite-wal`, and `.sqlite-shm`. If you replace the main `.sqlite` file without deleting the WAL/SHM companions, sqlite3 will replay the old WAL against the new database and report "database disk image is malformed." Always delete `-wal` and `-shm` files when replacing a database file.
-
-**Case-insensitive search (NO `ilike`):**
-```elixir
-# WRONG - PostgreSQL only
-where: ilike(s.name, ^search_term)
-
-# CORRECT - SQLite compatible
-search_term = "%#{String.downcase(query)}%"
-where: fragment("lower(?) LIKE ?", s.name, ^search_term)
-```
-
-**Distinct on column (NO `distinct: column`):**
-```elixir
-# WRONG - PostgreSQL's DISTINCT ON
-distinct: t.id
-
-# CORRECT - SQLite compatible (use group_by instead)
-group_by: [t.id, t.name]
-```
 
 ---
 

@@ -6,6 +6,7 @@ defmodule Gallformers.Species.Abundance do
   """
   use Ecto.Schema
   import Ecto.Changeset
+  import Gallformers.ChangesetHelpers, only: [trim_strings: 1]
 
   @behaviour Gallformers.SchemaFields
 
@@ -35,6 +36,7 @@ defmodule Gallformers.Species.Abundance do
   def changeset(abundance, attrs) do
     abundance
     |> cast(attrs, [:abundance, :description, :reference])
+    |> trim_strings()
     |> validate_required(@required_fields)
     |> unique_constraint(:abundance)
   end

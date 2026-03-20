@@ -1,8 +1,8 @@
 ---
-status: refined
+status: done
 effort: 5 days
 created: 2026-02-13
-updated: 2026-02-25
+updated: 2026-03-06
 epic: geo-expansion
 docs: ['']
 relates: [e617]
