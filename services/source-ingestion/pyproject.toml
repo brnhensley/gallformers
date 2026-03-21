@@ -1,0 +1,33 @@
+[project]
+name = "source-ingestion"
+version = "0.1.0"
+description = "Extract, clean, and structure source documents for gallformers"
+requires-python = ">=3.12"
+dependencies = [
+    "pymupdf4llm>=0.0.17",
+    "trafilatura>=2.0.0",
+    "openai>=1.0.0",
+    "boto3>=1.35.0",
+    "click>=8.1.0",
+    "pyyaml>=6.0",
+]
+
+[project.scripts]
+ingest = "ingest.cli:cli"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ingest"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-mock>=3.14.0",
+]
