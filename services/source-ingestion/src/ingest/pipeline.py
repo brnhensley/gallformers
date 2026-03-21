@@ -70,7 +70,7 @@ def _validate_stages(stages: list[dict]) -> None:
 
 def run_pipeline(
     pipeline: dict,
-    source_id: int,
+    source_id: str | int,
     input_path: str | None,
     provider_config: dict,
     output_dir: str = "./output",
@@ -149,7 +149,7 @@ def run_pipeline(
 def _run_fork(
     fork_config: dict,
     name: str,
-    source_id: int,
+    source_id: str | int,
     current_input: str,
     step_number: int,
     step_outputs: dict[str, str],
@@ -193,7 +193,7 @@ def _run_fork(
 
 
 def _output_path_for_step(
-    source_dir: Path, name: str, step_number: int, step_type: str, source_id: int
+    source_dir: Path, name: str, step_number: int, step_type: str, source_id: str | int
 ) -> Path:
     """Build output path for a regular (non-fork) step."""
     if step_type == "assemble":
@@ -208,7 +208,7 @@ def _output_path_for_fork_step(
     branch_name: str,
     step_number: int,
     step_type: str,
-    source_id: int,
+    source_id: str | int,
 ) -> Path:
     """Build output path for a forked step."""
     if step_type == "assemble":
@@ -222,7 +222,7 @@ def _run_step(
     stage: dict,
     input_path: str,
     output_path: Path,
-    source_id: int,
+    source_id: str | int,
     step_outputs: dict[str, str],
     provider_config: dict,
 ) -> None:
@@ -293,7 +293,7 @@ def _run_assemble(
     input_path: str,
     output_path: Path,
     *,
-    source_id: int,
+    source_id: str | int,
     step_outputs: dict[str, str],
     **kwargs: object,
 ) -> None:

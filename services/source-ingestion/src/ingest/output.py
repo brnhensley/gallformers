@@ -12,7 +12,7 @@ from ingest.llm import MetadataResult, TokenUsage
 
 
 def build_frontmatter(
-    source_id: int,
+    source_id: str | int,
     metadata: MetadataResult,
     extra: dict | None = None,
 ) -> str:
@@ -49,7 +49,7 @@ def assemble_document(frontmatter: str, body: str) -> str:
     return f"---\n{frontmatter}---\n\n{body_stripped}\n"
 
 
-def write_local(document: str, source_id: int, output_dir: str = "./output") -> str:
+def write_local(document: str, source_id: str | int, output_dir: str = "./output") -> str:
     """Write document to a local file.
 
     Creates output_dir if it doesn't exist. Writes to ``{output_dir}/{source_id}.md``.
@@ -66,7 +66,7 @@ def write_local(document: str, source_id: int, output_dir: str = "./output") -> 
 
 def write_s3(
     document: str,
-    source_id: int,
+    source_id: str | int,
     bucket: str | None = None,
 ) -> str:
     """Upload document to S3.
@@ -97,7 +97,7 @@ def write_s3(
 
 
 def format_summary(
-    source_id: int,
+    source_id: str | int,
     output_path: str,
     usage: TokenUsage,
     elapsed: float,

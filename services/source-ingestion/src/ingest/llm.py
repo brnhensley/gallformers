@@ -310,7 +310,14 @@ def extract_data(
         with ThreadPoolExecutor(max_workers=4) as executor:
             futures = {executor.submit(_process_chunk, item): item for item in uncached}
             for future in as_completed(futures):
-                idx, records, usage = future.result()
+                item = futures[future]
+                try:
+                    idx, records, usage = future.result()
+                except RuntimeError as e:
+                    idx = item[0]
+                    click.echo(f"  Chunk {idx + 1}/{len(chunks)} failed: {e}", err=True)
+                    chunk_records[idx] = []
+                    continue
                 chunk_records[idx] = records
                 total_prompt += usage.prompt_tokens
                 total_completion += usage.completion_tokens

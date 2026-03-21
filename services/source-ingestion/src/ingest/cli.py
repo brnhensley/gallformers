@@ -194,8 +194,8 @@ def data_extract(input_path: str, output_path: str, model: str, config_path: str
 @click.option("-i", "--input", "input_path", required=True, help="Cleaned text file")
 @click.option("--metadata", "metadata_path", required=True, help="Metadata JSON file path")
 @click.option("-o", "--output", "output_path", required=True, help="Output file path")
-@click.option("--source-id", required=True, type=int, help="Source ID")
-def assemble(input_path: str, metadata_path: str, output_path: str, source_id: int) -> None:
+@click.option("--source-id", required=True, type=str, help="Source ID")
+def assemble(input_path: str, metadata_path: str, output_path: str, source_id: str) -> None:
     """Assemble final markdown with frontmatter."""
     click.echo(f"Assembling document for source {source_id}")
 
@@ -235,13 +235,13 @@ def assemble(input_path: str, metadata_path: str, output_path: str, source_id: i
 
 @cli.command()
 @click.option("-p", "--pipeline", "pipeline_path", required=True, help="Pipeline YAML config path")
-@click.option("--source-id", required=True, type=int, help="Source ID")
+@click.option("--source-id", required=True, type=str, help="Source ID")
 @click.option("-i", "--input", "input_path", default=None, help="Input file (optional when resuming)")
 @click.option("--config", "config_path", default=None, help="Provider config YAML path")
 @click.option("-o", "--output", "output_dir", default="./output", help="Output directory")
 def run(
     pipeline_path: str,
-    source_id: int,
+    source_id: str,
     input_path: str,
     config_path: str | None,
     output_dir: str,
