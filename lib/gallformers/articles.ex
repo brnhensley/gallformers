@@ -5,6 +5,14 @@ defmodule Gallformers.Articles do
   Provides functions for working with reference articles including
   listing, creating, updating, and searching by tags.
   """
+  use Boundary,
+    deps: [
+      Gallformers.Repo,
+      Gallformers.ChangesetHelpers,
+      Gallformers.SchemaFields,
+      Gallformers.ContentImages
+    ],
+    exports: :all
 
   import Ecto.Query
   alias Gallformers.Articles.Article

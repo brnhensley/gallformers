@@ -9,6 +9,19 @@ defmodule Gallformers.Plants do
   For gall↔host relationships, see `Gallformers.GallHosts`.
   For geographic range data, see `Gallformers.Ranges`.
   """
+  use Boundary,
+    deps: [
+      Gallformers.Repo,
+      Gallformers.ChangesetHelpers,
+      Gallformers.SchemaFields,
+      Gallformers.Species,
+      Gallformers.Taxonomy,
+      Gallformers.Places,
+      Gallformers.Ranges,
+      Gallformers.Search,
+      Gallformers.Wcvp
+    ],
+    exports: :all
 
   import Ecto.Query
 

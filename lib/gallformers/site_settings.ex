@@ -19,6 +19,10 @@ defmodule Gallformers.SiteSettings do
       SiteSettings.banner_text()      # => "" (default)
       SiteSettings.read_only?()       # => false (default)
   """
+  use Boundary,
+    deps: [Gallformers.Repo, Gallformers.ChangesetHelpers],
+    exports: :all
+
   use GenServer
 
   require Logger

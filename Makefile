@@ -2,7 +2,7 @@
 #
 # Phoenix/LiveView development commands
 
-.PHONY: dev dev-lan test test-db test-prod-data test-prod-data-e2e test-prod-data-all download-db ci preflight help deps assets setup clean check-db build run-local-release dump-schema preview preview-stop preview-destroy wcvp-restore wcvp-check
+.PHONY: dev dev-lan test test-db test-prod-data test-prod-data-e2e test-prod-data-all download-db ci preflight help deps assets setup clean check-db build run-local-release dump-schema preview preview-stop preview-destroy wcvp-restore wcvp-check check-full check-bg
 
 # Download production database for local dev
 # Downloads full pg_dump from private S3 bucket and restores into local Postgres
@@ -312,6 +312,15 @@ ci: assets/node_modules test-db
 	@echo "==> Running Dialyzer..."
 	mix dialyzer
 	@echo "==> All CI checks passed!"
+
+# Full check suite (compile + credo + test) — use after major changes
+check-full:
+	mix compile --warnings-as-errors && mix credo --strict && mix test
+
+# Background check — runs check-full and notifies on failure (macOS)
+check-bg:
+	@echo "Running full checks in background..."
+	@($(MAKE) check-full 2>&1 && osascript -e 'display notification "All checks passed" with title "Gallformers"' || osascript -e 'display notification "Check failed — see terminal" with title "Gallformers"') &
 
 # Run everything before pushing (local only, not for CI)
 # Requires: chromedriver (make e2e-setup) and AWS credentials (for prod data tests)

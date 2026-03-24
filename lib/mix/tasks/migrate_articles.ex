@@ -1,4 +1,6 @@
 defmodule Mix.Tasks.MigrateArticles do
+  use Boundary, check: [in: false, out: false]
+
   @moduledoc """
   Migrates V1 reference articles from markdown files to the database.
 

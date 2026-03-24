@@ -639,7 +639,7 @@ defmodule GallformersWeb.Admin.IngestionReviewLive do
 
   defp format_alias_matches(matches, taxoncode) do
     matches
-    |> Enum.filter(fn m -> taxoncode == nil || m.taxoncode == taxoncode end)
+    |> Enum.filter(fn m -> m.taxoncode == taxoncode end)
     |> Enum.map(fn m ->
       %{
         id: m.species_id,

@@ -5,6 +5,7 @@ defmodule Gallformers.INaturalist do
   Handles observation fetching, photo downloading, URL parsing, and
   license mapping between iNat and Gallformers formats.
   """
+  use Boundary, deps: [], exports: :all
 
   require Logger
 

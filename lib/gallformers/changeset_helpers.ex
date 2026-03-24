@@ -2,6 +2,7 @@ defmodule Gallformers.ChangesetHelpers do
   @moduledoc """
   Shared changeset validation and normalization functions.
   """
+  use Boundary, deps: [], exports: :all
   import Ecto.Changeset
 
   @doc """

@@ -1,4 +1,5 @@
 defmodule Mix.Tasks.FormatCheck do
+  use Boundary, check: [in: false, out: false]
   @shortdoc "Runs formatter and errors if files were changed"
   @moduledoc """
   Runs `mix format` and then checks if any files were modified.

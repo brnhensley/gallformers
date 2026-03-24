@@ -9,6 +9,7 @@ defmodule Gallformers.RequestLogger do
 
   Log files older than 30 days are automatically deleted on startup and daily.
   """
+  use Boundary, deps: [], exports: :all
 
   require Logger
 

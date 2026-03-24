@@ -1,4 +1,6 @@
 defmodule Mix.Tasks.Gallformers.Wcvp.BuildDb do
+  use Boundary, check: [in: false, out: false]
+
   @moduledoc """
   Reads raw WCVP CSV files and loads ALL data into the WCVP Postgres database —
   no filtering by taxon_status, taxon_rank, or TDWG region.

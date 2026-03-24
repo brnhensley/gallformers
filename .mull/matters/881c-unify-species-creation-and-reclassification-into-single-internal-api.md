@@ -1,9 +1,9 @@
 ---
 status: refined
 created: 2026-03-22
-updated: 2026-03-23
+updated: 2026-03-24
 epic: taxonomy
-relates: [7fda, fa48]
+relates: [7fda, fa48, 82f8]
 blocks: [7fda, fa48]
 needs: [8757]
 ---
@@ -212,4 +212,3 @@ Full precommit. Boundary check passes (no circular deps). Credo custom check pas
 - No remaining direct calls to moved functions
 - No Species → Taxonomy calls (Boundary enforces this)
 - No Species writes to species.name (Credo enforces this)
-

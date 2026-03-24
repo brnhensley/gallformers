@@ -1,4 +1,6 @@
 defmodule Mix.Tasks.Audit.SchemaFields do
+  use Boundary, check: [in: false, out: false]
+
   @moduledoc """
   Audits database records for required field violations.
 

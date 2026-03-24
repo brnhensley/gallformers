@@ -4,6 +4,15 @@ defmodule Gallformers.Sources do
 
   Provides functions for working with scientific references and citations.
   """
+  use Boundary,
+    deps: [
+      Gallformers.Repo,
+      Gallformers.ChangesetHelpers,
+      Gallformers.SchemaFields,
+      Gallformers.Species,
+      Gallformers.Licenses
+    ],
+    exports: :all
 
   import Ecto.Query
   alias Gallformers.Repo

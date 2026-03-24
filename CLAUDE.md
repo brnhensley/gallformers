@@ -113,6 +113,50 @@ Test: could a styling rule change (e.g., "sections should no longer be italic") 
 
 `<em class="taxon-name">` tells you what it is. `<span class="italic">` tells you how it looks today. When someone reads the template, the semantic version communicates intent. When someone greps the codebase, the semantic version finds all taxonomic names. The visual version is invisible among hundreds of other italicized things.
 
+## Architectural Enforcement (Boundary + Credo)
+
+The codebase uses **Boundary** (compile-time) and **custom Credo checks** (lint-time) to enforce architectural rules. These are not optional — they fail the build.
+
+### Boundary (module dependency enforcement)
+
+Every context module declares `use Boundary` with its allowed dependencies. Adding a cross-boundary call that isn't declared will fail `mix compile --warnings-as-errors`.
+
+- **To add a new dependency**: add the target boundary to the `deps:` list in the source module's `use Boundary` declaration
+- **`dirty_xrefs`**: existing violations whitelisted as TODOs. Boundary warns if you clean one up and forget to remove it from the list
+- **Cycles**: three known dependency cycles documented in matter 82f8. They show as warnings, not errors.
+
+### Custom Credo Checks
+
+Located in `lib/credo/checks/`. Registered in `.credo.exs`.
+
+**Architecture checks** (`lib/credo/checks/architecture/`):
+- `NoRepoInWeb` — no `Repo` calls in `GallformersWeb.*` modules
+- `NoTransactionOutsideContext` — no `Repo.transaction` in web modules
+- `NoEctoQueryInLiveView` — no `import Ecto.Query` in web modules
+- `SpeciesNameOwnership` — only `Gallformers.Taxonomy.*` modules may cast/change `:name` on Species
+- `NoMockingLibraries` — no `Mox`, `Mock`, `:meck` usage
+
+**Test quality checks** (`lib/credo/checks/test_quality/`):
+- `FlashOnlyAssertions` — tests with form submissions must verify DB state, not just flash
+- `NoHardcodedIds` — no literal integer IDs in `Repo.get` calls in tests
+- `NoBareTruthinessAssert` — no `assert variable` without a comparison operator
+- `TestsOwnTheirData` — tests that read from DB must also create their data
+
+### Writing New Checks
+
+1. Create the check in `lib/credo/checks/architecture/` or `lib/credo/checks/test_quality/`
+2. Write tests in `test/credo/checks/` (same directory structure)
+3. Register in `.credo.exs` under the `enabled` list
+4. Set `exit_status: 0` for new checks until they're tuned (report as suggestions)
+
+### Quick Commands
+
+```bash
+mix credo.changed --strict   # Credo on changed files only (fast)
+make check-full              # Full compile + credo + test
+make check-bg                # check-full in background with macOS notification
+```
+
 ## Fly.io Safety Rules
 
 **Before ANY Fly.io infrastructure operation**, read `runbooks/fly-operations.md` for detailed procedures.

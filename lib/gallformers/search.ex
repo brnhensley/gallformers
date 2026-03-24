@@ -4,6 +4,16 @@ defmodule Gallformers.Search do
 
   Provides functions for searching across species, hosts, and other entities.
   """
+  use Boundary,
+    deps: [
+      Gallformers.Repo,
+      Gallformers.Species,
+      Gallformers.Sources,
+      Gallformers.Glossaries,
+      Gallformers.Places,
+      Gallformers.Taxonomy
+    ],
+    exports: :all
 
   import Ecto.Query
 

@@ -6,6 +6,9 @@ defmodule Gallformers.Analytics do
   No personally identifiable information is stored - visitor uniqueness
   is determined by a daily hash that cannot be reversed.
   """
+  use Boundary,
+    deps: [Gallformers.Repo, Gallformers.ChangesetHelpers, Gallformers.Async],
+    exports: :all
 
   import Ecto.Query
 

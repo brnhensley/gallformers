@@ -1,4 +1,6 @@
 defmodule Mix.Tasks.SmokeTest do
+  use Boundary, check: [in: false, out: false]
+
   @moduledoc """
   Run smoke tests against a Gallformers deployment.
 

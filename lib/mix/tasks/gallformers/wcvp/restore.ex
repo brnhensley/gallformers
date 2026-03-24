@@ -1,4 +1,6 @@
 defmodule Mix.Tasks.Gallformers.Wcvp.Restore do
+  use Boundary, check: [in: false, out: false]
+
   @moduledoc """
   Restores the WCVP database from a pg_dump artifact on S3.
 

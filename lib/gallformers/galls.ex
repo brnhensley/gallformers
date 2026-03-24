@@ -9,6 +9,21 @@ defmodule Gallformers.Galls do
   For gall summaries and descriptions, see `Gallformers.Galls.Summary`.
   For gall identification filtering, see `Gallformers.Galls.Identification`.
   """
+  use Boundary,
+    deps: [
+      Gallformers.Repo,
+      Gallformers.ChangesetHelpers,
+      Gallformers.SchemaFields,
+      Gallformers.Species,
+      Gallformers.Taxonomy,
+      Gallformers.FilterFields,
+      Gallformers.GallHosts,
+      Gallformers.Images,
+      Gallformers.Places,
+      Gallformers.Ranges,
+      Gallformers.Sources
+    ],
+    exports: :all
 
   import Ecto.Query
 

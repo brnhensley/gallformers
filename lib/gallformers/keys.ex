@@ -5,6 +5,15 @@ defmodule Gallformers.Keys do
   Keys are stored in the database with metadata and a couplets JSON column.
   Admins can create, edit, and delete keys through the admin interface.
   """
+  use Boundary,
+    deps: [
+      Gallformers.Repo,
+      Gallformers.ChangesetHelpers,
+      Gallformers.SchemaFields,
+      Gallformers.ContentImages,
+      Gallformers.Storage
+    ],
+    exports: :all
 
   import Ecto.Query
   alias Gallformers.Keys.Key

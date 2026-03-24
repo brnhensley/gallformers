@@ -5,6 +5,7 @@ defmodule Gallformers.Version do
   - **App Version**: CalVer format (YYYY.M.D)
   - **API Version**: SemVer read from API_VERSION file
   """
+  use Boundary, deps: [], exports: :all
 
   # Recompile this module when API_VERSION changes
   # Path: v2/API_VERSION (two levels up from v2/lib/gallformers/)

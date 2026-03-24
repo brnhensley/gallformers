@@ -4,6 +4,15 @@ defmodule Gallformers.Taxonomy do
 
   Provides functions for working with taxonomic classifications.
   """
+  use Boundary,
+    deps: [Gallformers.Repo, Gallformers.ChangesetHelpers, Gallformers.SchemaFields],
+    dirty_xrefs: [
+      Gallformers.Species,
+      Gallformers.Species.Species,
+      Gallformers.Species.Alias,
+      Gallformers.Galls
+    ],
+    exports: :all
 
   alias Gallformers.Taxonomy.{Reclassification, Search, SpeciesLink, TaxonName, Tree}
 

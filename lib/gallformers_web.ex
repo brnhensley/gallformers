@@ -16,6 +16,35 @@ defmodule GallformersWeb do
   below. Instead, define additional modules and import
   those modules here.
   """
+  use Boundary,
+    deps: [Gallformers],
+    dirty_xrefs: [
+      Gallformers.Repo,
+      Gallformers.SchemaFields,
+      # Sub-module refs — web should ideally use context public APIs only
+      Gallformers.Accounts.Auth0User,
+      Gallformers.Accounts.User,
+      Gallformers.Articles.Article,
+      Gallformers.Galls.Summary,
+      Gallformers.Images.Attribution,
+      Gallformers.Images.Audit,
+      Gallformers.Images.AuditCache,
+      Gallformers.Images.Image,
+      Gallformers.Keys.Key,
+      Gallformers.Keys.PdfGenerator,
+      Gallformers.Search.TextMatch,
+      Gallformers.Sources.Source,
+      Gallformers.Species.Species,
+      Gallformers.Species.SpeciesSource,
+      Gallformers.Taxonomy.Genus,
+      Gallformers.Taxonomy.Lineage,
+      Gallformers.Taxonomy.TaxonName,
+      Gallformers.Taxonomy.Taxonomy,
+      Gallformers.Taxonomy.Tree,
+      Gallformers.Wcvp.Lookup,
+      Gallformers.Wcvp.Tdwg
+    ],
+    exports: :all
 
   # Directories for Plug.Static's `only:` option (exact first-segment match)
   def static_dirs, do: ~w(assets fonts images branding data)

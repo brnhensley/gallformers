@@ -4,6 +4,9 @@ defmodule Gallformers.Places do
 
   Provides functions for working with geographic places (states, provinces, regions).
   """
+  use Boundary,
+    deps: [Gallformers.Repo, Gallformers.SchemaFields, Gallformers.Search, Gallformers.Species],
+    exports: :all
 
   import Ecto.Query
   alias Gallformers.Places.Place

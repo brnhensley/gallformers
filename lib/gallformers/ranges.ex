@@ -8,6 +8,17 @@ defmodule Gallformers.Ranges do
 
   Gall range is stored directly in the gall_range table as the source of truth.
   """
+  use Boundary,
+    deps: [
+      Gallformers.Repo,
+      Gallformers.ChangesetHelpers,
+      Gallformers.SchemaFields,
+      Gallformers.Species,
+      Gallformers.GallHosts,
+      Gallformers.Galls,
+      Gallformers.Places
+    ],
+    exports: :all
 
   import Ecto.Query
 

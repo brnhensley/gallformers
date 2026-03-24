@@ -5,6 +5,7 @@ defmodule Gallformers.Storage do
   Top-level shared infrastructure for all S3 interactions including uploads,
   deletions, presigned URLs, size variant generation, and bucket listing operations.
   """
+  use Boundary, deps: [Gallformers.S3, Gallformers.Async], exports: :all
 
   require Logger
 

@@ -11,7 +11,7 @@ defmodule Gallformers.MixProject do
       aliases: aliases(),
       deps: deps(),
       releases: releases(),
-      compilers: [:phoenix_live_view] ++ Mix.compilers(),
+      compilers: [:phoenix_live_view, :boundary] ++ Mix.compilers(),
       listeners: [Phoenix.CodeReloader],
       dialyzer: dialyzer()
     ]
@@ -81,6 +81,7 @@ defmodule Gallformers.MixProject do
       # User agent parsing for analytics
       {:browser, "~> 0.5.5"},
       # Dev/Test tools
+      {:boundary, "~> 0.10", runtime: false},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       # Security scanning

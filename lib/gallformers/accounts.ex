@@ -10,6 +10,9 @@ defmodule Gallformers.Accounts do
   - `admin`: Can access admin features and modify data
   - `superadmin`: Full access including dangerous operations
   """
+  use Boundary,
+    deps: [Gallformers.Repo, Gallformers.ChangesetHelpers, Gallformers.SchemaFields],
+    exports: :all
 
   import Ecto.Query
 

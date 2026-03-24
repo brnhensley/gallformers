@@ -18,6 +18,7 @@ defmodule Gallformers.S3 do
       # Use:
       ExAws.S3.put_object(bucket, path, data) |> Gallformers.S3.request()
   """
+  use Boundary, deps: [], exports: :all
 
   require Logger
 

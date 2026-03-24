@@ -4,6 +4,9 @@ defmodule Gallformers.Glossaries do
 
   Provides functions for working with glossary terms and definitions.
   """
+  use Boundary,
+    deps: [Gallformers.Repo, Gallformers.ChangesetHelpers, Gallformers.SchemaFields],
+    exports: :all
 
   import Ecto.Query
 

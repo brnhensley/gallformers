@@ -5,6 +5,7 @@ defmodule Gallformers.Licenses do
   Provides a consistent set of Creative Commons and other license options
   used throughout the application.
   """
+  use Boundary, deps: [], exports: :all
 
   # License definitions with canonical URLs (nil for licenses without standard URLs)
   @license_data %{

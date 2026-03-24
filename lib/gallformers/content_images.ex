@@ -6,6 +6,15 @@ defmodule Gallformers.ContentImages do
   Uses shared attribution logic from `Images.Attribution` and storage operations
   from `Storage`.
   """
+  use Boundary,
+    deps: [
+      Gallformers.Repo,
+      Gallformers.ChangesetHelpers,
+      Gallformers.Async,
+      Gallformers.Images,
+      Gallformers.Storage
+    ],
+    exports: :all
 
   require Logger
 

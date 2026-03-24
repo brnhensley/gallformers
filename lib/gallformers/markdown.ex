@@ -13,6 +13,7 @@ defmodule Gallformers.Markdown do
       iex> Gallformers.Markdown.render_unsafe("Some *markdown* text")
       "<p>Some <em>markdown</em> text</p>"
   """
+  use Boundary, deps: [Gallformers.Glossaries], exports: :all
 
   alias Gallformers.Glossaries
 

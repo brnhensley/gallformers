@@ -1,4 +1,6 @@
 defmodule Mix.Tasks.Gallformers.Wcvp.Download do
+  use Boundary, check: [in: false, out: false]
+
   @moduledoc """
   Downloads the WCVP (World Checklist of Vascular Plants) data from Kew.
 

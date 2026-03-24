@@ -6,6 +6,21 @@ defmodule Gallformers.Species do
   For gall-specific logic, see `Gallformers.Galls`.
   For host/plant-specific logic, see `Gallformers.Plants`.
   """
+  use Boundary,
+    deps: [
+      Gallformers.Repo,
+      Gallformers.ChangesetHelpers,
+      Gallformers.SchemaFields,
+      Gallformers.Taxonomy
+    ],
+    dirty_xrefs: [
+      Gallformers.GallHosts,
+      Gallformers.GallHosts.GallHost,
+      Gallformers.Galls.GallTraits,
+      Gallformers.Images,
+      Gallformers.Images.Image
+    ],
+    exports: :all
 
   import Ecto.Query
 

@@ -15,6 +15,9 @@ defmodule Gallformers.FilterFields do
 
   Note: Seasons are fixed and should not be modified through this interface.
   """
+  use Boundary,
+    deps: [Gallformers.Repo, Gallformers.ChangesetHelpers],
+    exports: :all
 
   import Ecto.Query
 

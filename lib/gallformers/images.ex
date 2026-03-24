@@ -6,6 +6,18 @@ defmodule Gallformers.Images do
   audit functions, and attribution checking. S3 operations are in
   `Gallformers.Storage`.
   """
+  use Boundary,
+    deps: [
+      Gallformers.Repo,
+      Gallformers.ChangesetHelpers,
+      Gallformers.SchemaFields,
+      Gallformers.Async,
+      Gallformers.Licenses,
+      Gallformers.Search,
+      Gallformers.Species,
+      Gallformers.Storage
+    ],
+    exports: :all
 
   require Logger
 

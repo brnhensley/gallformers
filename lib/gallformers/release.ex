@@ -3,6 +3,10 @@ defmodule Gallformers.Release do
   Used for executing DB release tasks when run in production without Mix
   installed.
   """
+  use Boundary,
+    deps: [Gallformers.Repo],
+    exports: :all
+
   @app :gallformers
 
   def migrate do

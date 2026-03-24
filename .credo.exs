@@ -11,7 +11,7 @@
         excluded: [~r"/_build/", ~r"/deps/", ~r"/node_modules/"]
       },
       plugins: [],
-      requires: [],
+      requires: ["lib/credo/"],
       strict: false,
       parse_timeout: 5000,
       color: true,
@@ -30,6 +30,24 @@
            [priority: :low, if_nested_deeper_than: 2, if_called_more_often_than: 0]},
           {Credo.Check.Design.TagTODO, [exit_status: 0]},
           {Credo.Check.Design.TagFIXME, []},
+
+          # Architecture checks (custom — only scan lib/, not test/)
+          {Gallformers.Credo.Checks.Architecture.NoRepoInWeb, files: %{included: ["lib/"]}},
+          {Gallformers.Credo.Checks.Architecture.NoTransactionOutsideContext,
+           files: %{included: ["lib/"]}},
+          {Gallformers.Credo.Checks.Architecture.NoEctoQueryInLiveView,
+           files: %{included: ["lib/"]}},
+          {Gallformers.Credo.Checks.Architecture.SpeciesNameOwnership,
+           files: %{included: ["lib/"]}},
+          {Gallformers.Credo.Checks.Architecture.NoMockingLibraries, []},
+
+          # Test quality checks (custom — only scan test/)
+          {Gallformers.Credo.Checks.TestQuality.FlashOnlyAssertions,
+           files: %{included: ["test/"]}},
+          {Gallformers.Credo.Checks.TestQuality.NoHardcodedIds, files: %{included: ["test/"]}},
+          {Gallformers.Credo.Checks.TestQuality.NoBareTruthinessAssert,
+           files: %{included: ["test/"]}},
+          {Gallformers.Credo.Checks.TestQuality.TestsOwnTheirData, files: %{included: ["test/"]}},
 
           # Readability checks
           {Credo.Check.Readability.AliasOrder, []},

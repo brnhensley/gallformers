@@ -7,6 +7,10 @@ defmodule Gallformers.HealthWatchdog do
   consecutive checks, it stops the BEAM so Fly's on-failure restart policy
   can bring it back.
   """
+  use Boundary,
+    deps: [Gallformers.Repo],
+    exports: :all
+
   use GenServer
   require Logger
 

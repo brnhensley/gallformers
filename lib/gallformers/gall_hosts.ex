@@ -9,6 +9,15 @@ defmodule Gallformers.GallHosts do
   Both galls and hosts are Species records (differentiated by taxoncode), and
   the `gallhost` table is the join table linking them.
   """
+  use Boundary,
+    deps: [
+      Gallformers.Repo,
+      Gallformers.SchemaFields,
+      Gallformers.Species,
+      Gallformers.Galls,
+      Gallformers.Ranges
+    ],
+    exports: :all
 
   import Ecto.Query
 

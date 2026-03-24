@@ -1,4 +1,6 @@
 defmodule Gallformers.SchemaFields do
+  use Boundary, deps: [], exports: :all
+
   @moduledoc """
   Behavior for schemas to expose field metadata for UI synchronization.
 
