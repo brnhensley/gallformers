@@ -1,10 +1,10 @@
 ---
 status: active
 created: 2026-03-18
-updated: 2026-03-18
+updated: 2026-03-23
 epic: platform
 docs: [docs/testing-philosophy.md]
-relates: [2648]
+relates: [2648, 8757]
 ---
 
 # Test suite alignment to testing philosophy
@@ -123,4 +123,3 @@ Two lists: **Done** and **Remaining**. A test file that appears in neither list 
 #### Structural issues
 
 - JS test framework selection and setup (matter 2648)
-
