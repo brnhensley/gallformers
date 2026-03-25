@@ -95,7 +95,7 @@ tofu state list
 **Show details for a specific resource**:
 ```bash
 tofu state show aws_s3_bucket.images
-tofu state show aws_iam_user.litestream_gallformers
+tofu state show aws_iam_user.litestream_gallformers   # name is historical
 ```
 
 **Show all outputs**:
@@ -221,7 +221,7 @@ infra/
 | `variables.tf` | Shared variables used across resources (region, project name, account ID) |
 | `outputs.tf` | Values to expose after apply (useful for integrations or manual reference) |
 | `s3.tf` | S3 bucket resources with versioning, policies, CORS, public access controls |
-| `iam.tf` | IAM users (`litestream-gallformers`, `s3-upload`) and policies |
+| `iam.tf` | IAM users (`litestream-gallformers` (historical name), `s3-upload`) and policies |
 | `cloudfront.tf` | CloudFront CDN for images with Origin Access Control |
 | `cloudfront_v2.tf` | CloudFront distribution for V2 app with custom domain and ACM cert |
 

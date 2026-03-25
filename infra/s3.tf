@@ -69,13 +69,12 @@ resource "aws_s3_bucket_cors_configuration" "images" {
 # Backup Buckets
 # -----------------------------------------------------------------------------
 
-# S3 bucket for Litestream continuous backups and daily sanitized snapshots
+# S3 bucket for daily database snapshots (public, sanitized)
 #
 # Access patterns:
-#   - litestream/* - Private, continuous DB backups via Litestream
-#   - public/* - Public read, daily sanitized snapshots (no PII)
+#   - public/* - Public read, daily pg_dump snapshots (no PII)
 #
-# Public URL: https://gallformers-backups.s3.amazonaws.com/public/gallformers.sqlite
+# Public URL: https://gallformers-backups.s3.amazonaws.com/public/gallformers.dump
 
 resource "aws_s3_bucket" "backups" {
   bucket = "gallformers-backups"

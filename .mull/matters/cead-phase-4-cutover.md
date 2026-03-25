@@ -1,7 +1,7 @@
 ---
 status: active
 created: 2026-03-11
-updated: 2026-03-16
+updated: 2026-03-25
 epic: postgres
 needs: [1858]
 parent: 4474
@@ -22,6 +22,11 @@ All cutover procedures, checklists, and rollback plans are in `runbooks/postgres
 - [x] Production Postgres provisioned (repurpose gallformers-db)
 - [x] Cutover rehearsed on preview
 - [x] Cutover executed (2026-03-16)
-- [ ] Post-cutover soak verified (7-day window, ends ~2026-03-23)
-- [ ] Cleanup completed (SQLite, Litestream secrets, IAM, S3, pg-load script)
-- [ ] Preview Postgres re-provisioned (gallformers-preview-db)
+- [x] Post-cutover soak verified (9 days stable, confirmed 2026-03-25)
+- [x] Code cleanup: deleted litestream-preview.yml, scripts/pg-load.sh, V1 migration scripts, removed SQLite from Dockerfile
+- [x] Doc cleanup: updated runbook, infra docs, WCVP runbook (removed stale SQLite cutover section)
+- [x] Services cleanup: converted boundaries and source-ingestion Python scripts from sqlite3 to psycopg
+- [ ] Delete SQLite file from production volume (/data/gallformers.sqlite)
+- [ ] Delete Litestream data from S3 (gallformers-backups/litestream/)
+- [ ] Provision gallformers-preview-db for preview environment
+

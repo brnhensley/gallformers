@@ -1,7 +1,8 @@
 # IAM users and policies for gallformers infrastructure.
 #
 # Users:
-#   - litestream-gallformers: DB backup access (Fly.io + GitHub Actions)
+#   - litestream-gallformers: S3 backup access for GitHub Actions (daily pg_dump snapshots).
+#     Name is historical from the SQLite/Litestream era.
 #   - s3-upload: Image uploads to S3
 #
 # The jeff IAM user is a personal admin account and is NOT managed here.

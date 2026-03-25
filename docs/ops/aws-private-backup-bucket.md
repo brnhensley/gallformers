@@ -24,9 +24,9 @@ Use cases:
 
 ## Access Control
 
-**IAM Policy**: `LitestreamGallformersBackup` (shared with `gallformers-backups` bucket; name is historical from the SQLite/Litestream era)
+**IAM Policy**: `LitestreamGallformersBackup` (shared with `gallformers-backups` bucket; name is historical from the SQLite/Litestream era — used for daily pg_dump uploads)
 
-**IAM User**: `litestream-gallformers` (name is historical)
+**IAM User**: `litestream-gallformers` (name is historical from the SQLite/Litestream era)
 
 The same credentials used for database backups have access to this bucket. No additional secrets are needed.
 
@@ -35,7 +35,7 @@ The same credentials used for database backups have access to this bucket. No ad
 | Bucket | Access | Contains PII | Use |
 |--------|--------|--------------|-----|
 | `gallformers-images-us-east-1` | Public | No | Production images |
-| `gallformers-backups` | Mixed | No | Public pg_dump snapshots (filtered, no PII) + legacy Litestream data |
+| `gallformers-backups` | Mixed | No | Public pg_dump snapshots (filtered, no PII) |
 | `gallformers-full-backups` | Private | **Yes** | Full daily pg_dump backups (all tables) |
 
 ## GitHub Actions Usage

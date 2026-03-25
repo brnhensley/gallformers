@@ -1,25 +1,28 @@
 """Compare pipeline extraction against human-curated baseline.
 
 Usage:
-    python scripts/compare_extraction.py <baseline.json> <extracted.json> [--db <path>]
+    python scripts/compare_extraction.py <baseline.json> <extracted.json> [--db <dbname>]
 
 Uses the gallformers alias_species table to resolve historical names to modern names.
+
+Requires: psycopg (pip install psycopg[binary])
 """
 
 import json
-import sqlite3
 import sys
 from pathlib import Path
 
+import psycopg
+from psycopg.rows import dict_row
 
-DEFAULT_DB = Path(__file__).resolve().parents[3] / "priv" / "gallformers.sqlite"
+DEFAULT_DB = "gallformers_dev"
 
 
-def load_alias_map(db_path):
+def load_alias_map(dbname):
     """Build a map of normalized alias -> normalized current name."""
-    conn = sqlite3.connect(str(db_path))
+    conn = psycopg.connect(f"dbname={dbname}", row_factory=dict_row)
     rows = conn.execute("""
-        SELECT a.name, s.name
+        SELECT a.name AS alias_name, s.name AS species_name
         FROM alias_species als
         JOIN alias a ON a.id = als.alias_id
         JOIN species s ON s.id = als.species_id
@@ -27,9 +30,9 @@ def load_alias_map(db_path):
     conn.close()
 
     alias_map = {}
-    for alias_name, current_name in rows:
-        norm_alias = normalize_name(alias_name)
-        norm_current = normalize_name(current_name)
+    for row in rows:
+        norm_alias = normalize_name(row["alias_name"])
+        norm_current = normalize_name(row["species_name"])
         if norm_alias and norm_current:
             alias_map[norm_alias] = norm_current
     return alias_map
@@ -173,20 +176,23 @@ def compare_traits(baseline_records, extracted_records, alias_map):
 
 def main():
     if len(sys.argv) < 3:
-        print("Usage: python scripts/compare_extraction.py <baseline.json> <extracted.json> [--db <path>]")
+        print("Usage: python scripts/compare_extraction.py <baseline.json> <extracted.json> [--db <dbname>]")
         sys.exit(1)
 
     baseline = json.loads(Path(sys.argv[1]).read_text())
     extracted = json.loads(Path(sys.argv[2]).read_text())
 
-    db_path = DEFAULT_DB
+    dbname = DEFAULT_DB
     if "--db" in sys.argv:
         idx = sys.argv.index("--db")
-        db_path = Path(sys.argv[idx + 1])
+        dbname = sys.argv[idx + 1]
 
-    alias_map = load_alias_map(db_path) if db_path.exists() else {}
-    if alias_map:
+    alias_map = {}
+    try:
+        alias_map = load_alias_map(dbname)
         print(f"Loaded {len(alias_map)} name aliases for matching")
+    except psycopg.OperationalError:
+        print(f"Warning: Could not connect to database '{dbname}', proceeding without alias resolution")
     print()
 
     print("# Extraction Comparison Report")

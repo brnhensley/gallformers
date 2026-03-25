@@ -189,9 +189,9 @@ Compares the PMTiles file against the `place` database table and reports:
 - Codes in tiles but not in DB (unexpected extras)
 
 ```bash
-python3 verify_tiles.py                              # defaults: priv/static/data/boundaries.pmtiles + priv/gallformers.sqlite
+python3 verify_tiles.py                              # defaults: priv/static/data/boundaries.pmtiles + gallformers_dev
 python3 verify_tiles.py path/to/tiles.pmtiles        # custom PMTiles path
-python3 verify_tiles.py tiles.pmtiles db.sqlite      # custom both
+python3 verify_tiles.py tiles.pmtiles --db mydb      # custom both
 ```
 
 **Run this after every tile rebuild.** Exit code 0 = all checks pass.

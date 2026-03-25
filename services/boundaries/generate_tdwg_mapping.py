@@ -5,27 +5,31 @@ Generate a draft TDWG L3 → gallformers places mapping for the entire globe.
 Reads:
   - priv/repo/data/wcvp/wcvp_distribution.csv  (all TDWG L3 codes + names)
   - priv/repo/data/tdwg_to_places.json          (existing 103 Western Hemisphere entries)
-  - priv/gallformers.sqlite                      (place + place_hierarchy tables)
+  - gallformers_dev Postgres database            (place + place_hierarchy tables)
 
 Outputs:
   - Updated tdwg_to_places.json with all TDWG codes mapped
   - Report on stdout: matched, unmatched, preserved existing
 
 Usage:
-    python3 services/boundaries/generate_tdwg_mapping.py
+    python3 services/boundaries/generate_tdwg_mapping.py [--db DBNAME]
+
+Requires: psycopg (pip install psycopg[binary])
 """
 
 import csv
 import json
-import sqlite3
 import sys
 from pathlib import Path
+
+import psycopg
+from psycopg.rows import dict_row
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
 DIST_CSV = PROJECT_ROOT / "priv/repo/data/wcvp/wcvp_distribution.csv"
 EXISTING_JSON = PROJECT_ROOT / "priv/repo/data/tdwg_to_places.json"
-PLACES_DB = PROJECT_ROOT / "priv/gallformers.sqlite"
+DEFAULT_DB = "gallformers_dev"
 OUTPUT_JSON = PROJECT_ROOT / "priv/repo/data/tdwg_to_places.json"
 
 
@@ -398,10 +402,9 @@ def load_existing_mapping(json_path):
     return {entry["tdwg_code"]: entry for entry in data}
 
 
-def load_places_db(db_path):
-    """Load place data from SQLite. Returns (countries, subdivisions_by_country, all_codes)."""
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
+def load_places_db(dbname):
+    """Load place data from Postgres. Returns (countries, subdivisions_by_country, all_codes)."""
+    conn = psycopg.connect(f"dbname={dbname}", row_factory=dict_row)
 
     # Load all countries
     countries = {}
@@ -618,8 +621,12 @@ def main():
     existing = load_existing_mapping(EXISTING_JSON)
     print(f"  Found {len(existing)} existing entries")
 
-    print(f"\nLoading places from {PLACES_DB}...")
-    countries, subs_by_country, all_codes = load_places_db(PLACES_DB)
+    dbname = DEFAULT_DB
+    if "--db" in sys.argv:
+        dbname = sys.argv[sys.argv.index("--db") + 1]
+
+    print(f"\nLoading places from database '{dbname}'...")
+    countries, subs_by_country, all_codes = load_places_db(dbname)
     print(f"  Found {len(countries)} countries, {sum(len(v) for v in subs_by_country.values())} subdivisions")
 
     # Generate mapping

@@ -9,41 +9,41 @@ Reports:
   - Code mismatches between DB and tiles
 
 Usage:
-  python3 verify_tiles.py [PMTILES_PATH] [DB_PATH]
+  python3 verify_tiles.py [PMTILES_PATH] [--db DBNAME]
 
 Defaults:
   PMTILES_PATH = ../../priv/static/data/boundaries.pmtiles
-  DB_PATH      = ../../priv/gallformers.sqlite
+  DBNAME       = gallformers_dev
 
-Requires: tippecanoe-decode (from tippecanoe), sqlite3 (Python stdlib)
+Requires: tippecanoe-decode (from tippecanoe), psycopg (pip install psycopg[binary])
 """
 import json
 import os
-import sqlite3
 import subprocess
 import sys
 from pathlib import Path
 
+import psycopg
+from psycopg.rows import dict_row
+
 SCRIPT_DIR = Path(__file__).resolve().parent
 DEFAULT_PMTILES = SCRIPT_DIR / "../../priv/static/data/boundaries.pmtiles"
-DEFAULT_DB = SCRIPT_DIR / "../../priv/gallformers.sqlite"
+DEFAULT_DB = "gallformers_dev"
 
 
-def get_db_places(db_path):
+def get_db_places(dbname):
     """Load all places from the database, grouped by type."""
-    conn = sqlite3.connect(str(db_path))
-    conn.row_factory = sqlite3.Row
+    conn = psycopg.connect(f"dbname={dbname}", row_factory=dict_row)
     cursor = conn.cursor()
 
     countries = {}
     subdivisions = {}
 
     for row in cursor.execute("SELECT id, name, code, type FROM place ORDER BY code"):
-        place = dict(row)
-        if place["type"] == "country":
-            countries[place["code"]] = place
-        elif place["type"] in ("state", "province"):
-            subdivisions[place["code"]] = place
+        if row["type"] == "country":
+            countries[row["code"]] = row
+        elif row["type"] in ("state", "province"):
+            subdivisions[row["code"]] = row
 
     # Determine which countries have subdivisions via place_hierarchy
     subdivided_country_codes = set()
@@ -95,22 +95,26 @@ def scan_tiles(pmtiles_path, zoom=3):
 
 
 def main():
-    pmtiles_path = Path(sys.argv[1]) if len(sys.argv) > 1 else DEFAULT_PMTILES
-    db_path = Path(sys.argv[2]) if len(sys.argv) > 2 else DEFAULT_DB
+    pmtiles_path = DEFAULT_PMTILES
+    dbname = DEFAULT_DB
+
+    args = sys.argv[1:]
+    positional = [a for a in args if not a.startswith("--")]
+    if positional:
+        pmtiles_path = Path(positional[0])
+    if "--db" in args:
+        dbname = args[args.index("--db") + 1]
 
     if not pmtiles_path.exists():
         print(f"Error: PMTiles file not found: {pmtiles_path}", file=sys.stderr)
         sys.exit(1)
-    if not db_path.exists():
-        print(f"Error: Database not found: {db_path}", file=sys.stderr)
-        sys.exit(1)
 
     print(f"PMTiles: {pmtiles_path}")
-    print(f"Database: {db_path}")
+    print(f"Database: {dbname}")
     print()
 
     # Load DB data
-    db_countries, db_subdivisions, subdivided_country_codes = get_db_places(db_path)
+    db_countries, db_subdivisions, subdivided_country_codes = get_db_places(dbname)
     print(f"DB countries: {len(db_countries)}")
     print(f"DB subdivisions: {len(db_subdivisions)}")
     print(f"DB countries with subdivisions: {len(subdivided_country_codes)}")

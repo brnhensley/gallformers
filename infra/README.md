@@ -34,8 +34,8 @@ Infrastructure as Code for Gallformers AWS resources using OpenTofu.
 │                          ▼                                                  │
 │          ┌──────────────────────────────┐                                   │
 │          │ IAM: litestream-gallformers  │◄──── GitHub Actions (snapshots)  │
-│          │ Policy: LitestreamGallforms  │                                   │
-│          │         Backup               │                                   │
+│          │ Policy: LitestreamGallforms  │      (names are historical from  │
+│          │         Backup               │       SQLite/Litestream era)     │
 │          └──────────────────────────────┘                                   │
 │                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
@@ -58,7 +58,6 @@ All AWS resources are deployed to **`us-east-1`** (N. Virginia) to match Fly.io'
 #### gallformers-backups
 - **Purpose:** Public database snapshots
   - `public/*` - Daily pg_dump snapshots (public read, excludes PII/analytics/internal content)
-  - `litestream/*` - Legacy Litestream backups (to be removed after post-cutover soak period)
 - **Access:** Public read for `public/*` prefix, private otherwise
 - **Versioning:** Enabled
 - **Public URL:** https://gallformers-backups.s3.amazonaws.com/public/gallformers.dump
@@ -76,7 +75,7 @@ All AWS resources are deployed to **`us-east-1`** (N. Virginia) to match Fly.io'
 ### IAM
 
 - **`s3-upload`** - Image uploads to S3 (credentials in Fly.io/V2 app secrets)
-- **`litestream-gallformers`** - Database backups (credentials in GitHub Actions secrets). Name is historical — to be renamed during post-cutover cleanup.
+- **`litestream-gallformers`** - Database backup uploads to S3 (credentials in GitHub Actions secrets). Name is historical from the SQLite/Litestream era.
 
 ## Deployment
 

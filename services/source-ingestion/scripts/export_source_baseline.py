@@ -1,18 +1,21 @@
 """Export human-curated gall-host association data for a source as a JSON baseline.
 
 Usage:
-    python scripts/export_source_baseline.py <source_id> [--db <path>]
+    python scripts/export_source_baseline.py <source_id> [--db <dbname>]
 
 Outputs a JSON file matching the data-extract pipeline schema for comparison.
+
+Requires: psycopg (pip install psycopg[binary])
 """
 
 import json
-import sqlite3
 import sys
 from pathlib import Path
 
+import psycopg
+from psycopg.rows import dict_row
 
-DEFAULT_DB = Path(__file__).resolve().parents[3] / "priv" / "gallformers.sqlite"
+DEFAULT_DB = "gallformers_dev"
 
 TRAIT_TABLES = {
     "shape": ("gall_shape", "shape_id", "shape", "shape"),
@@ -41,7 +44,7 @@ def get_taxonomy_chain(conn, species_id):
         SELECT t.id, t.name, t.type, t.parent_id
         FROM species_taxonomy st
         JOIN taxonomy t ON t.id = st.taxonomy_id
-        WHERE st.species_id = ?
+        WHERE st.species_id = %s
         LIMIT 1
         """,
         (species_id,),
@@ -50,21 +53,20 @@ def get_taxonomy_chain(conn, species_id):
     if not row:
         return result
 
-    tid = row[0]
+    tid = row["id"]
     while tid:
         r = conn.execute(
-            "SELECT id, name, type, parent_id FROM taxonomy WHERE id = ?", (tid,)
+            "SELECT id, name, type, parent_id FROM taxonomy WHERE id = %s", (tid,)
         ).fetchone()
         if not r:
             break
-        _, name, ttype, parent_id = r
-        if ttype == "family":
-            result["family"] = name
-        elif ttype == "genus":
-            result["genus"] = name
-        elif ttype == "order":
-            result["order"] = name
-        tid = parent_id
+        if r["type"] == "family":
+            result["family"] = r["name"]
+        elif r["type"] == "genus":
+            result["genus"] = r["name"]
+        elif r["type"] == "order":
+            result["order"] = r["name"]
+        tid = r["parent_id"]
 
     return result
 
@@ -79,11 +81,11 @@ def get_traits(conn, species_id):
             SELECT l.{value_col}
             FROM {join_table} jt
             JOIN {lookup_table} l ON l.id = jt.{fk_col}
-            WHERE jt.species_id = ?
+            WHERE jt.species_id = %s
             """,
             (species_id,),
         ).fetchall()
-        values = [r[0] for r in rows]
+        values = [r[value_col] for r in rows]
         traits[trait_name] = {
             "original": None,  # human-curated data doesn't track original text
             "suggested": values,
@@ -91,9 +93,9 @@ def get_traits(conn, species_id):
 
     # Detachable from gall_traits
     row = conn.execute(
-        "SELECT detachable FROM gall_traits WHERE species_id = ?", (species_id,)
+        "SELECT detachable FROM gall_traits WHERE species_id = %s", (species_id,)
     ).fetchone()
-    traits["detachable"] = row[0] if row else "unknown"
+    traits["detachable"] = row["detachable"] if row else "unknown"
 
     return traits
 
@@ -105,7 +107,7 @@ def get_hosts(conn, gall_species_id):
         SELECT sp.id, sp.name
         FROM gallhost gh
         JOIN species sp ON sp.id = gh.host_species_id
-        WHERE gh.gall_species_id = ?
+        WHERE gh.gall_species_id = %s
         """,
         (gall_species_id,),
     ).fetchall()
@@ -116,13 +118,13 @@ def export_source(conn, source_id):
     """Export all gall-host associations for a source."""
     # Get source info
     source = conn.execute(
-        "SELECT id, title, author FROM source WHERE id = ?", (source_id,)
+        "SELECT id, title, author FROM source WHERE id = %s", (source_id,)
     ).fetchone()
     if not source:
         print(f"Source {source_id} not found", file=sys.stderr)
         sys.exit(1)
 
-    print(f"Source: {source[1]} by {source[2]}")
+    print(f"Source: {source['title']} by {source['author']}")
 
     # Get all gall species linked to this source
     gall_rows = conn.execute(
@@ -130,7 +132,7 @@ def export_source(conn, source_id):
         SELECT sp.id, sp.name
         FROM species_source ss
         JOIN species sp ON sp.id = ss.species_id
-        WHERE ss.source_id = ? AND sp.taxoncode = 'gall'
+        WHERE ss.source_id = %s AND sp.taxoncode = 'gall'
         ORDER BY sp.name
         """,
         (source_id,),
@@ -139,15 +141,15 @@ def export_source(conn, source_id):
     print(f"Found {len(gall_rows)} gall species")
 
     records = []
-    for gall_id, gall_name in gall_rows:
-        gall_taxonomy = get_taxonomy_chain(conn, gall_id)
-        traits = get_traits(conn, gall_id)
-        hosts = get_hosts(conn, gall_id)
+    for gall in gall_rows:
+        gall_taxonomy = get_taxonomy_chain(conn, gall["id"])
+        traits = get_traits(conn, gall["id"])
+        hosts = get_hosts(conn, gall["id"])
 
         if not hosts:
             record = {
                 "gall_species": {
-                    "name": gall_name,
+                    "name": gall["name"],
                     "authority": None,
                     "family": gall_taxonomy["family"],
                     "order": gall_taxonomy["order"],
@@ -164,17 +166,17 @@ def export_source(conn, source_id):
             }
             records.append(record)
         else:
-            for host_id, host_name in hosts:
-                host_taxonomy = get_taxonomy_chain(conn, host_id)
+            for host in hosts:
+                host_taxonomy = get_taxonomy_chain(conn, host["id"])
                 record = {
                     "gall_species": {
-                        "name": gall_name,
+                        "name": gall["name"],
                         "authority": None,
                         "family": gall_taxonomy["family"],
                         "order": gall_taxonomy["order"],
                     },
                     "host_species": {
-                        "name": host_name,
+                        "name": host["name"],
                         "authority": None,
                         "family": host_taxonomy["family"],
                     },
@@ -191,21 +193,17 @@ def export_source(conn, source_id):
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: python scripts/export_source_baseline.py <source_id> [--db <path>]")
+        print("Usage: python scripts/export_source_baseline.py <source_id> [--db <dbname>]")
         sys.exit(1)
 
     source_id = int(sys.argv[1])
-    db_path = DEFAULT_DB
+    dbname = DEFAULT_DB
 
     if "--db" in sys.argv:
         idx = sys.argv.index("--db")
-        db_path = Path(sys.argv[idx + 1])
+        dbname = sys.argv[idx + 1]
 
-    if not db_path.exists():
-        print(f"Database not found: {db_path}", file=sys.stderr)
-        sys.exit(1)
-
-    conn = sqlite3.connect(str(db_path))
+    conn = psycopg.connect(f"dbname={dbname}", row_factory=dict_row)
     records = export_source(conn, source_id)
     conn.close()
 

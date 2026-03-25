@@ -19,13 +19,10 @@ erl_crash.dump
 /priv/static/assets/
 /priv/static/cache_manifest.json
 
-# Local databases (~260MB+ combined)
-/priv/gallformers.sqlite
-/priv/gallformers.sqlite-*
-/priv/gallformers_test.sqlite
-/priv/gallformers_test.sqlite-*
-/priv/data/wcvp_test.sqlite
-/priv/data/wcvp_test.sqlite-*
+# Legacy SQLite files (database is now Postgres, but exclude any stale files)
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
 
 # Volume-backed data files (served via symlink from /data volume)
 /priv/static/data/
@@ -33,10 +30,6 @@ erl_crash.dump
 # Large reference/import data not needed at runtime
 /priv/repo/data/wcvp/
 /priv/repo/data/reconciliation/
-
-# WCVP databases (downloaded from S3 at build/boot time)
-/priv/data/wcvp.sqlite
-/priv/data/wcvp.sqlite-*
 
 # Dev logs
 /priv/logs/
