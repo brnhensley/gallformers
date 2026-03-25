@@ -134,7 +134,7 @@ defmodule Gallformers.MixProject do
     [
       plt_core_path: "priv/plts/core.plt",
       plt_local_path: "priv/plts/project.plt",
-      plt_add_apps: [:mix, :ex_unit],
+      plt_add_apps: [:mix, :ex_unit, :credo],
       flags: [
         :error_handling,
         :unknown
