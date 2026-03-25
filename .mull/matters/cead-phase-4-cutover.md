@@ -1,5 +1,5 @@
 ---
-status: active
+status: done
 created: 2026-03-11
 updated: 2026-03-25
 epic: postgres
@@ -29,4 +29,3 @@ All cutover procedures, checklists, and rollback plans are in `runbooks/postgres
 - [ ] Delete SQLite file from production volume (/data/gallformers.sqlite)
 - [ ] Delete Litestream data from S3 (gallformers-backups/litestream/)
 - [ ] Provision gallformers-preview-db for preview environment
-
