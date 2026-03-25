@@ -1,10 +1,11 @@
 ---
 status: raw
 created: 2026-02-15
-updated: 2026-02-25
+updated: 2026-03-25
 epic: images
+relates: [dd3a]
 blocks: [e7bb]
-needs: [60e6]
+needs: [60e6, dd3a]
 ---
 
 # Image processing pipeline
@@ -63,4 +64,3 @@ Fire-and-forget Task.start → Oban. Silent errors → proper reporting + retry.
 - Article image requirements (hero images, inline sizes, thumbnails)
 - Whether to support manual image ordering (currently automatic source-based grouping)
 - Bulk operation UI details
-

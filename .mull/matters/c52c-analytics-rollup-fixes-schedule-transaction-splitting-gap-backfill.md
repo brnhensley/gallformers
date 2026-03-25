@@ -1,9 +1,9 @@
 ---
-status: refined
+status: done
 created: 2026-03-10
-updated: 2026-03-11
+updated: 2026-03-25
 epic: platform
-relates: [be9d]
+relates: [be9d, dd3a]
 ---
 
 # Analytics rollup fixes — schedule, transaction splitting, gap backfill

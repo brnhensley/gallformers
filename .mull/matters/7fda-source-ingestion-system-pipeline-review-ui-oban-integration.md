@@ -2,10 +2,10 @@
 status: planned
 tags: [design]
 created: 2026-03-04
-updated: 2026-03-23
+updated: 2026-03-25
 epic: ingestion
-relates: [ef0e, c836, 881c, fa48]
-needs: [c836, 881c]
+relates: [ef0e, c836, 881c, fa48, dd3a]
+needs: [c836, 881c, dd3a]
 ---
 
 # Source ingestion system — pipeline, review UI, Oban integration
@@ -127,4 +127,3 @@ The current `data-extract` step pulls a brief `description` snippet per gall-hos
 **Output structure per gall:**
 - `description`: full prose block (paragraph(s) from the source about this gall)
 - `traits.{trait}.original`: the specific phrase supporting the trait value (fragment within the prose)
-
