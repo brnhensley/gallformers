@@ -98,13 +98,14 @@ defmodule Gallformers.Analytics.Rollup do
     if count == 0 do
       :noop
     else
-      Repo.transaction(fn ->
-        rollup_daily_stats(base_query, date)
-        rollup_daily_page_stats(base_query, date)
-        rollup_daily_referrer_stats(base_query, date)
-        rollup_daily_device_stats(base_query, date)
-        rollup_daily_browser_stats(base_query, date)
-      end)
+      # Each summary table is rolled up independently. Every operation is
+      # idempotent (DELETE + INSERT or ON CONFLICT), so partial completion
+      # is safe — the next run will fill any gaps.
+      rollup_daily_stats(base_query, date)
+      rollup_daily_page_stats(base_query, date)
+      rollup_daily_referrer_stats(base_query, date)
+      rollup_daily_device_stats(base_query, date)
+      rollup_daily_browser_stats(base_query, date)
 
       :ok
     end
@@ -131,18 +132,23 @@ defmodule Gallformers.Analytics.Rollup do
 
   @impl true
   def handle_info(:run_rollup, state) do
-    case rollup_pending_days() do
-      {:ok, 0} ->
-        Logger.debug("Analytics rollup: no pending days")
+    try do
+      case rollup_pending_days() do
+        {:ok, 0} ->
+          Logger.debug("Analytics rollup: no pending days")
 
-      {:ok, count} ->
-        Logger.info("Analytics rollup: processed #{count} day(s)")
-    end
+        {:ok, count} ->
+          Logger.info("Analytics rollup: processed #{count} day(s)")
+      end
 
-    {pruned, _} = prune_old_page_views()
+      {pruned, _} = prune_old_page_views()
 
-    if pruned > 0 do
-      Logger.info("Analytics rollup: pruned #{pruned} old page views")
+      if pruned > 0 do
+        Logger.info("Analytics rollup: pruned #{pruned} old page views")
+      end
+    rescue
+      e ->
+        Logger.error("Analytics rollup crashed: #{Exception.message(e)}")
     end
 
     schedule_next_run()
@@ -197,12 +203,9 @@ defmodule Gallformers.Analytics.Rollup do
 
     Repo.query!("DELETE FROM daily_page_stats WHERE date = $1", [date])
 
-    for {path, views, unique} <- rows do
-      Repo.query!(
-        "INSERT INTO daily_page_stats (date, path, page_views, unique_visitors) VALUES ($1, $2, $3, $4)",
-        [date, path, views, unique]
-      )
-    end
+    batch_insert("daily_page_stats", ["date", "path", "page_views", "unique_visitors"], fn ->
+      Enum.map(rows, fn {path, views, unique} -> [date, path, views, unique] end)
+    end)
   end
 
   defp rollup_daily_referrer_stats(base_query, date) do
@@ -215,12 +218,9 @@ defmodule Gallformers.Analytics.Rollup do
 
     Repo.query!("DELETE FROM daily_referrer_stats WHERE date = $1", [date])
 
-    for {referrer, views} <- rows do
-      Repo.query!(
-        "INSERT INTO daily_referrer_stats (date, referrer_host, page_views) VALUES ($1, $2, $3)",
-        [date, referrer, views]
-      )
-    end
+    batch_insert("daily_referrer_stats", ["date", "referrer_host", "page_views"], fn ->
+      Enum.map(rows, fn {referrer, views} -> [date, referrer, views] end)
+    end)
   end
 
   defp rollup_daily_device_stats(base_query, date) do
@@ -233,12 +233,9 @@ defmodule Gallformers.Analytics.Rollup do
 
     Repo.query!("DELETE FROM daily_device_stats WHERE date = $1", [date])
 
-    for {device, cnt} <- rows do
-      Repo.query!(
-        "INSERT INTO daily_device_stats (date, device_type, count) VALUES ($1, $2, $3)",
-        [date, device, cnt]
-      )
-    end
+    batch_insert("daily_device_stats", ["date", "device_type", "count"], fn ->
+      Enum.map(rows, fn {device, cnt} -> [date, device, cnt] end)
+    end)
   end
 
   defp rollup_daily_browser_stats(base_query, date) do
@@ -251,11 +248,37 @@ defmodule Gallformers.Analytics.Rollup do
 
     Repo.query!("DELETE FROM daily_browser_stats WHERE date = $1", [date])
 
-    for {browser, cnt} <- rows do
-      Repo.query!(
-        "INSERT INTO daily_browser_stats (date, browser, count) VALUES ($1, $2, $3)",
-        [date, browser, cnt]
-      )
+    batch_insert("daily_browser_stats", ["date", "browser", "count"], fn ->
+      Enum.map(rows, fn {browser, cnt} -> [date, browser, cnt] end)
+    end)
+  end
+
+  # Inserts rows in batches using multi-row VALUES clauses.
+  # Reduces 10,000+ individual round trips to ~10 batched statements.
+  @batch_size 1000
+  defp batch_insert(table, columns, rows_fn) do
+    rows = rows_fn.()
+
+    if rows != [] do
+      col_list = Enum.join(columns, ", ")
+      num_cols = length(columns)
+
+      rows
+      |> Enum.chunk_every(@batch_size)
+      |> Enum.each(fn batch ->
+        {values, params} = build_values_clause(batch, num_cols)
+        Repo.query!("INSERT INTO #{table} (#{col_list}) VALUES #{values}", params)
+      end)
     end
+  end
+
+  defp build_values_clause(batch, num_cols) do
+    {placeholders, _} =
+      Enum.map_reduce(batch, 1, fn _row, idx ->
+        params = Enum.map_join(idx..(idx + num_cols - 1), ", ", &"$#{&1}")
+        {"(#{params})", idx + num_cols}
+      end)
+
+    {Enum.join(placeholders, ", "), List.flatten(batch)}
   end
 end

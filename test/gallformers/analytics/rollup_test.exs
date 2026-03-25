@@ -133,6 +133,34 @@ defmodule Gallformers.Analytics.RollupTest do
                ])
     end
 
+    test "handles many unique paths via batch inserts" do
+      # Insert 150 unique paths — enough to exercise batching.
+      # Use direct Repo.insert! to avoid the helper's 60-entry time limit.
+      for i <- 1..150 do
+        Repo.insert!(%PageView{
+          path: "/gall/#{i}",
+          visitor_hash: "v#{rem(i, 50)}",
+          referrer_host: nil,
+          browser: "Chrome",
+          device_type: "desktop",
+          inserted_at: NaiveDateTime.new!(@today, ~T[12:00:00]) |> NaiveDateTime.add(i)
+        })
+      end
+
+      assert :ok = Rollup.rollup_day(@today)
+
+      # daily_stats: 150 page views, 50 unique visitors
+      assert %{rows: [[150, 50]]} =
+               Repo.query!(
+                 "SELECT page_views, unique_visitors FROM daily_stats WHERE date = $1",
+                 [@today]
+               )
+
+      # daily_page_stats: 150 unique paths, each with 1 view
+      assert %{num_rows: 150} =
+               Repo.query!("SELECT * FROM daily_page_stats WHERE date = $1", [@today])
+    end
+
     test "does nothing for a day with no data" do
       assert :noop = Rollup.rollup_day(@today)
 
