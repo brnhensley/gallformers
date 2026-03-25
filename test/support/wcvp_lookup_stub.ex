@@ -4,7 +4,8 @@ defmodule Gallformers.Wcvp.LookupStub do
 
   Data:
     - "500" / "Zzyzx wcvponly" — no-match species for search tests (no distributions)
-    - "600" / "Thymus alpinus" — matches host 6, with NWY native + ALB introduced
+    - "600" / "Thymus alpinus" — matches seed host 6, with NWY native + ALB introduced
+    - "700" / "Wcvptestus alpinus" — for tests that create their own host data
   """
   @behaviour Gallformers.Wcvp.LookupBehaviour
 
@@ -31,6 +32,18 @@ defmodule Gallformers.Wcvp.LookupStub do
       species: "alpinus",
       taxon_authors: "L.",
       powo_id: "urn:lsid:ipni.org:names:test",
+      taxon_status: "Accepted",
+      native_distribution: ["NWY"],
+      introduced_distribution: ["ALB"]
+    },
+    "700" => %WcvpName{
+      plant_name_id: "700",
+      taxon_name: "Wcvptestus alpinus",
+      family: "Testaceae",
+      genus: "Wcvptestus",
+      species: "alpinus",
+      taxon_authors: "Test",
+      powo_id: "urn:lsid:ipni.org:names:test700",
       taxon_status: "Accepted",
       native_distribution: ["NWY"],
       introduced_distribution: ["ALB"]

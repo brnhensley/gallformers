@@ -6,10 +6,11 @@ defmodule GallformersWeb.Admin.HostLive.WcvpTest do
   The stub returns canned data, making tests fast and deterministic.
   """
   use GallformersWeb.ConnCase, async: true
+  import Ecto.Query
   import Phoenix.LiveViewTest
 
   alias Gallformers.Accounts.Auth0User
-  alias Gallformers.Plants
+  alias Gallformers.Repo
 
   defp setup_admin_session(conn) do
     user = %Auth0User{
@@ -27,11 +28,81 @@ defmodule GallformersWeb.Admin.HostLive.WcvpTest do
     |> put_session(:db_display_name, "Test User")
   end
 
-  defp require_host do
-    case Plants.list_hosts() do
-      [host | _] -> host
-      [] -> flunk("No host found in test database - ensure test fixtures exist")
-    end
+  alias Gallformers.Taxonomy.Taxonomy
+
+  # Creates a host named "Wcvptestus alpinus" matching the WCVP stub entry "700".
+  # Includes taxonomy so the admin form mounts correctly.
+  defp create_wcvp_matching_host do
+    family =
+      Repo.insert!(%Taxonomy{
+        name: "WcvpTestFamily",
+        description: "Plant",
+        type: "family",
+        is_placeholder: false
+      })
+
+    genus =
+      Repo.insert!(%Taxonomy{
+        name: "Wcvptestus",
+        description: "wcvp test genus",
+        type: "genus",
+        parent_id: family.id,
+        is_placeholder: false
+      })
+
+    abundance = Repo.one!(from(a in Gallformers.Species.Abundance, limit: 1))
+
+    host =
+      Repo.insert!(%Gallformers.Species.Species{
+        name: "Wcvptestus alpinus",
+        taxoncode: "plant",
+        datacomplete: false,
+        abundance_id: abundance.id
+      })
+
+    Repo.query!("INSERT INTO species_taxonomy (species_id, taxonomy_id) VALUES ($1, $2)", [
+      host.id,
+      genus.id
+    ])
+
+    host
+  end
+
+  # Creates a host with a name that does NOT match any WCVP stub entry.
+  defp create_nonmatching_host do
+    family =
+      Repo.insert!(%Taxonomy{
+        name: "NomatchFamily",
+        description: "Plant",
+        type: "family",
+        is_placeholder: false
+      })
+
+    genus =
+      Repo.insert!(%Taxonomy{
+        name: "Nonmatchgenus",
+        description: "no wcvp match",
+        type: "genus",
+        parent_id: family.id,
+        is_placeholder: false
+      })
+
+    abundance = Repo.one!(from(a in Gallformers.Species.Abundance, limit: 1))
+
+    host =
+      Repo.insert!(%Gallformers.Species.Species{
+        name: "Nonmatchgenus nodata",
+        taxoncode: "plant",
+        datacomplete: false,
+        abundance_id: abundance.id
+      })
+
+    Repo.query!("INSERT INTO species_taxonomy (species_id, taxonomy_id) VALUES ($1, $2)", [
+      host.id,
+      genus.id
+    ])
+
+    host
   end
 
   defp get_assign(view, key) do
@@ -87,7 +158,8 @@ defmodule GallformersWeb.Admin.HostLive.WcvpTest do
 
   describe "WCVP async refresh" do
     test "refresh_from_wcvp shows loading then diff for matching host", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/admin/hosts/6")
+      host = create_wcvp_matching_host()
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
 
       html = render_click(view, "refresh_from_wcvp", %{})
       assert html =~ "wcvp-refresh-loading"
@@ -99,7 +171,7 @@ defmodule GallformersWeb.Admin.HostLive.WcvpTest do
     end
 
     test "refresh_from_wcvp shows nomatch modal for non-matching host", %{conn: conn} do
-      host = require_host()
+      host = create_nonmatching_host()
       {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
 
       render_click(view, "refresh_from_wcvp", %{})
@@ -109,7 +181,7 @@ defmodule GallformersWeb.Admin.HostLive.WcvpTest do
     end
 
     test "cancel closes the nomatch modal", %{conn: conn} do
-      host = require_host()
+      host = create_nonmatching_host()
       {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
 
       render_click(view, "refresh_from_wcvp", %{})
@@ -122,7 +194,7 @@ defmodule GallformersWeb.Admin.HostLive.WcvpTest do
 
   describe "WCVP nomatch modal search" do
     test "search updates results in modal", %{conn: conn} do
-      host = require_host()
+      host = create_nonmatching_host()
       {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
 
       render_click(view, "refresh_from_wcvp", %{})
@@ -135,7 +207,7 @@ defmodule GallformersWeb.Admin.HostLive.WcvpTest do
     end
 
     test "continue with selection opens diff", %{conn: conn} do
-      host = require_host()
+      host = create_nonmatching_host()
       {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
 
       render_click(view, "refresh_from_wcvp", %{})
@@ -153,7 +225,8 @@ defmodule GallformersWeb.Admin.HostLive.WcvpTest do
 
   describe "POWO diff apply" do
     test "apply from diff updates range_entries and stages host_traits", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/admin/hosts/6")
+      host = create_wcvp_matching_host()
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
 
       render_click(view, "refresh_from_wcvp", %{})
       render_async(view)
@@ -176,7 +249,7 @@ defmodule GallformersWeb.Admin.HostLive.WcvpTest do
       assert get_assign(view, :powo_diff) == nil
       pending = get_assign(view, :pending_host_traits)
       assert pending != nil
-      assert pending.wcvp_id == "600"
+      assert pending.wcvp_id == "700"
 
       range_entries = get_assign(view, :range_entries)
 
@@ -188,7 +261,8 @@ defmodule GallformersWeb.Admin.HostLive.WcvpTest do
     end
 
     test "cancel dismisses the diff", %{conn: conn} do
-      {:ok, view, _html} = live(conn, ~p"/admin/hosts/6")
+      host = create_wcvp_matching_host()
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
 
       render_click(view, "refresh_from_wcvp", %{})
       render_async(view)
@@ -211,7 +285,7 @@ defmodule GallformersWeb.Admin.HostLive.WcvpTest do
     end
 
     test "initializes wcvp_refreshing to false on mount", %{conn: conn} do
-      host = require_host()
+      host = create_nonmatching_host()
       {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
 
       assert get_assign(view, :wcvp_refreshing) == false
