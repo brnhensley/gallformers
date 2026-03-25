@@ -1043,46 +1043,48 @@ end
 
 ---
 
-## Request Logging
+## Application Logging
 
-The app logs all HTTP requests to JSON Lines files for incident investigation.
+All application logs are structured JSON via **LoggerJSON** (`logger_json` hex package). This includes HTTP requests, errors, Postgrex connection events, GenServer crashes, and HealthWatchdog alerts — all in one stream.
 
 **Location:**
-- **Production**: `/data/logs/requests-YYYY-MM-DD.log` (persistent volume)
-- **Development**: `priv/logs/requests-YYYY-MM-DD.log` (gitignored)
+- **Production**: `/data/logs/app.log` (persistent volume, size-rotated)
+- **Rotation**: 50 MB per file × 20 files = 1 GB max, gzip compressed on rotate
+- **Development**: Human-readable console output (no file logging, no JSON)
 
-**Log format** (one JSON object per line):
-```json
-{"ts":"2026-02-05T14:32:01Z","method":"GET","path":"/species/123","query":"tab=hosts","status":200,"duration_ms":45,"ip":"1.2.3.4","ua":"Mozilla/5.0..."}
-```
-
-**Retention**: Logs older than 30 days are automatically deleted.
+**Request log entries** (logged via `LoggerJSON.Plug` telemetry handler):
+Request metadata is nested under `conn` and `client` keys in the JSON output. Fields include method, request_path, status, client IP, user agent, duration, and request_id.
 
 **Retrieving logs from production:**
 ```bash
-fly ssh sftp get /data/logs/requests-2026-02-05.log
+fly ssh sftp get /data/logs/app.log
 ```
 
 **Analyzing logs locally:**
 ```bash
+# Extract only request log entries (have conn metadata)
+cat app.log | jq -c 'select(.conn)'
+
 # All 500 errors
-cat requests-2026-02-05.log | jq -c 'select(.status >= 500)'
+cat app.log | jq -c 'select(.conn.status >= 500)'
 
 # Slowest requests
-cat requests-2026-02-05.log | jq -s 'sort_by(.duration_ms) | reverse | .[0:10]'
+cat app.log | jq -cs '[.[] | select(.conn)] | sort_by(.duration_ms) | reverse | .[0:10]'
 
-# Requests to a specific path
-cat requests-2026-02-05.log | jq -c 'select(.path | startswith("/api/gall"))'
+# All application errors (non-request)
+cat app.log | jq -c 'select(.severity == "error")'
 
-# Error rate by path
-cat requests-2026-02-05.log | jq -s 'group_by(.path) | map({path: .[0].path, total: length, errors: [.[] | select(.status >= 400)] | length})'
+# Postgrex connection events
+cat app.log | jq -c 'select(.msg | test("Postgrex"; "i") // false)'
 ```
 
 **Configuration:**
-- `config :gallformers, :request_log_dir` - Override log directory
-- `config :gallformers, :request_logger_enabled` - Disable logging (set `false` in test.exs)
+- Phoenix's built-in request logging is disabled in prod (`config :phoenix, :logger, false`) — replaced by LoggerJSON.Plug
+- File handler is configured in `config/runtime.exs` (prod only, not preview deploys)
+- Formatter is configured in `config/prod.exs`
+- Client IP is normalized from Fly's `fly-client-ip` header via `put_client_ip` plug in `endpoint.ex`
 
-**Implementation**: `lib/gallformers/request_logger.ex` - Attaches to Phoenix telemetry events.
+**Implementation**: `LoggerJSON.Plug.attach/3` in `application.ex`, formatter config in `prod.exs`, file handler in `runtime.exs`.
 
 ---
 

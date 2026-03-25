@@ -37,8 +37,11 @@ defmodule Gallformers.Application do
     # for other strategies and supported options
     opts = [strategy: :one_for_one, name: Gallformers.Supervisor]
 
-    # Attach request logger telemetry handler (must happen after app starts)
-    Gallformers.RequestLogger.attach()
+    # Add file log handler if configured (production only, not preview deploys)
+    Logger.add_handlers(:gallformers)
+
+    # Attach structured request logging via LoggerJSON (replaces custom RequestLogger)
+    LoggerJSON.Plug.attach("phoenix-request-logger", [:phoenix, :endpoint, :stop], :info)
 
     Supervisor.start_link(children, opts)
   end

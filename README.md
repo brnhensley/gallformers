@@ -255,28 +255,27 @@ The `users` table contains personally identifiable information:
 
 Fly.io also sends automatic email alerts on OOM (out-of-memory) events.
 
-## Request Logs
+## Application Logs
 
-HTTP requests are logged to daily JSON Lines files for incident investigation:
+All application logs (requests, errors, crashes) are structured JSON via LoggerJSON, written to a persistent file in production.
 
-- **Production**: `/data/logs/requests-YYYY-MM-DD.log`
-- **Development**: `priv/logs/requests-YYYY-MM-DD.log`
+- **Production**: `/data/logs/app.log` (size-rotated, 1 GB max)
 
 Retrieve logs from production:
 ```bash
-fly ssh sftp get /data/logs/requests-2026-02-05.log
+fly ssh sftp get /data/logs/app.log
 ```
 
 Analyze with jq:
 ```bash
-# Find slow requests
-cat requests-*.log | jq -c 'select(.duration_ms > 1000)'
+# Find request errors
+cat app.log | jq -c 'select(.conn.status >= 500)'
 
-# Find errors
-cat requests-*.log | jq -c 'select(.status >= 500)'
+# Find application errors
+cat app.log | jq -c 'select(.severity == "error")'
 ```
 
-Logs are automatically cleaned up after 30 days. See [CLAUDE.md](CLAUDE.md#request-logging) for detailed usage.
+See [CODING_STANDARDS.md](CODING_STANDARDS.md#application-logging) for detailed format and analysis examples.
 
 ## Contributing
 

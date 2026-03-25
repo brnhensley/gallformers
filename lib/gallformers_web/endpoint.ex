@@ -44,6 +44,11 @@ defmodule GallformersWeb.Endpoint do
     cookie_key: "request_logger"
 
   plug Plug.RequestId
+
+  # Normalize Fly.io's fly-client-ip header into conn.remote_ip so downstream
+  # consumers (LoggerJSON.Plug, rate limiting, etc.) see the real client IP.
+  plug :put_client_ip
+
   plug Plug.Telemetry, event_prefix: [:phoenix, :endpoint]
 
   # Rewrite host from X-Forwarded-Host header when behind CloudFront/proxy
@@ -59,4 +64,24 @@ defmodule GallformersWeb.Endpoint do
   plug Plug.Head
   plug Plug.Session, @session_options
   plug GallformersWeb.Router
+
+  # Fly.io sets fly-client-ip to the real client IP. Falls back to x-forwarded-for.
+  defp put_client_ip(conn, _opts) do
+    ip_string =
+      case Plug.Conn.get_req_header(conn, "fly-client-ip") do
+        [ip | _] when ip != "" ->
+          ip |> String.split(",") |> List.first() |> String.trim()
+
+        _ ->
+          case Plug.Conn.get_req_header(conn, "x-forwarded-for") do
+            [ips | _] -> ips |> String.split(",") |> List.first() |> String.trim()
+            _ -> nil
+          end
+      end
+
+    case ip_string && :inet.parse_address(String.to_charlist(ip_string)) do
+      {:ok, parsed} -> %{conn | remote_ip: parsed}
+      _ -> conn
+    end
+  end
 end

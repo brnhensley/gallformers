@@ -29,7 +29,7 @@ where this would have saved hours of investigation.
 **Note on `fly logs`**: This command streams logs continuously and never terminates. Do NOT run it in the background or pipe to `tail`. To check recent errors, either:
 - Run interactively and Ctrl+C after seeing what you need
 - Use `fly logs 2>&1 | timeout 5 cat` to get a 5-second snapshot
-- Check the request logger files via SFTP (see Request Logging in CODING_STANDARDS.md)
+- Check the application log file via SFTP: `fly ssh sftp get /data/logs/app.log` (see Application Logging in CODING_STANDARDS.md)
 
 ## Configuration
 

@@ -455,13 +455,16 @@ fly status              # Check deployment status
 
 **`fly logs` streams forever** — use `fly logs 2>&1 | timeout 5 cat` for a snapshot, or check request log files via SFTP.
 
-## Request Logging
+## Application Logging
 
-HTTP requests are logged to JSON Lines files. See CODING_STANDARDS.md for log format, jq analysis examples, and configuration.
+All application logs (requests, errors, Postgrex events, crash reports) are structured JSON via **LoggerJSON**. In production, logs go to both stdout and a persistent file on the volume.
 
-- **Production**: `/data/logs/requests-YYYY-MM-DD.log`
-- **Development**: `priv/logs/requests-YYYY-MM-DD.log`
-- **Retrieve**: `fly ssh sftp get /data/logs/requests-YYYY-MM-DD.log`
+- **Production file**: `/data/logs/app.log` (size-rotated, 50 MB × 20 files = 1 GB max, gzip compressed)
+- **Retrieve**: `fly ssh sftp get /data/logs/app.log`
+- **Format**: Structured JSON (LoggerJSON.Formatters.Basic) — includes request metadata (method, path, status, duration, client IP, user agent) alongside app errors and diagnostics
+- **Dev**: Human-readable console output (no file logging)
+
+See CODING_STANDARDS.md for log format details and jq analysis examples.
 
 ## Git Workflow
 

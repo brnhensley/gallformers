@@ -80,6 +80,8 @@ defmodule Gallformers.MixProject do
       {:nimble_csv, "~> 1.2"},
       # User agent parsing for analytics
       {:browser, "~> 0.5.5"},
+      # Structured JSON logging
+      {:logger_json, "~> 7.0"},
       # Dev/Test tools
       {:boundary, "~> 0.10", runtime: false},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},

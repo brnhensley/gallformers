@@ -18,7 +18,6 @@ import Config
 # script that automatically sets the env var above.
 if System.get_env("PREVIEW_DEPLOY") do
   config :gallformers, :preview_deploy, true
-  config :gallformers, :request_logger_enabled, false
 end
 
 if System.get_env("PHX_SERVER") do
@@ -160,21 +159,21 @@ if config_env() == :prod do
   #
   # Check `Plug.SSL` for all available options in `force_ssl`.
 
-  # ## Configuring the mailer
-  #
-  # In production you need to configure the mailer to use a different adapter.
-  # Here is an example configuration for Mailgun:
-  #
-  #     config :gallformers, Gallformers.Mailer,
-  #       adapter: Swoosh.Adapters.Mailgun,
-  #       api_key: System.get_env("MAILGUN_API_KEY"),
-  #       domain: System.get_env("MAILGUN_DOMAIN")
-  #
-  # Most non-SMTP adapters require an API client. Swoosh supports Req, Hackney,
-  # and Finch out-of-the-box. This configuration is typically done at
-  # compile-time in your config/prod.exs:
-  #
-  #     config :swoosh, :api_client, Swoosh.ApiClient.Req
-  #
-  # See https://hexdocs.pm/swoosh/Swoosh.html#module-installation for details.
+  # Persist all logs to disk on the persistent volume.
+  # Size-based rotation: 50 MB per file × 20 files = 1 GB max.
+  # Includes request logs (via LoggerJSON.Plug), errors, Postgrex events, etc.
+  unless System.get_env("PREVIEW_DEPLOY") do
+    config :gallformers, :logger, [
+      {:handler, :file_log, :logger_std_h,
+       %{
+         config: %{
+           file: ~c"/data/logs/app.log",
+           max_no_bytes: 52_428_800,
+           max_no_files: 20,
+           compress_on_rotate: true
+         },
+         formatter: LoggerJSON.Formatters.Basic.new(metadata: :all)
+       }}
+    ]
+  end
 end

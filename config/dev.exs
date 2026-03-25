@@ -77,6 +77,9 @@ config :gallformers, GallformersWeb.Endpoint,
 # Enable dev routes for dashboard and mailbox
 config :gallformers, dev_routes: true
 
+# Disable disk monitoring — TM snapshot volumes trigger noisy alarms
+config :os_mon, start_disksup: false
+
 # Do not include metadata nor timestamps in development logs
 config :logger, :default_formatter, format: "[$level] $message\n"
 
@@ -101,6 +104,3 @@ config :swoosh, :api_client, false
 # Dev auth bypass: auto-login as admin without Auth0.
 # Useful for LAN testing where Auth0 callbacks won't work.
 config :gallformers, dev_auth_bypass: true
-
-# Request logger writes to priv/logs in development (gitignored)
-config :gallformers, :request_log_dir, Path.expand("../priv/logs", __DIR__)
