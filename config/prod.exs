@@ -25,8 +25,8 @@ config :logger, level: :info
 # Disable Phoenix's built-in per-request logging (replaced by LoggerJSON.Plug)
 config :phoenix, :logger, false
 
-# Structured JSON logging for all Logger output in production
-config :logger, :default_handler, formatter: LoggerJSON.Formatters.Basic.new(metadata: :all)
+# Structured JSON logging is configured in runtime.exs (LoggerJSON must be
+# compiled before its formatter can be called, so it can't live in prod.exs).
 
 # Ueberauth callback URL must be set at compile time (Ueberauth.init runs at compile time)
 # For preview deploys, omit callback_url so Ueberauth derives it from the request host.

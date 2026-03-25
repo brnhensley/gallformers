@@ -65,6 +65,11 @@ if s3_image_prefix = System.get_env("S3_IMAGE_PREFIX") do
 end
 
 if config_env() == :prod do
+  # Structured JSON logging for all Logger output in production.
+  # Must be in runtime.exs (not prod.exs) because LoggerJSON needs to be
+  # compiled before its formatter function can be called.
+  config :logger, :default_handler, formatter: LoggerJSON.Formatters.Basic.new(metadata: :all)
+
   database_url =
     System.get_env("DATABASE_URL") ||
       raise """

@@ -11,7 +11,7 @@
         excluded: [~r"/_build/", ~r"/deps/", ~r"/node_modules/"]
       },
       plugins: [],
-      requires: ["lib/credo/"],
+      requires: ["dev/credo/"],
       strict: false,
       parse_timeout: 5000,
       color: true,
