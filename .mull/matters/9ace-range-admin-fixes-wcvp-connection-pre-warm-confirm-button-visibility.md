@@ -1,7 +1,7 @@
 ---
 status: done
 created: 2026-03-14
-updated: 2026-03-16
+updated: 2026-03-25
 epic: platform
 ---
 
@@ -26,4 +26,3 @@ Bug: On host range admin, when a host's range is unconfirmed, the "Save and Conf
 ---
 
 Bug: `sync_host_from_wcvp` raises when WCVP repo isn't available (test env). The sync_next chain in HostRangeLive crashes silently, never showing the results modal. Test skipped with `@tag :skip` in `host_range_live_test.exs:162`. Fix: either provide a WCVP test fixture or rescue in `sync_host_from_wcvp` when WCVP repo is down.
-

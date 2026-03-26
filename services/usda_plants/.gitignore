@@ -1,8 +1,0 @@
-# Generated database
-plants.db
-
-# Rust build artifacts
-debug/
-target/
-Cargo.lock
-*.rs.bk
