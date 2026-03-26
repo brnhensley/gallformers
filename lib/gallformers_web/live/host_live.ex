@@ -7,9 +7,9 @@ defmodule GallformersWeb.HostLive do
   """
   use GallformersWeb, :live_view
 
-  alias Gallformers.{GallHosts, Markdown, Places, Ranges, Sources, Species, Taxonomy}
+  alias Gallformers.Images
   alias Gallformers.Images.Image
-  alias Gallformers.Plants
+  alias Gallformers.{Markdown, Places, Plants, Ranges, Sources, Species, Taxonomy}
   alias GallformersWeb.SEO
 
   @page_size 10
@@ -69,8 +69,8 @@ defmodule GallformersWeb.HostLive do
          )}
 
       host ->
-        galls = GallHosts.get_galls_for_host(host_id) |> Enum.sort_by(& &1.name)
-        images = Species.get_images_for_species(host_id) |> format_images()
+        galls = Plants.get_galls_for_host(host_id) |> Enum.sort_by(& &1.name)
+        images = Images.list_images_for_species(host_id) |> format_images()
         sources = Sources.get_sources_for_species(host_id)
         aliases = Species.get_aliases_for_species(host_id)
         taxonomy = get_taxonomy_info(host_id)

@@ -2,6 +2,7 @@ defmodule Gallformers.KeysTest do
   use Gallformers.DataCase
 
   alias Gallformers.Keys
+  alias Gallformers.Keys.Key
 
   @valid_couplets Jason.encode!(%{
                     "1" => %{
@@ -184,6 +185,82 @@ defmodule Gallformers.KeysTest do
 
       assert {:ok, _} = Keys.delete_key(key)
       assert Gallformers.ContentImages.list_images_for_key(key.id) == []
+    end
+  end
+
+  describe "Key.key_has_images?/1" do
+    test "returns false when no leads have images" do
+      {:ok, key} = Keys.create_key(valid_attrs())
+      refute Key.key_has_images?(key)
+    end
+
+    test "returns true when a lead has images" do
+      couplets_with_images =
+        Jason.encode!(%{
+          "1" => %{
+            "leads" => [
+              %{
+                "text" => "Lead A",
+                "images" => [%{"ref" => "img1", "file" => "img1.jpg", "caption" => nil}],
+                "destination" => %{"type" => "taxon", "name" => "Species X"}
+              },
+              %{
+                "text" => "Lead B",
+                "images" => [],
+                "destination" => %{"type" => "taxon", "name" => "Species Y"}
+              }
+            ]
+          }
+        })
+
+      {:ok, key} = Keys.create_key(valid_attrs(%{couplets: couplets_with_images}))
+      assert Key.key_has_images?(key)
+    end
+  end
+
+  describe "Key.serialize/1" do
+    test "serializes key struct to JSON string" do
+      {:ok, key} = Keys.create_key(valid_attrs())
+      json = Key.serialize(key)
+      data = Jason.decode!(json)
+
+      assert data["title"] == "Test Key"
+      assert data["slug"] == "test-key"
+      assert data["version"] == "2026-01-01"
+      assert is_map(data["couplets"])
+      assert Map.has_key?(data["couplets"], "1")
+      assert Map.has_key?(data["couplets"], "2")
+    end
+
+    test "couplet leads have string-keyed maps" do
+      {:ok, key} = Keys.create_key(valid_attrs())
+      json = Key.serialize(key)
+      data = Jason.decode!(json)
+
+      lead = data["couplets"]["1"]["leads"] |> hd()
+      assert lead["text"] == "Lead A"
+      assert lead["destination"]["type"] == "couplet"
+    end
+  end
+
+  describe "s3_paths/1" do
+    test "returns correct S3 paths for a key" do
+      {:ok, key} = Keys.create_key(valid_attrs())
+      paths = Keys.s3_paths(key)
+
+      assert paths.text_only == "keys/test-key/test-key.pdf"
+      assert paths.with_images == "keys/test-key/test-key-images.pdf"
+    end
+  end
+
+  describe "cdn_urls/1" do
+    test "returns full CDN URLs" do
+      {:ok, key} = Keys.create_key(valid_attrs())
+      urls = Keys.cdn_urls(key)
+
+      cdn = Gallformers.Storage.cdn_url()
+      assert urls.text_only == "#{cdn}/keys/test-key/test-key.pdf"
+      assert urls.with_images == "#{cdn}/keys/test-key/test-key-images.pdf"
     end
   end
 

@@ -18,6 +18,7 @@ defmodule Gallformers.Keys do
   import Ecto.Query
   alias Gallformers.Keys.Key
   alias Gallformers.Repo
+  alias Gallformers.Storage
 
   @doc """
   Returns a list of all available keys (metadata only, no couplet data).
@@ -114,6 +115,42 @@ defmodule Gallformers.Keys do
   def change_key(%Key{} = key, attrs \\ %{}) do
     Key.changeset(key, attrs)
   end
+
+  # =====================================================================
+  # Key file storage
+  # =====================================================================
+
+  @doc """
+  Returns the S3 paths for a key's files.
+  """
+  @spec s3_paths(Key.t()) :: %{text_only: String.t(), with_images: String.t()}
+  def s3_paths(key) do
+    %{
+      text_only: "keys/#{key.slug}/#{key.slug}.pdf",
+      with_images: "keys/#{key.slug}/#{key.slug}-images.pdf"
+    }
+  end
+
+  @doc """
+  Returns the full CDN URLs for a key's files.
+  """
+  @spec cdn_urls(Key.t()) :: %{text_only: String.t(), with_images: String.t()}
+  def cdn_urls(key) do
+    paths = s3_paths(key)
+    cdn = Storage.cdn_url()
+
+    %{
+      text_only: "#{cdn}/#{paths.text_only}",
+      with_images: "#{cdn}/#{paths.with_images}"
+    }
+  end
+
+  # =====================================================================
+  # PDF generation — delegated to Keys.PdfGenerator
+  # =====================================================================
+
+  defdelegate generate_pdf(key, opts \\ []), to: Gallformers.Keys.PdfGenerator
+  defdelegate generate_and_upload(key), to: Gallformers.Keys.PdfGenerator
 
   # Ensures the slug is unique by appending a number if necessary
   defp ensure_unique_slug(changeset) do

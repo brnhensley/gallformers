@@ -14,7 +14,6 @@ defmodule GallformersWeb.Admin.GallHostLiveTest do
   import Ecto.Query
 
   alias Gallformers.Accounts.Auth0User
-  alias Gallformers.GallHosts
   alias Gallformers.Galls
   alias Gallformers.Ranges
   alias Gallformers.Repo
@@ -86,10 +85,10 @@ defmodule GallformersWeb.Admin.GallHostLiveTest do
     unassociated_host = create_host("Acer testaceum")
 
     {:ok, rel1} =
-      GallHosts.create_gall_host(%{gall_species_id: gall.id, host_species_id: host1.id})
+      Galls.create_gall_host(%{gall_species_id: gall.id, host_species_id: host1.id})
 
     {:ok, rel2} =
-      GallHosts.create_gall_host(%{gall_species_id: gall.id, host_species_id: host2.id})
+      Galls.create_gall_host(%{gall_species_id: gall.id, host_species_id: host2.id})
 
     # Host range: the "canvas" for range curation
     create_host_range(host1, "US-CA")
@@ -422,7 +421,7 @@ defmodule GallformersWeb.Admin.GallHostLiveTest do
       html = render_click(view, "save", %{})
       assert html =~ "Changes saved"
 
-      host_ids = GallHosts.get_host_species_ids_for_gall(gall.id)
+      host_ids = Galls.get_host_species_ids_for_gall(gall.id)
       assert new_host.id in host_ids
     end
 
@@ -439,7 +438,7 @@ defmodule GallformersWeb.Admin.GallHostLiveTest do
       html = render_click(view, "save", %{})
       assert html =~ "Changes saved"
 
-      host_ids = GallHosts.get_host_species_ids_for_gall(gall.id)
+      host_ids = Galls.get_host_species_ids_for_gall(gall.id)
       refute removed_host.id in host_ids
     end
   end
@@ -480,7 +479,7 @@ defmodule GallformersWeb.Admin.GallHostLiveTest do
       # Verify ALL changes persisted:
 
       # Hosts
-      host_ids = GallHosts.get_host_species_ids_for_gall(gall.id)
+      host_ids = Galls.get_host_species_ids_for_gall(gall.id)
       assert new_host.id in host_ids
       refute removed_host.id in host_ids
 

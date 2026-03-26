@@ -6,7 +6,6 @@ defmodule GallformersWeb.IntegrationTest do
   import Phoenix.LiveViewTest
 
   alias Gallformers.Accounts.Auth0User
-  alias Gallformers.GallHosts
   alias Gallformers.Galls
   alias Gallformers.Plants
 
@@ -121,7 +120,7 @@ defmodule GallformersWeb.IntegrationTest do
 
       gall_with_host =
         Enum.find(galls, fn g ->
-          length(GallHosts.get_hosts_for_gall(g.id)) > 0
+          length(Galls.get_hosts_for_gall(g.id)) > 0
         end)
 
       if gall_with_host do

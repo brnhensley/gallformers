@@ -12,7 +12,8 @@ defmodule Gallformers.Taxonomy.SpeciesLink do
   import Ecto.Query
   alias Gallformers.Repo
   alias Gallformers.Species.Species
-  alias Gallformers.Taxonomy.{Genus, Lineage, Section, TaxonName, Taxonomy, Tree}
+  alias Gallformers.TaxonName
+  alias Gallformers.Taxonomy.{Genus, Lineage, Section, Taxonomy, Tree}
 
   # =====================================================================
   # Genus Name Extraction

@@ -10,7 +10,8 @@ defmodule Gallformers.Taxonomy.Reclassification do
   import Ecto.Query
   alias Gallformers.Repo
   alias Gallformers.Species.Species
-  alias Gallformers.Taxonomy.{SpeciesLink, TaxonName, Taxonomy, Tree}
+  alias Gallformers.TaxonName
+  alias Gallformers.Taxonomy.{SpeciesLink, Taxonomy, Tree}
 
   # =====================================================================
   # Reclassification

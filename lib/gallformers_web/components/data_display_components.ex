@@ -10,7 +10,7 @@ defmodule GallformersWeb.DataDisplayComponents do
 
   import GallformersWeb.CoreComponents, only: [icon: 1]
 
-  alias Gallformers.Taxonomy.TaxonName
+  alias Gallformers.TaxonName
 
   @doc """
   Renders a taxonomic name with correct italicization based on rank.

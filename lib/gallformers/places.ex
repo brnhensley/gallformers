@@ -5,14 +5,14 @@ defmodule Gallformers.Places do
   Provides functions for working with geographic places (states, provinces, regions).
   """
   use Boundary,
-    deps: [Gallformers.Repo, Gallformers.SchemaFields, Gallformers.Search, Gallformers.Species],
+    deps: [Gallformers.Repo, Gallformers.SchemaFields, Gallformers.TextMatch, Gallformers.Species],
     exports: :all
 
   import Ecto.Query
   alias Gallformers.Places.Place
   alias Gallformers.Repo
-  alias Gallformers.Search.TextMatch
   alias Gallformers.Species.Species
+  alias Gallformers.TextMatch
 
   # Bounding boxes per place code, extracted from PMTiles by extract_bounds.py.
   # Format: %{"US-CA" => [west, south, east, north], ...}

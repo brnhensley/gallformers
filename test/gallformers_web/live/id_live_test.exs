@@ -7,7 +7,6 @@ defmodule GallformersWeb.IDLiveTest do
   use GallformersWeb.ConnCase, async: true
   import Phoenix.LiveViewTest
 
-  alias Gallformers.GallHosts
   alias Gallformers.Plants
 
   describe "ID Tool page rendering" do
@@ -201,7 +200,7 @@ defmodule GallformersWeb.IDLiveTest do
       # Find a host with galls
       host_with_galls =
         Enum.find(hosts, fn h ->
-          length(GallHosts.get_galls_for_host(h.id)) > 0
+          length(Plants.get_galls_for_host(h.id)) > 0
         end)
 
       if host_with_galls do
@@ -217,7 +216,7 @@ defmodule GallformersWeb.IDLiveTest do
 
       host_with_galls =
         Enum.find(hosts, fn h ->
-          length(GallHosts.get_galls_for_host(h.id)) > 0
+          length(Plants.get_galls_for_host(h.id)) > 0
         end)
 
       if host_with_galls do

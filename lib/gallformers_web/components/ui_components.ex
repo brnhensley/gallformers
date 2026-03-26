@@ -11,7 +11,7 @@ defmodule GallformersWeb.UIComponents do
 
   import GallformersWeb.CoreComponents, only: [icon: 1]
 
-  alias Gallformers.Taxonomy.TaxonName
+  alias Gallformers.TaxonName
   alias GallformersWeb.Live.ContinentScope
   alias Phoenix.LiveView.JS
 

@@ -10,7 +10,8 @@ defmodule Gallformers.Taxonomy.Tree do
   import Ecto.Query
   alias Gallformers.Repo
   alias Gallformers.Species.Species
-  alias Gallformers.Taxonomy.{Family, Lineage, Section, TaxonName, Taxonomy}
+  alias Gallformers.TaxonName
+  alias Gallformers.Taxonomy.{Family, Lineage, Section, Taxonomy}
 
   # =====================================================================
   # CRUD
@@ -751,6 +752,40 @@ defmodule Gallformers.Taxonomy.Tree do
       end
 
     Repo.one(query)
+  end
+
+  @doc """
+  Counts distinct families that have species of the given taxoncode.
+  """
+  @spec count_families_for_taxoncode(String.t()) :: integer()
+  def count_families_for_taxoncode(taxoncode) do
+    from(s in Species,
+      join: st in "species_taxonomy",
+      on: st.species_id == s.id,
+      join: g in Taxonomy,
+      on: st.taxonomy_id == g.id,
+      join: f in Taxonomy,
+      on: g.parent_id == f.id,
+      where: s.taxoncode == ^taxoncode and g.type == "genus" and f.type == "family",
+      select: count(f.name, :distinct)
+    )
+    |> Repo.one()
+  end
+
+  @doc """
+  Counts distinct genera that have species of the given taxoncode.
+  """
+  @spec count_genera_for_taxoncode(String.t()) :: integer()
+  def count_genera_for_taxoncode(taxoncode) do
+    from(s in Species,
+      join: st in "species_taxonomy",
+      on: st.species_id == s.id,
+      join: g in Taxonomy,
+      on: st.taxonomy_id == g.id,
+      where: s.taxoncode == ^taxoncode and g.type == "genus",
+      select: count(g.name, :distinct)
+    )
+    |> Repo.one()
   end
 
   @doc """

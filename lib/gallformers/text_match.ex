@@ -1,10 +1,14 @@
-defmodule Gallformers.Search.TextMatch do
+defmodule Gallformers.TextMatch do
   @moduledoc """
   Shared text matching utilities for consistent multi-term search across the app.
 
   Splits search queries on whitespace into terms, where ALL terms must match.
   Each term is matched as a case-insensitive substring.
   """
+
+  use Boundary,
+    deps: [],
+    exports: :all
 
   import Ecto.Query
 

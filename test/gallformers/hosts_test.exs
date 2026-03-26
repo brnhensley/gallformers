@@ -1,11 +1,10 @@
 defmodule Gallformers.HostsTest do
   @moduledoc """
-  Unit tests for the Plants, GallHosts, and Ranges contexts (formerly Hosts).
+  Unit tests for the Plants and Ranges contexts (formerly Hosts).
   """
   use Gallformers.DataCase, async: true
 
-  alias Gallformers.{GallHosts, Ranges, Species}
-  alias Gallformers.Plants
+  alias Gallformers.{Galls, Plants, Ranges, Species}
 
   # Test seeds: plants 1-9 (Q. alba, Q. rubra, Q. velutina, Acer rubrum,
   # Acer saccharum, Thymus alpinus, Thymus serpyllum, Mentha arvensis, Q. robur)
@@ -80,12 +79,12 @@ defmodule Gallformers.HostsTest do
 
   describe "get_hosts_for_gall/1" do
     test "returns empty list for non-existent gall" do
-      assert GallHosts.get_hosts_for_gall(999_999_999) == []
+      assert Galls.get_hosts_for_gall(999_999_999) == []
     end
 
     test "returns hosts for a gall with known host relationships" do
       # Gall 100 is linked to hosts 6 (T. alpinus) and 8 (M. arvensis)
-      hosts = GallHosts.get_hosts_for_gall(100)
+      hosts = Galls.get_hosts_for_gall(100)
       assert length(hosts) == 2
       host_ids = Enum.map(hosts, & &1.host_species_id) |> Enum.sort()
       assert host_ids == [6, 8]
@@ -94,12 +93,12 @@ defmodule Gallformers.HostsTest do
 
   describe "get_galls_for_host/1" do
     test "returns empty list for non-existent host" do
-      assert GallHosts.get_galls_for_host(999_999_999) == []
+      assert Plants.get_galls_for_host(999_999_999) == []
     end
 
     test "returns galls for a host with known gall relationships" do
       # Host 6 (T. alpinus) is linked to gall 100
-      galls = GallHosts.get_galls_for_host(6)
+      galls = Plants.get_galls_for_host(6)
       assert length(galls) == 1
       assert hd(galls).id == 100
       assert hd(galls).name == "Andricus quercuscalifornicus"

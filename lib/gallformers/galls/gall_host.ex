@@ -1,4 +1,4 @@
-defmodule Gallformers.GallHosts.GallHost do
+defmodule Gallformers.Galls.GallHost do
   @moduledoc """
   Ecto schema for the gallhost table.
 

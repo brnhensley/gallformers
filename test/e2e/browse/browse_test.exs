@@ -67,11 +67,11 @@ defmodule GallformersWeb.E2E.BrowseTest do
 
       gall_with_host =
         Enum.find(galls, fn g ->
-          length(Gallformers.GallHosts.get_hosts_for_gall(g.id)) > 0
+          length(Gallformers.Galls.get_hosts_for_gall(g.id)) > 0
         end)
 
       if gall_with_host do
-        hosts = Gallformers.GallHosts.get_hosts_for_gall(gall_with_host.id)
+        hosts = Gallformers.Galls.get_hosts_for_gall(gall_with_host.id)
         host = hd(hosts)
         # Note: get_hosts_for_gall returns maps with :host_name key, not :name
         host_name = host.host_name

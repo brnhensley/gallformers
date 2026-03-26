@@ -6,9 +6,9 @@ defmodule GallformersWeb.API.HostController do
   use GallformersWeb, :controller
   use OpenApiSpex.ControllerSpecs
 
-  alias Gallformers.{GallHosts, Ranges, Search, Species}
+  alias Gallformers.Images
   alias Gallformers.Images.Image
-  alias Gallformers.Plants
+  alias Gallformers.{Plants, Ranges, Search}
   alias GallformersWeb.Schemas
 
   tags(["Hosts"])
@@ -126,7 +126,7 @@ defmodule GallformersWeb.API.HostController do
   def images(conn, %{"id" => id}) do
     with {:ok, id} <- parse_id(id),
          {:ok, _host} <- fetch_host(id) do
-      images = Species.get_images_for_species(id)
+      images = Images.list_images_for_species(id)
       base_url = Image.base_url()
 
       response =
@@ -174,7 +174,7 @@ defmodule GallformersWeb.API.HostController do
   def galls(conn, %{"id" => id}) do
     with {:ok, id} <- parse_id(id),
          {:ok, _host} <- fetch_host(id) do
-      galls = GallHosts.get_galls_for_host(id)
+      galls = Plants.get_galls_for_host(id)
 
       response =
         Enum.map(galls, fn g ->
@@ -262,7 +262,7 @@ defmodule GallformersWeb.API.HostController do
 
   defp host_to_full_response(host) do
     places = Ranges.get_places_for_host(host.id)
-    galls = GallHosts.get_galls_for_host(host.id)
+    galls = Plants.get_galls_for_host(host.id)
 
     %{
       id: host.id,

@@ -17,7 +17,6 @@ defmodule GallformersWeb.Admin.GallHostLive do
   use GallformersWeb, :live_view
   use GallformersWeb.Admin.FormHelpers
 
-  alias Gallformers.GallHosts
   alias Gallformers.Galls
   alias Gallformers.Places
   alias Gallformers.Ranges
@@ -281,7 +280,7 @@ defmodule GallformersWeb.Admin.GallHostLive do
         {pid, precision}
       end)
 
-    case GallHosts.save_gall_host_changes(
+    case Galls.save_gall_host_changes(
            gall.id,
            hosts_to_add,
            hosts_to_remove,
@@ -369,7 +368,7 @@ defmodule GallformersWeb.Admin.GallHostLive do
         if gall.taxoncode != "gall" do
           put_flash(socket, :error, "Selected species is not a gall")
         else
-          hosts = GallHosts.get_hosts_for_gall(gall_id)
+          hosts = Galls.get_hosts_for_gall(gall_id)
           gall_ranges = Ranges.get_gall_range_with_precision(gall_id)
           gall_range_place_ids = Enum.map(gall_ranges, & &1.place_id)
           gall_range_precision_map = Map.new(gall_ranges, &{&1.place_id, &1.precision})

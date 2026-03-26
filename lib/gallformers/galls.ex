@@ -5,7 +5,7 @@ defmodule Gallformers.Galls do
   Manages gall species (Species with taxoncode='gall') and their traits.
   Galls are abnormal plant growths induced by insects, mites, and other organisms.
 
-  For gall↔host relationships, see `Gallformers.GallHosts`.
+  For gall↔host relationships, see `Gallformers.Galls.HostAssociations`.
   For gall summaries and descriptions, see `Gallformers.Galls.Summary`.
   For gall identification filtering, see `Gallformers.Galls.Identification`.
   """
@@ -15,9 +15,9 @@ defmodule Gallformers.Galls do
       Gallformers.ChangesetHelpers,
       Gallformers.SchemaFields,
       Gallformers.Species,
+      Gallformers.TaxonName,
       Gallformers.Taxonomy,
       Gallformers.FilterFields,
-      Gallformers.GallHosts,
       Gallformers.Images,
       Gallformers.Places,
       Gallformers.Ranges,
@@ -39,11 +39,12 @@ defmodule Gallformers.Galls do
     Walls
   }
 
-  alias Gallformers.Galls.{GallTraits, Identification}
+  alias Gallformers.Galls.{GallTraits, HostAssociations, Identification}
   alias Gallformers.Images.Image
   alias Gallformers.Repo
   alias Gallformers.Species.{Abundance, Species}
-  alias Gallformers.Taxonomy.{TaxonName, TreeBuilder}
+  alias Gallformers.TaxonName
+  alias Gallformers.Taxonomy.TreeBuilder
 
   @topic "galls"
 
@@ -57,6 +58,35 @@ defmodule Gallformers.Galls do
   defdelegate get_filter_options(), to: Identification
   defdelegate get_summary_data(gall_ids), to: Identification
   defdelegate leaf_plant_part_ids(), to: Identification
+
+  # =====================================================================
+  # Host associations — delegated to Galls.HostAssociations
+  # =====================================================================
+
+  defdelegate get_hosts_for_gall(gall_species_id), to: HostAssociations
+  defdelegate get_hosts_for_galls(gall_species_ids), to: HostAssociations
+  defdelegate get_host_counts_for_galls(gall_species_ids), to: HostAssociations
+  defdelegate get_host_species_ids_for_gall(gall_species_id), to: HostAssociations
+  defdelegate create_gall_host(attrs), to: HostAssociations
+  defdelegate add_host_to_gall(gall_species_id, host_species_id), to: HostAssociations
+  defdelegate remove_host_from_gall(host_relation_id), to: HostAssociations
+  defdelegate delete_gall_host(id), to: HostAssociations
+  defdelegate get_gall_host(id), to: HostAssociations
+
+  defdelegate save_gall_host_changes(gall_id, hosts_to_add, hosts_to_remove),
+    to: HostAssociations
+
+  defdelegate save_gall_host_changes(gall_id, hosts_to_add, hosts_to_remove, gall_range_entries),
+    to: HostAssociations
+
+  defdelegate save_gall_host_changes(
+                gall_id,
+                hosts_to_add,
+                hosts_to_remove,
+                gall_range_entries,
+                opts
+              ),
+              to: HostAssociations
 
   # ============================================
   # Explore Tree
@@ -864,7 +894,7 @@ defmodule Gallformers.Galls do
 
     # Batch load host counts and range counts
     gall_ids = Enum.map(results, & &1.id)
-    host_counts = Gallformers.GallHosts.get_host_counts_for_galls(gall_ids)
+    host_counts = HostAssociations.get_host_counts_for_galls(gall_ids)
     range_counts = get_range_counts_for_galls(gall_ids)
 
     Enum.map(results, fn gall ->
@@ -971,7 +1001,7 @@ defmodule Gallformers.Galls do
           )
 
           for host <- params.hosts do
-            Gallformers.GallHosts.add_host_to_gall(species.id, host.host_species_id)
+            HostAssociations.add_host_to_gall(species.id, host.host_species_id)
           end
 
           for a <- params.aliases do
@@ -1101,11 +1131,11 @@ defmodule Gallformers.Galls do
 
   defp save_host_changes(species_id, to_add, to_remove) do
     for relation_id <- to_remove do
-      Gallformers.GallHosts.remove_host_from_gall(relation_id)
+      HostAssociations.remove_host_from_gall(relation_id)
     end
 
     for host <- to_add do
-      Gallformers.GallHosts.add_host_to_gall(species_id, host.host_species_id)
+      HostAssociations.add_host_to_gall(species_id, host.host_species_id)
     end
   end
 

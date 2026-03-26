@@ -5,7 +5,12 @@ defmodule Gallformers.Taxonomy do
   Provides functions for working with taxonomic classifications.
   """
   use Boundary,
-    deps: [Gallformers.Repo, Gallformers.ChangesetHelpers, Gallformers.SchemaFields],
+    deps: [
+      Gallformers.Repo,
+      Gallformers.ChangesetHelpers,
+      Gallformers.SchemaFields,
+      Gallformers.TaxonName
+    ],
     dirty_xrefs: [
       Gallformers.Species,
       Gallformers.Species.Species,
@@ -14,7 +19,8 @@ defmodule Gallformers.Taxonomy do
     ],
     exports: :all
 
-  alias Gallformers.Taxonomy.{Reclassification, Search, SpeciesLink, TaxonName, Tree}
+  alias Gallformers.TaxonName
+  alias Gallformers.Taxonomy.{Reclassification, Search, SpeciesLink, Tree}
 
   # =====================================================================
   # Delegated to Taxonomy.Tree — CRUD
@@ -59,6 +65,8 @@ defmodule Gallformers.Taxonomy do
   defdelegate list_taxonomies_with_parent(type \\ nil, opts \\ []), to: Tree
   defdelegate list_taxonomies_with_parent_paginated(type, limit, offset, opts \\ []), to: Tree
   defdelegate count_taxonomies(type \\ nil, opts \\ []), to: Tree
+  defdelegate count_families_for_taxoncode(taxoncode), to: Tree
+  defdelegate count_genera_for_taxoncode(taxoncode), to: Tree
   defdelegate list_child_genera(family_id), to: Tree
   defdelegate list_child_sections(genus_id), to: Tree
   defdelegate list_sections_for_family_tree(family_id), to: Tree
@@ -98,6 +106,15 @@ defmodule Gallformers.Taxonomy do
   Handles "Unknown (Family) epithet" and "Genus epithet" formats.
   """
   defdelegate extract_epithet(name), to: TaxonName, as: :epithet
+
+  # =====================================================================
+  # Lineage delegates
+  # =====================================================================
+
+  alias Gallformers.Taxonomy.Lineage
+
+  defdelegate lineage_from_path(path_nodes), to: Lineage, as: :from_path
+  defdelegate placeholder_genus?(lineage), to: Lineage
 
   defdelegate find_taxonomy_by_name(name), to: Tree
 

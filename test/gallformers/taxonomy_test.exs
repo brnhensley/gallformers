@@ -1692,8 +1692,7 @@ defmodule Gallformers.TaxonomyTest do
   end
 
   describe "delete_taxonomy_cascade/1" do
-    alias Gallformers.GallHosts.GallHost
-    alias Gallformers.Galls.GallTraits
+    alias Gallformers.Galls.{GallHost, GallTraits}
     alias Gallformers.Images.Image
 
     test "deletes family and all descendants in transaction" do

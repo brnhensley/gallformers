@@ -13,7 +13,7 @@ defmodule Gallformers.Images do
       Gallformers.SchemaFields,
       Gallformers.Async,
       Gallformers.Licenses,
-      Gallformers.Search,
+      Gallformers.TextMatch,
       Gallformers.Species,
       Gallformers.Storage
     ],
@@ -25,9 +25,9 @@ defmodule Gallformers.Images do
   alias Gallformers.Images.Image, as: ImageSchema
   alias Gallformers.Licenses
   alias Gallformers.Repo
-  alias Gallformers.Search.TextMatch
   alias Gallformers.Species.Species
   alias Gallformers.Storage
+  alias Gallformers.TextMatch
 
   # Accepted MIME types for upload
   @accepted_types ~w(image/jpeg image/png image/jpg)

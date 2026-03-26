@@ -90,4 +90,35 @@ defmodule Gallformers.Keys.Key do
   end
 
   def slugify(_), do: ""
+
+  @doc """
+  Returns true if any couplet lead has images.
+  """
+  @spec key_has_images?(t()) :: boolean()
+  def key_has_images?(key) do
+    Enum.any?(key.couplets, fn {_number, couplet} ->
+      Enum.any?(couplet.leads, fn lead ->
+        lead.images != nil and lead.images != []
+      end)
+    end)
+  end
+
+  @doc """
+  Serializes a Key struct to a JSON string.
+  """
+  @spec serialize(t()) :: String.t()
+  def serialize(key) do
+    %{
+      title: key.title,
+      slug: key.slug,
+      subtitle: key.subtitle,
+      authors: key.authors || [],
+      citation: key.citation,
+      citation_url: key.citation_url,
+      description: key.description,
+      version: key.version,
+      couplets: key.couplets
+    }
+    |> Jason.encode!()
+  end
 end

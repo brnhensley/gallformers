@@ -61,7 +61,7 @@ defmodule GallformersWeb.Admin.KeyLive.Form do
 
   defp trigger_pdf_generation(key) do
     Gallformers.Async.run(fn ->
-      case Keys.PdfGenerator.generate_and_upload(key) do
+      case Keys.generate_and_upload(key) do
         :ok ->
           Logger.info("PDF generated and uploaded for key: #{key.slug}")
 

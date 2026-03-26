@@ -9,7 +9,7 @@ defmodule GallformersWeb.KeyLive do
 
   alias Gallformers.ContentImages
   alias Gallformers.Keys
-  alias Gallformers.Keys.PdfGenerator
+  alias Gallformers.Keys.Key
 
   import GallformersWeb.KeyComponents
 
@@ -28,8 +28,8 @@ defmodule GallformersWeb.KeyLive do
            page_json_ld: nil,
            key: key,
            image_url_map: image_url_map,
-           pdf_urls: PdfGenerator.cdn_urls(key),
-           key_has_images: PdfGenerator.key_has_images?(key),
+           pdf_urls: Keys.cdn_urls(key),
+           key_has_images: Key.key_has_images?(key),
            path: [],
            active_couplet: "1",
            terminal: nil,

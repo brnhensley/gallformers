@@ -8,7 +8,6 @@ defmodule GallformersWeb.GallLive do
   use GallformersWeb, :live_view
 
   alias Gallformers.{
-    GallHosts,
     Galls,
     Glossaries,
     Markdown,
@@ -19,6 +18,7 @@ defmodule GallformersWeb.GallLive do
     Taxonomy
   }
 
+  alias Gallformers.Images
   alias Gallformers.Images.Image
   alias GallformersWeb.SEO
 
@@ -90,8 +90,8 @@ defmodule GallformersWeb.GallLive do
          )}
 
       gall ->
-        hosts = GallHosts.get_hosts_for_gall(gall_id) |> Enum.sort_by(& &1.host_name)
-        images = Species.get_images_for_species(gall_id) |> format_images()
+        hosts = Galls.get_hosts_for_gall(gall_id) |> Enum.sort_by(& &1.host_name)
+        images = Images.list_images_for_species(gall_id) |> format_images()
         sources = Sources.get_sources_for_species(gall_id)
         aliases = Species.get_aliases_for_species(gall_id)
         taxonomy = get_taxonomy_info(gall_id)

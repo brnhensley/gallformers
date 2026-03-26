@@ -181,7 +181,7 @@ defmodule Gallformers.GallsTest do
       assert gall.detachable == "detachable"
 
       # Verify host was linked
-      hosts = Gallformers.GallHosts.get_hosts_for_gall(species.id)
+      hosts = Gallformers.Galls.get_hosts_for_gall(species.id)
       assert length(hosts) == 1
 
       # Verify alias was created

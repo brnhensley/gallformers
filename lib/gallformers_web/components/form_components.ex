@@ -12,7 +12,7 @@ defmodule GallformersWeb.FormComponents do
   import GallformersWeb.DataDisplayComponents, only: [taxon_name: 1]
   import GallformersWeb.UIComponents, only: [alert: 1]
 
-  alias Gallformers.Search.TextMatch
+  alias Gallformers.TextMatch
   alias Phoenix.LiveView.JS
 
   @doc """

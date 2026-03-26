@@ -5,6 +5,7 @@ defmodule GallformersWeb.API.GallControllerTest do
   use GallformersWeb.ConnCase
 
   alias Gallformers.Galls
+  alias Gallformers.Images
   alias Gallformers.Species
 
   describe "GET /api/v2/galls" do
@@ -135,7 +136,7 @@ defmodule GallformersWeb.API.GallControllerTest do
       # Find a gall with images
       gall_with_images =
         Enum.find(galls, fn g ->
-          length(Species.get_images_for_species(g.id)) > 0
+          length(Images.list_images_for_species(g.id)) > 0
         end)
 
       if gall_with_images do

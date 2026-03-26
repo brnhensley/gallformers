@@ -11,7 +11,8 @@ defmodule Gallformers.Search do
       Gallformers.Sources,
       Gallformers.Glossaries,
       Gallformers.Places,
-      Gallformers.Taxonomy
+      Gallformers.Taxonomy,
+      Gallformers.TextMatch
     ],
     exports: :all
 
@@ -23,10 +24,10 @@ defmodule Gallformers.Search do
   alias Gallformers.Places.Place
   alias Gallformers.Repo
   alias Gallformers.Search.Ranking
-  alias Gallformers.Search.TextMatch
   alias Gallformers.Sources.Source
   alias Gallformers.Species.{Alias, Species}
   alias Gallformers.Taxonomy.Taxonomy
+  alias Gallformers.TextMatch
 
   @doc """
   Searches galls by name (partial match).

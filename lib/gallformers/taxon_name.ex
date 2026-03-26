@@ -1,4 +1,4 @@
-defmodule Gallformers.Taxonomy.TaxonName do
+defmodule Gallformers.TaxonName do
   @moduledoc """
   Pure-logic module for parsing, formatting, and reasoning about taxonomic names.
 
@@ -26,6 +26,10 @@ defmodule Gallformers.Taxonomy.TaxonName do
   name inside the parentheses (e.g., `"Unknown (Cynipidae)"` → `family: "Cynipidae"`).
   For known genera, `family` is always `nil`. Use `unknown?` to distinguish the two cases.
   """
+
+  use Boundary,
+    deps: [],
+    exports: :all
 
   @unknown_genus_re ~r/^Unknown \(([^)]+)\)/
 

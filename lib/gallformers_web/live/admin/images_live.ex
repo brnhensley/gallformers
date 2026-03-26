@@ -17,9 +17,9 @@ defmodule GallformersWeb.Admin.ImagesLive do
   alias Gallformers.Images
   alias Gallformers.Images.Image
   alias Gallformers.Licenses
-  alias Gallformers.Search.TextMatch
   alias Gallformers.Sources
   alias Gallformers.Storage
+  alias Gallformers.TextMatch
 
   @impl true
   def mount(_params, session, socket) do

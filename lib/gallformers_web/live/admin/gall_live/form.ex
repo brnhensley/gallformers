@@ -14,7 +14,7 @@ defmodule GallformersWeb.Admin.GallLive.Form do
   alias Gallformers.Galls
   alias Gallformers.Species
   alias Gallformers.Species.Species, as: SpeciesSchema
-  alias Gallformers.Taxonomy.TaxonName
+  alias Gallformers.TaxonName
   alias GallformersWeb.Admin.AliasHandlers
   alias GallformersWeb.Admin.DeferredChanges
 
@@ -280,7 +280,7 @@ defmodule GallformersWeb.Admin.GallLive.Form do
           )
         else
           aliases = Species.get_aliases_for_species(species_id)
-          hosts = Gallformers.GallHosts.get_hosts_for_gall(species_id)
+          hosts = Gallformers.Galls.get_hosts_for_gall(species_id)
           taxonomy = Gallformers.Taxonomy.get_taxonomy_for_species(species_id)
           filter_values = gall_data.filter_values
           detachable = gall_data.detachable || "unknown"
@@ -807,7 +807,7 @@ defmodule GallformersWeb.Admin.GallLive.Form do
       {:ok, updated_gall} ->
         # Reload data from DB to get actual IDs for new records
         aliases = Species.get_aliases_for_species(species_id)
-        hosts = Gallformers.GallHosts.get_hosts_for_gall(species_id)
+        hosts = Gallformers.Galls.get_hosts_for_gall(species_id)
         filter_values = Galls.get_gall_filter_values(gall_id)
 
         {:noreply,

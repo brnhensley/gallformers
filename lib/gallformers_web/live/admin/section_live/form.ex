@@ -12,8 +12,8 @@ defmodule GallformersWeb.Admin.SectionLive.Form do
   use GallformersWeb.Admin.FormHelpers
 
   alias Gallformers.Plants
+  alias Gallformers.TaxonName
   alias Gallformers.Taxonomy
-  alias Gallformers.Taxonomy.TaxonName
 
   @impl true
   def mount(_params, session, socket) do

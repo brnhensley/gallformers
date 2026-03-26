@@ -8,7 +8,6 @@ defmodule GallformersWeb.IntermediateLive do
   use GallformersWeb, :live_view
 
   alias Gallformers.Taxonomy
-  alias Gallformers.Taxonomy.Lineage
   alias GallformersWeb.TaxonomyURL
 
   @impl true
@@ -46,7 +45,7 @@ defmodule GallformersWeb.IntermediateLive do
 
   defp load_intermediate(socket, taxonomy) do
     path = Taxonomy.get_taxonomy_path(taxonomy.id)
-    lineage = Lineage.from_path(path)
+    lineage = Taxonomy.lineage_from_path(path)
     children = Taxonomy.list_children_with_counts(taxonomy.id)
 
     {:ok,

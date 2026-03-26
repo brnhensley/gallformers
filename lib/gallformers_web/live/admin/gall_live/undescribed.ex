@@ -13,7 +13,7 @@ defmodule GallformersWeb.Admin.GallLive.Undescribed do
   use GallformersWeb, :live_view
 
   alias Gallformers.{Species, Taxonomy}
-  alias Gallformers.Taxonomy.TaxonName
+  alias Gallformers.TaxonName
 
   @impl true
   def mount(params, session, socket) do

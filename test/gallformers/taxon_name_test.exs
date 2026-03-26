@@ -1,7 +1,7 @@
-defmodule Gallformers.Taxonomy.TaxonNameTest do
+defmodule Gallformers.TaxonNameTest do
   use ExUnit.Case, async: true
 
-  alias Gallformers.Taxonomy.TaxonName
+  alias Gallformers.TaxonName
 
   describe "parse/1" do
     test "parses simple species name" do

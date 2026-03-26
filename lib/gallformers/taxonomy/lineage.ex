@@ -14,7 +14,8 @@ defmodule Gallformers.Taxonomy.Lineage do
   Lineage models where the species sits in the tree (structured data with IDs).
   """
 
-  alias Gallformers.Taxonomy.{Family, Genus, Intermediate, Section, TaxonName}
+  alias Gallformers.TaxonName
+  alias Gallformers.Taxonomy.{Family, Genus, Intermediate, Section}
   alias Gallformers.Taxonomy.Taxonomy, as: TaxonomySchema
 
   defstruct [:species_id, :species_name, :family, :genus, :section, intermediates: []]

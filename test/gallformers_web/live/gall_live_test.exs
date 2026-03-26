@@ -6,6 +6,7 @@ defmodule GallformersWeb.GallLiveTest do
   import Phoenix.LiveViewTest
 
   alias Gallformers.Galls
+  alias Gallformers.Images
   alias Gallformers.Species
 
   describe "Gall page rendering" do
@@ -38,7 +39,7 @@ defmodule GallformersWeb.GallLiveTest do
       # Find a gall that has hosts
       gall_with_host =
         Enum.find(galls, fn g ->
-          length(Gallformers.GallHosts.get_hosts_for_gall(g.id)) > 0
+          length(Gallformers.Galls.get_hosts_for_gall(g.id)) > 0
         end)
 
       if gall_with_host do
@@ -162,7 +163,7 @@ defmodule GallformersWeb.GallLiveTest do
 
       gall_with_host =
         Enum.find(galls, fn g ->
-          length(Gallformers.GallHosts.get_hosts_for_gall(g.id)) > 0
+          length(Gallformers.Galls.get_hosts_for_gall(g.id)) > 0
         end)
 
       if gall_with_host do
@@ -251,7 +252,7 @@ defmodule GallformersWeb.GallLiveTest do
 
       gall_with_image =
         Enum.find(galls, fn g ->
-          length(Species.get_images_for_species(g.id)) > 0
+          length(Images.list_images_for_species(g.id)) > 0
         end)
 
       if gall_with_image do
@@ -266,7 +267,7 @@ defmodule GallformersWeb.GallLiveTest do
 
       gall_without_image =
         Enum.find(galls, fn g ->
-          length(Species.get_images_for_species(g.id)) == 0
+          length(Images.list_images_for_species(g.id)) == 0
         end)
 
       if gall_without_image do
@@ -281,7 +282,7 @@ defmodule GallformersWeb.GallLiveTest do
 
       gall_with_image =
         Enum.find(galls, fn g ->
-          images = Species.get_images_for_species(g.id)
+          images = Images.list_images_for_species(g.id)
           length(images) > 0 and hd(images).creator != nil
         end)
 

@@ -1,11 +1,8 @@
 defmodule GallformersWeb.AboutController do
   use GallformersWeb, :controller
 
-  import Ecto.Query
-
-  alias Gallformers.{Accounts, Galls, Repo, Sources, Version}
+  alias Gallformers.{Accounts, Galls, Sources, Taxonomy, Version}
   alias Gallformers.Plants
-  alias Gallformers.Taxonomy.Taxonomy
 
   def show(conn, _params) do
     stats = get_site_stats()
@@ -34,37 +31,11 @@ defmodule GallformersWeb.AboutController do
       galls: Galls.count_galls(),
       hosts: Plants.count_hosts(),
       sources: Sources.count_sources(),
-      gall_families: count_families_for_taxoncode("gall"),
-      gall_genera: count_genera_for_taxoncode("gall"),
-      host_families: count_families_for_taxoncode("plant"),
-      host_genera: count_genera_for_taxoncode("plant"),
+      gall_families: Taxonomy.count_families_for_taxoncode("gall"),
+      gall_genera: Taxonomy.count_genera_for_taxoncode("gall"),
+      host_families: Taxonomy.count_families_for_taxoncode("plant"),
+      host_genera: Taxonomy.count_genera_for_taxoncode("plant"),
       undescribed: Galls.count_undescribed_galls()
     }
-  end
-
-  defp count_families_for_taxoncode(taxoncode) do
-    from(s in Gallformers.Species.Species,
-      join: st in "species_taxonomy",
-      on: st.species_id == s.id,
-      join: g in Taxonomy,
-      on: st.taxonomy_id == g.id,
-      join: f in Taxonomy,
-      on: g.parent_id == f.id,
-      where: s.taxoncode == ^taxoncode and g.type == "genus" and f.type == "family",
-      select: count(f.name, :distinct)
-    )
-    |> Repo.one()
-  end
-
-  defp count_genera_for_taxoncode(taxoncode) do
-    from(s in Gallformers.Species.Species,
-      join: st in "species_taxonomy",
-      on: st.species_id == s.id,
-      join: g in Taxonomy,
-      on: st.taxonomy_id == g.id,
-      where: s.taxoncode == ^taxoncode and g.type == "genus",
-      select: count(g.name, :distinct)
-    )
-    |> Repo.one()
   end
 end

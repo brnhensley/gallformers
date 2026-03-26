@@ -14,7 +14,6 @@ defmodule Gallformers.Ranges do
       Gallformers.ChangesetHelpers,
       Gallformers.SchemaFields,
       Gallformers.Species,
-      Gallformers.GallHosts,
       Gallformers.Galls,
       Gallformers.Places
     ],
@@ -22,8 +21,7 @@ defmodule Gallformers.Ranges do
 
   import Ecto.Query
 
-  alias Gallformers.GallHosts.GallHost
-  alias Gallformers.Galls.GallTraits
+  alias Gallformers.Galls.{GallHost, GallTraits}
   alias Gallformers.Places
   alias Gallformers.Places.Place
   alias Gallformers.Ranges.{DisplayRange, GallRange, HostRange}

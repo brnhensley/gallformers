@@ -6,7 +6,6 @@ defmodule Gallformers.Plants do
   these are referred to as "hosts" since galls form on them, but this context
   treats them as a type of Species.
 
-  For gall↔host relationships, see `Gallformers.GallHosts`.
   For geographic range data, see `Gallformers.Ranges`.
   """
   use Boundary,
@@ -18,21 +17,23 @@ defmodule Gallformers.Plants do
       Gallformers.Taxonomy,
       Gallformers.Places,
       Gallformers.Ranges,
-      Gallformers.Search,
+      Gallformers.Galls,
+      Gallformers.TextMatch,
       Gallformers.Wcvp
     ],
     exports: :all
 
   import Ecto.Query
 
+  alias Gallformers.Galls.{GallHost, GallTraits}
   alias Gallformers.Places
   alias Gallformers.Plants.HostTraits
   alias Gallformers.Ranges
   alias Gallformers.Repo
-  alias Gallformers.Search.TextMatch
   alias Gallformers.Species.{Abundance, Species}
   alias Gallformers.Taxonomy
   alias Gallformers.Taxonomy.TreeBuilder
+  alias Gallformers.TextMatch
   alias Gallformers.Wcvp
 
   @topic "hosts"
@@ -1120,5 +1121,50 @@ defmodule Gallformers.Plants do
       end)
 
     (native ++ introduced) |> Enum.reject(fn {id, _, _} -> is_nil(id) end)
+  end
+
+  # =====================================================================
+  # Gall associations — "what galls form on this host?"
+  # =====================================================================
+
+  @doc """
+  Gets all galls for a host species.
+
+  Returns a list of maps with gall info.
+  """
+  @spec get_galls_for_host(integer()) :: [map()]
+  def get_galls_for_host(host_species_id) do
+    from(h in GallHost,
+      join: s in Species,
+      on: h.gall_species_id == s.id,
+      left_join: gt in GallTraits,
+      on: gt.species_id == s.id,
+      where: h.host_species_id == ^host_species_id,
+      select: %{
+        id: s.id,
+        name: s.name,
+        undescribed: gt.undescribed,
+        datacomplete: s.datacomplete
+      }
+    )
+    |> Repo.all()
+  end
+
+  @doc """
+  Gets gall counts for multiple host species in a single query (batch version).
+
+  Returns a map of host_species_id => count of galls.
+  """
+  @spec get_gall_counts_for_hosts([integer()]) :: %{integer() => integer()}
+  def get_gall_counts_for_hosts([]), do: %{}
+
+  def get_gall_counts_for_hosts(host_species_ids) do
+    from(h in GallHost,
+      where: h.host_species_id in ^host_species_ids,
+      group_by: h.host_species_id,
+      select: {h.host_species_id, count(h.id)}
+    )
+    |> Repo.all()
+    |> Enum.into(%{})
   end
 end

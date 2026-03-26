@@ -1,8 +1,8 @@
-defmodule Gallformers.Search.TextMatchTest do
+defmodule Gallformers.TextMatchTest do
   use Gallformers.DataCase, async: true
 
-  alias Gallformers.Search.TextMatch
   alias Gallformers.Species.Species
+  alias Gallformers.TextMatch
 
   describe "parse_terms/1" do
     test "nil returns empty list" do

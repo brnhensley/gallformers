@@ -6,7 +6,8 @@ defmodule GallformersWeb.API.GallController do
   use GallformersWeb, :controller
   use OpenApiSpex.ControllerSpecs
 
-  alias Gallformers.{GallHosts, Galls, Ranges, Search, Sources, Species}
+  alias Gallformers.{Galls, Ranges, Search, Sources, Species}
+  alias Gallformers.Images
   alias Gallformers.Images.Image
   alias GallformersWeb.Schemas
 
@@ -124,7 +125,7 @@ defmodule GallformersWeb.API.GallController do
         |> json(%{error: "Invalid species ID"})
 
       id ->
-        images = Species.get_images_for_species(id)
+        images = Images.list_images_for_species(id)
         base_url = Image.base_url()
 
         response =
@@ -219,7 +220,7 @@ defmodule GallformersWeb.API.GallController do
 
   defp gall_to_full_response(gall) do
     aliases = Species.get_aliases_for_species(gall.id)
-    hosts = GallHosts.get_hosts_for_gall(gall.id)
+    hosts = Galls.get_hosts_for_gall(gall.id)
     filter_fields = Galls.get_gall_filter_values(gall.id)
     places = Ranges.get_gall_range_codes(gall.id)
 

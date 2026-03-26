@@ -21,6 +21,8 @@ defmodule GallformersWeb do
     dirty_xrefs: [
       Gallformers.Repo,
       Gallformers.SchemaFields,
+      Gallformers.TaxonName,
+      Gallformers.TextMatch,
       # Sub-module refs — web should ideally use context public APIs only
       Gallformers.Accounts.Auth0User,
       Gallformers.Accounts.User,
@@ -31,14 +33,11 @@ defmodule GallformersWeb do
       Gallformers.Images.AuditCache,
       Gallformers.Images.Image,
       Gallformers.Keys.Key,
-      Gallformers.Keys.PdfGenerator,
-      Gallformers.Search.TextMatch,
       Gallformers.Sources.Source,
       Gallformers.Species.Species,
       Gallformers.Species.SpeciesSource,
       Gallformers.Taxonomy.Genus,
       Gallformers.Taxonomy.Lineage,
-      Gallformers.Taxonomy.TaxonName,
       Gallformers.Taxonomy.Taxonomy,
       Gallformers.Taxonomy.Tree,
       Gallformers.Wcvp.Lookup,

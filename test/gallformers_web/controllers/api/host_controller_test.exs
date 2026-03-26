@@ -4,7 +4,7 @@ defmodule GallformersWeb.API.HostControllerTest do
   """
   use GallformersWeb.ConnCase
 
-  alias Gallformers.{Plants, Species}
+  alias Gallformers.{Images, Plants, Species}
 
   describe "GET /api/v2/hosts" do
     test "returns list of hosts", %{conn: conn} do
@@ -128,7 +128,7 @@ defmodule GallformersWeb.API.HostControllerTest do
 
       host_with_images =
         Enum.find(hosts, fn h ->
-          length(Species.get_images_for_species(h.id)) > 0
+          length(Images.list_images_for_species(h.id)) > 0
         end)
 
       if host_with_images do

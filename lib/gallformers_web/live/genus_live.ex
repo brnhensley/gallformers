@@ -126,7 +126,7 @@ defmodule GallformersWeb.GenusLive do
       end
 
     # Don't index empty placeholder genera (no species)
-    is_empty_unknown = Lineage.placeholder_genus?(lineage) && species == []
+    is_empty_unknown = Taxonomy.placeholder_genus?(lineage) && species == []
 
     # Determine column header based on species type in this genus
     count_header =

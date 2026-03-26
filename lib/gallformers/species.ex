@@ -11,23 +11,22 @@ defmodule Gallformers.Species do
       Gallformers.Repo,
       Gallformers.ChangesetHelpers,
       Gallformers.SchemaFields,
+      Gallformers.TaxonName,
       Gallformers.Taxonomy
     ],
     dirty_xrefs: [
-      Gallformers.GallHosts,
-      Gallformers.GallHosts.GallHost,
+      Gallformers.Galls,
       Gallformers.Galls.GallTraits,
       Gallformers.Images,
-      Gallformers.Images.Image
+      Gallformers.Plants
     ],
     exports: :all
 
   import Ecto.Query
 
-  alias Gallformers.Images.Image
   alias Gallformers.Repo
   alias Gallformers.Species.{Abundance, Alias, Species}
-  alias Gallformers.Taxonomy.TaxonName
+  alias Gallformers.TaxonName
 
   @doc """
   Returns all species.
@@ -95,8 +94,8 @@ defmodule Gallformers.Species do
     host_ids = Enum.map(hosts, & &1.id)
 
     # Batch fetch counts (2 queries)
-    host_counts = Gallformers.GallHosts.get_host_counts_for_galls(gall_ids)
-    gall_counts = Gallformers.GallHosts.get_gall_counts_for_hosts(host_ids)
+    host_counts = Gallformers.Galls.get_host_counts_for_galls(gall_ids)
+    gall_counts = Gallformers.Plants.get_gall_counts_for_hosts(host_ids)
 
     counts = Map.merge(host_counts, gall_counts)
 
@@ -108,33 +107,6 @@ defmodule Gallformers.Species do
       |> Map.put(:common_name, common_alias && common_alias.name)
       |> Map.put(:count, Map.get(counts, species.id, 0))
     end)
-  end
-
-  @doc """
-  Gets all images for a species, ordered by sort_order.
-  """
-  @spec get_images_for_species(integer()) :: [map()]
-  def get_images_for_species(species_id) do
-    from(i in Image,
-      left_join: src in assoc(i, :source),
-      where: i.species_id == ^species_id,
-      order_by: [asc: i.sort_order, asc: i.id],
-      select: %{
-        id: i.id,
-        path: i.path,
-        sort_order: i.sort_order,
-        creator: i.creator,
-        attribution: i.attribution,
-        sourcelink: i.sourcelink,
-        license: i.license,
-        licenselink: i.licenselink,
-        caption: i.caption,
-        source_title: src.title,
-        uploader: i.uploader,
-        lastchangedby: i.lastchangedby
-      }
-    )
-    |> Repo.all()
   end
 
   @doc """

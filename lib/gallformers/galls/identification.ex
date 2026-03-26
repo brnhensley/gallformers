@@ -20,9 +20,8 @@ defmodule Gallformers.Galls.Identification do
     Walls
   }
 
-  alias Gallformers.GallHosts.GallHost
   alias Gallformers.Galls
-  alias Gallformers.Galls.GallTraits
+  alias Gallformers.Galls.{GallHost, GallTraits}
   alias Gallformers.Images.Image
   alias Gallformers.Places
   alias Gallformers.Ranges

@@ -22,8 +22,8 @@ defmodule GallformersWeb.Admin.ReclassifyLive do
   use GallformersWeb, :live_component
 
   alias Gallformers.Species
+  alias Gallformers.TaxonName
   alias Gallformers.Taxonomy
-  alias Gallformers.Taxonomy.TaxonName
 
   # -------------------------------------------------------------------
   # Lifecycle

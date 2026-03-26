@@ -36,10 +36,10 @@ defmodule Gallformers.Species.Species do
     has_many :species_sources, Gallformers.Species.SpeciesSource
 
     # Host relationships - this species as a gall
-    has_many :host_relations, Gallformers.GallHosts.GallHost, foreign_key: :gall_species_id
+    has_many :host_relations, Gallformers.Galls.GallHost, foreign_key: :gall_species_id
 
     # Host relationships - this species as a host plant
-    has_many :gall_relations, Gallformers.GallHosts.GallHost, foreign_key: :host_species_id
+    has_many :gall_relations, Gallformers.Galls.GallHost, foreign_key: :host_species_id
 
     many_to_many :aliases, Gallformers.Species.Alias,
       join_through: "alias_species",

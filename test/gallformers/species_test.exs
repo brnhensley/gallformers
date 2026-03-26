@@ -108,17 +108,6 @@ defmodule Gallformers.SpeciesTest do
     end
   end
 
-  describe "get_images_for_species/1" do
-    test "returns empty list for non-existent species" do
-      assert Species.get_images_for_species(999_999_999) == []
-    end
-
-    test "returns empty list for species with no images" do
-      # No images seeded for any species
-      assert Species.get_images_for_species(100) == []
-    end
-  end
-
   describe "get_aliases_for_species/1" do
     test "returns empty list for non-existent species" do
       assert Species.get_aliases_for_species(999_999_999) == []
