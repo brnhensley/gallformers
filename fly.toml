@@ -2,7 +2,7 @@
 # Deploy with: fly deploy
 
 app = "gallformers"
-primary_region = "iad"
+primary_region = "ewr"
 
 kill_signal = "SIGTERM"
 kill_timeout = "5s"
