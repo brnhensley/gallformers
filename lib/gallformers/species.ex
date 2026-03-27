@@ -11,8 +11,8 @@ defmodule Gallformers.Species do
       Gallformers.Repo,
       Gallformers.ChangesetHelpers,
       Gallformers.SchemaFields,
-      Gallformers.TaxonName,
-      Gallformers.Taxonomy
+      Gallformers.Taxonomy,
+      Gallformers.TextMatch
     ],
     dirty_xrefs: [
       Gallformers.Galls,
@@ -26,7 +26,6 @@ defmodule Gallformers.Species do
 
   alias Gallformers.Repo
   alias Gallformers.Species.{Abundance, Alias, Species}
-  alias Gallformers.TaxonName
 
   @doc """
   Returns all species.
@@ -255,11 +254,11 @@ defmodule Gallformers.Species do
 
   # ILIKE-based name search
   defp search_species_by_name_like(query, taxoncode, limit) do
-    search_term = "%#{String.downcase(query)}%"
+    name_filter = Gallformers.TextMatch.build_filter(query, [:name])
 
     base_query =
       from(s in Species,
-        where: ilike(s.name, ^search_term),
+        where: ^name_filter,
         order_by: s.name,
         limit: ^limit,
         select: %{
@@ -368,116 +367,6 @@ defmodule Gallformers.Species do
       }
     )
     |> Repo.all()
-  end
-
-  @doc """
-  Renames a species, optionally adding the old name as a scientific synonym alias.
-
-  This handles the complex rename logic including potential genus reassignment.
-  If the genus part of the name changes, the species may need to be reassigned
-  to a different genus (or a new genus created).
-
-  Returns {:ok, species} on success, {:error, reason} on failure.
-  """
-  @spec rename_species(integer(), String.t(), boolean()) ::
-          {:ok, Species.t()} | {:error, atom() | String.t()}
-  def rename_species(species_id, new_name, add_alias?) do
-    species = get_species!(species_id)
-
-    Repo.transaction(fn ->
-      case do_rename(species, new_name, add_alias?) do
-        {:ok, updated} -> updated
-        {:error, reason} -> Repo.rollback(reason)
-      end
-    end)
-  end
-
-  @doc """
-  Adds a rename alias for a species' old name as a scientific synonym.
-  """
-  def add_rename_alias(species_id, old_name) do
-    alias_changeset =
-      %Alias{}
-      |> Ecto.Changeset.cast(
-        %{name: old_name, type: "scientific", description: "Previous name"},
-        [:name, :type, :description]
-      )
-
-    case Repo.insert(alias_changeset) do
-      {:ok, new_alias} ->
-        Repo.insert_all("alias_species", [%{alias_id: new_alias.id, species_id: species_id}])
-
-      {:error, _} ->
-        nil
-    end
-  end
-
-  @doc """
-  Renames a species for a genus change.
-
-  Called by Taxonomy when a genus is renamed. For each species linked to
-  that genus, this function:
-  1. Checks for name collisions
-  2. Creates a "scientific synonym" alias with the old species name
-  3. Updates the species name by replacing the old genus with the new genus
-
-  This is called within a Taxonomy transaction, so no additional transaction
-  is created here.
-
-  Returns `{:ok, species}` on success, `{:error, :name_exists}` on collision.
-
-  ## Examples
-
-      iex> rename_for_genus_change(species, "Quercus", "Oakus")
-      {:ok, species}  # "Quercus alba" becomes "Oakus alba", synonym "Quercus alba" created
-  """
-  @spec rename_for_genus_change(Species.t(), String.t(), String.t(), boolean()) ::
-          {:ok, Species.t()} | {:error, :name_exists}
-  def rename_for_genus_change(
-        %Species{} = species,
-        old_genus_name,
-        new_genus_name,
-        add_alias? \\ true
-      ) do
-    new_species_name = TaxonName.replace_genus(species.name, old_genus_name, new_genus_name)
-
-    do_rename(species, new_species_name, add_alias?)
-  end
-
-  # Core rename helper used by all rename paths.
-  # Checks for name collisions, optionally adds alias, and updates species name.
-  # Must be called within a transaction when atomicity with other operations is needed.
-  defp do_rename(%Species{} = species, new_name, _add_alias?)
-       when new_name == species.name,
-       do: {:ok, species}
-
-  defp do_rename(%Species{} = species, new_name, add_alias?) do
-    case check_name_collision(species.id, new_name) do
-      :ok ->
-        if add_alias?, do: add_rename_alias(species.id, species.name)
-
-        updated =
-          species
-          |> Species.changeset(%{name: new_name})
-          |> Repo.update!()
-
-        {:ok, updated}
-
-      {:error, _} = err ->
-        err
-    end
-  end
-
-  defp check_name_collision(species_id, new_name) do
-    case from(s in Species,
-           where: s.name == ^new_name and s.id != ^species_id,
-           select: s.id,
-           limit: 1
-         )
-         |> Repo.one() do
-      nil -> :ok
-      _id -> {:error, :name_exists}
-    end
   end
 
   @doc """

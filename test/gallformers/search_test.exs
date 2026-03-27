@@ -3,6 +3,29 @@ defmodule Gallformers.SearchTest do
 
   alias Gallformers.Search
 
+  describe "global_search/2 multi-term matching" do
+    test "multi-word query matches species with each term independently" do
+      # "q alba" should match "Quercus alba" — "q" in "Quercus", "alba" in "alba"
+      results = Search.global_search("q alba")
+      host_names = Enum.map(results.hosts, & &1.name)
+      assert "Quercus alba" in host_names
+    end
+
+    test "multi-word query matches galls with each term independently" do
+      # "And crystal" should match "Andricus crystallinus"
+      results = Search.global_search("And crystal")
+      gall_names = Enum.map(results.galls, & &1.name)
+      assert "Andricus crystallinus" in gall_names
+    end
+
+    test "multi-word query does not match when a term is absent" do
+      # "quercus zzz" should not match anything — "zzz" isn't in any name
+      results = Search.global_search("quercus zzz")
+      assert results.hosts == []
+      assert results.galls == []
+    end
+  end
+
   describe "global_search/2 with continent scoping" do
     test "galls with NA hosts appear in XN search" do
       results = Search.global_search("Andricus", "XN")

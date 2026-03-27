@@ -35,14 +35,15 @@ defmodule Gallformers.Search do
   """
   @spec search_galls(String.t()) :: [map()]
   def search_galls(query) do
-    search_term = "%#{String.downcase(query)}%"
+    name_filter = TextMatch.build_filter(query, [:name])
 
     from(s in Species,
       join: gt in GallTraits,
       on: gt.species_id == s.id,
       left_join: a in Gallformers.Species.Abundance,
       on: s.abundance_id == a.id,
-      where: s.taxoncode == "gall" and ilike(s.name, ^search_term),
+      where: s.taxoncode == "gall",
+      where: ^name_filter,
       order_by: s.name,
       select: %{
         id: s.id,
@@ -64,14 +65,15 @@ defmodule Gallformers.Search do
   """
   @spec search_galls_paginated(String.t(), integer(), integer()) :: [map()]
   def search_galls_paginated(query, limit, offset) do
-    search_term = "%#{String.downcase(query)}%"
+    name_filter = TextMatch.build_filter(query, [:name])
 
     from(s in Species,
       join: gt in GallTraits,
       on: gt.species_id == s.id,
       left_join: a in Gallformers.Species.Abundance,
       on: s.abundance_id == a.id,
-      where: s.taxoncode == "gall" and ilike(s.name, ^search_term),
+      where: s.taxoncode == "gall",
+      where: ^name_filter,
       order_by: s.name,
       limit: ^limit,
       offset: ^offset,
@@ -94,10 +96,11 @@ defmodule Gallformers.Search do
   """
   @spec count_search_galls(String.t()) :: integer()
   def count_search_galls(query) do
-    search_term = "%#{String.downcase(query)}%"
+    name_filter = TextMatch.build_filter(query, [:name])
 
     from(s in Species,
-      where: s.taxoncode == "gall" and ilike(s.name, ^search_term),
+      where: s.taxoncode == "gall",
+      where: ^name_filter,
       select: count(s.id)
     )
     |> Repo.one()
@@ -109,10 +112,11 @@ defmodule Gallformers.Search do
   """
   @spec search_hosts(String.t()) :: [map()]
   def search_hosts(query) do
-    search_term = "%#{String.downcase(query)}%"
+    name_filter = TextMatch.build_filter(query, [:name])
 
     from(s in Species,
-      where: s.taxoncode == "plant" and ilike(s.name, ^search_term),
+      where: s.taxoncode == "plant",
+      where: ^name_filter,
       order_by: s.name,
       select: %{
         id: s.id,
@@ -130,10 +134,11 @@ defmodule Gallformers.Search do
   """
   @spec search_hosts_paginated(String.t(), integer(), integer()) :: [map()]
   def search_hosts_paginated(query, limit, offset) do
-    search_term = "%#{String.downcase(query)}%"
+    name_filter = TextMatch.build_filter(query, [:name])
 
     from(s in Species,
-      where: s.taxoncode == "plant" and ilike(s.name, ^search_term),
+      where: s.taxoncode == "plant",
+      where: ^name_filter,
       order_by: s.name,
       limit: ^limit,
       offset: ^offset,
@@ -152,10 +157,11 @@ defmodule Gallformers.Search do
   """
   @spec count_search_hosts(String.t()) :: integer()
   def count_search_hosts(query) do
-    search_term = "%#{String.downcase(query)}%"
+    name_filter = TextMatch.build_filter(query, [:name])
 
     from(s in Species,
-      where: s.taxoncode == "plant" and ilike(s.name, ^search_term),
+      where: s.taxoncode == "plant",
+      where: ^name_filter,
       select: count(s.id)
     )
     |> Repo.one()
@@ -166,10 +172,10 @@ defmodule Gallformers.Search do
   """
   @spec search_all(String.t()) :: [map()]
   def search_all(query) do
-    search_term = "%#{String.downcase(query)}%"
+    name_filter = TextMatch.build_filter(query, [:name])
 
     from(s in Species,
-      where: ilike(s.name, ^search_term),
+      where: ^name_filter,
       order_by: s.name,
       select: %{
         id: s.id,
@@ -269,7 +275,7 @@ defmodule Gallformers.Search do
 
   # ILIKE-based gall search with alias matching
   defp search_galls_with_aliases_like(query) do
-    search_term = "%#{String.downcase(query)}%"
+    name_filter = TextMatch.build_filter(query, [:name])
     search_terms = Ranking.parse_query(query)
 
     # Search by species name
@@ -277,7 +283,8 @@ defmodule Gallformers.Search do
       from(s in Species,
         join: gt in GallTraits,
         on: gt.species_id == s.id,
-        where: s.taxoncode == "gall" and ilike(s.name, ^search_term),
+        where: s.taxoncode == "gall",
+        where: ^name_filter,
         order_by: s.name,
         select: %{
           id: s.id,
@@ -294,7 +301,8 @@ defmodule Gallformers.Search do
         join: s in assoc(a, :species),
         join: gt in GallTraits,
         on: gt.species_id == s.id,
-        where: s.taxoncode == "gall" and ilike(a.name, ^search_term),
+        where: s.taxoncode == "gall",
+        where: ^name_filter,
         order_by: s.name,
         select: %{
           id: s.id,
@@ -322,13 +330,14 @@ defmodule Gallformers.Search do
 
   # ILIKE-based host search with alias matching
   defp search_hosts_with_aliases_like(query) do
-    search_term = "%#{String.downcase(query)}%"
+    name_filter = TextMatch.build_filter(query, [:name])
     search_terms = Ranking.parse_query(query)
 
     # Search by species name
     name_results =
       from(s in Species,
-        where: s.taxoncode == "plant" and ilike(s.name, ^search_term),
+        where: s.taxoncode == "plant",
+        where: ^name_filter,
         order_by: s.name,
         select: %{
           id: s.id,
@@ -342,7 +351,8 @@ defmodule Gallformers.Search do
     alias_results =
       from(a in Alias,
         join: s in assoc(a, :species),
-        where: s.taxoncode == "plant" and ilike(a.name, ^search_term),
+        where: s.taxoncode == "plant",
+        where: ^name_filter,
         order_by: s.name,
         select: %{
           id: s.id,
@@ -409,18 +419,17 @@ defmodule Gallformers.Search do
   """
   @spec search_taxonomy(String.t()) :: [map()]
   def search_taxonomy(query) do
-    search_term = "%#{String.downcase(query)}%"
+    name_desc_filter = TextMatch.build_filter(query, [:name, :description])
 
     from(t in Taxonomy,
       left_join: parent in assoc(t, :parent),
       left_join: st in "species_taxonomy",
       on: st.taxonomy_id == t.id,
+      where: t.type in ["genus", "family", "intermediate", "section"],
+      where: ^name_desc_filter,
       # Exclude placeholders with no species (handle NULL/0 as false)
       where:
-        t.type in ["genus", "family", "intermediate", "section"] and
-          (ilike(t.name, ^search_term) or
-             fragment("coalesce(?, '') ILIKE ?", t.description, ^search_term)) and
-          not (fragment("coalesce(?, false)", t.is_placeholder) == true and is_nil(st.species_id)),
+        not (fragment("coalesce(?, false)", t.is_placeholder) == true and is_nil(st.species_id)),
       group_by: [t.id, parent.id],
       order_by: [t.type, t.name],
       select: %{
