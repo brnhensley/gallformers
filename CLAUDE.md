@@ -171,6 +171,13 @@ These rules are **non-negotiable** and exist because of a production incident:
 - **Execute ONE step at a time** — verify success before proceeding to the next step.
 - **NEVER query the production database directly** — no `fly ssh console` with `rpc` or `eval` for database queries. Use a local dev database and refresh with `make download-db`.
 
+## Database Safety Rules
+
+- **NEVER drop, reset, or recreate the `wcvp` database.** It contains 1.4M+ reference records loaded from Kew Gardens data. Restoring it takes significant time (`make wcvp-restore`). It is NOT managed by Ecto migrations and is NOT in `ecto_repos`.
+- **NEVER run `dropdb`, `DROP DATABASE`, or `DROP TABLE` on any database** without explicit user approval.
+- **NEVER run `mix ecto.reset`** — use `mix ecto.migrate` to apply pending migrations. If you think a reset is needed, ask first.
+- **The only safe database commands** are: `mix ecto.migrate`, `mix ecto.rollback` (with user approval), and read-only queries on the dev database.
+
 # Gallformers Project Overview
 
 ## What is Gallformers?

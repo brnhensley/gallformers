@@ -108,6 +108,12 @@ if config_env() == :prod do
 
   config :gallformers, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
 
+  # Boundary tiles URL. Production serves via CloudFront at /tiles/*.
+  # Preview must use the full production URL (cross-origin, CORS enabled).
+  # Override with TILES_URL env var if needed.
+  config :gallformers,
+    tiles_url: System.get_env("TILES_URL", "/tiles/boundaries.pmtiles")
+
   config :gallformers, GallformersWeb.Endpoint,
     url: [host: host, port: 443, scheme: "https"],
     http: [

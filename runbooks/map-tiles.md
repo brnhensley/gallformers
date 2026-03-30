@@ -2,7 +2,7 @@
 
 ## Overview
 
-Range maps use a PMTiles vector tile file (`boundaries.pmtiles`, ~370MB) containing country and subdivision boundaries from Natural Earth. The file is built locally, uploaded to public S3, and downloaded automatically on first boot in production.
+Range maps use a PMTiles vector tile file (`boundaries.pmtiles`, ~370MB) containing country and subdivision boundaries from Natural Earth. The file is built locally and uploaded to S3. In production, it's served directly via CloudFront — no local file on the Fly volume.
 
 For build pipeline internals, layer structure, diagnostic scripts, and gotchas, see `services/boundaries/README.md`.
 
@@ -15,23 +15,20 @@ Natural Earth shapefiles
     │
     priv/static/data/boundaries.pmtiles (local dev)
     │
-    ↓  aws s3 cp → public S3
+    ↓  aws s3 cp → images bucket
     │
-    s3://gallformers-backups/public/boundaries.pmtiles
+    s3://gallformers-images-us-east-1/tiles/boundaries.pmtiles
     │
-    ↓  curl at boot (prod) or Docker build (preview)
+    ↓  CloudFront edge cache (/tiles/* → s3-tiles origin)
     │
-    /data/boundaries.pmtiles (prod volume)
-    /app/data/boundaries.pmtiles (preview)
+    https://gallformers.org/tiles/boundaries.pmtiles
     │
-    ↓  symlink at boot (docker-entrypoint.sh)
-    │
-    /app/lib/gallformers-0.1.0/priv/static/data/boundaries.pmtiles
-    │
-    ↓  Phoenix Plug.Static serves at /data/boundaries.pmtiles
+    ↓  Browser fetches via HTTP Range Requests
     │
     assets/js/hooks/range_map.js (MapLibre GL JS)
 ```
+
+PMTiles uses HTTP Range Requests — the browser fetches only the bytes needed for the current map view, not the entire 370MB file. CloudFront's CachingOptimized policy caches the full object and serves partial responses from the edge cache.
 
 ## Environment-Specific Flow
 
@@ -41,7 +38,8 @@ Natural Earth shapefiles
 |------|---------|
 | **File** | `priv/static/data/boundaries.pmtiles` |
 | **Built by** | `services/boundaries/build_boundaries.sh` |
-| **Served by** | Phoenix `Plug.Static` via `static_dirs` including `data` |
+| **Served by** | Phoenix `Plug.Static` at `/data/boundaries.pmtiles` |
+| **Config** | `config :gallformers, tiles_url: "/data/boundaries.pmtiles"` (dev.exs) |
 
 ```bash
 # Build tiles (~2 minutes, requires gdal, tippecanoe, jq)
@@ -53,37 +51,33 @@ cd services/boundaries
 
 Prerequisites: `brew install gdal tippecanoe curl unzip jq`
 
+**Using CloudFront tiles in dev** (skip local build):
+```bash
+TILES_URL=https://gallformers.org/tiles/boundaries.pmtiles mix phx.server
+```
+
 ### Preview (gallformers-preview.fly.dev)
 
 | Item | Details |
 |------|---------|
-| **File** | `/app/data/boundaries.pmtiles` (baked into Docker image) |
-| **Downloaded at** | Docker build time from public S3 |
-| **Symlinked at** | Boot by `docker-entrypoint-preview.sh` |
+| **Source** | Same S3/CloudFront tiles as production |
+| **Config** | `TILES_URL` env var → `https://gallformers.org/tiles/boundaries.pmtiles` |
+| **CORS** | CloudFront tiles CORS policy allows cross-origin Range requests |
 
-The preview Dockerfile downloads the file during build:
-```dockerfile
-curl -fSL -o /app/data/boundaries.pmtiles \
-  https://gallformers-backups.s3.amazonaws.com/public/boundaries.pmtiles
-```
+Preview uses the same tiles as production. No local file is baked into the Docker image. Set the `TILES_URL` env var in the Fly app config to point at the production CloudFront URL.
 
-To update preview: rebuild tiles locally, upload to S3 (see below), redeploy preview.
+If preview ever needs different tiles than production, upload a separate copy to a different S3 path and update `TILES_URL` accordingly.
 
-### Production (gallformers.fly.dev)
+### Production (gallformers.org)
 
 | Item | Details |
 |------|---------|
-| **File** | `/data/boundaries.pmtiles` on Fly persistent volume |
-| **Downloaded at** | First boot if not present (by `docker-entrypoint.sh`) |
-| **Symlinked at** | Every boot by `docker-entrypoint.sh` |
-| **Source** | `https://gallformers-backups.s3.amazonaws.com/public/boundaries.pmtiles` |
+| **File** | `s3://gallformers-images-us-east-1/tiles/boundaries.pmtiles` |
+| **Served by** | CloudFront v2 distribution (`/tiles/*` → `s3-tiles` origin) |
+| **Config** | Default `/tiles/boundaries.pmtiles` (relative URL, same domain) |
+| **Access** | S3 bucket restricted to CloudFront OAC (no public access) |
 
-The entrypoint checks if the file exists on the volume. If not, it downloads from public S3 automatically. Once on the volume, it persists across deploys.
-
-The symlink bridges the volume path to Phoenix's static file serving:
-```
-/data/boundaries.pmtiles → /app/lib/gallformers-0.1.0/priv/static/data/boundaries.pmtiles
-```
+The browser requests `/tiles/boundaries.pmtiles` from `gallformers.org`. CloudFront matches the `/tiles/*` path pattern and serves from the S3 images bucket edge cache.
 
 ## Updating Map Tiles
 
@@ -97,19 +91,32 @@ cd services/boundaries
 # 2. Verify coverage against the database
 python3 verify_tiles.py
 
-# 3. Upload to public S3
-aws s3 cp priv/static/data/boundaries.pmtiles s3://gallformers-backups/public/boundaries.pmtiles
+# 3. Upload to S3 images bucket
+aws s3 cp priv/static/data/boundaries.pmtiles \
+  s3://gallformers-images-us-east-1/tiles/boundaries.pmtiles
 
-# 4. Update production (choose one):
-
-# Option A: Delete the file and restart (triggers re-download from S3)
-fly ssh console -C "rm /data/boundaries.pmtiles"
-fly machine restart
-
-# Option B: Upload directly to the volume
-echo "put priv/static/data/boundaries.pmtiles /data/boundaries.pmtiles" | fly ssh sftp shell
-fly machine restart
+# 4. Invalidate CloudFront cache (optional — only needed for immediate effect)
+aws cloudfront create-invalidation \
+  --distribution-id <V2_DISTRIBUTION_ID> \
+  --paths "/tiles/boundaries.pmtiles"
 ```
+
+No restart needed — CloudFront serves the new file after cache expiration or invalidation.
+
+## Infrastructure
+
+### CloudFront Configuration (infra/cloudfront_v2.tf)
+
+- **Origin**: `s3-tiles` with OAC, `origin_path = "/tiles"`
+- **Cache behavior**: `/tiles/*`, CachingOptimized policy, CORS response headers
+- **CORS policy**: `GallformersTilesCORS` — allows Range/If-Range headers from any origin, exposes Content-Range/Content-Length/Accept-Ranges
+
+### S3 Configuration (infra/s3.tf)
+
+- **Bucket**: `gallformers-images-us-east-1`
+- **Path**: `tiles/boundaries.pmtiles`
+- **Access**: CloudFront OAC only (no public access)
+- **CORS**: Configured for PUT/GET from production and dev origins
 
 ## Git and Docker Status
 
@@ -120,25 +127,24 @@ fly machine restart
 
 ### Maps are empty
 
-1. Check if the file exists on the volume:
+1. Check that the file exists in S3:
    ```bash
-   fly ssh console -C "ls -lh /data/boundaries.pmtiles"
+   aws s3 ls s3://gallformers-images-us-east-1/tiles/boundaries.pmtiles
    ```
 
-2. Check if the symlink exists:
+2. Test the CloudFront URL directly:
    ```bash
-   fly ssh console -C "ls -la /app/lib/gallformers-0.1.0/priv/static/data/"
+   curl -I "https://gallformers.org/tiles/boundaries.pmtiles"
    ```
+   Expected: `200 OK` with `Content-Type`, `Accept-Ranges: bytes`
 
-3. Check the entrypoint log for download errors:
+3. Test a Range request:
    ```bash
-   fly logs 2>&1 | timeout 5 cat | grep -i boundaries
+   curl -H "Range: bytes=0-511" -I "https://gallformers.org/tiles/boundaries.pmtiles"
    ```
+   Expected: `206 Partial Content` with `Content-Range` header
 
-4. If the file is missing, restart the machine (triggers auto-download):
-   ```bash
-   fly machine restart
-   ```
+4. Check browser console for fetch errors (CORS, 404, etc.)
 
 ### Tiles don't match database places
 
@@ -153,3 +159,5 @@ See `services/boundaries/README.md` for detailed diagnostic scripts.
 ### Browser shows stale tiles
 
 Hard refresh (Cmd+Shift+R / Ctrl+Shift+R). If tiles still wrong, clear browser cache entirely. PMTiles are aggressively cached by browsers.
+
+To force all users to get new tiles, create a CloudFront cache invalidation (see "Updating Map Tiles" above).

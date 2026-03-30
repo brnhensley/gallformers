@@ -81,17 +81,11 @@ This is the correct way to perform file operations on a running machine, but it 
 
 ## Volume Data Files
 
-The `/data` volume holds files that must persist across deploys. The main database is now in Fly Postgres (not on the volume).
-
-| File | Purpose | How to populate |
-|------|---------|-----------------|
-| `boundaries.pmtiles` | Geographic boundary tiles for range maps (~370MB) | SFTP upload: `echo "put priv/static/data/boundaries.pmtiles /data/boundaries.pmtiles" \| fly ssh sftp shell` |
+The `/data` volume holds persistent data across deploys. The main database is in Fly Postgres (not on the volume).
 
 **WCVP** data lives in a separate Postgres database (`wcvp`) on the same cluster. See `runbooks/wcvp.md` for setup and update procedures.
 
-**Boundaries PMTiles** is symlinked into the static assets directory at startup by `docker-entrypoint.sh`. The symlink makes it available at the URL `/data/boundaries.pmtiles` without baking the 370MB file into the Docker image.
-
-**After a fresh machine or volume replacement**, `boundaries.pmtiles` must be re-uploaded manually via SFTP. WCVP data persists in Postgres and is unaffected by machine replacement.
+**Boundaries PMTiles** is served directly via CloudFront from S3 — no longer stored on the volume. See `runbooks/map-tiles.md` for details.
 
 ## Before ANY Fly.io operation
 

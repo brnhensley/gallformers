@@ -73,13 +73,13 @@ RUN addgroup -g 1000 gallformers && \
 # Copy release from builder
 COPY --from=builder --chown=gallformers:gallformers /app/_build/prod/rel/gallformers ./
 
-# Download data files from public S3 (no auth needed)
-# WCVP data lives in Postgres now — loaded via pg_restore, not baked into the image.
-RUN mkdir -p /app/data && \
-    curl -fSL -o /app/data/boundaries.pmtiles \
-      https://gallformers-backups.s3.amazonaws.com/public/boundaries.pmtiles
-
-RUN chown -R gallformers:gallformers /app/data
+# Boundary tiles are served via CloudFront from the production S3 images
+# bucket. Preview uses the same tiles as production — set TILES_URL in
+# the Fly app env to point at the production CloudFront URL:
+#   https://gallformers.org/tiles/boundaries.pmtiles
+#
+# If preview ever needs different tiles than production, upload a separate
+# copy to a different S3 path and update TILES_URL accordingly.
 
 # Copy entrypoint script
 COPY --chmod=755 docker-entrypoint-preview.sh /app/docker-entrypoint-preview.sh

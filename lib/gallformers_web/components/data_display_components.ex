@@ -88,8 +88,8 @@ defmodule GallformersWeb.DataDisplayComponents do
       <div class="relative bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center">
         <img
           data-main-image
-          src={@first_image[:src] || @first_image["src"]}
-          alt={@first_image[:alt] || @first_image["alt"] || ""}
+          src={field(@first_image, :src)}
+          alt={field(@first_image, :alt) || ""}
           class="max-h-[400px] max-w-full object-contain cursor-pointer"
           loading="lazy"
           data-open-lightbox
@@ -212,8 +212,8 @@ defmodule GallformersWeb.DataDisplayComponents do
             <div class="flex-shrink-0">
               <img
                 data-info-image
-                src={@first_image[:src] || @first_image["src"]}
-                alt={@first_image[:alt] || @first_image["alt"] || "Image preview"}
+                src={field(@first_image, :src)}
+                alt={field(@first_image, :alt) || "Image preview"}
                 class="w-80 h-80 object-contain rounded border border-gray-200 bg-gray-50"
               />
             </div>
@@ -298,8 +298,8 @@ defmodule GallformersWeb.DataDisplayComponents do
 
           <img
             data-lightbox-image
-            src={@first_image[:src] || @first_image["src"]}
-            alt={@first_image[:alt] || @first_image["alt"] || ""}
+            src={field(@first_image, :src)}
+            alt={field(@first_image, :alt) || ""}
             class="max-w-full max-h-[70vh] object-contain"
           />
 
@@ -1125,8 +1125,8 @@ defmodule GallformersWeb.DataDisplayComponents do
     doc: "additional CSS classes"
 
   attr :tiles_url, :string,
-    default: "/data/boundaries.pmtiles",
-    doc: "URL to PMTiles boundary file"
+    default: nil,
+    doc: "URL to PMTiles boundary file. Defaults to :tiles_url app config."
 
   attr :empty_text, :string,
     default: "No range data available",
@@ -1141,6 +1141,10 @@ defmodule GallformersWeb.DataDisplayComponents do
     doc: "JSON-encodable [[west, south], [east, north]] initial bounds to fit"
 
   def range_map(assigns) do
+    tiles_url =
+      assigns.tiles_url ||
+        Application.get_env(:gallformers, :tiles_url, "/tiles/boundaries.pmtiles")
+
     in_range_json = Jason.encode!(assigns.in_range)
     excluded_range_json = Jason.encode!(assigns.excluded_range)
     inherited_range_json = Jason.encode!(assigns.inherited_range)
@@ -1148,6 +1152,7 @@ defmodule GallformersWeb.DataDisplayComponents do
 
     assigns =
       assigns
+      |> assign(:tiles_url, tiles_url)
       |> assign(:in_range_json, in_range_json)
       |> assign(:excluded_range_json, excluded_range_json)
       |> assign(:inherited_range_json, inherited_range_json)

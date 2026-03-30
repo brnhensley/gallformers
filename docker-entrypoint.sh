@@ -21,28 +21,11 @@ fi
 
 check_disk_usage
 
-# Download data files from public S3 if not already on the volume
-S3_BASE="https://gallformers-backups.s3.amazonaws.com/public"
-
-if [ ! -f /data/boundaries.pmtiles ]; then
-  echo "Downloading boundaries.pmtiles from S3..."
-  if curl -fSL -o /data/boundaries.pmtiles "$S3_BASE/boundaries.pmtiles"; then
-    chown gallformers:gallformers /data/boundaries.pmtiles
-    echo "boundaries.pmtiles downloaded."
-  else
-    echo "WARNING: Failed to download boundaries.pmtiles — maps will not work"
-    rm -f /data/boundaries.pmtiles
-  fi
-fi
-
 # WCVP data lives in Postgres now (separate database on the same cluster).
 # Loaded via pg_restore — see runbooks/wcvp.md.
-
-# Symlink boundaries PMTiles from volume into static assets
-if [ -f /data/boundaries.pmtiles ]; then
-  mkdir -p /app/lib/gallformers-0.1.0/priv/static/data
-  ln -sf /data/boundaries.pmtiles /app/lib/gallformers-0.1.0/priv/static/data/boundaries.pmtiles
-fi
+#
+# Boundaries PMTiles is served directly from S3 via CloudFront at /tiles/*.
+# No local download or symlink needed.
 
 # Run database migrations
 echo "Running database migrations..."

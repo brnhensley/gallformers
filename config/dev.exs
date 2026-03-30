@@ -2,6 +2,12 @@ import Config
 
 config :gallformers, env: :dev
 
+# Local dev serves tiles from priv/static/data/ via Plug.Static.
+# Set TILES_URL env var to use CloudFront tiles instead (e.g., for
+# testing without a local build):
+#   TILES_URL=https://gallformers.org/tiles/boundaries.pmtiles mix phx.server
+config :gallformers, tiles_url: System.get_env("TILES_URL", "/data/boundaries.pmtiles")
+
 # Configure your database
 config :gallformers, Gallformers.Repo,
   database: "gallformers_dev",

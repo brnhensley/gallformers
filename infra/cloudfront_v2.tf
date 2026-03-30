@@ -126,6 +126,41 @@ resource "aws_cloudfront_response_headers_policy" "cors" {
 }
 
 # -----------------------------------------------------------------------------
+# Response Headers Policy (CORS for PMTiles)
+# -----------------------------------------------------------------------------
+# Preview and local dev may fetch tiles cross-origin from the production
+# CloudFront distribution. PMTiles needs Range request support.
+# Tiles are public geo data — allow any origin.
+
+resource "aws_cloudfront_response_headers_policy" "tiles_cors" {
+  name    = "GallformersTilesCORS"
+  comment = "CORS for PMTiles boundary data — allows Range requests from any origin"
+
+  cors_config {
+    access_control_allow_credentials = false
+    origin_override                  = true
+
+    access_control_allow_headers {
+      items = ["Range", "If-Range"]
+    }
+
+    access_control_allow_methods {
+      items = ["GET", "HEAD"]
+    }
+
+    access_control_allow_origins {
+      items = ["*"]
+    }
+
+    access_control_expose_headers {
+      items = ["Content-Range", "Content-Length", "Accept-Ranges"]
+    }
+
+    access_control_max_age_sec = 86400
+  }
+}
+
+# -----------------------------------------------------------------------------
 # Distribution
 # -----------------------------------------------------------------------------
 
@@ -169,6 +204,16 @@ resource "aws_cloudfront_distribution" "v2" {
     origin_path = "/maintenance"
   }
 
+  # Tertiary: S3 tiles (PMTiles boundary data served directly from S3)
+  # Requests for /tiles/* map to s3://gallformers-images-us-east-1/tiles/*
+  # No origin_path — the /tiles/ prefix in the URL maps directly to the
+  # S3 key prefix (CloudFront forwards the full path to S3).
+  origin {
+    domain_name              = aws_s3_bucket.images.bucket_regional_domain_name
+    origin_id                = "s3-tiles"
+    origin_access_control_id = aws_cloudfront_origin_access_control.images.id
+  }
+
   # --- Default behavior (dynamic app — no caching) ---
 
   default_cache_behavior {
@@ -200,6 +245,25 @@ resource "aws_cloudfront_distribution" "v2" {
 
     # AWS managed CachingOptimized policy
     cache_policy_id = "658327ea-f89d-4fab-a63d-7e88639e58f6"
+  }
+
+  # --- PMTiles boundary data (cached from S3) ---
+  # Serves boundaries.pmtiles via CloudFront edge cache. PMTiles uses HTTP
+  # Range Requests — MapLibre fetches only the bytes needed per tile view.
+  # CachingOptimized handles Range requests correctly (caches full object,
+  # serves partial responses from cache).
+
+  ordered_cache_behavior {
+    path_pattern           = "/tiles/*"
+    target_origin_id       = "s3-tiles"
+    viewer_protocol_policy = "redirect-to-https"
+    allowed_methods        = ["GET", "HEAD"]
+    cached_methods         = ["GET", "HEAD"]
+    compress               = true
+
+    # AWS managed CachingOptimized policy
+    cache_policy_id            = "658327ea-f89d-4fab-a63d-7e88639e58f6"
+    response_headers_policy_id = aws_cloudfront_response_headers_policy.tiles_cors.id
   }
 
   # --- Maintenance page (served from S3) ---

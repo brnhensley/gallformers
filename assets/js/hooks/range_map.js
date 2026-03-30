@@ -19,7 +19,7 @@
  *   data-introduced-range: JSON array of codes where species is introduced (optional)
  *   data-editable:        "true" if regions are clickable (admin mode)
  *   data-navigable:       "true" if clicking a region navigates to its place page
- *   data-tiles-url:       URL to boundaries.pmtiles (default: /data/boundaries.pmtiles)
+ *   data-tiles-url:       URL to boundaries.pmtiles (default: /tiles/boundaries.pmtiles)
  *   data-empty-text:      Text shown when no range data exists (default: "No range data available")
  *   data-max-bounds:      JSON [[west, south], [east, north]] max bounds (optional)
  *   data-bounds:          JSON [[west, south], [east, north]] server-provided initial bounds (optional)
@@ -143,7 +143,7 @@ const RangeMap = {
     this.editable = this.el.dataset.editable === 'true'
     this.navigable = this.el.dataset.navigable === 'true'
     this.placeMode = this.el.dataset.placeMode === 'true'
-    this.tilesUrl = this.el.dataset.tilesUrl || '/data/boundaries.pmtiles'
+    this.tilesUrl = this.el.dataset.tilesUrl || '/tiles/boundaries.pmtiles'
     this.emptyText = this.el.dataset.emptyText || 'No range data available'
 
     const maxBoundsAttr = this.el.dataset.maxBounds

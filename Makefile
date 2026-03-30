@@ -2,7 +2,7 @@
 #
 # Phoenix/LiveView development commands
 
-.PHONY: dev dev-lan test test-db test-prod-data test-prod-data-e2e test-prod-data-all download-db ci preflight help deps assets setup clean check-db build run-local-release dump-schema preview preview-stop preview-destroy wcvp-restore wcvp-check check-full check-bg
+.PHONY: dev dev-cloudfront dev-lan test test-db test-prod-data test-prod-data-e2e test-prod-data-all download-db ci preflight help deps assets setup clean check-db build run-local-release dump-schema preview preview-stop preview-destroy wcvp-restore wcvp-check check-full check-bg
 
 # Download production database for local dev
 # Downloads full pg_dump from private S3 bucket and restores into local Postgres
@@ -85,6 +85,10 @@ setup: deps assets check-db wcvp-check
 # Loads .env if present for Auth0 and other local config
 dev: setup
 	set -a && [ -f .env ] && . .env; set +a && PREVIEW_DEPLOY=true mix phx.server
+
+# Start dev server using production CloudFront tiles (no local build needed)
+dev-cloudfront: setup
+	set -a && [ -f .env ] && . .env; set +a && TILES_URL=https://gallformers.org/tiles/boundaries.pmtiles PREVIEW_DEPLOY=true mix phx.server
 
 # Start dev server on port 4002 for LAN access (dev already binds 0.0.0.0)
 # Usage: make dev-lan              # default port 4002

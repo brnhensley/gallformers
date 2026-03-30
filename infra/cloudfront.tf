@@ -1,14 +1,8 @@
 # CloudFront distribution for gallformers image delivery.
 #
 # Serves images from the S3 images bucket via CDN. Uses Origin Access Control
-# (OAC) so the bucket doesn't need to be public — CloudFront authenticates
-# directly with S3.
-#
-# NOTE: The current S3 bucket policy in s3.tf grants public read access.
-# After importing this distribution and the OAC, update the bucket policy to
-# grant CloudFront access via the OAC instead of public read. Then enable
-# block_public_policy and restrict_public_buckets on the public access block.
-# That work is tracked separately.
+# (OAC) for CloudFront authentication. The bucket also allows public read
+# (all data is public — species photos and geographic boundaries).
 
 # -----------------------------------------------------------------------------
 # Origin Access Control

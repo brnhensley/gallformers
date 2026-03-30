@@ -178,14 +178,18 @@ gallformers/
 
 ## Boundary Tiles (Range Maps)
 
-The range map component uses PMTiles vector tiles generated from Natural Earth shapefiles. The tiles are pre-built and committed to `priv/static/data/boundaries.pmtiles`. To rebuild after changing the pipeline:
+Range maps use PMTiles vector tiles generated from Natural Earth shapefiles. In production, tiles are served via CloudFront from S3. In dev, tiles are served locally from `priv/static/data/boundaries.pmtiles`.
 
 ```bash
+# Build tiles locally (~2 minutes)
 cd services/boundaries
 ./build_boundaries.sh ../../priv/static/data/boundaries.pmtiles
+
+# Or skip the local build and use production tiles:
+TILES_URL=https://gallformers.org/tiles/boundaries.pmtiles mix phx.server
 ```
 
-Requires: `gdal`, `tippecanoe`, `jq`. See [services/boundaries/README.md](services/boundaries/README.md) for the full pipeline documentation.
+Requires: `gdal`, `tippecanoe`, `jq`. See [services/boundaries/README.md](services/boundaries/README.md) and [runbooks/map-tiles.md](runbooks/map-tiles.md) for full details.
 
 ## Deployment
 

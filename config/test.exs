@@ -2,6 +2,9 @@ import Config
 
 config :gallformers, env: :test
 
+# Tiles URL for test — matches dev (local file, though tests don't render maps)
+config :gallformers, tiles_url: "/data/boundaries.pmtiles"
+
 # Run async tasks synchronously to avoid sandbox connection issues
 config :gallformers, async_tasks: false
 
