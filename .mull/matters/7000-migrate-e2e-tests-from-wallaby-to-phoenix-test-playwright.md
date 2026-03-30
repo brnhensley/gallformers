@@ -1,7 +1,7 @@
 ---
 status: raw
 created: 2026-03-25
-updated: 2026-03-25
+updated: 2026-03-30
 epic: platform
 relates: [1501]
 ---
@@ -24,35 +24,85 @@ chromedriver/Gatekeeper dependency chain entirely.
 - Playwright manages browser binaries itself (`npx playwright install`) — no chromedriver version matching, no Homebrew cask dependencies, no Gatekeeper issues
 - Supports Chromium, Firefox, AND WebKit (Safari) from a single test suite
 - Built-in Ecto sandbox support (same user-agent metadata pattern as Wallaby)
-- Actively maintained (v0.10.1, 10 releases, clear docs)
+- Actively maintained (v0.13.0, clear docs)
 
-## Why not alternatives
+## Design Decisions
 
-- **Wallaby.Selenium + Firefox**: requires pinning Selenium Server ≤4.8.0 (Wallaby only speaks legacy JSON Wire Protocol, W3C support is open issue since 2019). Dead end.
-- **playwright-elixir (mechanical-orchard)**: still alpha after years, incomplete API coverage
-- **Staying on Wallaby.Chrome**: chromedriver Homebrew cask dies Sep 2026, then manual installs forever
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| `execute_script` workarounds | Hybrid — try native Playwright first, fall back to `evaluate()` | Playwright's `type()` simulates real keystrokes that should fire phx-change. But component-targeted event pushes may still need JS. |
+| Test structure | Consolidate into single `test/e2e/` directory | Two suites = missed tests, double maintenance. Agents and humans both overlook the prod_data E2E tests. |
+| Data | All E2E tests run against prod data copy | Prod data tests need real data. Simple tests work fine against it too. One data setup, one case template. |
+| CI | E2E stays out of CI — local preflight only | E2E never really ran separately. Adding prod data download to CI adds complexity for little value. |
 
-## Scope
+## Dependency Changes
 
-- ~21 E2E tests in `test/e2e/` (public + admin)
-- Replace `wallaby` dep with `phoenix_test_playwright` + `phoenix_test`
-- Rewrite tests against PhoenixTest API
-- Update E2ECase support module
-- Update Makefile targets (make e2e, make e2e-headed, etc.)
-- Update CI workflow (install Playwright browsers instead of chromedriver)
-- Remove Wallaby config from test.exs
+- Remove: `wallaby`
+- Add: `phoenix_test` + `phoenix_test_playwright` (both `:test` only)
+- Add: `playwright` npm package in `assets/`
+- Install browsers: `npx --prefix assets playwright install chromium --with-deps`
+
+## New E2ECase (single case template)
+
+Replaces both `E2ECase` and `ProdDataE2ECase`:
+- Start Playwright session via `PhoenixTest.Playwright.Case`
+- Ecto sandbox in shared mode
+- Prod data guard (minimum species count)
+- Auth bypass for admin tests
+- Area tags preserved for selective runs
+
+## Test File Layout
+
+```
+test/e2e/
+├── admin/
+│   ├── admin_test.exs
+│   ├── taxonomy_admin_test.exs  (from test/prod_data/e2e/)
+│   └── reclassify_test.exs      (from test/prod_data/e2e/)
+├── auth/auth_test.exs
+├── browse/browse_test.exs
+├── public/
+│   ├── public_pages_test.exs
+│   └── smoke_test.exs           (from test/prod_data/e2e/)
+└── search/search_test.exs
+```
+
+## API Translation
+
+Simple tests (21 in test/e2e/) — near 1:1:
+- `visit/assert_has/refute_has/click` map directly
+- Drop `.phx-connected` waits (Playwright auto-waits)
+- `css("sel", text: "X")` → `"sel", text: "X"`
+
+Complex tests (21 in test/prod_data/e2e/) — try native first:
+- `fill_taxonomy_field` → try `fill_in` or `type()`, fall back to `evaluate()` if LiveView doesn't respond
+- `open_delete_modal` / `submit_taxonomy_form` → try `click_button`, fall back to `evaluate()` with execJS
+- `search_and_select_family/genus` → try native type + click on results, fall back to `evaluate()` for component-targeted event pushes
+- `confirm_cascade_delete` → try native type into confirmation input
+- `wait_for_db` helper — keep as-is, not a Wallaby thing
+
+## Config
+
+test.exs: Remove Wallaby config. Add phoenix_test + phoenix_test_playwright config.
+test_helper.exs: Replace Wallaby startup with Playwright supervisor.
+runtime.exs: Keep GALLFORMERS_E2E=1 → server: true pattern.
+
+## Makefile
+
+- `make e2e` — all E2E (requires prod data)
+- `make e2e-headed` — visible browser
+- `make e2e-setup` — install Playwright browsers (replaces chromedriver check)
+- Keep area targets, update scripts/e2e-changed
+- Drop chromedriver check
+
+## CI
+
+- Remove chromedriver setup step from ci.yml
+- Update test count expectations in mix.exs
+
+## Cleanup
+
+- Delete `test/support/prod_data_e2e_case.ex`
+- Delete `test/prod_data/e2e/` (tests moved)
 - Update CLAUDE.md and CODING_STANDARDS.md E2E sections
-
-## Open questions
-
-- Does phoenix_test_playwright support headed mode for debugging? (Wallaby has E2E_HEADED=1)
-- Screenshot-on-failure support? (currently via Wallaby config)
-- Any PhoenixTest API gaps vs Wallaby for our test patterns?
-
-## References
-
-- https://hex.pm/packages/phoenix_test_playwright
-- https://hexdocs.pm/phoenix_test_playwright/
-- https://github.com/ftes/phoenix_test_playwright
-- https://ftes.de/articles/2024-11-14-using-playwright-in-elixir
 
