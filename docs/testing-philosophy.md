@@ -4,6 +4,44 @@
 
 This document defines how we test, why we test that way, and what "green means deployable" requires. All future test work — new tests, refactored tests, deleted tests — is evaluated against this document.
 
+## Testing
+
+Tests use Ecto's SQL Sandbox with PostgreSQL. Tests can run with `async: true` where appropriate.
+
+### Test Types
+
+| Type | Location | Run with | What it covers |
+|------|----------|----------|----------------|
+| Context/Unit | `test/gallformers/` | `make test` | Domain logic, context functions, changesets |
+| LiveView | `test/gallformers_web/live/` | `make test` | Page rendering, user interactions, form workflows (public + admin) |
+| Controller/API | `test/gallformers_web/controllers/` | `make test` | REST endpoints, JSON responses, auth, error pages |
+| Component | `test/gallformers_web/components/` | `make test` | Reusable component rendering and events |
+| Plug | `test/gallformers_web/plugs/` | `make test` | Analytics, caching, CORS middleware |
+| Integration | `test/gallformers_web/integration_test.exs` | `make test` | Full page load flows, navigation, PubSub |
+| E2E (browser) | `test/e2e/` | `make e2e` | Real browser tests via Playwright (Firefox). Requires prod data. Excluded by default. |
+| Prod data | `test/prod_data/` | `make test-prod-data` | Validates against real production DB copy. Excluded by default. |
+| Prod data E2E | `test/prod_data/e2e/` | `make test-prod-data-e2e` | Browser tests against real production data. Excluded by default. |
+
+**Support files** (`test/support/`): `DataCase` (Ecto sandbox), `ConnCase` (HTTP), `E2ECase` (Playwright, prod data), `ProdDataCase` (real DB validation).
+
+### S3 Isolation in Tests
+
+Tests must NEVER make real AWS/S3 calls. Use `Gallformers.S3.request/1` instead of `ExAws.request/1`. See CODING_STANDARDS.md for details.
+
+### E2E Tests (Browser-based)
+
+E2E tests use Playwright with Firefox. All tests run against a production data copy and are excluded from regular test runs and CI. Install browsers with `make e2e-setup`.
+
+```bash
+make e2e                   # Run all E2E tests (loads prod data automatically)
+make e2e-changed           # Run only tests affected by changed files
+make e2e-public            # Public pages only
+make e2e-admin             # Admin pages only (taxonomy, reclassify, etc.)
+make e2e-headed            # Run with visible browser
+```
+
+See CODING_STANDARDS.md for E2E writing guide, test organization, and setup instructions.
+
 ## Core Beliefs
 
 ### 1. Green means deployable

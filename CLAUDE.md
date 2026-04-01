@@ -8,36 +8,10 @@ When fixing bugs, issues, or implementing changes:
 
 1. **STOP** - Do not edit any files yet
 2. **Investigate fully** - Find ALL related files, not just the obvious one
-   - If fixing icons, list ALL icon files in both locations
    - If fixing a bug, trace ALL code paths involved
    - If migrating something, inventory EVERYTHING that needs to move
-3. **Use TodoWrite** - Create a task list of everything that needs to happen
 4. **Present findings** - Show me what you found and your proposed approach
 5. **Wait for approval** - Only proceed after I confirm the approach
-
-### No Partial Fixes
-
-- Never commit a fix until it is COMPLETE
-- If you fixed one file but there might be others, STOP and check
-- When in doubt, ask: "Is there anything else related to this?"
-- If you run into unexpected precommit issues from files you did not change, STOP and ask the user what to do
-- One complete commit is better than three partial ones
-
-### TodoWrite is Mandatory
-
-Use TodoWrite for ANY task that:
-- Touches more than 1 file
-- Involves copying, migrating, or syncing between locations
-- Fixes a bug (investigation tasks + fix tasks)
-- Has any ambiguity about scope
-
-The task list must be created BEFORE making any but the smallest changes.
-
-### Questions Over Assumptions
-
-If you're unsure about scope, ASK. Examples:
-- "I found 3 places this bug could originate - should I investigate all of them?"
-- "This fix touches the database - should I also check the related API endpoints?"
 
 ### Search Before You Write
 
@@ -60,15 +34,13 @@ Before writing ANY new function, component, or query pattern:
 - Writing raw Ecto queries for patterns that context functions already handle
 - Building a one-off solution when a reusable abstraction is obvious
 
-**When in doubt, ask:** "Does something like this already exist in the codebase?"
-
 ## Architectural Principles
 
 These principles govern where code belongs. When in doubt, apply these before writing anything.
 
 ### 1. LiveViews are routers, not orchestrators
 
-A LiveView's job is to translate user events into context calls and context results into assigns. The moment you're writing `Repo.transaction`, computing set differences, or resolving business rules — you've left the routing layer. Push it down.
+A LiveView's job is to translate user events into context calls and context results into assigns.
 
 ### 2. If state has its own lifecycle, it's a LiveComponent
 
@@ -178,73 +150,10 @@ These rules are **non-negotiable** and exist because of a production incident:
 - **NEVER run `mix ecto.reset`** — use `mix ecto.migrate` to apply pending migrations. If you think a reset is needed, ask first.
 - **The only safe database commands** are: `mix ecto.migrate`, `mix ecto.rollback` (with user approval), and read-only queries on the dev database.
 
-# Gallformers Project Overview
-
-## What is Gallformers?
-
-Gallformers (gallformers.org) is a comprehensive online database and reference guide for **galls** - abnormal plant growths caused by insects, mites, and other organisms. The site serves as a resource for:
-
-- **Identification**: Helping users identify galls by their characteristics (shape, color, texture, location on host plant)
-- **Taxonomy**: Documenting gall-forming species and their relationships
-- **Host Plants**: Cataloging which plants are affected by which gall-formers
-- **Education**: Providing guides, keys, and reference materials about galls
-- **Research**: Serving as a data repository for researchers and naturalists
-
-## Tech Stack
-
-- **Phoenix 1.8** with LiveView - Full-stack web framework
-- **Ecto** with Postgrex - Database ORM (see "Ecto & Query Patterns" for usage guidelines)
-- **PostgreSQL** - Database
-- **Tailwind CSS v4** - Styling
-- **Fly.io** - Production hosting
-
-> **Note**: WCVP reference data lives in a separate Postgres database (`wcvp`) on the same cluster. See `runbooks/wcvp.md`.
-
-## Project Structure
-
-```
-gallformers/
-├── assets/              # Frontend assets (JS, CSS, Tailwind)
-├── config/              # Phoenix configuration
-├── lib/                 # Elixir application code
-│   ├── gallformers/     # Business logic (contexts)
-│   └── gallformers_web/ # Web layer (LiveViews, controllers)
-├── priv/                # Static files, database, migrations
-├── test/                # Tests
-├── docs/                # Documentation
-├── runbooks/            # Operational runbooks
-├── services/            # Auxiliary services
-│   ├── tileserver-gl/   # Map tile server
-│   └── usda_plants/     # USDA plants data (Rust)
-└── .github/             # CI workflows
-```
-
-## Development Commands
-
-```bash
-mix setup                  # Install deps, setup DB, build assets
-mix phx.server             # Start dev server at http://localhost:4000
-mix format                 # Format code
-mix credo --strict         # Run code quality checks
-mix precommit              # Run all checks before committing
-
-# Database
-mix ecto.migrate           # Run migrations
-mix ecto.rollback          # Rollback last migration
-mix ecto.reset             # Drop, create, migrate, seed
-
-# Assets
-mix assets.build           # Build CSS/JS
-mix assets.deploy          # Build for production
-```
-
-## Before Committing
-
 Always run before committing:
 
 ```bash
 mix precommit    # Runs format, credo, and tests
-make ci          # Full CI check (format, compile, credo, test, assets, dialyzer)
 ```
 
 Do not commit until precommit passes.
@@ -473,29 +382,6 @@ All application logs (requests, errors, Postgrex events, crash reports) are stru
 
 See CODING_STANDARDS.md for log format details and jq analysis examples.
 
-## Git Workflow
-
-**Push approval rules:**
-| Change Type | Approval Required | Notes |
-|-------------|-------------------|-------|
-| Everything else | **Yes** | Always ask user before pushing |
-
-**Commit messages:** Present tense, imperative mood.
-
-**CRITICAL: Never amend commits unless the user asks you to.** 
-
-CRITICAL: Never push to main. Only the user can do this.
-
-Do not use `git -C <some-path> <cmd>` If you are unsure, check your directory (almost always it git -C is not needed). If you are not in the correct dir for the git operation, STOP and ask the user what to do. Using 'git -C' commands requires the user to approve every invocation and it is a wasteful time sink.
-
-## Releases
-
-Use the `/release` skill. Before running it, confirm with the user that the full deploy pipeline has completed (push → CI → deploy → production verified). Creating a release before deploy means the release won't match what's running.
-
-## Project Philosophy
-
-The primary value is the **data** — gall records, images, and references. Code serves to make it accessible. Be scientifically conservative (mark uncertain species as "undescribed"), keep the site fast and accessible, and attribute sources properly.
-
 ## Work Tracking & Planning
 
 ### Mull is the single source of truth
@@ -535,20 +421,6 @@ When planning work for a matter:
 4. When the plan is solid, mark the matter as `planned` with `mull plan <id>`
 
 Do NOT create separate implementation plan files. The matter body is the plan. If the scope is small enough that the plan fits in a few paragraphs, that's fine — not everything needs a 200-line design doc.
-
-## External Services
-
-- **Domain**: gallformers.org, gallformers.com (Namecheap)
-- **Hosting**: Fly.io
-- **Images**: AWS S3
-- **Auth**: Auth0
-- **Monitoring**: Fly.io alerts
-- **SSL**: Automatic via Fly.io
-- **DNS**: Route53
-
-## AWS Infrastructure
-
-**Region**: `us-east-1` (N. Virginia) - matches Fly.io's `iad` datacenter.
 
 Check the `infra/` dir for OpenTofu defintions if you need to work with the AWS infrastructure.
 

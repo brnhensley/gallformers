@@ -865,6 +865,29 @@ Tailwind v4 uses CSS-based configuration (no `tailwind.config.js`):
 | Map access on structs | Dot notation: `struct.field` |
 | `Process.sleep` in tests | `Process.monitor` or proper synchronization |
 
+### Never Do This
+
+```elixir
+# WRONG - inline typeahead implementation
+<input type="text" phx-keyup="search" ... />
+<div :if={@results != []}>
+  <button :for={item <- @results} phx-click="select" ...>
+```
+
+```elixir
+# CORRECT - use the component
+<.typeahead
+  id="host-picker"
+  query={@query}
+  results={@results}
+  selected={@selected}
+  search_event="search"
+  select_event="select"
+  clear_event="clear"
+  ...
+/>
+```
+
 ---
 
 ## S3 Isolation in Tests
