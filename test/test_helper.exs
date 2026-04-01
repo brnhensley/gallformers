@@ -1,10 +1,16 @@
 # Exclude E2E tests from regular test runs by default.
-# Run E2E tests with: GALLFORMERS_E2E=1 mix test --include e2e
+# Run E2E tests with: make e2e
 #
 ExUnit.start(exclude: [:e2e, :prod_data, :typst])
 Ecto.Adapters.SQL.Sandbox.mode(Gallformers.Repo, :manual)
 
-# Start Wallaby for E2E tests (it's configured with runtime: false in mix.exs)
+# Start Playwright for E2E tests
 if System.get_env("GALLFORMERS_E2E") == "1" do
-  {:ok, _} = Application.ensure_all_started(:wallaby)
+  # Headed mode for debugging: E2E_HEADED=1 make e2e
+  if System.get_env("E2E_HEADED") == "1" do
+    Application.put_env(:phoenix_test_playwright, :headless, false)
+  end
+
+  {:ok, _} = PhoenixTest.Playwright.Supervisor.start_link()
+  Application.put_env(:phoenix_test, :base_url, GallformersWeb.Endpoint.url())
 end

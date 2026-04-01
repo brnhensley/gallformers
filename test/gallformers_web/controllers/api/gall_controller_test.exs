@@ -6,7 +6,6 @@ defmodule GallformersWeb.API.GallControllerTest do
 
   alias Gallformers.Galls
   alias Gallformers.Images
-  alias Gallformers.Species
 
   describe "GET /api/v2/galls" do
     test "returns list of galls", %{conn: conn} do

@@ -212,7 +212,7 @@ defmodule Gallformers.Taxonomy.Tree do
         |> Repo.all()
 
       for species <- species_list do
-        case Gallformers.Species.rename_for_genus_change(
+        case Gallformers.Taxonomy.rename_for_genus_change(
                species,
                old_genus_name,
                new_genus_name

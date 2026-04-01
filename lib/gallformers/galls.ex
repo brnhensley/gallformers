@@ -974,9 +974,8 @@ defmodule Gallformers.Galls do
   ## Params
 
     * `:species_attrs` - Map of species attributes (name, taxoncode, etc.)
-    * `:taxonomy` - Taxonomy map with genus info
-    * `:genus_is_new` - Boolean, whether to create a new genus
-    * `:parent_id` - Family or section ID for taxonomy linking
+    * `:taxonomy` - `%Lineage{}` for tree placement
+    * `:parent_id` - Family or section ID (required when genus is new)
     * `:hosts` - List of host maps with `:host_species_id`
     * `:aliases` - List of alias maps with `:name` and `:type`
     * `:filter_values` - Map of filter type => list of filter value maps
@@ -988,17 +987,12 @@ defmodule Gallformers.Galls do
   @spec create_gall_with_associations(map()) ::
           {:ok, Species.t()} | {:error, Ecto.Changeset.t() | term()}
   def create_gall_with_associations(params) do
+    taxonomy_opts = [taxonomy: params.taxonomy, parent_id: params.parent_id]
+
     Repo.transaction(fn ->
-      case Gallformers.Species.create_species(params.species_attrs) do
+      case Gallformers.Species.create_species(params.species_attrs, taxonomy_opts) do
         {:ok, species} ->
           {:ok, _gall} = create_gall_traits(species.id)
-
-          Gallformers.Taxonomy.link_species_taxonomy(
-            species.id,
-            params.taxonomy,
-            params.genus_is_new,
-            params.parent_id
-          )
 
           for host <- params.hosts do
             HostAssociations.add_host_to_gall(species.id, host.host_species_id)

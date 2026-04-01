@@ -23,7 +23,7 @@ Visit [localhost:4000](http://localhost:4000) in your browser.
 - **Node.js 20+** (for asset compilation)
 - **PostgreSQL 16+**
 - **libvips** (for image processing - resizing uploaded images)
-- **ChromeDriver** (for E2E tests only)
+- **Playwright** (for E2E tests only — `make e2e-setup` installs browsers)
 
 ### Installing Elixir
 
@@ -63,15 +63,10 @@ brew install libvips
 sudo apt-get install libvips libvips-dev
 ```
 
-### Installing ChromeDriver (for E2E tests)
+### Installing Playwright Browsers (for E2E tests)
 
 ```bash
-# macOS
-brew install chromedriver
-xattr -d com.apple.quarantine $(which chromedriver)  # Allow through Gatekeeper
-
-# Ubuntu/Debian
-sudo apt-get install chromium-chromedriver
+make e2e-setup
 ```
 
 Verify with `make e2e-setup`.
@@ -110,9 +105,9 @@ Tests use a separate PostgreSQL database (`gallformers_test`) built from:
 
 ## E2E Testing
 
-Browser-based E2E tests use [Wallaby](https://github.com/elixir-wallaby/wallaby) with Chrome. These tests are **excluded from regular test runs** to keep the dev loop fast.
+Browser-based E2E tests use [phoenix_test_playwright](https://hex.pm/packages/phoenix_test_playwright) with Firefox. All tests run against a production data copy and are **excluded from regular test runs** and CI.
 
-Requires ChromeDriver - see [Prerequisites](#installing-chromedriver-for-e2e-tests).
+Requires Playwright browsers — see [Prerequisites](#installing-playwright-browsers-for-e2e-tests).
 
 ### Running E2E Tests
 
@@ -142,7 +137,7 @@ E2E tests are organized by functional area in `test/e2e/`:
 | `public/` | Home, about, glossary, resources, explore |
 | `search/` | Global search, ID tool |
 | `browse/` | Species, hosts, galls detail pages |
-| `admin/`  | Admin dashboard, CRUD operations |
+| `admin/`  | Admin dashboard, taxonomy admin, reclassify modal |
 | `auth/`   | Login, logout, protected routes |
 
 ### Writing E2E Tests
@@ -156,10 +151,10 @@ defmodule GallformersWeb.E2E.MyTest do
   @moduletag :e2e
   @moduletag :e2e_public  # Area tag
 
-  test "page loads", %{session: session} do
-    session
+  test "page loads", %{conn: conn} do
+    conn
     |> visit("/")
-    |> assert_has(css("body.phx-connected"))
+    |> assert_has("h1", text: "Welcome")
   end
 end
 ```

@@ -83,12 +83,6 @@ jobs:
           createdb -U postgres -h localhost wcvp_test
           psql -U postgres -h localhost -d wcvp_test -f priv/repo/wcvp_test_setup.sql --quiet
 
-      - name: Setup ChromeDriver for E2E tests
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y chromium-chromedriver
-          chromedriver --version
-
       - name: Run precommit checks (format, compile, credo, migrations, tests, exclusion check)
         run: mix precommit
 

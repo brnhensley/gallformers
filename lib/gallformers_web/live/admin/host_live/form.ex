@@ -795,7 +795,6 @@ defmodule GallformersWeb.Admin.HostLive.Form do
     create_params = %{
       species_attrs: params,
       taxonomy: socket.assigns.taxonomy,
-      genus_is_new: socket.assigns.genus_is_new,
       parent_id: socket.assigns.selected_section_id || socket.assigns.selected_family_id,
       selected_section_id: socket.assigns.selected_section_id,
       aliases: socket.assigns.aliases

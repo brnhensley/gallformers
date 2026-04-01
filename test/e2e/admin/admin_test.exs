@@ -15,13 +15,13 @@ defmodule GallformersWeb.E2E.AdminTest do
   # For now, these tests verify that unauthenticated access is properly handled.
 
   describe "admin access control" do
-    test "redirects unauthenticated users", %{session: session} do
+    test "redirects unauthenticated users", %{conn: conn} do
       # Visiting admin without auth should redirect to Auth0
       # Since we can't follow external OAuth redirect, just verify we don't see admin content
-      session
+      conn
       |> visit("/admin")
       # Should NOT show admin dashboard (would require auth)
-      |> refute_has(css("h1", text: "Dashboard"))
+      |> refute_has("h1", text: "Dashboard")
     end
   end
 
@@ -29,32 +29,29 @@ defmodule GallformersWeb.E2E.AdminTest do
   # Uncomment when test auth route is implemented
 
   # describe "admin dashboard" do
-  #   test "loads for authenticated admin", %{session: session} do
-  #     session
+  #   test "loads for authenticated admin", %{conn: conn} do
+  #     conn
   #     |> visit("/auth/test/admin")  # Test auth route
   #     |> visit("/admin")
-  #     |> assert_has(css(".phx-connected"))
-  #     |> assert_has(css("h1", text: "Dashboard"))
+  #     |> assert_has("h1", text: "Dashboard")
   #   end
   # end
 
   # describe "admin gall management" do
-  #   test "can view galls list", %{session: session} do
-  #     session
+  #   test "can view galls list", %{conn: conn} do
+  #     conn
   #     |> visit("/auth/test/admin")
   #     |> visit("/admin/galls")
-  #     |> assert_has(css(".phx-connected"))
-  #     |> assert_has(css("h1", text: "Galls"))
+  #     |> assert_has("h1", text: "Galls")
   #   end
   # end
 
   # describe "admin host management" do
-  #   test "can view hosts list", %{session: session} do
-  #     session
+  #   test "can view hosts list", %{conn: conn} do
+  #     conn
   #     |> visit("/auth/test/admin")
   #     |> visit("/admin/hosts")
-  #     |> assert_has(css(".phx-connected"))
-  #     |> assert_has(css("h1", text: "Hosts"))
+  #     |> assert_has("h1", text: "Hosts")
   #   end
   # end
 end

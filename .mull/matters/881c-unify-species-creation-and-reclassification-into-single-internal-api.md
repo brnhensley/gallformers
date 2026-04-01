@@ -1,7 +1,7 @@
 ---
 status: refined
 created: 2026-03-22
-updated: 2026-03-24
+updated: 2026-03-30
 epic: taxonomy
 relates: [7fda, fa48, 82f8]
 blocks: [7fda, fa48]
@@ -56,7 +56,7 @@ These live in Species because they're rich species-level operations, but they de
 
 ### Genus-Level References (from matter 53cb)
 
-The name parser should recognize genus-level references ("Lupinus spp.", "Garrya sp."). The API contract acknowledges this variant:
+The name parser recognizes genus-level references ("Lupinus spp.", "Garrya sp."). The API contract acknowledges this variant:
 
 ```elixir
 resolve_taxonomy(name, opts)
@@ -68,147 +68,42 @@ Not implemented now — returns the variant so callers can handle it (show a mes
 ### Current State
 
 - **Creation:** GallLive.Form / HostLive.Form → `Galls.create_gall_with_associations` / `Plants.create_host_with_associations` → `SpeciesLink.link_species_taxonomy/4`
-- **Reclassify:** ReclassifyLive modal → `Reclassification.reclassify_species/2` → `reassign_species_taxonomy/3` + `Species.rename_species/3`
-- **Gaps:** Reclassify cannot create new genera or families. `rename_species`, `rename_for_genus_change`, `add_rename_alias` live in Species but are taxonomy operations. No enforcement of species.name ownership.
+- **Reclassify:** ReclassifyLive modal → `Reclassification.reclassify_species/2` → `reassign_species_taxonomy/3` + `Reclassification.rename_species/3`
+- **Gaps:** Gall/host form creation still calls SpeciesLink directly instead of unified Taxonomy API. Task 5 not started.
 
 ### Dependency: matter 8757 (architectural fitness testing)
 
-Boundary + custom Credo checks MUST be in place before this work begins. 881c establishes the dependency direction and species.name ownership rule. 8757 encodes and enforces those rules mechanically so they can't be undone by agents or future developers.
+Boundary + custom Credo checks are in place. 8757 is complete (closed).
 
-## Implementation Plan
+## Implementation Progress (as of 2026-03-30)
 
-**Goal:** Unify species creation and reclassification into a coherent API with strict Species → Taxonomy dependency. Close the genus/family creation gap in reclassify. Establish species.name as Taxonomy-owned.
+### Task 1: Move naming functions from Species to Taxonomy — DONE
+- `rename_species/3`, `rename_for_genus_change/4`, `add_rename_alias/2` moved from Species to Taxonomy.Reclassification
+- Tests moved from `species_test.exs` to `taxonomy/reclassification_test.exs`
+- `tree.ex` genus rename cascade updated to call `Taxonomy.rename_for_genus_change`
+- `taxonomy.ex` has public delegations for all three functions
+- Old functions removed from `species.ex`
 
-**Architecture:** Move naming/rename operations from Species to Taxonomy. Consolidate SpeciesLink and Reclassification. Add genus/family creation to reclassify modal. Migrate all callers. Includes c836 scope (genus/family creation during reclassify).
+### Task 2: Consolidate genus/family resolution into a single path — DONE
+- `lookup_taxonomy_for_new_species/1` returns `{:genus_reference, ...}` variant
+- `Lineage.lookup_result()` type updated
+- `gall_live/form.ex` handles new variant in `lookup_genus_name/1`
+- Tests in `taxonomy/species_link_test.exs` cover all resolution paths
 
-**Prerequisite:** Matter 8757 (Boundary + Credo checks) must be complete first.
+### Task 3: Add genus/family creation to reclassify backend — DONE
+- `reclassify_species/2` handles `genus_is_new: true` + `family_is_new: true` params
+- Private `resolve_genus_id/1` and `resolve_family_id/1` create via `Tree.create_taxonomy`
+- Tests cover: existing genus, new genus under existing family, new genus under new family, alias creation
 
-### Task 1: Move naming functions from Species to Taxonomy
+### Task 4: Update reclassify modal UI for genus/family creation — DONE
+- `reclassify_live.ex`: event handlers for create_family, create_genus, select_family_type; tracks genus_is_new, family_is_new, family_type state
+- `form_components.ex`: allow_new + create_event on both typeaheads, family type dropdown for galls, removed "create in taxonomy manager first" note
+- LiveView test covers reclassify-to-new-genus end-to-end
 
-**Files:**
-- Modify: `lib/gallformers/species.ex` (remove `rename_species`, `rename_for_genus_change`, `add_rename_alias`)
-- Modify: `lib/gallformers/taxonomy.ex` (add public API delegations)
-- Modify: `lib/gallformers/taxonomy/reclassification.ex` (absorb the moved functions)
-- Modify: all callers of the moved functions
-- Test: `test/gallformers/taxonomy/reclassification_test.exs` (new or expanded)
+### Task 5: Migrate gall/host form creation to unified API — NOT STARTED
+Gall/host forms still call `SpeciesLink.link_species_taxonomy/4` directly.
 
-**Behavior:**
-Move `rename_species/3`, `rename_for_genus_change/4`, and `add_rename_alias/2` from `Species` into `Taxonomy.Reclassification`. These are taxonomy operations — they involve name resolution and tree position. Update all callers. Species retains `create_alias_for_species/2` as a low-level alias primitive.
+### Task 6: Verify and document — NOT STARTED
 
-**Testing:**
-- Existing rename tests move with the functions
-- Verify all callers compile and pass
-- Boundary check confirms Species no longer has rename logic
-- Credo check confirms Species doesn't write to :name
+All changes are uncommitted on main branch, mixed with an unrelated PMTiles-via-CloudFront infrastructure change.
 
-**Notes:**
-Leave temporary `@deprecated` delegations in Species only if caller migration can't be done atomically. Prefer updating all callers in this task.
-
-### Task 2: Consolidate genus/family resolution into a single path
-
-**Files:**
-- Modify: `lib/gallformers/taxonomy/species_link.ex` (refactor `link_species_taxonomy/4` and `lookup_taxonomy_for_new_species/1`)
-- Modify: `lib/gallformers/taxonomy/reclassification.ex` (use the consolidated resolution)
-- Test: `test/gallformers/taxonomy/species_link_test.exs`
-
-**Behavior:**
-Both creation and reclassification need genus/family resolution. Today they use separate paths. Consolidate into a single function:
-
-```elixir
-resolve_taxonomy(name, opts)
-# Returns:
-#   {:ok, genus_id}
-#   {:new_genus, genus_name, family_id}
-#   {:ambiguous, genus_name, families}
-#   {:genus_reference, genus_name, genus_id | nil}  # from 53cb — "Lupinus spp."
-#   {:error, reason}
-```
-
-Encapsulates: parse genus from name → detect genus-level references → look up genus → if not found, determine if family exists → signal for creation if needed.
-
-**Testing:**
-- Genus exists in one family → `{:ok, genus_id}`
-- Genus exists in multiple families → `{:ambiguous, ...}`
-- Genus doesn't exist, family exists → `{:new_genus, ...}`
-- Genus doesn't exist, family doesn't exist → signals family creation needed
-- Genus is placeholder ("Unknown") → find-or-create Unknown genus under family
-- "Lupinus spp." → `{:genus_reference, "Lupinus", genus_id_or_nil}`
-
-### Task 3: Add genus/family creation to reclassify backend
-
-**Files:**
-- Modify: `lib/gallformers/taxonomy/reclassification.ex` (handle new genus/family in `reclassify_species`)
-- Modify: `lib/gallformers/taxonomy/tree.ex` (ensure `create_taxonomy` works for families with type/description)
-- Test: `test/gallformers/taxonomy/reclassification_test.exs`
-
-**Behavior:**
-`reclassify_species/2` accepts new params: `genus_is_new: true`, `family_id: id` (or `family_is_new: true`, `family_name: name`, `family_type: type`). When `genus_is_new`, creates genus under specified family before reassigning. When `family_is_new`, creates family first (with required `description`/type), then genus.
-
-Family type rules:
-- Gall families: user must select type (Wasp, Midge, Fly, etc.)
-- Host families: type auto-set to "Plant"
-
-**Testing:**
-- Reclassify to existing genus (unchanged behavior)
-- Reclassify to new genus under existing family → genus created, species moved
-- Reclassify to new genus under new family → family + genus created, species moved
-- Gall family requires type selection
-- Host family auto-sets "Plant"
-- Alias created for old name when requested
-
-### Task 4: Update reclassify modal UI for genus/family creation
-
-**Files:**
-- Modify: `lib/gallformers_web/live/admin/reclassify_live.ex` (handle "create new" in typeaheads)
-- Modify: `lib/gallformers_web/components/form_components.ex` (enable `allow_new` on family/genus typeaheads)
-- Test: `test/gallformers_web/live/admin/reclassify_live_test.exs`
-
-**Behavior:**
-- Family typeahead: enable `allow_new`. No match + "Create" → show family type dropdown for galls, auto-set "Plant" for hosts. Store `family_is_new: true, family_name, family_type` in modal state.
-- Genus typeahead: enable `allow_new`. No match + "Create" → store `genus_is_new: true, genus_name` in modal state.
-- Save dispatches to updated `reclassify_species/2` with new params.
-- Remove "create in taxonomy manager first" note.
-
-**Testing:**
-- New genus: typeahead shows "Create", save creates genus
-- New family (gall): type dropdown appears, save creates family + genus
-- New family (host): type auto-set, no dropdown
-- Existing behavior unchanged
-
-### Task 5: Migrate gall/host form creation to unified API
-
-**Files:**
-- Modify: `lib/gallformers/galls.ex` (`create_gall_with_associations` uses unified Taxonomy functions)
-- Modify: `lib/gallformers/plants.ex` (`create_host_with_associations` uses unified Taxonomy functions)
-- Modify: `lib/gallformers_web/live/admin/gall_live/form.ex` (simplify taxonomy handling)
-- Modify: `lib/gallformers_web/live/admin/host_live/form.ex` (simplify taxonomy handling)
-- Test: existing gall/host form tests must pass unchanged
-
-**Behavior:**
-Replace direct calls to `SpeciesLink.link_species_taxonomy/4` with the unified Taxonomy API from Task 2. Form LiveViews should simplify — taxonomy resolution logic moves out of forms into Taxonomy context.
-
-**Testing:**
-- All existing gall creation tests pass
-- All existing host creation tests pass
-- Create with new genus still works
-- Ambiguous genus still shows disambiguation
-- Host section linking still works
-
-**Notes:**
-Riskiest task — changing working creation flows. Do not change behavior, only change which functions are called. Full test suite after every change.
-
-### Task 6: Verify and document
-
-**Files:**
-- Modify: `CODING_STANDARDS.md` (Taxonomy naming API patterns, species.name ownership)
-- Modify: `CLAUDE.md` (update architecture patterns, dependency direction)
-
-**Behavior:**
-Full precommit. Boundary check passes (no circular deps). Credo custom check passes (no Species writes to name). Document the unified API, domain model decision, and dependency direction.
-
-**Testing:**
-- `mix precommit` passes
-- `mix boundary.check` passes
-- No remaining direct calls to moved functions
-- No Species → Taxonomy calls (Boundary enforces this)
-- No Species writes to species.name (Credo enforces this)

@@ -1168,6 +1168,12 @@ defmodule GallformersWeb.FormComponents do
     default: false,
     doc: "whether this is a gall (enables Unknown genus warnings)"
 
+  attr :family_is_new, :boolean,
+    default: false,
+    doc: "whether the selected family is being created"
+
+  attr :family_type, :string, default: nil, doc: "selected family type (for new gall families)"
+
   attr :target, :any, default: nil, doc: "phx-target for events (use @myself for LiveComponents)"
 
   def reclassify_modal(assigns) do
@@ -1189,12 +1195,37 @@ defmodule GallformersWeb.FormComponents do
             search_event="reclassify_search_family"
             select_event="reclassify_select_family"
             clear_event="reclassify_clear_family"
+            create_event="reclassify_create_family"
+            allow_new={true}
             target={@target}
             query={@family_query}
             results={@family_results}
             selected={@selected_family}
             display_fn={fn f -> f.name end}
           />
+        </div>
+
+        <%!-- Family type dropdown (shown when creating a new gall family) --%>
+        <div :if={@family_is_new && @is_gall} class="mb-4">
+          <label class="gf-label" for="reclassify-family-type">Family type:</label>
+          <select
+            id="reclassify-family-type"
+            phx-change="reclassify_select_family_type"
+            phx-target={@target}
+            class="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:ring-gf-maroon focus:border-gf-maroon"
+          >
+            <option value="">Select type...</option>
+            <option
+              :for={
+                t <-
+                  ~w(Wasp Midge Fly Moth Beetle Aphid Psyllid Thrip Mite Nematode Fungus Bacteria Other)
+              }
+              selected={@family_type == t}
+              value={t}
+            >
+              {t}
+            </option>
+          </select>
         </div>
 
         <%!-- Genus search (only enabled when family is selected) --%>
@@ -1210,6 +1241,8 @@ defmodule GallformersWeb.FormComponents do
             search_event="reclassify_search_genus"
             select_event="reclassify_select_genus"
             clear_event="reclassify_clear_genus"
+            create_event="reclassify_create_genus"
+            allow_new={true}
             target={@target}
             query={@genus_query}
             results={@genus_results}
@@ -1277,13 +1310,10 @@ defmodule GallformersWeb.FormComponents do
           Moving to an Unknown genus will mark this gall as undescribed.
         </div>
 
-        <%!-- Note about creating families/genera --%>
-        <p class="mt-4 text-xs text-gray-500">
-          If the destination family or genus doesn't exist yet,
-          <.link navigate="/admin/taxonomy" class="underline text-gf-maroon hover:text-gf-maroon/80">
-            create it in the taxonomy manager
-          </.link>
-          first.
+        <%!-- Info about new family/genus creation --%>
+        <p :if={@family_is_new} class="mt-4 text-xs text-amber-600">
+          <.icon name="ph-info" class="h-3.5 w-3.5 inline mr-0.5" />
+          A new family will be created when you save.
         </p>
       </:body>
       <:footer>
@@ -1304,7 +1334,10 @@ defmodule GallformersWeb.FormComponents do
               type="button"
               phx-click="do_reclassify"
               phx-target={@target}
-              disabled={is_nil(@selected_genus) or @epithet == ""}
+              disabled={
+                is_nil(@selected_genus) or @epithet == "" or
+                  (@family_is_new and @is_gall and @family_type in [nil, ""])
+              }
               class="px-4 py-2 text-sm font-medium text-white bg-gf-maroon border border-transparent rounded-md hover:bg-gf-maroon/90 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Save

@@ -39,6 +39,7 @@ defmodule Gallformers.Taxonomy.Lineage do
           {:ok, t()}
           | {:new_genus, t()}
           | {:ambiguous, String.t(), [family_candidate()]}
+          | {:genus_reference, String.t(), integer() | nil}
 
   # -------------------------------------------------------------------
   # Constructors

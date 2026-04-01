@@ -125,8 +125,7 @@ defmodule Gallformers.Taxonomy do
   defdelegate extract_genus_from_name(name), to: SpeciesLink
   defdelegate link_species_to_taxonomy(species_id, taxonomy_id), to: SpeciesLink
 
-  defdelegate link_species_taxonomy(species_id, taxonomy, genus_is_new, parent_id),
-    to: SpeciesLink
+  defdelegate place_species_in_tree(species_id, lineage, opts \\ []), to: SpeciesLink
 
   defdelegate create_genus_for_species(genus_name, family_id, species_id), to: SpeciesLink
   defdelegate update_species_genus(species_id, new_genus_id), to: SpeciesLink
@@ -162,6 +161,22 @@ defmodule Gallformers.Taxonomy do
 
   defdelegate reassign_species_taxonomy(species_id, new_genus_id, opts \\ []),
     to: Reclassification
+
+  defdelegate rename_species(species_id, new_name, add_alias?), to: Reclassification
+
+  @doc """
+  Renames a species for a genus change, optionally adding an alias for the old name.
+  """
+  @spec rename_for_genus_change(
+          Gallformers.Species.Species.t(),
+          String.t(),
+          String.t(),
+          boolean()
+        ) ::
+          {:ok, Gallformers.Species.Species.t()} | {:error, :name_exists}
+  def rename_for_genus_change(species, old_genus, new_genus, add_alias? \\ true) do
+    Reclassification.rename_for_genus_change(species, old_genus, new_genus, add_alias?)
+  end
 
   # =====================================================================
   # Delegated to Taxonomy.Search — Typeahead & Search Queries

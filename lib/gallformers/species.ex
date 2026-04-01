@@ -291,17 +291,27 @@ defmodule Gallformers.Species do
   end
 
   @doc """
-  Creates a species.
+  Creates a species and places it in the taxonomy tree.
+
+  The `taxonomy_opts` keyword list must include:
+  - `:taxonomy` - A `%Lineage{}` struct for tree placement
+  - `:parent_id` - Family/section ID (required when genus is new)
+  - `:section_id` - Section to link the species to (optional)
+
+  Returns `{:ok, species}` or `{:error, changeset}`.
   """
-  @spec create_species(map()) :: {:ok, Species.t()} | {:error, Ecto.Changeset.t()}
-  def create_species(attrs \\ %{}) do
+  @spec create_species(map(), keyword()) :: {:ok, Species.t()} | {:error, Ecto.Changeset.t()}
+  def create_species(attrs, taxonomy_opts) do
     result =
       %Species{}
       |> Species.changeset(attrs)
       |> Repo.insert()
 
     case result do
-      {:ok, _species} ->
+      {:ok, species} ->
+        lineage = Keyword.fetch!(taxonomy_opts, :taxonomy)
+        opts = Keyword.take(taxonomy_opts, [:parent_id, :section_id])
+        Gallformers.Taxonomy.place_species_in_tree(species.id, lineage, opts)
         broadcast(result, :species_created)
 
       {:error, _} ->

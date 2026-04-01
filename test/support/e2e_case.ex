@@ -1,48 +1,42 @@
 defmodule GallformersWeb.E2ECase do
   @moduledoc """
-  Test case for E2E browser tests using Wallaby.
+  Test case for E2E browser tests using Playwright.
 
-  These tests run in a real browser (Chrome) and exercise the full application stack.
-  They are excluded from regular `mix test` runs and must be explicitly enabled.
+  All E2E tests run against a production data copy and exercise the full
+  browser stack (LiveView, Phoenix, Ecto) in a real browser via Playwright.
+  Writes use the Ecto sandbox so they roll back automatically.
 
   ## Prerequisites
 
-  Install ChromeDriver (required by Wallaby):
+  Install Playwright browsers:
 
-      # macOS
-      brew install chromedriver
+      make e2e-setup
 
-      # Or download from https://chromedriver.chromium.org/downloads
+  Load production data into the test database:
+
+      make load-prod-data-test
 
   ## Running E2E Tests
 
-      # Run all E2E tests
-      make e2e
-
-      # Run specific area
-      make e2e-public   # Public pages
-      make e2e-admin    # Admin pages
-      make e2e-search   # Search functionality
-      make e2e-browse   # Species/hosts/galls browsing
-
-      # Run with visible browser (for debugging)
-      E2E_HEADED=1 make e2e
+      make e2e              # Run all E2E tests (loads prod data automatically)
+      make e2e-admin        # Admin tests only
+      make e2e-public       # Public pages only
+      make e2e-headed       # Run with visible browser
 
   ## Writing E2E Tests
 
-  All E2E tests must be tagged with `@tag :e2e` plus an area tag:
+  All E2E tests must be tagged with `@moduletag :e2e` plus an area tag:
 
-      defmodule GallformersWeb.E2E.PublicTest do
+      defmodule GallformersWeb.E2E.SomeTest do
         use GallformersWeb.E2ECase
 
         @moduletag :e2e
         @moduletag :e2e_public
 
-        test "home page loads", %{session: session} do
-          session
+        test "page loads", %{conn: conn} do
+          conn
           |> visit("/")
-          |> assert_has(Query.css("body.phx-connected"))
-          |> assert_has(Query.css("h1", text: "Welcome"))
+          |> assert_has("h1", text: "Welcome")
         end
       end
 
@@ -56,32 +50,65 @@ defmodule GallformersWeb.E2ECase do
 
   use ExUnit.CaseTemplate
 
+  import Ecto.Query
+
+  @min_species_count 1000
+
   using do
     quote do
-      use Wallaby.Feature
+      import PhoenixTest
 
-      alias Wallaby.Query
-
-      # Only import non-conflicting functions from Query
-      # Use Query.text/1 explicitly when needed to avoid conflicts with Wallaby.Browser.text/1
-      import Wallaby.Query, only: [css: 1, css: 2, button: 1, link: 1, fillable_field: 1]
-
-      @endpoint GallformersWeb.Endpoint
+      import PhoenixTest.Playwright,
+        only: [
+          click: 2,
+          click: 3,
+          click: 4,
+          click_button: 4,
+          click_link: 4,
+          evaluate: 2,
+          evaluate: 3,
+          evaluate: 4,
+          type: 3,
+          type: 4,
+          press: 3,
+          press: 4,
+          screenshot: 2,
+          screenshot: 3,
+          step: 3,
+          visit: 3,
+          with_dialog: 3
+        ]
     end
   end
 
-  setup tags do
-    # Set up database sandbox with shared mode for browser tests
-    :ok = Ecto.Adapters.SQL.Sandbox.checkout(Gallformers.Repo)
+  setup_all context do
+    # Verify production data is loaded
+    pid = Ecto.Adapters.SQL.Sandbox.start_owner!(Gallformers.Repo, shared: true)
 
-    unless tags[:async] do
-      Ecto.Adapters.SQL.Sandbox.mode(Gallformers.Repo, {:shared, self()})
+    count =
+      Gallformers.Repo.one(from s in "species", select: count(s.id))
+
+    Ecto.Adapters.SQL.Sandbox.stop_owner(pid)
+
+    if count < @min_species_count do
+      raise """
+      E2E tests require production data (found #{count} species, need >= #{@min_species_count}).
+
+      Run `make e2e` which loads production data automatically,
+      or `make load-prod-data-test` to load it manually.
+      """
     end
 
-    # Allow Wallaby's browser process to access the database
-    metadata = Phoenix.Ecto.SQL.Sandbox.metadata_for(Gallformers.Repo, self())
-    {:ok, session} = Wallaby.start_session(metadata: metadata)
+    # Launch browser via Playwright
+    PhoenixTest.Playwright.Case.do_setup_all(context)
+  end
 
-    {:ok, session: session}
+  setup context do
+    # Enable auth bypass so admin pages work without Auth0
+    Application.put_env(:gallformers, :dev_auth_bypass, true)
+    on_exit(fn -> Application.delete_env(:gallformers, :dev_auth_bypass) end)
+
+    # Create Playwright session (handles Ecto sandbox internally)
+    PhoenixTest.Playwright.Case.do_setup(context)
   end
 end

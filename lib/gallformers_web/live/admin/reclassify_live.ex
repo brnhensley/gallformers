@@ -65,6 +65,9 @@ defmodule GallformersWeb.Admin.ReclassifyLive do
     |> assign_new(:epithet, fn -> "" end)
     |> assign_new(:add_alias_on_rename, fn -> true end)
     |> assign_new(:rename_collisions, fn -> [] end)
+    |> assign_new(:genus_is_new, fn -> false end)
+    |> assign_new(:family_is_new, fn -> false end)
+    |> assign_new(:family_type, fn -> nil end)
   end
 
   defp open_modal(socket) do
@@ -82,6 +85,9 @@ defmodule GallformersWeb.Admin.ReclassifyLive do
     |> assign(:epithet, epithet)
     |> assign(:add_alias_on_rename, true)
     |> assign(:rename_collisions, [])
+    |> assign(:genus_is_new, false)
+    |> assign(:family_is_new, false)
+    |> assign(:family_type, nil)
   end
 
   defp resolve_current_genus(nil), do: nil
@@ -122,6 +128,8 @@ defmodule GallformersWeb.Admin.ReclassifyLive do
         add_alias_checked={@add_alias_on_rename}
         rename_collisions={@rename_collisions}
         is_gall={@is_gall}
+        family_is_new={@family_is_new}
+        family_type={@family_type}
       />
     </div>
     """
@@ -170,9 +178,12 @@ defmodule GallformersWeb.Admin.ReclassifyLive do
        |> assign(:selected_family, family)
        |> assign(:family_query, "")
        |> assign(:family_results, [])
+       |> assign(:family_is_new, false)
+       |> assign(:family_type, nil)
        |> assign(:selected_genus, nil)
        |> assign(:genus_query, "")
-       |> assign(:genus_results, [])}
+       |> assign(:genus_results, [])
+       |> assign(:genus_is_new, false)}
     else
       {:noreply, socket}
     end
@@ -185,9 +196,12 @@ defmodule GallformersWeb.Admin.ReclassifyLive do
      |> assign(:selected_family, nil)
      |> assign(:family_query, "")
      |> assign(:family_results, [])
+     |> assign(:family_is_new, false)
+     |> assign(:family_type, nil)
      |> assign(:selected_genus, nil)
      |> assign(:genus_query, "")
-     |> assign(:genus_results, [])}
+     |> assign(:genus_results, [])
+     |> assign(:genus_is_new, false)}
   end
 
   @impl true
@@ -217,7 +231,8 @@ defmodule GallformersWeb.Admin.ReclassifyLive do
        socket
        |> assign(:selected_genus, genus)
        |> assign(:genus_query, "")
-       |> assign(:genus_results, [])}
+       |> assign(:genus_results, [])
+       |> assign(:genus_is_new, false)}
     else
       {:noreply, socket}
     end
@@ -229,7 +244,38 @@ defmodule GallformersWeb.Admin.ReclassifyLive do
      socket
      |> assign(:selected_genus, nil)
      |> assign(:genus_query, "")
-     |> assign(:genus_results, [])}
+     |> assign(:genus_results, [])
+     |> assign(:genus_is_new, false)}
+  end
+
+  @impl true
+  def handle_event("reclassify_create_family", %{"name" => name}, socket) do
+    {:noreply,
+     socket
+     |> assign(:selected_family, %{id: nil, name: name})
+     |> assign(:family_query, "")
+     |> assign(:family_results, [])
+     |> assign(:family_is_new, true)
+     |> assign(:family_type, if(socket.assigns.is_gall, do: nil, else: "Plant"))
+     |> assign(:selected_genus, nil)
+     |> assign(:genus_query, "")
+     |> assign(:genus_results, [])
+     |> assign(:genus_is_new, false)}
+  end
+
+  @impl true
+  def handle_event("reclassify_create_genus", %{"name" => name}, socket) do
+    {:noreply,
+     socket
+     |> assign(:selected_genus, %{id: nil, name: name, is_placeholder: false})
+     |> assign(:genus_query, "")
+     |> assign(:genus_results, [])
+     |> assign(:genus_is_new, true)}
+  end
+
+  @impl true
+  def handle_event("reclassify_select_family_type", %{"value" => type}, socket) do
+    {:noreply, assign(socket, :family_type, type)}
   end
 
   @impl true
@@ -274,10 +320,14 @@ defmodule GallformersWeb.Admin.ReclassifyLive do
     } = socket.assigns
 
     epithet = String.trim(raw_epithet)
-    genus_id = Taxonomy.resolve_genus_id(selected_genus, selected_family)
+    genus_is_new? = socket.assigns.genus_is_new
+
+    genus_id =
+      if genus_is_new?, do: nil, else: Taxonomy.resolve_genus_id(selected_genus, selected_family)
+
     new_name = compute_name(selected_genus, epithet, selected_family)
     current_genus_id = current_genus && current_genus.id
-    genus_changed? = genus_id != current_genus_id
+    genus_changed? = genus_is_new? || genus_id != current_genus_id
     name_changed? = new_name != old_name
 
     cond do
@@ -303,17 +353,40 @@ defmodule GallformersWeb.Admin.ReclassifyLive do
   # -------------------------------------------------------------------
 
   defp execute_reclassify(socket, species_id, genus_id, new_name, old_name, opts) do
-    params = %{
-      genus_id: genus_id,
-      new_name: new_name,
-      old_name: old_name,
-      genus_changed?: opts[:genus_changed?],
-      name_changed?: opts[:name_changed?],
-      add_alias?: opts[:add_alias?]
-    }
+    params =
+      %{
+        new_name: new_name,
+        old_name: old_name,
+        genus_changed?: opts[:genus_changed?],
+        name_changed?: opts[:name_changed?],
+        add_alias?: opts[:add_alias?]
+      }
+      |> put_genus_params(socket.assigns, genus_id)
 
     result = Taxonomy.reclassify_species(species_id, params)
     handle_reclassify_result(socket, result, opts[:name_changed?], opts[:add_alias?])
+  end
+
+  defp put_genus_params(params, %{genus_is_new: true, family_is_new: true} = assigns, _genus_id) do
+    Map.merge(params, %{
+      genus_is_new: true,
+      genus_name: assigns.selected_genus.name,
+      family_is_new: true,
+      family_name: assigns.selected_family.name,
+      family_type: assigns.family_type
+    })
+  end
+
+  defp put_genus_params(params, %{genus_is_new: true} = assigns, _genus_id) do
+    Map.merge(params, %{
+      genus_is_new: true,
+      genus_name: assigns.selected_genus.name,
+      family_id: assigns.selected_family.id
+    })
+  end
+
+  defp put_genus_params(params, _assigns, genus_id) do
+    Map.put(params, :genus_id, genus_id)
   end
 
   defp handle_reclassify_result(socket, {:ok, species}, name_changed?, add_alias?) do

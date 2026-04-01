@@ -90,8 +90,9 @@ defmodule Gallformers.MixProject do
       # Security scanning
       {:sobelow, "~> 0.13", only: [:dev, :test], runtime: false},
       {:mix_audit, "~> 2.1", only: [:dev, :test], runtime: false},
-      # E2E browser testing (separate from regular test suite)
-      {:wallaby, "~> 0.30", only: :test, runtime: false}
+      # E2E browser testing (Playwright, separate from regular test suite)
+      {:phoenix_test, "~> 0.4", only: :test, runtime: false},
+      {:phoenix_test_playwright, "~> 0.12", only: :test, runtime: false}
     ]
   end
 
@@ -152,13 +153,14 @@ defmodule Gallformers.MixProject do
     ]
   end
 
-  # Check for unexpected test exclusions (Option A solution)
-  # Runs all tests including E2E to detect if any non-E2E tests are excluded
-  # (e.g., accidentally tagged with @tag :skip, @tag :pending, etc.)
+  # Check for unexpected test exclusions
+  # Runs unit tests only (E2E tests require prod data and are excluded).
+  # Detects if any non-E2E tests are accidentally excluded
+  # (e.g., tagged with @tag :skip, @tag :pending, etc.)
   #
   # Usage: mix test.check_exclusions
   #
-  # Expected output: "726 tests, 0 failures" (705 unit + 21 E2E)
+  # Expected output: "705 tests, 0 failures"
   # If you see "X excluded" where X > 0, there are hidden exclusions to investigate
   defp check_test_exclusions(_args) do
     IO.puts(
@@ -166,17 +168,14 @@ defmodule Gallformers.MixProject do
         IO.ANSI.yellow() <> "==> Checking for unexpected test exclusions..." <> IO.ANSI.reset()
     )
 
-    IO.puts("==> Running ALL tests (including E2E) to detect hidden exclusions\n")
+    IO.puts("==> Running unit tests to detect hidden exclusions\n")
+    IO.puts("==> (E2E tests excluded — they require prod data. Run `make e2e` separately.)\n")
 
-    # Set env to start Wallaby for E2E tests
-    System.put_env("GALLFORMERS_E2E", "1")
-
-    # Run with --include e2e to override default exclusion
-    # If any tests are still excluded, they have other tags like :skip or :pending
-    Mix.Task.run("test", ["--include", "e2e"])
+    # Run without E2E — those require prod data and are a separate preflight step
+    Mix.Task.run("test", [])
 
     IO.puts("\n" <> IO.ANSI.green() <> "==> Check complete!" <> IO.ANSI.reset())
-    IO.puts("==> Expected: 726 tests total (705 unit + 21 E2E), 0 excluded")
+    IO.puts("==> Expected: 705 tests, 0 excluded")
     IO.puts("==> If you see 'X excluded' above, investigate those tests")
     IO.puts("==> Common causes: @tag :skip, @tag :pending, @moduletag :skip\n")
   end

@@ -62,56 +62,43 @@ defmodule Gallformers.Taxonomy.SpeciesLink do
   end
 
   @doc """
-  Links a species to its taxonomy, creating the genus if needed.
+  Places a species in the taxonomy tree by linking it to its genus.
 
-  Call this within a transaction after creating a species. It handles:
-  - Creating a new genus under the selected section or family (if genus_is_new is true)
-  - Linking the species to an existing genus (if genus exists)
-  - No-op if no taxonomy info is available
+  Determines whether to link to an existing genus or create a new one based
+  on whether the lineage's genus has an ID (existing) or not (new).
 
-  ## Parameters
-  - species_id: The ID of the newly created species
-  - taxonomy: Map from lookup_taxonomy_for_new_species/1
-  - genus_is_new: Boolean indicating if genus needs to be created
-  - parent_id: The section or family ID to create the genus under (required if genus_is_new is true)
+  ## Options
+  - `:parent_id` - Family or section ID to create new genus under (required when genus is new)
+  - `:section_id` - Section ID to also link the species to (optional, for hosts)
 
-  Returns :ok on success.
+  Returns `:ok` on success.
   """
-  @spec link_species_taxonomy(integer(), Lineage.t() | nil, boolean(), integer() | nil) :: :ok
-  def link_species_taxonomy(
-        species_id,
-        %Lineage{genus: %Genus{name: genus_name}},
-        true,
-        parent_id
-      )
-      when is_binary(genus_name) do
-    if TaxonName.unknown_genus?(genus_name) do
-      # For Unknown genus, use find_or_create to avoid duplicates per family
+  @spec place_species_in_tree(integer(), Lineage.t(), keyword()) :: :ok
+  def place_species_in_tree(species_id, %Lineage{} = lineage, opts \\ []) do
+    place_genus(species_id, lineage, opts)
+    maybe_link_section(species_id, opts)
+    :ok
+  end
+
+  defp place_genus(species_id, %Lineage{genus: %Genus{id: nil, name: name}}, opts) do
+    parent_id = Keyword.fetch!(opts, :parent_id)
+
+    if TaxonName.unknown_genus?(name) do
       {:ok, genus} = Tree.find_or_create_unknown_genus(parent_id)
       link_species_to_taxonomy(species_id, genus.id)
     else
-      # New genus - create it under the parent (section or family)
-      {:ok, _genus} = create_genus_for_species(genus_name, parent_id, species_id)
+      {:ok, _genus} = create_genus_for_species(name, parent_id, species_id)
     end
-
-    :ok
   end
 
-  def link_species_taxonomy(species_id, %Lineage{genus: %Genus{id: genus_id}}, false, _parent_id)
-      when not is_nil(genus_id) do
+  defp place_genus(species_id, %Lineage{genus: %Genus{id: genus_id}}, _opts) do
     link_species_to_taxonomy(species_id, genus_id)
-    :ok
   end
 
-  def link_species_taxonomy(_species_id, taxonomy, false, _parent_id) do
-    require Logger
-
-    Logger.error(
-      "link_species_taxonomy called with genus_is_new=false but missing genus ID. " <>
-        "Taxonomy: #{inspect(taxonomy)}"
-    )
-
-    raise "link_species_taxonomy: genus_is_new=false but missing genus ID in taxonomy"
+  defp maybe_link_section(species_id, opts) do
+    if section_id = Keyword.get(opts, :section_id) do
+      link_species_to_taxonomy(species_id, section_id)
+    end
   end
 
   @doc """
@@ -207,6 +194,28 @@ defmodule Gallformers.Taxonomy.SpeciesLink do
   """
   @spec lookup_taxonomy_for_new_species(String.t()) :: Lineage.lookup_result() | nil
   def lookup_taxonomy_for_new_species(name) when is_binary(name) do
+    if TaxonName.genus_reference?(name) do
+      resolve_genus_reference(name)
+    else
+      resolve_genus_for_species(name)
+    end
+  end
+
+  def lookup_taxonomy_for_new_species(_), do: nil
+
+  defp resolve_genus_reference(name) do
+    genus_name = extract_genus_from_name(name)
+
+    genus_id =
+      case genus_name && Tree.get_genera_by_name(genus_name) do
+        [single] -> single.id
+        _ -> nil
+      end
+
+    {:genus_reference, genus_name, genus_id}
+  end
+
+  defp resolve_genus_for_species(name) do
     case extract_genus_from_name(name) do
       nil ->
         nil
@@ -227,8 +236,6 @@ defmodule Gallformers.Taxonomy.SpeciesLink do
         end
     end
   end
-
-  def lookup_taxonomy_for_new_species(_), do: nil
 
   defp extract_family_candidate(genus) do
     lineage = Tree.build_taxonomy_from_genus(genus)
@@ -294,6 +301,12 @@ defmodule Gallformers.Taxonomy.SpeciesLink do
         possible_families: []
       }
     end
+  end
+
+  def resolve_taxonomy_for_species({:genus_reference, _genus_name, _genus_id}, _family_ids) do
+    # Genus-level references (e.g., "Lupinus spp.") are not species — callers
+    # should intercept this variant before calling resolve_taxonomy_for_species.
+    %{taxonomy: nil, genus_is_new: false, family_id: nil, section_id: nil, possible_families: []}
   end
 
   def resolve_taxonomy_for_species({:ambiguous, genus_name, possible_families}, family_ids) do

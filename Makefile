@@ -172,135 +172,130 @@ test-prod-data: load-prod-data-test
 		$(MAKE) test-db; \
 		exit $$status
 
-# Run E2E browser tests against production data
-# Requires chromedriver: brew install chromedriver
-test-prod-data-e2e: load-prod-data-test
-	$(call check_chromedriver)
-	@echo "Running prod data E2E tests..."
-	@GALLFORMERS_E2E=1 mix test test/prod_data/e2e --include prod_data; \
-		status=$$?; \
-		echo "Restoring test database..."; \
-		$(MAKE) test-db; \
-		exit $$status
-
-# Run all prod data tests (context + E2E in separate passes)
+# Run all prod data tests (context tests + E2E browser tests)
+# E2E tests are now consolidated in test/e2e/ — use `make e2e` to run them separately
 test-prod-data-all: load-prod-data-test
-	$(call check_chromedriver)
 	@echo "Running prod data context tests..."
 	@mix test test/prod_data/invariants_test.exs test/prod_data/write_operations_test.exs --include prod_data
-	@echo "Running prod data E2E tests..."
-	@GALLFORMERS_E2E=1 mix test test/prod_data/e2e --include prod_data; \
+	@echo "Running E2E browser tests..."
+	@GALLFORMERS_E2E=1 mix test test/e2e --include e2e; \
 		status=$$?; \
 		echo "Restoring test database..."; \
 		$(MAKE) test-db; \
 		exit $$status
 
 # Check for unexpected test exclusions (non-E2E tests with @tag :skip, etc.)
-# Runs ALL tests including E2E - if output shows "X excluded", investigate
+# Runs unit tests only — E2E tests require prod data and are excluded
 test-check-exclusions:
-	$(call check_chromedriver)
 	mix test.check_exclusions
 
 # =============================================================================
-# E2E Testing (Wallaby/Chrome)
+# E2E Testing (Playwright)
 # =============================================================================
-# E2E tests are excluded from regular test runs. Use these targets to run them.
-# Requires chromedriver: brew install chromedriver (macOS)
+# E2E tests run against a production data copy in a real Firefox browser.
+# All tests are excluded from regular test runs. Use these targets to run them.
 # See test/support/e2e_case.ex for documentation on writing E2E tests.
 
 .PHONY: e2e e2e-public e2e-search e2e-browse e2e-admin e2e-auth e2e-setup e2e-headed e2e-slow e2e-changed
 
-# Helper function to check chromedriver (called by all E2E targets)
-define check_chromedriver
-	@if ! command -v chromedriver >/dev/null 2>&1; then \
-		echo ""; \
-		echo "ERROR: chromedriver not found"; \
-		echo ""; \
-		echo "E2E tests require chromedriver. Install it:"; \
-		echo "  macOS:   brew install chromedriver"; \
-		echo "           xattr -d com.apple.quarantine \$$(which chromedriver)"; \
-		echo "  Ubuntu:  sudo apt-get install chromium-chromedriver"; \
-		echo ""; \
-		echo "Then run: make e2e-setup"; \
-		echo ""; \
-		exit 1; \
-	fi
-endef
-
-# Check chromedriver installation (required for Wallaby E2E tests)
+# Install Playwright browsers (required once, or after Playwright version bumps)
 e2e-setup:
-	@echo "Checking chromedriver installation..."
-	@if command -v chromedriver >/dev/null 2>&1; then \
-		echo "✓ chromedriver found: $$(chromedriver --version)"; \
-	else \
-		echo "✗ chromedriver not found"; \
-		echo ""; \
-		echo "Install chromedriver:"; \
-		echo "  macOS:   brew install chromedriver"; \
-		echo "           xattr -d com.apple.quarantine \$$(which chromedriver)"; \
-		echo "  Ubuntu:  sudo apt-get install chromium-chromedriver"; \
-		echo "  Or download from: https://chromedriver.chromium.org/downloads"; \
-		exit 1; \
-	fi
+	@echo "Installing Playwright browsers..."
+	@npx --prefix assets playwright install firefox --with-deps
 	@echo ""
 	@echo "Done. Run 'make e2e' to run E2E tests."
 
-# Run all E2E tests
-e2e:
-	$(call check_chromedriver)
-	@echo "Running all E2E tests..."
-	GALLFORMERS_E2E=1 mix test test/e2e --include e2e
+# Run all E2E tests (loads prod data, runs in two passes, restores test DB)
+# Pass 1: main suite
+# Pass 2: host admin reclassify in its own ExUnit invocation (heavy page
+#          with range map — LiveView mount needs a clean process environment)
+E2E_MAIN := test/e2e/public test/e2e/search test/e2e/browse test/e2e/auth \
+	test/e2e/admin/admin_test.exs test/e2e/admin/reclassify_test.exs \
+	test/e2e/admin/taxonomy_admin_test.exs
+E2E_HOST := test/e2e/admin/reclassify_host_test.exs
+
+e2e: load-prod-data-test
+	@echo "Running E2E tests (pass 1: main suite)..."
+	@GALLFORMERS_E2E=1 mix test $(E2E_MAIN) --include e2e
+	@echo "Running E2E tests (pass 2: host admin)..."
+	@GALLFORMERS_E2E=1 mix test $(E2E_HOST) --include e2e; \
+		status=$$?; \
+		echo "Restoring test database..."; \
+		$(MAKE) test-db; \
+		exit $$status
 
 # Run E2E tests for public pages only
-e2e-public:
-	$(call check_chromedriver)
+e2e-public: load-prod-data-test
 	@echo "Running public pages E2E tests..."
-	GALLFORMERS_E2E=1 mix test test/e2e/public --include e2e
+	@GALLFORMERS_E2E=1 mix test test/e2e/public --include e2e; \
+		status=$$?; \
+		echo "Restoring test database..."; \
+		$(MAKE) test-db; \
+		exit $$status
 
 # Run E2E tests for search functionality only
-e2e-search:
-	$(call check_chromedriver)
+e2e-search: load-prod-data-test
 	@echo "Running search E2E tests..."
-	GALLFORMERS_E2E=1 mix test test/e2e/search --include e2e
+	@GALLFORMERS_E2E=1 mix test test/e2e/search --include e2e; \
+		status=$$?; \
+		echo "Restoring test database..."; \
+		$(MAKE) test-db; \
+		exit $$status
 
 # Run E2E tests for browse functionality only
-e2e-browse:
-	$(call check_chromedriver)
+e2e-browse: load-prod-data-test
 	@echo "Running browse E2E tests..."
-	GALLFORMERS_E2E=1 mix test test/e2e/browse --include e2e
+	@GALLFORMERS_E2E=1 mix test test/e2e/browse --include e2e; \
+		status=$$?; \
+		echo "Restoring test database..."; \
+		$(MAKE) test-db; \
+		exit $$status
 
 # Run E2E tests for admin functionality only
-e2e-admin:
-	$(call check_chromedriver)
+e2e-admin: load-prod-data-test
 	@echo "Running admin E2E tests..."
-	GALLFORMERS_E2E=1 mix test test/e2e/admin --include e2e
+	@GALLFORMERS_E2E=1 mix test test/e2e/admin --include e2e; \
+		status=$$?; \
+		echo "Restoring test database..."; \
+		$(MAKE) test-db; \
+		exit $$status
 
 # Run E2E tests for auth functionality only
-e2e-auth:
-	$(call check_chromedriver)
+e2e-auth: load-prod-data-test
 	@echo "Running auth E2E tests..."
-	GALLFORMERS_E2E=1 mix test test/e2e/auth --include e2e
+	@GALLFORMERS_E2E=1 mix test test/e2e/auth --include e2e; \
+		status=$$?; \
+		echo "Restoring test database..."; \
+		$(MAKE) test-db; \
+		exit $$status
 
 # Run E2E tests with visible browser (for debugging)
-e2e-headed:
-	$(call check_chromedriver)
+e2e-headed: load-prod-data-test
 	@echo "Running E2E tests with visible browser..."
-	GALLFORMERS_E2E=1 E2E_HEADED=1 mix test test/e2e --include e2e
+	@GALLFORMERS_E2E=1 E2E_HEADED=1 mix test test/e2e --include e2e; \
+		status=$$?; \
+		echo "Restoring test database..."; \
+		$(MAKE) test-db; \
+		exit $$status
 
 # Run E2E tests in slow motion (for debugging)
-# Note: Wallaby doesn't have a built-in slow mode like Playwright,
-# but headed mode helps with visual debugging
-e2e-slow:
-	$(call check_chromedriver)
+e2e-slow: load-prod-data-test
 	@echo "Running E2E tests with visible browser (slow mode)..."
-	GALLFORMERS_E2E=1 E2E_HEADED=1 mix test test/e2e --include e2e --trace
+	@GALLFORMERS_E2E=1 E2E_HEADED=1 mix test test/e2e --include e2e --trace; \
+		status=$$?; \
+		echo "Restoring test database..."; \
+		$(MAKE) test-db; \
+		exit $$status
 
 # Run only E2E tests affected by changed files (smart mode)
 # Usage: make e2e-changed              # Compare against main
 #        make e2e-changed REF=HEAD~3   # Compare against specific ref
-e2e-changed:
-	$(call check_chromedriver)
-	@./scripts/e2e-changed $(REF)
+e2e-changed: load-prod-data-test
+	@./scripts/e2e-changed $(REF); \
+		status=$$?; \
+		echo "Restoring test database..."; \
+		$(MAKE) test-db; \
+		exit $$status
 
 # =============================================================================
 
@@ -327,17 +322,10 @@ check-bg:
 	@($(MAKE) check-full 2>&1 && osascript -e 'display notification "All checks passed" with title "Gallformers"' || osascript -e 'display notification "Check failed — see terminal" with title "Gallformers"') &
 
 # Run everything before pushing (local only, not for CI)
-# Requires: chromedriver (make e2e-setup) and AWS credentials (for prod data tests)
+# Requires: Playwright browsers (make e2e-setup) and AWS credentials (for prod data tests)
 preflight: ci
-	$(call check_chromedriver)
 	@echo ""
-	@echo "==> CI checks passed. Running E2E browser tests..."
-	GALLFORMERS_E2E=1 mix test test/e2e --include e2e
-	@echo "Stopping stale chromedriver processes..."
-	@pkill -f chromedriver 2>/dev/null || true
-	@sleep 1
-	@echo ""
-	@echo "==> E2E tests passed. Running prod data tests..."
+	@echo "==> CI checks passed. Running prod data + E2E tests..."
 	$(MAKE) test-prod-data-all
 	@echo ""
 	@echo "==> All preflight checks passed! Safe to push."
@@ -376,14 +364,13 @@ help:
 	@echo "  make dev-lan           Start dev server on :4002 for LAN access (LAN_PORT=N to override)"
 	@echo "  make test              Run tests (fast, excludes E2E and prod_data)"
 	@echo "  make test-prod-data    Run context tests against prod data copy (no browser)"
-	@echo "  make test-prod-data-e2e  Run E2E tests against prod data copy (requires chromedriver)"
-	@echo "  make test-prod-data-all  Run all tests against prod data copy"
+	@echo "  make test-prod-data-all  Run all prod data tests (context + E2E)"
 	@echo "  make ci                Run all CI checks (format, compile, credo, test, dialyzer)"
-	@echo "  make preflight         Run EVERYTHING before pushing (ci + e2e + prod data tests)"
+	@echo "  make preflight         Run EVERYTHING before pushing (ci + prod data + E2E)"
 	@echo ""
-	@echo "E2E Testing (Wallaby/Chrome):"
-	@echo "  make e2e-setup         Check chromedriver installation"
-	@echo "  make e2e               Run all E2E tests"
+	@echo "E2E Testing (Playwright):"
+	@echo "  make e2e-setup         Install Playwright browsers"
+	@echo "  make e2e               Run all E2E tests (loads prod data automatically)"
 	@echo "  make e2e-changed       Run E2E tests for changed files only (smart)"
 	@echo "  make e2e-public        Run E2E tests for public pages only"
 	@echo "  make e2e-search        Run E2E tests for search only"

@@ -12,33 +12,33 @@ defmodule GallformersWeb.E2E.AuthTest do
   @moduletag :e2e_auth
 
   describe "login route" do
-    test "redirects to Auth0", %{session: session} do
+    test "redirects to Auth0", %{conn: conn} do
       # The login route should redirect to Auth0
       # We can't follow the full OAuth flow, but we can verify the redirect
-      session
+      conn
       |> visit("/auth/auth0")
       # This will either redirect externally or show an error page
       # In test mode without real Auth0, we expect some response
-      |> assert_has(css("body"))
+      |> assert_has("body")
     end
   end
 
   describe "logout route" do
-    test "redirects appropriately", %{session: session} do
+    test "redirects appropriately", %{conn: conn} do
       # Logout route should redirect
-      session
+      conn
       |> visit("/auth/logout")
       # Should redirect to home or Auth0 logout
-      |> assert_has(css("body"))
+      |> assert_has("body")
     end
   end
 
   describe "protected routes" do
-    test "admin redirects when not authenticated", %{session: session} do
-      session
+    test "admin redirects when not authenticated", %{conn: conn} do
+      conn
       |> visit("/admin")
       # Should not show admin content without auth
-      |> refute_has(css("h1", text: "Dashboard"))
+      |> refute_has("h1", text: "Dashboard")
     end
   end
 end

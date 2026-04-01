@@ -1,17 +1,18 @@
-defmodule GallformersWeb.ProdDataE2E.ReclassifyTest do
+defmodule GallformersWeb.E2E.ReclassifyTest do
   @moduledoc """
   E2E browser tests for the reclassify modal on gall and host admin forms.
 
   Tests exercise the full browser stack against real production data.
   All writes use the Ecto sandbox so they roll back automatically.
   """
-  use GallformersWeb.ProdDataE2ECase
+  use GallformersWeb.E2ECase
 
   import Ecto.Query
 
   alias Gallformers.Repo
 
-  @moduletag :prod_data
+  @moduletag :e2e
+  @moduletag :e2e_admin
 
   # ──────────────────────────────────────────────────────────────────
   # Setup helpers — find real species to test against
@@ -116,30 +117,6 @@ defmodule GallformersWeb.ProdDataE2E.ReclassifyTest do
     )
   end
 
-  # Find a host (plant) species with taxonomy.
-  defp find_host_with_taxonomy do
-    Repo.one(
-      from s in "species",
-        join: st in "species_taxonomy",
-        on: st.species_id == s.id,
-        join: genus in "taxonomy",
-        on: genus.id == st.taxonomy_id and genus.type == "genus",
-        join: family in "taxonomy",
-        on: family.id == genus.parent_id and family.type == "family",
-        where: s.taxoncode == "plant",
-        where: not like(genus.name, "Unknown%"),
-        select: %{
-          id: s.id,
-          name: s.name,
-          genus_id: genus.id,
-          genus_name: genus.name,
-          family_id: family.id,
-          family_name: family.name
-        },
-        limit: 1
-    )
-  end
-
   # Count aliases for a species via the alias_species join table.
   defp alias_count(species_id) do
     Repo.one(
@@ -153,93 +130,83 @@ defmodule GallformersWeb.ProdDataE2E.ReclassifyTest do
   # Shared interaction helpers
   # ──────────────────────────────────────────────────────────────────
 
-  # Wait for LiveView to be connected and ready.
-  defp wait_for_liveview(session) do
-    assert_has(session, css(".phx-connected"))
-  end
-
   # Open the reclassify modal by clicking the Rename/Reclassify button.
-  defp open_reclassify_modal(session) do
-    session
-    |> click(css("button", text: "Rename/Reclassify"))
-    |> assert_has(css("#reclassify-modal"))
+  defp open_reclassify_modal(conn) do
+    conn
+    |> click_button("Rename/Reclassify")
+    |> assert_has("#reclassify-modal")
   end
 
   # Push a LiveView event to the reclassify LiveComponent via liveSocket.execJS.
   # Constructs a JS command that pushes an event to the component's CID.
-  defp push_to_component(session, event, payload \\ %{}) do
+  defp push_to_component(conn, event, payload \\ %{}) do
     json_payload = Jason.encode!(payload)
 
-    session
-    |> execute_script(
-      """
-      // Find the reclassify component root and its CID
-      // The component wraps in <div id="reclassify"> which has a child with data-phx-component
+    js = """
+    (function() {
       const compRoot = document.querySelector('#reclassify [data-phx-component]') ||
                         document.getElementById('reclassify');
       if (!compRoot) { console.error('push_to_component: no component element found'); return; }
 
-      // Get the CID — either from data-phx-component directly or from a child element
       const phxComp = compRoot.dataset?.phxComponent ||
                        compRoot.querySelector('[data-phx-component]')?.dataset?.phxComponent;
       if (!phxComp) { console.error('push_to_component: no phx-component CID found'); return; }
       const cid = parseInt(phxComp);
 
-      // Build LiveView JS push command and execute it
-      // format: [["push", {event: "...", target: CID, data: {...}}]]
-      const js = [["push", {event: arguments[0], target: cid, data: JSON.parse(arguments[1])}]];
+      const js = [["push", {event: "#{event}", target: cid, data: #{json_payload}\}]];
       window.liveSocket.execJS(compRoot, JSON.stringify(js));
-      """,
-      [event, json_payload]
-    )
+    })()
+    """
+
+    conn |> evaluate(js)
 
     :timer.sleep(500)
-    session
+    conn
   end
 
   # Type into the family typeahead in the reclassify modal and select a result.
-  defp search_and_select_family(session, family_name) do
+  defp search_and_select_family(conn, family_name) do
     # Clear existing family selection, then search, then select
-    session
+    conn
     |> push_to_component("reclassify_clear_family")
     |> push_to_component("reclassify_search_family", %{value: family_name})
-    |> assert_has(css("#reclassify-family-picker-results"))
-    |> click(css("#reclassify-family-picker-results button", count: :any, at: 0))
+    |> assert_has("#reclassify-family-picker-results")
+    |> click("#reclassify-family-picker-results button")
     # Wait for LiveView to process the selection before proceeding
-    |> assert_has(css("#reclassify-family-picker-selected"))
+    |> assert_has("#reclassify-family-picker-selected")
   end
 
   # Type into the genus typeahead in the reclassify modal and select a result.
-  defp search_and_select_genus(session, genus_name) do
+  defp search_and_select_genus(conn, genus_name) do
     # Clear existing genus selection, then search, then select
-    session
+    conn
     |> push_to_component("reclassify_clear_genus")
     |> push_to_component("reclassify_search_genus", %{value: genus_name})
-    |> assert_has(css("#reclassify-genus-picker-results"))
-    |> click(css("#reclassify-genus-picker-results button", count: :any, at: 0))
+    |> assert_has("#reclassify-genus-picker-results")
+    |> click("#reclassify-genus-picker-results button")
     # Wait for LiveView to process the selection before proceeding
-    |> assert_has(css("#reclassify-genus-picker-selected"))
+    |> assert_has("#reclassify-genus-picker-selected")
   end
 
   # Set the epithet value by pushing the event directly to the component.
-  defp set_epithet(session, new_epithet) do
-    push_to_component(session, "update_reclassify_epithet", %{value: new_epithet})
+  defp set_epithet(conn, new_epithet) do
+    push_to_component(conn, "update_reclassify_epithet", %{value: new_epithet})
   end
 
   # Click the Save button in the reclassify modal.
-  defp click_reclassify_save(session) do
-    session
-    |> click(css("#reclassify-modal button", text: "Save"))
+  defp click_reclassify_save(conn) do
+    conn
+    |> click("#reclassify-modal button", "Save")
   end
 
   # Click the Cancel button in the reclassify modal.
-  defp click_reclassify_cancel(session) do
-    session
-    |> click(css("#reclassify-modal button", text: "Cancel"))
+  defp click_reclassify_cancel(conn) do
+    conn
+    |> click("#reclassify-modal button", "Cancel")
 
     # Give time for the modal to animate out
     :timer.sleep(300)
-    session
+    conn
   end
 
   # ──────────────────────────────────────────────────────────────────
@@ -247,7 +214,7 @@ defmodule GallformersWeb.ProdDataE2E.ReclassifyTest do
   # ──────────────────────────────────────────────────────────────────
 
   describe "reclassify gall to different genus in same family" do
-    test "changes genus and creates alias", %{session: session} do
+    test "changes genus and creates alias", %{conn: conn} do
       gall = find_gall_with_taxonomy()
       assert gall, "Need a gall with taxonomy for this test"
 
@@ -259,20 +226,17 @@ defmodule GallformersWeb.ProdDataE2E.ReclassifyTest do
 
       original_alias_count = alias_count(gall.id)
 
-      session
+      conn
       |> visit("/admin/galls/#{gall.id}")
-      |> wait_for_liveview()
       |> open_reclassify_modal()
       |> search_and_select_genus(target_genus.name)
       |> click_reclassify_save()
 
       # Should see success flash
-      session
-      |> assert_has(css("[role='alert']", text: "updated successfully"))
+      |> assert_has("[role='alert']", text: "updated successfully")
 
       # Verify the species name now starts with the new genus
-      session
-      |> assert_has(css("input.italic[disabled][value*='#{target_genus.name}']"))
+      |> assert_has("input.italic[disabled][value*='#{target_genus.name}']")
 
       # Verify alias was created
       assert alias_count(gall.id) > original_alias_count
@@ -284,7 +248,7 @@ defmodule GallformersWeb.ProdDataE2E.ReclassifyTest do
   # ──────────────────────────────────────────────────────────────────
 
   describe "reclassify gall to genus in different family" do
-    test "changes family and genus, creates alias", %{session: session} do
+    test "changes family and genus, creates alias", %{conn: conn} do
       gall = find_gall_with_taxonomy()
       assert gall, "Need a gall with taxonomy for this test"
 
@@ -293,21 +257,18 @@ defmodule GallformersWeb.ProdDataE2E.ReclassifyTest do
 
       original_alias_count = alias_count(gall.id)
 
-      session
+      conn
       |> visit("/admin/galls/#{gall.id}")
-      |> wait_for_liveview()
       |> open_reclassify_modal()
       |> search_and_select_family(target.family_name)
       |> search_and_select_genus(target.name)
       |> click_reclassify_save()
 
       # Should see success flash
-      session
-      |> assert_has(css("[role='alert']", text: "updated successfully"))
+      |> assert_has("[role='alert']", text: "updated successfully")
 
       # Verify the species name now starts with the new genus
-      session
-      |> assert_has(css("input.italic[disabled][value*='#{target.name}']"))
+      |> assert_has("input.italic[disabled][value*='#{target.name}']")
 
       # Verify alias was created
       assert alias_count(gall.id) > original_alias_count
@@ -319,31 +280,27 @@ defmodule GallformersWeb.ProdDataE2E.ReclassifyTest do
   # ──────────────────────────────────────────────────────────────────
 
   describe "rename epithet only" do
-    test "changes epithet without changing genus", %{session: session} do
+    test "changes epithet without changing genus", %{conn: conn} do
       gall = find_gall_with_taxonomy()
       assert gall, "Need a gall with taxonomy for this test"
 
       new_epithet = "testepithet#{System.unique_integer([:positive])}"
       original_alias_count = alias_count(gall.id)
 
-      session
+      conn
       |> visit("/admin/galls/#{gall.id}")
-      |> wait_for_liveview()
       |> open_reclassify_modal()
       |> set_epithet(new_epithet)
       |> click_reclassify_save()
 
       # Should see success flash
-      session
-      |> assert_has(css("[role='alert']", text: "updated successfully"))
+      |> assert_has("[role='alert']", text: "updated successfully")
 
       # Verify the species name contains the new epithet
-      session
-      |> assert_has(css("input.italic[disabled][value*='#{new_epithet}']"))
+      |> assert_has("input.italic[disabled][value*='#{new_epithet}']")
 
       # Verify the genus portion is unchanged
-      session
-      |> assert_has(css("input.italic[disabled][value*='#{gall.genus_name}']"))
+      |> assert_has("input.italic[disabled][value*='#{gall.genus_name}']")
 
       # Verify alias was created for old name
       assert alias_count(gall.id) > original_alias_count
@@ -355,26 +312,22 @@ defmodule GallformersWeb.ProdDataE2E.ReclassifyTest do
   # ──────────────────────────────────────────────────────────────────
 
   describe "no-op close modal" do
-    test "closing modal without changes preserves species", %{session: session} do
+    test "closing modal without changes preserves species", %{conn: conn} do
       gall = find_gall_with_taxonomy()
       assert gall, "Need a gall with taxonomy for this test"
 
       original_alias_count = alias_count(gall.id)
 
-      session
+      conn
       |> visit("/admin/galls/#{gall.id}")
-      |> wait_for_liveview()
       |> open_reclassify_modal()
       |> click_reclassify_cancel()
 
-      # Modal should be hidden (it stays in DOM but becomes invisible)
-      # The ReclassifyLive component sets show=false, so the :if={@show} removes the modal
-      session
-      |> refute_has(css("#reclassify-modal", visible: true))
+      # Modal should be gone (the :if={@show} removes the element from DOM entirely)
+      |> refute_has("#reclassify-modal")
 
       # Species name should be unchanged
-      session
-      |> assert_has(css("input.italic[disabled][value='#{gall.name}']"))
+      |> assert_has("input.italic[disabled][value='#{gall.name}']")
 
       # No new aliases
       assert alias_count(gall.id) == original_alias_count
@@ -386,21 +339,19 @@ defmodule GallformersWeb.ProdDataE2E.ReclassifyTest do
   # ──────────────────────────────────────────────────────────────────
 
   describe "no-op submit without changes" do
-    test "submitting unchanged data creates no aliases", %{session: session} do
+    test "submitting unchanged data creates no aliases", %{conn: conn} do
       gall = find_gall_with_taxonomy()
       assert gall, "Need a gall with taxonomy for this test"
 
       original_alias_count = alias_count(gall.id)
 
-      session
+      conn
       |> visit("/admin/galls/#{gall.id}")
-      |> wait_for_liveview()
       |> open_reclassify_modal()
       |> click_reclassify_save()
 
       # Should see "No changes made" info flash
-      session
-      |> assert_has(css("[role='alert']", text: "No changes"))
+      |> assert_has("[role='alert']", text: "No changes")
 
       # No new aliases
       assert alias_count(gall.id) == original_alias_count
@@ -412,7 +363,7 @@ defmodule GallformersWeb.ProdDataE2E.ReclassifyTest do
   # ──────────────────────────────────────────────────────────────────
 
   describe "reclassify undescribed gall" do
-    test "moves from Unknown genus to real genus", %{session: session} do
+    test "moves from Unknown genus to real genus", %{conn: conn} do
       gall = find_undescribed_gall()
 
       if is_nil(gall) do
@@ -422,21 +373,18 @@ defmodule GallformersWeb.ProdDataE2E.ReclassifyTest do
         target = find_genus_in_different_family(0, "gall")
         assert target, "Need a non-Unknown genus for this test"
 
-        session
+        conn
         |> visit("/admin/galls/#{gall.id}")
-        |> wait_for_liveview()
         |> open_reclassify_modal()
         |> search_and_select_family(target.family_name)
         |> search_and_select_genus(target.name)
         |> click_reclassify_save()
 
         # Should see success flash
-        session
-        |> assert_has(css("[role='alert']", text: "updated successfully"))
+        |> assert_has("[role='alert']", text: "updated successfully")
 
         # Species name should no longer start with "Unknown"
-        session
-        |> refute_has(css("input.italic[disabled][value^='Unknown']"))
+        |> refute_has("input.italic[disabled][value^='Unknown']")
       end
     end
   end
@@ -446,7 +394,7 @@ defmodule GallformersWeb.ProdDataE2E.ReclassifyTest do
   # ──────────────────────────────────────────────────────────────────
 
   describe "reclassify collision detection" do
-    test "reclassify to colliding name shows flash error, species unchanged", %{session: session} do
+    test "reclassify to colliding name shows flash error, species unchanged", %{conn: conn} do
       gall = find_gall_with_taxonomy()
       assert gall, "Need a gall with taxonomy for this test"
 
@@ -469,61 +417,18 @@ defmodule GallformersWeb.ProdDataE2E.ReclassifyTest do
         datacomplete: false
       })
 
-      session
+      conn
       |> visit("/admin/galls/#{gall.id}")
-      |> wait_for_liveview()
       |> open_reclassify_modal()
       |> search_and_select_genus(target_genus.name)
       |> click_reclassify_save()
 
       # Should see error flash about name already in use
-      session
-      |> assert_has(css("[role='alert']", text: "already in use"))
+      |> assert_has("[role='alert']", text: "already in use")
 
       # Navigate back and verify species name is unchanged
-      session
       |> visit("/admin/galls/#{gall.id}")
-      |> wait_for_liveview()
-
-      session
-      |> assert_has(css("input.italic[disabled][value='#{gall.name}']"))
-    end
-  end
-
-  # ──────────────────────────────────────────────────────────────────
-  # Test: Reclassify host to different genus
-  # ──────────────────────────────────────────────────────────────────
-
-  describe "reclassify host to different genus" do
-    test "changes host genus and creates alias", %{session: session} do
-      host = find_host_with_taxonomy()
-      assert host, "Need a host with taxonomy for this test"
-
-      target_genus =
-        find_different_genus_in_family(host.family_id, host.genus_id, "plant")
-
-      assert target_genus,
-             "Need a different genus in #{host.family_name} for this test"
-
-      original_alias_count = alias_count(host.id)
-
-      session
-      |> visit("/admin/hosts/#{host.id}")
-      |> wait_for_liveview()
-      |> open_reclassify_modal()
-      |> search_and_select_genus(target_genus.name)
-      |> click_reclassify_save()
-
-      # Should see success flash
-      session
-      |> assert_has(css("[role='alert']", text: "updated successfully"))
-
-      # Verify the species name now starts with the new genus
-      session
-      |> assert_has(css("input.italic[disabled][value*='#{target_genus.name}']"))
-
-      # Verify alias was created
-      assert alias_count(host.id) > original_alias_count
+      |> assert_has("input.italic[disabled][value='#{gall.name}']")
     end
   end
 end

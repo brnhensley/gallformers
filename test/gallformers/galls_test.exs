@@ -152,7 +152,6 @@ defmodule Gallformers.GallsTest do
           "datacomplete" => false
         },
         taxonomy: %Lineage{genus: %Genus{id: genus.id, name: genus.name}},
-        genus_is_new: false,
         parent_id: nil,
         hosts: [%{host_species_id: host.id}],
         aliases: [%{name: "Test alias", type: "common"}],
@@ -199,7 +198,6 @@ defmodule Gallformers.GallsTest do
       params = %{
         species_attrs: %{"taxoncode" => "gall"},
         taxonomy: %Lineage{genus: %Genus{name: "Whatever"}},
-        genus_is_new: false,
         parent_id: nil,
         hosts: [],
         aliases: [],

@@ -156,6 +156,7 @@ defmodule GallformersWeb.Admin.GallLive.Form do
   defp lookup_genus_name({:ok, %{genus: genus}}), do: genus.name
   defp lookup_genus_name({:new_genus, %{genus: genus}}), do: genus.name
   defp lookup_genus_name({:ambiguous, genus_name, _}), do: genus_name
+  defp lookup_genus_name({:genus_reference, genus_name, _}), do: genus_name
   defp lookup_genus_name(nil), do: nil
 
   defp redirect_to_undescribed_flow(socket, name) do
@@ -762,7 +763,6 @@ defmodule GallformersWeb.Admin.GallLive.Form do
     create_params = %{
       species_attrs: params,
       taxonomy: socket.assigns.taxonomy,
-      genus_is_new: socket.assigns.genus_is_new,
       parent_id: socket.assigns.selected_family_id,
       hosts: socket.assigns.hosts,
       aliases: socket.assigns.aliases,

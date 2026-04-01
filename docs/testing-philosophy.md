@@ -101,7 +101,7 @@ These test the full stack: Elixir, JS hooks, browser rendering, database. They c
 
 - Each test is a complete journey, not a page-load smoke test.
 - Tests verify end state (public page shows correct data after admin save).
-- Wallaby + Chrome, headless default, `E2E_HEADED=1` for debugging.
+- Playwright + Firefox, headless default, `E2E_HEADED=1` for debugging.
 - Tests create their own data where possible.
 
 ### Tier 4: Auxiliary Tests

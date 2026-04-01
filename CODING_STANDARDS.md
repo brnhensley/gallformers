@@ -180,6 +180,21 @@ lib/my_app/
 - Files mirror module namespace (`MyApp.Species.Gall` → `lib/my_app/species/gall.ex`)
 - Tests mirror source structure (`lib/my_app/species.ex` → `test/my_app/species_test.exs`)
 
+### Taxonomy Naming API
+
+**`species.name` is owned by Taxonomy.** The name field encodes taxonomy (genus + epithet), making it a denormalized cache of the species' position in the tree. Only `Gallformers.Taxonomy.*` modules may write to `species.name`. This is enforced by:
+- **Boundary** — Species depends on Taxonomy, not the reverse
+- **Credo check** (`SpeciesNameOwnership`) — flags `cast`/`change`/`force_change` on `:name` outside Taxonomy modules
+
+**Rename operations** live in `Taxonomy.Reclassification`:
+- `rename_species/3` — rename with optional alias creation
+- `rename_for_genus_change/4` — update name when genus is renamed
+- `reclassify_species/2` — combined genus change + rename, supports creating new genera/families
+
+**Taxonomy resolution** for species names lives in `Taxonomy.SpeciesLink`:
+- `lookup_taxonomy_for_new_species/1` — resolve genus from a name string
+- `resolve_taxonomy_for_species/2` — filter resolution by domain (gall/plant families)
+
 ---
 
 ## Ecto Patterns
@@ -1090,23 +1105,21 @@ cat app.log | jq -c 'select(.msg | test("Postgrex"; "i") // false)'
 
 ## E2E Tests (Browser-based)
 
-E2E tests use [Wallaby](https://github.com/elixir-wallaby/wallaby) with Chrome. They're **excluded from regular test runs** to keep the dev loop fast.
+E2E tests use [phoenix_test_playwright](https://hex.pm/packages/phoenix_test_playwright) with Firefox. They're **excluded from regular test runs** and require a production data copy in the test database.
 
-**Prerequisites**: ChromeDriver is required.
+**Prerequisites**: Install Playwright browsers.
 ```bash
-brew install chromedriver
-xattr -d com.apple.quarantine $(which chromedriver)
 make e2e-setup
 ```
 
-**Running E2E tests**:
+**Running E2E tests** (loads prod data automatically, restores test DB after):
 ```bash
 make e2e                   # Run all E2E tests
 make e2e-changed           # Run only tests affected by changed files
 make e2e-public            # Public pages only
 make e2e-search            # Search functionality only
 make e2e-browse            # Species/hosts/galls browsing only
-make e2e-admin             # Admin pages only
+make e2e-admin             # Admin pages only (taxonomy, reclassify, etc.)
 make e2e-auth              # Authentication flows only
 ```
 
@@ -1123,10 +1136,10 @@ defmodule GallformersWeb.E2E.MyTest do
   @moduletag :e2e
   @moduletag :e2e_public  # Area tag
 
-  test "page loads", %{session: session} do
-    session
+  test "page loads", %{conn: conn} do
+    conn
     |> visit("/")
-    |> assert_has(Query.css("body.phx-connected"))
+    |> assert_has("h1", text: "Welcome")
   end
 end
 ```

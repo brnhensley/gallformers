@@ -1,17 +1,18 @@
-defmodule GallformersWeb.ProdDataE2E.TaxonomyAdminTest do
+defmodule GallformersWeb.E2E.TaxonomyAdminTest do
   @moduledoc """
   E2E browser tests for taxonomy admin cascade delete and genus rename.
 
   Tests exercise the full browser stack against real production data.
   All writes use the Ecto sandbox so they roll back automatically.
   """
-  use GallformersWeb.ProdDataE2ECase
+  use GallformersWeb.E2ECase
 
   import Ecto.Query
 
   alias Gallformers.Repo
 
-  @moduletag :prod_data
+  @moduletag :e2e
+  @moduletag :e2e_admin
 
   # ──────────────────────────────────────────────────────────────────
   # Setup helpers — find real taxonomy entries to test against
@@ -202,10 +203,6 @@ defmodule GallformersWeb.ProdDataE2E.TaxonomyAdminTest do
   # Shared interaction helpers
   # ──────────────────────────────────────────────────────────────────
 
-  defp wait_for_liveview(session) do
-    assert_has(session, css(".phx-connected"))
-  end
-
   # Poll a DB condition until it returns true (or timeout after ~5s).
   # Use instead of flaky flash alert assertions.
   defp wait_for_db(condition, opts) do
@@ -227,120 +224,51 @@ defmodule GallformersWeb.ProdDataE2E.TaxonomyAdminTest do
     end
   end
 
-  # Push the "delete" event to the LiveView to open the cascade delete modal.
-  # Using execJS because Wallaby's click on phx-click buttons can be unreliable
-  # in LiveView forms.
-  defp open_delete_modal(session) do
-    session
-    |> execute_script(
-      """
-      const view = document.querySelector('[data-phx-main]');
-      if (view) {
-        window.liveSocket.execJS(view, JSON.stringify([["push", {event: "delete"}]]));
-      }
-      """,
-      []
-    )
-
-    :timer.sleep(500)
-    session
+  # Click the Delete button to open the cascade delete modal.
+  defp open_delete_modal(conn) do
+    conn
+    |> click_button("Delete")
   end
 
-  # Type the confirmation name and submit the cascade delete modal.
-  # The confirmation input uses the InputEvent hook, so we set the value,
-  # dispatch an input event to trigger the hook, then submit the form.
-  defp confirm_cascade_delete(session, name) do
-    session
-    |> execute_script(
-      """
-      const input = document.getElementById('delete-confirmation');
-      if (input) {
-        input.value = arguments[0];
-        input.dispatchEvent(new Event('input', { bubbles: true }));
-      }
-      """,
-      [name]
-    )
+  # Type the confirmation name and submit the cascade delete form.
+  defp confirm_cascade_delete(conn, name) do
+    conn
+    |> type("#delete-confirmation", name)
 
-    # Wait for InputEvent hook to push update_delete_confirmation
+    # Wait for InputEvent hook to enable the submit button
     :timer.sleep(500)
 
-    # Submit the form via LiveView event push
-    session
-    |> execute_script(
-      """
-      const view = document.querySelector('[data-phx-main]');
-      if (view) {
-        const js = [["push", {event: "confirm_cascade_delete", data: {confirmation: arguments[0]}}]];
-        window.liveSocket.execJS(view, JSON.stringify(js));
-      }
-      """,
-      [name]
-    )
+    conn
+    |> click_button("Delete Forever")
 
     # Wait for the delete + redirect
     :timer.sleep(2000)
-    session
+    conn
   end
 
-  # Fill a taxonomy form field and trigger phx-change validation.
-  # Wallaby's fill_in doesn't fire phx-change, so the form stays "not dirty"
-  # and the Save button remains disabled. Instead, we set the field value and
-  # push the validate event directly.
-  defp fill_taxonomy_field(session, field, value) do
-    session
-    |> execute_script(
-      """
-      const input = document.querySelector('#taxonomy-form [name="taxonomy[' + arguments[0] + ']"]');
-      if (input) {
-        input.value = arguments[1];
-      }
-      // Push the validate event with the full form data
-      const form = document.getElementById('taxonomy-form');
-      if (form) {
-        const formData = new FormData(form);
-        const data = {taxonomy: {}};
-        for (const [key, val] of formData.entries()) {
-          const match = key.match(/taxonomy\\[(.+)\\]/);
-          if (match) { data.taxonomy[match[1]] = val; }
-        }
-        const view = document.querySelector('[data-phx-main]');
-        if (view) {
-          window.liveSocket.execJS(view, JSON.stringify([["push", {event: "validate", data: data}]]));
-        }
-      }
-      """,
-      [field, value]
-    )
+  # Fill a taxonomy form field using Playwright's native interactions.
+  # Select all existing text (Meta+a on macOS), then type the new value
+  # which fires input/change events that LiveView picks up via phx-change.
+  defp fill_taxonomy_field(conn, field, value) do
+    selector = ~s(#taxonomy-form [name="taxonomy[#{field}]"])
 
+    conn
+    |> click(selector)
+    |> press(selector, "Meta+a")
+    |> type(selector, value)
+
+    # Wait for LiveView to process phx-change
     :timer.sleep(500)
-    session
+    conn
   end
 
-  # Submit the taxonomy form via LiveView event push.
-  defp submit_taxonomy_form(session) do
-    session
-    |> execute_script(
-      """
-      const form = document.getElementById('taxonomy-form');
-      if (form) {
-        const formData = new FormData(form);
-        const data = {taxonomy: {}};
-        for (const [key, val] of formData.entries()) {
-          const match = key.match(/taxonomy\\[(.+)\\]/);
-          if (match) { data.taxonomy[match[1]] = val; }
-        }
-        const view = document.querySelector('[data-phx-main]');
-        if (view) {
-          window.liveSocket.execJS(view, JSON.stringify([["push", {event: "save", data: data}]]));
-        }
-      }
-      """,
-      []
-    )
+  # Submit the taxonomy form by clicking Save.
+  defp submit_taxonomy_form(conn) do
+    conn
+    |> click_button("Save")
 
     :timer.sleep(1500)
-    session
+    conn
   end
 
   # ──────────────────────────────────────────────────────────────────
@@ -348,43 +276,40 @@ defmodule GallformersWeb.ProdDataE2E.TaxonomyAdminTest do
   # ──────────────────────────────────────────────────────────────────
 
   describe "cascade delete" do
-    test "view deletion impact before deleting a genus", %{session: session} do
+    test "view deletion impact before deleting a genus", %{conn: conn} do
       genus = find_small_genus()
       assert genus, "Need a small genus (2-5 species) for this test"
 
       expected_species_count = species_count_for_taxonomy(genus.id)
       assert expected_species_count >= 2
 
-      session
+      conn
       |> visit("/admin/taxonomy/#{genus.id}")
-      |> wait_for_liveview()
       |> open_delete_modal()
 
       # Modal should appear with impact information
-      session
-      |> assert_has(css("#cascade-delete-modal"))
-      |> assert_has(css("#cascade-delete-modal", text: "#{expected_species_count}"))
-      |> assert_has(css("#cascade-delete-modal", text: "species"))
+      conn
+      |> assert_has("#cascade-delete-modal")
+      |> assert_has("#cascade-delete-modal", text: "#{expected_species_count}")
+      |> assert_has("#cascade-delete-modal", text: "species")
     end
 
-    test "cascade delete a genus removes genus and species", %{session: session} do
+    test "cascade delete a genus removes genus and species", %{conn: conn} do
       genus = find_small_genus()
       assert genus, "Need a small genus (2-5 species) for this test"
 
       species_before = species_for_taxonomy(genus.id)
       assert length(species_before) >= 2
 
-      session
+      conn
       |> visit("/admin/taxonomy/#{genus.id}")
-      |> wait_for_liveview()
       |> open_delete_modal()
-      |> assert_has(css("#cascade-delete-modal"))
+      |> assert_has("#cascade-delete-modal")
       |> confirm_cascade_delete(genus.name)
 
       # Should redirect to taxonomy listing with success flash
-      session
-      |> assert_has(css("[role='alert']", text: "Deleted"))
-      |> wait_for_liveview()
+      conn
+      |> assert_has("[role='alert']", text: "Deleted")
 
       # Verify via DB: genus should be gone
       refute taxonomy_exists?(genus.id)
@@ -398,7 +323,7 @@ defmodule GallformersWeb.ProdDataE2E.TaxonomyAdminTest do
       end
     end
 
-    test "cascade delete a family removes family, genera, and species", %{session: session} do
+    test "cascade delete a family removes family, genera, and species", %{conn: conn} do
       family = find_small_family()
       assert family, "Need a small family (few genera, few species) for this test"
 
@@ -407,17 +332,15 @@ defmodule GallformersWeb.ProdDataE2E.TaxonomyAdminTest do
       assert genera_before >= 1
       assert species_before >= 1
 
-      session
+      conn
       |> visit("/admin/taxonomy/#{family.id}")
-      |> wait_for_liveview()
       |> open_delete_modal()
-      |> assert_has(css("#cascade-delete-modal"))
+      |> assert_has("#cascade-delete-modal")
       |> confirm_cascade_delete(family.name)
 
       # Should redirect with success flash
-      session
-      |> assert_has(css("[role='alert']", text: "Deleted"))
-      |> wait_for_liveview()
+      conn
+      |> assert_has("[role='alert']", text: "Deleted")
 
       # Verify via DB: family gone
       refute taxonomy_exists?(family.id)
@@ -429,23 +352,22 @@ defmodule GallformersWeb.ProdDataE2E.TaxonomyAdminTest do
       assert species_count_for_family(family.id) == 0
     end
 
-    test "large family shows impact warning with high species count", %{session: session} do
+    test "large family shows impact warning with high species count", %{conn: conn} do
       family = find_large_family()
       assert family, "Need a family with 50+ species for this test"
 
       expected_species = species_count_for_family(family.id)
       assert expected_species >= 50
 
-      session
+      conn
       |> visit("/admin/taxonomy/#{family.id}")
-      |> wait_for_liveview()
       |> open_delete_modal()
 
       # Modal should appear with the large count
-      session
-      |> assert_has(css("#cascade-delete-modal"))
-      |> assert_has(css("#cascade-delete-modal", text: "#{expected_species}"))
-      |> assert_has(css("#cascade-delete-modal", text: "species"))
+      conn
+      |> assert_has("#cascade-delete-modal")
+      |> assert_has("#cascade-delete-modal", text: "#{expected_species}")
+      |> assert_has("#cascade-delete-modal", text: "species")
     end
   end
 
@@ -454,7 +376,7 @@ defmodule GallformersWeb.ProdDataE2E.TaxonomyAdminTest do
   # ──────────────────────────────────────────────────────────────────
 
   describe "genus rename cascade" do
-    test "renaming a genus cascades to species names and creates aliases", %{session: session} do
+    test "renaming a genus cascades to species names and creates aliases", %{conn: conn} do
       genus = find_genus_for_rename()
       assert genus, "Need a genus with 3+ species for this test"
 
@@ -465,9 +387,8 @@ defmodule GallformersWeb.ProdDataE2E.TaxonomyAdminTest do
 
       new_name = "Testgenus#{System.unique_integer([:positive])}"
 
-      session
+      conn
       |> visit("/admin/taxonomy/#{genus.id}")
-      |> wait_for_liveview()
       |> fill_taxonomy_field("name", new_name)
       |> submit_taxonomy_form()
 
@@ -495,7 +416,7 @@ defmodule GallformersWeb.ProdDataE2E.TaxonomyAdminTest do
       end
     end
 
-    test "rename aliases are scientific type", %{session: session} do
+    test "rename aliases are scientific type", %{conn: conn} do
       genus = find_genus_for_rename()
       assert genus, "Need a genus with 3+ species for this test"
 
@@ -504,9 +425,8 @@ defmodule GallformersWeb.ProdDataE2E.TaxonomyAdminTest do
 
       new_name = "Testgenus#{System.unique_integer([:positive])}"
 
-      session
+      conn
       |> visit("/admin/taxonomy/#{genus.id}")
-      |> wait_for_liveview()
       |> fill_taxonomy_field("name", new_name)
       |> submit_taxonomy_form()
 
@@ -537,16 +457,15 @@ defmodule GallformersWeb.ProdDataE2E.TaxonomyAdminTest do
       end
     end
 
-    test "rename preserves species count", %{session: session} do
+    test "rename preserves species count", %{conn: conn} do
       genus = find_genus_for_rename()
       assert genus, "Need a genus with 3+ species for this test"
 
       count_before = species_count_for_taxonomy(genus.id)
       new_name = "Testgenus#{System.unique_integer([:positive])}"
 
-      session
+      conn
       |> visit("/admin/taxonomy/#{genus.id}")
-      |> wait_for_liveview()
       |> fill_taxonomy_field("name", new_name)
       |> submit_taxonomy_form()
 
@@ -565,7 +484,7 @@ defmodule GallformersWeb.ProdDataE2E.TaxonomyAdminTest do
     end
 
     test "editing description only does not rename species or create aliases", %{
-      session: session
+      conn: conn
     } do
       genus = find_genus_for_rename()
       assert genus, "Need a genus with species for this test"
@@ -575,9 +494,8 @@ defmodule GallformersWeb.ProdDataE2E.TaxonomyAdminTest do
 
       new_desc = "Test description #{System.unique_integer([:positive])}"
 
-      session
+      conn
       |> visit("/admin/taxonomy/#{genus.id}")
-      |> wait_for_liveview()
       |> fill_taxonomy_field("description", new_desc)
       |> submit_taxonomy_form()
 
@@ -611,7 +529,7 @@ defmodule GallformersWeb.ProdDataE2E.TaxonomyAdminTest do
   # ──────────────────────────────────────────────────────────────────
 
   describe "genus rename collision" do
-    test "genus rename with collision is rejected, genus unchanged", %{session: session} do
+    test "genus rename with collision is rejected, genus unchanged", %{conn: conn} do
       # Find a real family to create test data under
       family =
         Repo.one(
@@ -656,9 +574,8 @@ defmodule GallformersWeb.ProdDataE2E.TaxonomyAdminTest do
         })
 
       # Navigate to the taxonomy admin page for our test genus
-      session
+      conn
       |> visit("/admin/taxonomy/#{test_genus.id}")
-      |> wait_for_liveview()
       |> fill_taxonomy_field("name", target_genus_name)
       |> submit_taxonomy_form()
 
@@ -680,7 +597,7 @@ defmodule GallformersWeb.ProdDataE2E.TaxonomyAdminTest do
   # ──────────────────────────────────────────────────────────────────
 
   describe "edge cases" do
-    test "delete a section does not cascade-delete species", %{session: session} do
+    test "delete a section does not cascade-delete species", %{conn: conn} do
       section = find_section()
 
       if is_nil(section) do
@@ -689,16 +606,15 @@ defmodule GallformersWeb.ProdDataE2E.TaxonomyAdminTest do
         # Species linked to this section's parent genus should survive
         parent_genus_species_count = species_count_for_taxonomy(section.parent_id)
 
-        session
+        conn
         |> visit("/admin/taxonomy/#{section.id}")
-        |> wait_for_liveview()
         |> open_delete_modal()
-        |> assert_has(css("#cascade-delete-modal"))
+        |> assert_has("#cascade-delete-modal")
         |> confirm_cascade_delete(section.name)
 
         # Should redirect with success flash
-        session
-        |> assert_has(css("[role='alert']", text: "Deleted"))
+        conn
+        |> assert_has("[role='alert']", text: "Deleted")
 
         # Section should be gone
         refute taxonomy_exists?(section.id)
@@ -708,24 +624,23 @@ defmodule GallformersWeb.ProdDataE2E.TaxonomyAdminTest do
       end
     end
 
-    test "Unknown genus has undescribed species", %{session: session} do
+    test "Unknown genus has undescribed species", %{conn: conn} do
       unknown = find_unknown_genus()
 
       if is_nil(unknown) do
         IO.puts("SKIP: No Unknown genus found in prod data")
       else
         # Visit the genus page and check species display
-        session
+        conn
         |> visit("/genus/#{unknown.id}")
-        |> wait_for_liveview()
 
         # Species under an Unknown genus should be displayed
         species = species_for_taxonomy(unknown.id)
         assert length(species) > 0, "Unknown genus should have species"
 
         # The page should render
-        session
-        |> assert_has(css("body"))
+        conn
+        |> assert_has("body")
       end
     end
   end

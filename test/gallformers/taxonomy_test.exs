@@ -553,7 +553,7 @@ defmodule Gallformers.TaxonomyTest do
       assert unknown1.id == unknown2.id
     end
 
-    test "link_species_taxonomy with Unknown genus uses find_or_create" do
+    test "place_species_in_tree with Unknown genus uses find_or_create" do
       {:ok, family} =
         Taxonomy.create_taxonomy(%{
           name: "TestLinkUnknownFamily",
@@ -580,9 +580,9 @@ defmodule Gallformers.TaxonomyTest do
         })
 
       # Link both to Unknown genus (simulating undescribed gall creation)
-      taxonomy = %Lineage{genus: %Genus{name: "Unknown"}}
-      :ok = Taxonomy.link_species_taxonomy(species1.id, taxonomy, true, family.id)
-      :ok = Taxonomy.link_species_taxonomy(species2.id, taxonomy, true, family.id)
+      lineage = %Lineage{genus: %Genus{name: "Unknown"}}
+      :ok = Taxonomy.place_species_in_tree(species1.id, lineage, parent_id: family.id)
+      :ok = Taxonomy.place_species_in_tree(species2.id, lineage, parent_id: family.id)
 
       # Both should be linked to the same Unknown genus
       links =
@@ -606,27 +606,6 @@ defmodule Gallformers.TaxonomyTest do
         )
 
       assert unknown_count == 1
-    end
-
-    test "link_species_taxonomy raises when genus_is_new=false but taxonomy has no genus_id" do
-      {:ok, species} =
-        Repo.insert(%Species{
-          name: "Orphan species",
-          taxoncode: "gall",
-          datacomplete: false
-        })
-
-      # genus_is_new=false but taxonomy is nil — should raise, not silently succeed
-      assert_raise RuntimeError, ~r/missing genus/, fn ->
-        Taxonomy.link_species_taxonomy(species.id, nil, false, nil)
-      end
-
-      # genus_is_new=false but genus.id is nil — should also raise
-      taxonomy_no_id = %Lineage{genus: %Genus{name: "SomeGenus"}}
-
-      assert_raise RuntimeError, ~r/missing genus/, fn ->
-        Taxonomy.link_species_taxonomy(species.id, taxonomy_no_id, false, nil)
-      end
     end
 
     test "empty_unknown_genus_ids returns IDs of Unknown genera with no species" do
@@ -1198,9 +1177,10 @@ defmodule Gallformers.TaxonomyTest do
 
       # Create a plant species and link it to this genus
       {:ok, plant} =
-        Gallformers.Species.create_species(%{
+        Repo.insert(%Species{
           name: "Taxcodefiltergenus plantsp",
-          taxoncode: "plant"
+          taxoncode: "plant",
+          datacomplete: false
         })
 
       Taxonomy.link_species_to_taxonomy(plant.id, genus.id)

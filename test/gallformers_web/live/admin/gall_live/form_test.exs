@@ -483,6 +483,63 @@ defmodule GallformersWeb.Admin.GallLive.FormTest do
       # The old name should appear as a scientific synonym alias
       assert html =~ "Andricus quercuscalifornicus"
     end
+
+    test "reclassify to new genus under existing family", %{conn: conn} do
+      {:ok, family} =
+        Gallformers.Repo.insert(%Gallformers.Taxonomy.Taxonomy{
+          name: "Cynipidae",
+          description: "Gall Wasps",
+          type: "family",
+          is_placeholder: false
+        })
+
+      {:ok, source_genus} =
+        Gallformers.Repo.insert(%Gallformers.Taxonomy.Taxonomy{
+          name: "Andricus",
+          description: "",
+          type: "genus",
+          parent_id: family.id,
+          is_placeholder: false
+        })
+
+      gall_id = 100
+
+      Gallformers.Repo.insert_all("species_taxonomy", [
+        [species_id: gall_id, taxonomy_id: source_genus.id]
+      ])
+
+      {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall_id}")
+
+      # Open the reclassify modal
+      view |> element("button", "Rename/Reclassify") |> render_click()
+
+      # Select family
+      view
+      |> with_target("#reclassify")
+      |> render_click("reclassify_search_family", %{"value" => "Cynip"})
+
+      view
+      |> with_target("#reclassify")
+      |> render_click("reclassify_select_family", %{"id" => Integer.to_string(family.id)})
+
+      # Create a brand-new genus
+      view
+      |> with_target("#reclassify")
+      |> render_click("reclassify_create_genus", %{"name" => "Newcynipgenus"})
+
+      # Submit reclassification
+      view
+      |> with_target("#reclassify")
+      |> render_click("do_reclassify", %{})
+
+      html = render(view)
+
+      assert html =~ "Newcynipgenus quercuscalifornicus"
+      assert html =~ "updated successfully"
+
+      # Verify genus was actually created in the DB
+      assert Gallformers.Taxonomy.get_taxonomy_by_name("Newcynipgenus", "genus")
+    end
   end
 
   describe "Cancel and discard" do

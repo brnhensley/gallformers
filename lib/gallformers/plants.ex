@@ -486,27 +486,6 @@ defmodule Gallformers.Plants do
   end
 
   @doc """
-  Creates a new host species.
-  """
-  @spec create_host(map()) :: {:ok, Species.t()} | {:error, Ecto.Changeset.t()}
-  def create_host(attrs) do
-    attrs = Map.put(attrs, "taxoncode", "plant")
-
-    result =
-      %Species{}
-      |> Species.changeset(attrs)
-      |> Repo.insert()
-
-    case result do
-      {:ok, _species} ->
-        broadcast(result, :host_created)
-
-      {:error, _} ->
-        result
-    end
-  end
-
-  @doc """
   Updates a host species.
   """
   @spec update_host(Species.t(), map()) :: {:ok, Species.t()} | {:error, Ecto.Changeset.t()}
@@ -532,14 +511,14 @@ defmodule Gallformers.Plants do
   @doc """
   Creates a new host species with all associations in a single transaction.
 
-  Handles species creation, taxonomy linking, and aliases.
+  Handles species creation (with taxonomy placement) and aliases.
 
   ## Params
 
     * `:species_attrs` - Map of species attributes (name, taxoncode, etc.)
-    * `:taxonomy` - Taxonomy map with genus info
-    * `:genus_is_new` - Boolean, whether to create a new genus
-    * `:parent_id` - Family or section ID for taxonomy linking
+    * `:taxonomy` - `%Lineage{}` for tree placement
+    * `:parent_id` - Family or section ID (required when genus is new)
+    * `:selected_section_id` - Section to link (optional)
     * `:aliases` - List of alias maps with `:name` and `:type`
 
   Returns `{:ok, species}` or `{:error, changeset | reason}`.
@@ -547,32 +526,36 @@ defmodule Gallformers.Plants do
   @spec create_host_with_associations(map()) ::
           {:ok, Species.t()} | {:error, Ecto.Changeset.t() | term()}
   def create_host_with_associations(params) do
-    Repo.transaction(fn ->
-      case create_host(params.species_attrs) do
-        {:ok, host} ->
-          link_new_host_taxonomy(host.id, params)
-          host
+    attrs = Map.put(params.species_attrs, "taxoncode", "plant")
 
-        {:error, changeset} ->
-          Repo.rollback(changeset)
-      end
-    end)
-  end
+    taxonomy_opts = [
+      taxonomy: params.taxonomy,
+      parent_id: params.parent_id,
+      section_id: params[:selected_section_id]
+    ]
 
-  defp link_new_host_taxonomy(host_id, params) do
-    Taxonomy.link_species_taxonomy(
-      host_id,
-      params.taxonomy,
-      params.genus_is_new,
-      params.parent_id
-    )
+    result =
+      Repo.transaction(fn ->
+        case Gallformers.Species.create_species(attrs, taxonomy_opts) do
+          {:ok, host} ->
+            for a <- params.aliases do
+              create_alias_for_host(host.id, %{name: a.name, type: a.type})
+            end
 
-    if section_id = params[:selected_section_id] do
-      Taxonomy.link_species_to_taxonomy(host_id, section_id)
-    end
+            host
 
-    for a <- params.aliases do
-      create_alias_for_host(host_id, %{name: a.name, type: a.type})
+          {:error, changeset} ->
+            Repo.rollback(changeset)
+        end
+      end)
+
+    case result do
+      {:ok, host} ->
+        broadcast({:ok, host}, :host_created)
+        result
+
+      _ ->
+        result
     end
   end
 

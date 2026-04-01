@@ -241,6 +241,31 @@ defmodule Gallformers.TaxonName do
   def unknown_genus?(_), do: false
 
   @doc """
+  Returns true if the name is a genus-level reference (e.g., "Lupinus spp.", "Garrya sp.").
+
+  These are not species names — they refer to the genus as a whole or an
+  unidentified species within it.
+
+  ## Examples
+
+      iex> genus_reference?("Lupinus spp.")
+      true
+
+      iex> genus_reference?("Garrya sp.")
+      true
+
+      iex> genus_reference?("Andricus quercuslanigera")
+      false
+  """
+  @spec genus_reference?(String.t()) :: boolean()
+  def genus_reference?(name) when is_binary(name) do
+    parsed = parse(name)
+    parsed.full_epithet in ["sp.", "spp."]
+  end
+
+  def genus_reference?(_), do: false
+
+  @doc """
   Returns true if the given taxonomic rank should be italicized per biological convention.
 
   Species, genus, section, and subgenus names are italicized.

@@ -31,7 +31,7 @@
 - Write tests for new features
 - Use ExUnit with Ecto SQL Sandbox
 - Run `make test` before committing
-- E2E tests use Wallaby with Chrome
+- E2E tests use Playwright with Firefox
 
 ### Git Workflow
 - Run `mix precommit` before committing

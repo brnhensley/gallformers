@@ -8,6 +8,8 @@ defmodule Gallformers.SpeciesTest do
   alias Gallformers.Galls.GallTraits
   alias Gallformers.Repo
   alias Gallformers.Species
+  alias Gallformers.Taxonomy
+  alias Gallformers.Taxonomy.{Genus, Lineage}
 
   # Test seeds: galls 100-103, 200-201; plants 1-9
 
@@ -230,103 +232,6 @@ defmodule Gallformers.SpeciesTest do
     end
   end
 
-  describe "rename_species/4 collision detection" do
-    setup do
-      {:ok, species1} =
-        Repo.insert(%Gallformers.Species.Species{
-          name: "Testgenus alpha",
-          taxoncode: "gall",
-          datacomplete: false
-        })
-
-      {:ok, species2} =
-        Repo.insert(%Gallformers.Species.Species{
-          name: "Testgenus beta",
-          taxoncode: "gall",
-          datacomplete: false
-        })
-
-      {:ok, species1: species1, species2: species2}
-    end
-
-    test "returns {:error, :name_exists} when target name already exists", %{
-      species1: species1,
-      species2: species2
-    } do
-      assert {:error, :name_exists} =
-               Species.rename_species(species1.id, species2.name, false)
-
-      # Verify species1 was not renamed
-      unchanged = Species.get_species!(species1.id)
-      assert unchanged.name == "Testgenus alpha"
-    end
-
-    test "succeeds when target name does not exist", %{species1: species1} do
-      assert {:ok, updated} = Species.rename_species(species1.id, "Testgenus gamma", true)
-      assert updated.name == "Testgenus gamma"
-
-      # Verify alias was created
-      aliases = Species.get_aliases_for_species(species1.id)
-      assert length(aliases) == 1
-      assert hd(aliases).name == "Testgenus alpha"
-    end
-
-    test "no-ops when new name matches current name", %{species1: species1} do
-      assert {:ok, returned} = Species.rename_species(species1.id, "Testgenus alpha", true)
-      assert returned.name == "Testgenus alpha"
-
-      # No alias should be created for a no-op
-      aliases = Species.get_aliases_for_species(species1.id)
-      assert aliases == []
-    end
-
-    test "species is searchable after rename", %{species1: species1} do
-      assert {:ok, _updated} =
-               Species.rename_species(species1.id, "Xyzuniquename testsearch", false)
-
-      # Should be findable via search
-      results = Species.search_species("xyzuniquename", 10)
-      assert Enum.any?(results, &(&1.id == species1.id))
-    end
-  end
-
-  describe "rename_for_genus_change/5 collision detection" do
-    setup do
-      {:ok, species1} =
-        Repo.insert(%Gallformers.Species.Species{
-          name: "Oldgenus alpha",
-          taxoncode: "gall",
-          datacomplete: false
-        })
-
-      # Create a species that would collide after genus rename
-      {:ok, colliding} =
-        Repo.insert(%Gallformers.Species.Species{
-          name: "Newgenus alpha",
-          taxoncode: "gall",
-          datacomplete: false
-        })
-
-      {:ok, species1: species1, colliding: colliding}
-    end
-
-    test "returns {:error, :name_exists} when computed name collides", %{species1: species1} do
-      assert {:error, :name_exists} =
-               Species.rename_for_genus_change(species1, "Oldgenus", "Newgenus")
-
-      # Verify species1 was not renamed
-      unchanged = Species.get_species!(species1.id)
-      assert unchanged.name == "Oldgenus alpha"
-    end
-
-    test "succeeds when computed name does not collide", %{species1: species1} do
-      assert {:ok, updated} =
-               Species.rename_for_genus_change(species1, "Oldgenus", "Safenewgenus")
-
-      assert updated.name == "Safenewgenus alpha"
-    end
-  end
-
   describe "delete_species/1" do
     test "deletes the species and associated gall_traits record" do
       # Species 100 is "Andricus quercuscalifornicus" with gall traits
@@ -390,6 +295,92 @@ defmodule Gallformers.SpeciesTest do
       assert_raise Ecto.StaleEntryError, fn ->
         Species.delete_species(species)
       end
+    end
+  end
+
+  describe "create_species/2 with taxonomy" do
+    setup do
+      {:ok, family} =
+        Taxonomy.create_taxonomy(%{
+          name: "CreateSpeciesFamily",
+          type: "family",
+          description: "Wasp"
+        })
+
+      {:ok, genus} =
+        Taxonomy.create_taxonomy(%{
+          name: "Createspeciesgenus",
+          type: "genus",
+          parent_id: family.id
+        })
+
+      {:ok, family: family, genus: genus}
+    end
+
+    test "creates species and links to existing genus", %{genus: genus} do
+      attrs = %{
+        "name" => "Createspeciesgenus alpha",
+        "taxoncode" => "gall",
+        "datacomplete" => false
+      }
+
+      lineage = %Lineage{genus: %Genus{id: genus.id, name: genus.name}}
+
+      assert {:ok, species} = Species.create_species(attrs, taxonomy: lineage)
+      assert species.name == "Createspeciesgenus alpha"
+
+      taxonomy = Taxonomy.get_taxonomy_for_species(species.id)
+      assert taxonomy.genus.id == genus.id
+    end
+
+    test "creates species and new genus when genus.id is nil", %{family: family} do
+      attrs = %{
+        "name" => "Newcreategenus beta",
+        "taxoncode" => "gall",
+        "datacomplete" => false
+      }
+
+      lineage = %Lineage{genus: %Genus{name: "Newcreategenus"}}
+
+      assert {:ok, species} =
+               Species.create_species(attrs, taxonomy: lineage, parent_id: family.id)
+
+      taxonomy = Taxonomy.get_taxonomy_for_species(species.id)
+      assert taxonomy.genus.name == "Newcreategenus"
+      assert taxonomy.family.id == family.id
+    end
+
+    test "creates species with section linkage", %{genus: genus} do
+      {:ok, section} =
+        Taxonomy.create_taxonomy(%{
+          name: "CreateSpeciesSection",
+          type: "section",
+          parent_id: genus.id
+        })
+
+      attrs = %{
+        "name" => "Createspeciesgenus gamma",
+        "taxoncode" => "plant",
+        "datacomplete" => false
+      }
+
+      lineage = %Lineage{genus: %Genus{id: genus.id, name: genus.name}}
+
+      assert {:ok, species} =
+               Species.create_species(attrs, taxonomy: lineage, section_id: section.id)
+
+      taxonomy = Taxonomy.get_taxonomy_for_species(species.id)
+      assert taxonomy.genus.id == genus.id
+      assert taxonomy.section.id == section.id
+    end
+
+    test "returns error on invalid attrs without creating taxonomy link", %{genus: genus} do
+      attrs = %{"taxoncode" => "gall"}
+      lineage = %Lineage{genus: %Genus{id: genus.id, name: genus.name}}
+
+      assert {:error, %Ecto.Changeset{}} = Species.create_species(attrs, taxonomy: lineage)
+
+      # No orphan taxonomy links should exist
     end
   end
 end

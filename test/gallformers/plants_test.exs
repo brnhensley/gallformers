@@ -57,7 +57,6 @@ defmodule Gallformers.PlantsTest do
           "datacomplete" => false
         },
         taxonomy: %Lineage{genus: %Genus{id: genus.id, name: genus.name}},
-        genus_is_new: false,
         parent_id: nil,
         aliases: [%{name: "Test common name", type: "common"}]
       }
@@ -102,7 +101,6 @@ defmodule Gallformers.PlantsTest do
           genus: %Genus{id: genus.id, name: genus.name},
           section: nil
         },
-        genus_is_new: false,
         parent_id: selected_section_id || family.id,
         selected_section_id: selected_section_id,
         aliases: []
@@ -120,7 +118,6 @@ defmodule Gallformers.PlantsTest do
       params = %{
         species_attrs: %{"taxoncode" => "plant"},
         taxonomy: %Lineage{genus: %Genus{name: "Whatever"}},
-        genus_is_new: false,
         parent_id: nil,
         aliases: []
       }

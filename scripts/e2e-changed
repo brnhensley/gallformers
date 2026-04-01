@@ -13,21 +13,6 @@ set -e
 
 BASE_REF="${1:-main}"
 
-# Check for chromedriver (Makefile also checks, but catch it early here)
-if ! command -v chromedriver >/dev/null 2>&1; then
-    echo ""
-    echo "ERROR: chromedriver not found"
-    echo ""
-    echo "E2E tests require chromedriver. Install it:"
-    echo "  macOS:   brew install chromedriver"
-    echo "           xattr -d com.apple.quarantine \$(which chromedriver)"
-    echo "  Ubuntu:  sudo apt-get install chromium-chromedriver"
-    echo ""
-    echo "Then run: make e2e-setup"
-    echo ""
-    exit 1
-fi
-
 if [ "$BASE_REF" = "--all" ]; then
     echo "Running all E2E tests..."
     GALLFORMERS_E2E=1 mix test test/e2e --include e2e
@@ -84,8 +69,9 @@ for file in $CHANGED_FILES; do
             RUN_BROWSE=true
             ;;
 
-        # Admin
-        lib/gallformers_web/live/admin/*)
+        # Admin (includes taxonomy admin and reclassify tests)
+        lib/gallformers_web/live/admin/* | \
+        lib/gallformers/taxonomy*)
             RUN_ADMIN=true
             ;;
 
@@ -98,6 +84,7 @@ for file in $CHANGED_FILES; do
 
         # Core components affect everything
         lib/gallformers_web/components/core_components.ex | \
+        lib/gallformers_web/components/form_components.ex | \
         lib/gallformers_web/components/layouts* | \
         lib/gallformers_web/router.ex | \
         lib/gallformers_web/endpoint.ex | \

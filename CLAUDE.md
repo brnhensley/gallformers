@@ -265,11 +265,11 @@ Tests use Ecto's SQL Sandbox with PostgreSQL. Tests can run with `async: true` w
 | Component | `test/gallformers_web/components/` | `make test` | Reusable component rendering and events |
 | Plug | `test/gallformers_web/plugs/` | `make test` | Analytics, caching, CORS middleware |
 | Integration | `test/gallformers_web/integration_test.exs` | `make test` | Full page load flows, navigation, PubSub |
-| E2E (browser) | `test/e2e/` | `make e2e` | Real Chrome tests via Wallaby. Excluded by default. |
+| E2E (browser) | `test/e2e/` | `make e2e` | Real browser tests via Playwright (Firefox). Requires prod data. Excluded by default. |
 | Prod data | `test/prod_data/` | `make test-prod-data` | Validates against real production DB copy. Excluded by default. |
 | Prod data E2E | `test/prod_data/e2e/` | `make test-prod-data-e2e` | Browser tests against real production data. Excluded by default. |
 
-**Support files** (`test/support/`): `DataCase` (Ecto sandbox), `ConnCase` (HTTP), `E2ECase` (Wallaby), `ProdDataCase` (real DB validation), `ProdDataE2ECase` (combined).
+**Support files** (`test/support/`): `DataCase` (Ecto sandbox), `ConnCase` (HTTP), `E2ECase` (Playwright, prod data), `ProdDataCase` (real DB validation).
 
 ### Test Database
 
@@ -300,13 +300,13 @@ Tests must NEVER make real AWS/S3 calls. Use `Gallformers.S3.request/1` instead 
 
 ### E2E Tests (Browser-based)
 
-E2E tests use Wallaby with Chrome. Excluded from regular test runs.
+E2E tests use Playwright with Firefox. All tests run against a production data copy and are excluded from regular test runs and CI. Install browsers with `make e2e-setup`.
 
 ```bash
-make e2e                   # Run all E2E tests
+make e2e                   # Run all E2E tests (loads prod data automatically)
 make e2e-changed           # Run only tests affected by changed files
 make e2e-public            # Public pages only
-make e2e-admin             # Admin pages only
+make e2e-admin             # Admin pages only (taxonomy, reclassify, etc.)
 make e2e-headed            # Run with visible browser
 ```
 
