@@ -14,14 +14,12 @@ defmodule Gallformers.Ranges do
       Gallformers.ChangesetHelpers,
       Gallformers.SchemaFields,
       Gallformers.Species,
-      Gallformers.Galls,
       Gallformers.Places
     ],
     exports: :all
 
   import Ecto.Query
 
-  alias Gallformers.Galls.{GallHost, GallTraits}
   alias Gallformers.Places
   alias Gallformers.Places.Place
   alias Gallformers.Ranges.{DisplayRange, GallRange, HostRange}
@@ -184,14 +182,7 @@ defmodule Gallformers.Ranges do
       })
       |> Repo.insert(on_conflict: :nothing)
 
-    case result do
-      {:ok, _} ->
-        invalidate_gall_ranges_for_host(host_species_id)
-        result
-
-      error ->
-        error
-    end
+    result
   end
 
   @doc """
@@ -205,7 +196,6 @@ defmodule Gallformers.Ranges do
       )
       |> Repo.delete_all()
 
-    invalidate_gall_ranges_for_host(host_species_id)
     {:ok, count}
   end
 
@@ -241,18 +231,7 @@ defmodule Gallformers.Ranges do
         {:error, reason} -> {:error, reason}
       end
 
-    case result do
-      {:added, _} ->
-        invalidate_gall_ranges_for_host(host_species_id)
-        result
-
-      {:removed, _} ->
-        invalidate_gall_ranges_for_host(host_species_id)
-        result
-
-      {:error, _} ->
-        result
-    end
+    result
   end
 
   @doc """
@@ -274,14 +253,7 @@ defmodule Gallformers.Ranges do
         :ok
       end)
 
-    case result do
-      {:ok, :ok} ->
-        invalidate_gall_ranges_for_host(host_species_id)
-        {:ok, :ok}
-
-      error ->
-        error
-    end
+    result
   end
 
   # ============================================
@@ -527,35 +499,6 @@ defmodule Gallformers.Ranges do
       select: p.id
     )
     |> Repo.one()
-  end
-
-  # ============================================
-  # Invalidation Cascade
-  # ============================================
-
-  @doc """
-  Invalidates gall range confirmation for all galls linked to a host species.
-
-  Called when a host's range data changes so that gall ranges can be reviewed.
-  Sets `range_confirmed = false` on `gall_traits` for every gall linked to the host.
-  """
-  @spec invalidate_gall_ranges_for_host(integer()) :: :ok
-  def invalidate_gall_ranges_for_host(host_species_id) do
-    gall_ids =
-      from(gh in GallHost,
-        where: gh.host_species_id == ^host_species_id,
-        select: gh.gall_species_id
-      )
-      |> Repo.all()
-
-    if gall_ids != [] do
-      from(gt in GallTraits,
-        where: gt.species_id in ^gall_ids
-      )
-      |> Repo.update_all(set: [range_confirmed: false])
-    end
-
-    :ok
   end
 
   # ============================================

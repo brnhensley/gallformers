@@ -6,6 +6,7 @@ defmodule GallformersWeb.Admin.HostLive.Form do
   use GallformersWeb, :live_view
   use GallformersWeb.Admin.FormHelpers
 
+  alias Gallformers.Galls
   alias Gallformers.Places
   alias Gallformers.Plants
   alias Gallformers.Ranges
@@ -804,6 +805,7 @@ defmodule GallformersWeb.Admin.HostLive.Form do
       {:ok, host} ->
         # Save WCVP IDs and places if this host was pre-filled from WCVP
         save_wcvp_data(socket, host)
+        Galls.invalidate_gall_ranges_for_host(host.id)
 
         {:noreply,
          socket
@@ -844,6 +846,7 @@ defmodule GallformersWeb.Admin.HostLive.Form do
 
     case Plants.update_host_with_associations(socket.assigns.host, update_params) do
       {:ok, updated_host} ->
+        Galls.invalidate_gall_ranges_for_host(host_id)
         aliases = Plants.get_aliases_for_host_full(host_id)
         place_entries = Ranges.get_places_for_host_with_precision(host_id)
         range_entries = place_entries_to_range_entries(place_entries)

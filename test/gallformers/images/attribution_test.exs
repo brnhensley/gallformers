@@ -16,16 +16,16 @@ defmodule Gallformers.Images.AttributionTest do
     end
 
     test "returns true for CC-BY licenses" do
-      assert Attribution.requires_attribution?("CC-BY")
-      assert Attribution.requires_attribution?("CC-BY-SA")
-      assert Attribution.requires_attribution?("CC-BY-NC")
-      assert Attribution.requires_attribution?("CC-BY-NC-SA")
-      assert Attribution.requires_attribution?("CC-BY-ND")
-      assert Attribution.requires_attribution?("CC-BY-NC-ND")
+      assert Attribution.requires_attribution?("CC-BY") == true
+      assert Attribution.requires_attribution?("CC-BY-SA") == true
+      assert Attribution.requires_attribution?("CC-BY-NC") == true
+      assert Attribution.requires_attribution?("CC-BY-NC-SA") == true
+      assert Attribution.requires_attribution?("CC-BY-ND") == true
+      assert Attribution.requires_attribution?("CC-BY-NC-ND") == true
     end
 
     test "returns true for All Rights Reserved" do
-      assert Attribution.requires_attribution?("All Rights Reserved")
+      assert Attribution.requires_attribution?("All Rights Reserved") == true
     end
 
     test "returns false for invalid license strings" do
@@ -43,7 +43,7 @@ defmodule Gallformers.Images.AttributionTest do
         source: nil
       }
 
-      assert Attribution.image_attributed?(image)
+      assert Attribution.image_attributed?(image) == true
     end
 
     test "returns true for CC-BY with creator" do
@@ -54,7 +54,7 @@ defmodule Gallformers.Images.AttributionTest do
         source: nil
       }
 
-      assert Attribution.image_attributed?(image)
+      assert Attribution.image_attributed?(image) == true
     end
 
     test "returns false for CC-BY without creator" do
@@ -109,7 +109,7 @@ defmodule Gallformers.Images.AttributionTest do
         source: %{license: "CC-BY"}
       }
 
-      assert Attribution.image_attributed?(image)
+      assert Attribution.image_attributed?(image) == true
     end
 
     test "works with struct (Image schema)" do
@@ -120,7 +120,7 @@ defmodule Gallformers.Images.AttributionTest do
         source: nil
       }
 
-      assert Attribution.image_attributed?(image)
+      assert Attribution.image_attributed?(image) == true
     end
   end
 

@@ -13,7 +13,7 @@ defmodule Gallformers.HostsTest do
     test "returns all host plants" do
       hosts = Plants.list_hosts()
       assert length(hosts) == 9
-      assert Enum.all?(hosts, &(&1.taxoncode == "plant"))
+      assert Enum.all?(hosts, &(&1.taxoncode == "plant")) == true
     end
 
     test "returns hosts ordered by name" do
@@ -39,7 +39,7 @@ defmodule Gallformers.HostsTest do
 
       first_ids = MapSet.new(Enum.map(first_page, & &1.id))
       second_ids = MapSet.new(Enum.map(second_page, & &1.id))
-      assert MapSet.disjoint?(first_ids, second_ids)
+      assert MapSet.disjoint?(first_ids, second_ids) == true
     end
   end
 
@@ -142,7 +142,7 @@ defmodule Gallformers.HostsTest do
     test "returns matching hosts for valid query" do
       results = Plants.search_hosts("Quercus")
       assert length(results) >= 3
-      assert Enum.all?(results, &String.contains?(&1.name, "Quercus"))
+      assert Enum.all?(results, &String.contains?(&1.name, "Quercus")) == true
     end
 
     test "search is case-insensitive" do
@@ -161,8 +161,8 @@ defmodule Gallformers.HostsTest do
     test "results have aliases field" do
       results = Plants.search_hosts("Quercus", 5)
       assert length(results) > 0
-      assert Enum.all?(results, &Map.has_key?(&1, :aliases))
-      assert Enum.all?(results, &is_list(&1.aliases))
+      assert Enum.all?(results, &Map.has_key?(&1, :aliases)) == true
+      assert Enum.all?(results, &is_list(&1.aliases)) == true
     end
 
     test "batch-loaded aliases match individually loaded aliases" do

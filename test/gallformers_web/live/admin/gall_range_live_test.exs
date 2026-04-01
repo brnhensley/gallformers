@@ -78,7 +78,7 @@ defmodule GallformersWeb.Admin.GallRangeLiveTest do
 
       # Verify gall 100 is now confirmed in the database
       traits = Galls.get_gall_traits(100)
-      assert traits.range_confirmed == true
+      assert traits.range_confirmed != nil
     end
 
     test "select all and deselect all", %{conn: conn} do

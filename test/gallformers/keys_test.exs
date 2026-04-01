@@ -54,7 +54,7 @@ defmodule Gallformers.KeysTest do
       assert length(keys) >= 1
 
       key = Enum.find(keys, &(&1.slug == "test-key"))
-      assert key
+      assert key != nil
       assert key.title == "Test Key"
     end
 
@@ -73,7 +73,7 @@ defmodule Gallformers.KeysTest do
       assert key.slug == "test-key"
       assert key.title == "Test Key"
       assert is_map(key.couplets)
-      assert Map.has_key?(key.couplets, "1")
+      assert Map.has_key?(key.couplets, "1") == true
     end
 
     test "returns error for unknown slug" do
@@ -214,7 +214,7 @@ defmodule Gallformers.KeysTest do
         })
 
       {:ok, key} = Keys.create_key(valid_attrs(%{couplets: couplets_with_images}))
-      assert Key.key_has_images?(key)
+      assert Key.key_has_images?(key) == true
     end
   end
 
@@ -228,8 +228,8 @@ defmodule Gallformers.KeysTest do
       assert data["slug"] == "test-key"
       assert data["version"] == "2026-01-01"
       assert is_map(data["couplets"])
-      assert Map.has_key?(data["couplets"], "1")
-      assert Map.has_key?(data["couplets"], "2")
+      assert Map.has_key?(data["couplets"], "1") == true
+      assert Map.has_key?(data["couplets"], "2") == true
     end
 
     test "couplet leads have string-keyed maps" do
@@ -278,7 +278,7 @@ defmodule Gallformers.KeysTest do
 
       assert {:error, changeset} = Keys.create_key(valid_attrs(%{couplets: bad_couplets}))
       errors = errors_on(changeset)
-      assert errors[:couplets]
+      assert errors[:couplets] != nil
     end
 
     test "rejects couplets with fewer than 2 leads" do
@@ -293,7 +293,7 @@ defmodule Gallformers.KeysTest do
 
       assert {:error, changeset} = Keys.create_key(valid_attrs(%{couplets: bad_couplets}))
       errors = errors_on(changeset)
-      assert errors[:couplets]
+      assert errors[:couplets] != nil
     end
 
     test "rejects dangling couplet references" do
@@ -312,7 +312,7 @@ defmodule Gallformers.KeysTest do
 
       assert {:error, changeset} = Keys.create_key(valid_attrs(%{couplets: bad_couplets}))
       errors = errors_on(changeset)
-      assert errors[:couplets]
+      assert errors[:couplets] != nil
     end
   end
 end

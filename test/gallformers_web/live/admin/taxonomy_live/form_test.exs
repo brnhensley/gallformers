@@ -160,7 +160,7 @@ defmodule GallformersWeb.Admin.TaxonomyLive.FormTest do
       assert has_element?(view, "[role=alert]", "Name does not match")
 
       # Family should still exist
-      assert Repo.get(TaxonomySchema, family.id)
+      assert Repo.get(TaxonomySchema, family.id) != nil
     end
 
     test "correct name triggers delete and redirect", %{
@@ -211,7 +211,7 @@ defmodule GallformersWeb.Admin.TaxonomyLive.FormTest do
       refute has_element?(view, "#cascade-delete-modal")
 
       # Family should still exist
-      assert Repo.get(TaxonomySchema, family.id)
+      assert Repo.get(TaxonomySchema, family.id) != nil
     end
   end
 
@@ -300,7 +300,7 @@ defmodule GallformersWeb.Admin.TaxonomyLive.FormTest do
       refute Repo.get(Species, species.id)
 
       # Family preserved
-      assert Repo.get(TaxonomySchema, family.id)
+      assert Repo.get(TaxonomySchema, family.id) != nil
     end
   end
 
@@ -369,8 +369,8 @@ defmodule GallformersWeb.Admin.TaxonomyLive.FormTest do
       refute Repo.get(TaxonomySchema, section.id)
 
       # Family and genus preserved
-      assert Repo.get(TaxonomySchema, family.id)
-      assert Repo.get(TaxonomySchema, genus.id)
+      assert Repo.get(TaxonomySchema, family.id) != nil
+      assert Repo.get(TaxonomySchema, genus.id) != nil
     end
   end
 

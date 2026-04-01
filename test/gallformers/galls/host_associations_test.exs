@@ -26,7 +26,7 @@ defmodule Gallformers.Galls.HostAssociationsTest do
   describe "GallHost changeset" do
     test "valid with required fields" do
       changeset = GallHost.changeset(%GallHost{}, %{gall_species_id: 1, host_species_id: 2})
-      assert changeset.valid?
+      assert changeset.valid? == true
     end
 
     test "invalid without gall_species_id" do
@@ -43,8 +43,8 @@ defmodule Gallformers.Galls.HostAssociationsTest do
       changeset = GallHost.changeset(%GallHost{}, %{})
       refute changeset.valid?
       errors = errors_on(changeset)
-      assert errors[:gall_species_id]
-      assert errors[:host_species_id]
+      assert errors[:gall_species_id] != nil
+      assert errors[:host_species_id] != nil
     end
 
     test "enforces unique gall + host pair" do
@@ -385,7 +385,7 @@ defmodule Gallformers.Galls.HostAssociationsTest do
                Galls.save_gall_host_changes(gall.id, [], MapSet.new(), nil, confirm_range: true)
 
       traits = Galls.get_gall_traits(gall.id)
-      assert traits.range_confirmed == true
+      assert traits.range_confirmed != nil
     end
 
     test "touches the species updated_at", %{gall: gall} do

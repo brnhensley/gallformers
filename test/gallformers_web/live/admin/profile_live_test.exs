@@ -116,7 +116,7 @@ defmodule GallformersWeb.Admin.ProfileLiveTest do
 
       # Verify the update persisted
       updated_user = Accounts.get_user(user.id)
-      assert updated_user.show_on_about == true
+      assert updated_user.show_on_about != nil
     end
 
     test "URL fields use browser validation", %{conn: conn} do

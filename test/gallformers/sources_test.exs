@@ -46,7 +46,7 @@ defmodule Gallformers.SourcesTest do
           useasdefault: false
         })
 
-      assert Sources.has_sources?(species.id)
+      assert Sources.has_sources?(species.id) == true
     end
   end
 end

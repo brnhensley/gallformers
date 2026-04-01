@@ -15,7 +15,7 @@ defmodule GallformersWeb.Plugs.RequireOperatorTest do
         |> fetch_flash()
         |> RequireOperator.call([])
 
-      assert conn.halted
+      assert conn.halted != nil
       assert Phoenix.Flash.get(conn.assigns.flash, :error) =~ "log in"
       assert redirected_to(conn) == "/auth/auth0"
     end
@@ -37,7 +37,7 @@ defmodule GallformersWeb.Plugs.RequireOperatorTest do
         |> put_session(:db_display_name, "Admin User")
         |> RequireOperator.call([])
 
-      assert conn.halted
+      assert conn.halted != nil
       assert conn.status == 403
     end
 

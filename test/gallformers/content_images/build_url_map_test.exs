@@ -39,11 +39,11 @@ defmodule Gallformers.ContentImages.BuildUrlMapTest do
 
     url_map = ContentImages.build_image_url_map([image.id])
 
-    assert Map.has_key?(url_map, image.id)
+    assert Map.has_key?(url_map, image.id) == true
     url = url_map[image.id]
     # Should use medium variant for key images
-    assert String.contains?(url, "medium")
-    assert String.starts_with?(url, Storage.cdn_url())
+    assert String.contains?(url, "medium") == true
+    assert String.starts_with?(url, Storage.cdn_url()) == true
   end
 
   test "handles images without original in path", %{key: key} do
@@ -58,7 +58,7 @@ defmodule Gallformers.ContentImages.BuildUrlMapTest do
     url_map = ContentImages.build_image_url_map([image.id])
     url = url_map[image.id]
 
-    assert String.contains?(url, "simple.jpg")
+    assert String.contains?(url, "simple.jpg") == true
     refute String.contains?(url, "medium")
   end
 end

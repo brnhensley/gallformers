@@ -73,22 +73,22 @@ defmodule Gallformers.ChangesetHelpersTest do
   describe "validate_url/2" do
     test "accepts valid http URL" do
       cs = changeset(%{url: "http://example.com"}) |> validate_url(:url)
-      assert cs.valid?
+      assert cs.valid? == true
     end
 
     test "accepts valid https URL" do
       cs = changeset(%{url: "https://example.com/path?q=1"}) |> validate_url(:url)
-      assert cs.valid?
+      assert cs.valid? == true
     end
 
     test "accepts empty string" do
       cs = changeset(%{url: ""}) |> validate_url(:url)
-      assert cs.valid?
+      assert cs.valid? == true
     end
 
     test "accepts nil (no change)" do
       cs = changeset(%{}) |> validate_url(:url)
-      assert cs.valid?
+      assert cs.valid? == true
     end
 
     test "rejects URL without scheme" do
@@ -109,19 +109,19 @@ defmodule Gallformers.ChangesetHelpersTest do
 
     test "auto-prepends https:// for www. prefix" do
       cs = changeset(%{url: "www.example.com/page"}) |> validate_url(:url)
-      assert cs.valid?
+      assert cs.valid? == true
       assert Changeset.get_change(cs, :url) == "https://www.example.com/page"
     end
 
     test "trims whitespace" do
       cs = changeset(%{url: "  https://example.com  "}) |> validate_url(:url)
-      assert cs.valid?
+      assert cs.valid? == true
       assert Changeset.get_change(cs, :url) == "https://example.com"
     end
 
     test "trims whitespace-only to empty string" do
       cs = changeset(%{url: "   "}) |> validate_url(:url)
-      assert cs.valid?
+      assert cs.valid? == true
       assert Changeset.get_field(cs, :url) in [nil, ""]
     end
   end

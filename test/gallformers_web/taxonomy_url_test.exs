@@ -53,8 +53,8 @@ defmodule GallformersWeb.TaxonomyURLTest do
 
   describe "numeric?/1" do
     test "pure digits" do
-      assert TaxonomyURL.numeric?("123")
-      assert TaxonomyURL.numeric?("0")
+      assert TaxonomyURL.numeric?("123") == true
+      assert TaxonomyURL.numeric?("0") == true
     end
 
     test "non-numeric strings" do

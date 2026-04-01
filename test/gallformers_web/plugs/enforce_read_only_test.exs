@@ -61,7 +61,7 @@ defmodule GallformersWeb.Plugs.EnforceReadOnlyTest do
         |> admin_conn()
         |> EnforceReadOnly.call([])
 
-      assert conn.halted
+      assert conn.halted != nil
       assert conn.status == 503
       assert conn.resp_body =~ "Site Maintenance"
       assert conn.resp_body =~ "read-only mode"

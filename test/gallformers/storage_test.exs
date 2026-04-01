@@ -11,21 +11,21 @@ defmodule Gallformers.StorageTest do
   describe "generate_content_image_path/4" do
     test "generates article path without _original suffix" do
       path = Storage.generate_content_image_path("articles", 42, "jpg", has_variants: false)
-      assert String.starts_with?(path, "articles/42/")
-      assert String.ends_with?(path, ".jpg")
+      assert String.starts_with?(path, "articles/42/") == true
+      assert String.ends_with?(path, ".jpg") == true
       refute String.contains?(path, "_original")
     end
 
     test "generates key path with _original suffix" do
       path = Storage.generate_content_image_path("keys", 7, "png", has_variants: true)
-      assert String.starts_with?(path, "keys/7/")
-      assert String.ends_with?(path, ".png")
-      assert String.contains?(path, "_original")
+      assert String.starts_with?(path, "keys/7/") == true
+      assert String.ends_with?(path, ".png") == true
+      assert String.contains?(path, "_original") == true
     end
 
     test "strips leading dot from extension" do
       path = Storage.generate_content_image_path("articles", 1, ".jpg", has_variants: false)
-      assert String.ends_with?(path, ".jpg")
+      assert String.ends_with?(path, ".jpg") == true
       refute String.contains?(path, "..jpg")
     end
 

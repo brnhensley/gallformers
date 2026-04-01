@@ -12,8 +12,8 @@ defmodule GallformersWeb.API.TaxonomyControllerTest do
       conn = get(conn, ~p"/api/v2/genera")
 
       response = json_response(conn, 200)
-      assert Map.has_key?(response, "data")
-      assert Map.has_key?(response, "total")
+      assert Map.has_key?(response, "data") == true
+      assert Map.has_key?(response, "total") == true
       assert is_list(response["data"])
     end
 
@@ -24,9 +24,9 @@ defmodule GallformersWeb.API.TaxonomyControllerTest do
 
       if length(response["data"]) > 0 do
         genus = hd(response["data"])
-        assert Map.has_key?(genus, "id")
-        assert Map.has_key?(genus, "name")
-        assert Map.has_key?(genus, "type")
+        assert Map.has_key?(genus, "id") == true
+        assert Map.has_key?(genus, "name") == true
+        assert Map.has_key?(genus, "type") == true
         assert genus["type"] == "genus"
       end
     end
@@ -48,7 +48,7 @@ defmodule GallformersWeb.API.TaxonomyControllerTest do
       if length(response1["data"]) > 0 and length(response2["data"]) > 0 do
         ids1 = Enum.map(response1["data"], & &1["id"])
         ids2 = Enum.map(response2["data"], & &1["id"])
-        assert MapSet.disjoint?(MapSet.new(ids1), MapSet.new(ids2))
+        assert MapSet.disjoint?(MapSet.new(ids1), MapSet.new(ids2)) == true
       end
     end
 
@@ -56,7 +56,7 @@ defmodule GallformersWeb.API.TaxonomyControllerTest do
       conn = get(conn, ~p"/api/v2/genera?q=Quer")
 
       response = json_response(conn, 200)
-      assert Map.has_key?(response, "data")
+      assert Map.has_key?(response, "data") == true
       assert is_list(response["data"])
     end
 
@@ -131,7 +131,7 @@ defmodule GallformersWeb.API.TaxonomyControllerTest do
 
     test "returns 404 for non-existent family", %{conn: conn} do
       conn = get(conn, ~p"/api/v2/families/99999")
-      assert json_response(conn, 404)["error"]
+      assert json_response(conn, 404)["error"] != nil
     end
   end
 
@@ -185,12 +185,12 @@ defmodule GallformersWeb.API.TaxonomyControllerTest do
     test "returns 404 for a genus (non-intermediate)", %{conn: conn} do
       # Andricus (id=33) is a genus, not an intermediate
       conn = get(conn, ~p"/api/v2/intermediates/33")
-      assert json_response(conn, 404)["error"]
+      assert json_response(conn, 404)["error"] != nil
     end
 
     test "returns 404 for non-existent ID", %{conn: conn} do
       conn = get(conn, ~p"/api/v2/intermediates/99999")
-      assert json_response(conn, 404)["error"]
+      assert json_response(conn, 404)["error"] != nil
     end
   end
 

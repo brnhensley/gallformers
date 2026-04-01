@@ -34,7 +34,7 @@ defmodule Gallformers.ContentImages.ContentImageTest do
           uploader: "testuser"
         })
 
-      assert changeset.valid?
+      assert changeset.valid? == true
     end
 
     test "valid with key_id and no article_id", %{key: key} do
@@ -45,7 +45,7 @@ defmodule Gallformers.ContentImages.ContentImageTest do
           uploader: "testuser"
         })
 
-      assert changeset.valid?
+      assert changeset.valid? == true
     end
 
     test "invalid with both article_id and key_id", %{article: article, key: key} do
@@ -96,7 +96,7 @@ defmodule Gallformers.ContentImages.ContentImageTest do
           caption: "A nice gall"
         })
 
-      assert changeset.valid?
+      assert changeset.valid? == true
       assert get_change(changeset, :creator) == "Jane Doe"
       assert get_change(changeset, :license) == "CC-BY"
     end

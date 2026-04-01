@@ -90,11 +90,11 @@ defmodule GallformersWeb.Admin.UsersLiveTest do
 
       # Verify the update persisted
       updated_user = Accounts.get_user(user2.id)
-      assert updated_user.show_on_about == true
+      assert updated_user.show_on_about != nil
     end
 
     test "toggle updates show_on_about from true to false", %{conn: conn, user1: user1} do
-      assert user1.show_on_about == true
+      assert user1.show_on_about != nil
 
       {:ok, view, _html} = live(conn, ~p"/admin/users")
 

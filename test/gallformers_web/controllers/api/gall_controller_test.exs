@@ -13,8 +13,8 @@ defmodule GallformersWeb.API.GallControllerTest do
 
       assert json_response(conn, 200)
       response = json_response(conn, 200)
-      assert Map.has_key?(response, "data")
-      assert Map.has_key?(response, "total")
+      assert Map.has_key?(response, "data") == true
+      assert Map.has_key?(response, "total") == true
       assert is_list(response["data"])
     end
 
@@ -25,8 +25,8 @@ defmodule GallformersWeb.API.GallControllerTest do
 
       if length(response["data"]) > 0 do
         gall = hd(response["data"])
-        assert Map.has_key?(gall, "id")
-        assert Map.has_key?(gall, "name")
+        assert Map.has_key?(gall, "id") == true
+        assert Map.has_key?(gall, "name") == true
       end
     end
 
@@ -49,7 +49,7 @@ defmodule GallformersWeb.API.GallControllerTest do
         ids1 = Enum.map(response1["data"], & &1["id"])
         ids2 = Enum.map(response2["data"], & &1["id"])
         # Should have no overlap
-        assert MapSet.disjoint?(MapSet.new(ids1), MapSet.new(ids2))
+        assert MapSet.disjoint?(MapSet.new(ids1), MapSet.new(ids2)) == true
       end
     end
 
@@ -58,7 +58,7 @@ defmodule GallformersWeb.API.GallControllerTest do
       conn = get(conn, ~p"/api/v2/galls?q=oak")
 
       response = json_response(conn, 200)
-      assert Map.has_key?(response, "data")
+      assert Map.has_key?(response, "data") == true
       assert is_list(response["data"])
     end
 
@@ -92,10 +92,10 @@ defmodule GallformersWeb.API.GallControllerTest do
 
         response = json_response(conn, 200)
         # Should have filter fields
-        assert Map.has_key?(response, "colors")
-        assert Map.has_key?(response, "shapes")
-        assert Map.has_key?(response, "textures")
-        assert Map.has_key?(response, "hosts")
+        assert Map.has_key?(response, "colors") == true
+        assert Map.has_key?(response, "shapes") == true
+        assert Map.has_key?(response, "textures") == true
+        assert Map.has_key?(response, "hosts") == true
       end
     end
 
@@ -104,7 +104,7 @@ defmodule GallformersWeb.API.GallControllerTest do
 
       assert json_response(conn, 404)
       response = json_response(conn, 404)
-      assert Map.has_key?(response, "error")
+      assert Map.has_key?(response, "error") == true
     end
 
     test "returns 400 for invalid ID format", %{conn: conn} do
@@ -112,7 +112,7 @@ defmodule GallformersWeb.API.GallControllerTest do
 
       assert json_response(conn, 400)
       response = json_response(conn, 400)
-      assert Map.has_key?(response, "error")
+      assert Map.has_key?(response, "error") == true
     end
   end
 
@@ -143,9 +143,9 @@ defmodule GallformersWeb.API.GallControllerTest do
 
         response = json_response(conn, 200)
         image = hd(response)
-        assert Map.has_key?(image, "id")
-        assert Map.has_key?(image, "path")
-        assert Map.has_key?(image, "url")
+        assert Map.has_key?(image, "id") == true
+        assert Map.has_key?(image, "path") == true
+        assert Map.has_key?(image, "url") == true
       end
     end
 
@@ -180,8 +180,8 @@ defmodule GallformersWeb.API.GallControllerTest do
 
         if length(response) > 0 do
           source = hd(response)
-          assert Map.has_key?(source, "id")
-          assert Map.has_key?(source, "title")
+          assert Map.has_key?(source, "id") == true
+          assert Map.has_key?(source, "title") == true
         end
       end
     end

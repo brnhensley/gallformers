@@ -9,11 +9,11 @@ defmodule Gallformers.AnalyticsTest do
 
   describe "should_track?/2" do
     test "returns true for normal page paths" do
-      assert Analytics.should_track?("/", nil)
-      assert Analytics.should_track?("/species/123", nil)
-      assert Analytics.should_track?("/host/oak", nil)
-      assert Analytics.should_track?("/gall/456", nil)
-      assert Analytics.should_track?("/id", nil)
+      assert Analytics.should_track?("/", nil) == true
+      assert Analytics.should_track?("/species/123", nil) == true
+      assert Analytics.should_track?("/host/oak", nil) == true
+      assert Analytics.should_track?("/gall/456", nil) == true
+      assert Analytics.should_track?("/id", nil) == true
     end
 
     test "returns false for excluded path prefixes" do
@@ -62,9 +62,9 @@ defmodule Gallformers.AnalyticsTest do
       safari_ua =
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_2) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15"
 
-      assert Analytics.should_track?("/", chrome_ua)
-      assert Analytics.should_track?("/species/1", firefox_ua)
-      assert Analytics.should_track?("/host/1", safari_ua)
+      assert Analytics.should_track?("/", chrome_ua) == true
+      assert Analytics.should_track?("/species/1", firefox_ua) == true
+      assert Analytics.should_track?("/host/1", safari_ua) == true
     end
   end
 
@@ -90,13 +90,13 @@ defmodule Gallformers.AnalyticsTest do
     test "returns a 16-character hex string" do
       hash = Analytics.generate_visitor_hash("10.0.0.1", "Test Agent")
       assert String.length(hash) == 16
-      assert Regex.match?(~r/^[0-9a-f]{16}$/, hash)
+      assert Regex.match?(~r/^[0-9a-f]{16}$/, hash) == true
     end
 
     test "handles nil user agent" do
       hash = Analytics.generate_visitor_hash("192.168.1.1", nil)
       assert String.length(hash) == 16
-      assert Regex.match?(~r/^[0-9a-f]{16}$/, hash)
+      assert Regex.match?(~r/^[0-9a-f]{16}$/, hash) == true
     end
   end
 
@@ -276,7 +276,7 @@ defmodule Gallformers.AnalyticsTest do
       }
 
       changeset = PageView.changeset(%PageView{}, attrs)
-      assert changeset.valid?
+      assert changeset.valid? == true
       assert Ecto.Changeset.get_field(changeset, :path) == "/test/page"
       assert Ecto.Changeset.get_field(changeset, :visitor_hash) == "abc123def456gh78"
       assert Ecto.Changeset.get_field(changeset, :browser) == "Chrome"
@@ -417,8 +417,8 @@ defmodule Gallformers.AnalyticsTest do
 
       # Should have 3 days with all zeros
       assert length(daily_stats) == 3
-      assert Enum.all?(daily_stats, &(&1.page_views == 0))
-      assert Enum.all?(daily_stats, &(&1.unique_visitors == 0))
+      assert Enum.all?(daily_stats, &(&1.page_views == 0)) == true
+      assert Enum.all?(daily_stats, &(&1.unique_visitors == 0)) == true
     end
 
     test "includes days with zero views in the range" do

@@ -576,7 +576,7 @@ defmodule GallformersWeb.Admin.HostLive.FormTest do
       # Verify range_entries is a map with expected structure
       range_entries = get_assign(view, :range_entries)
       assert is_map(range_entries)
-      assert Map.has_key?(range_entries, "US-CA")
+      assert Map.has_key?(range_entries, "US-CA") == true
       assert range_entries["US-CA"].precision == "exact"
       assert range_entries["US-CA"].distribution_type == "native"
     end
@@ -609,7 +609,7 @@ defmodule GallformersWeb.Admin.HostLive.FormTest do
       render_click(view, "toggle_region", %{"code" => "MX-JAL"})
 
       range_entries = get_assign(view, :range_entries)
-      assert Map.has_key?(range_entries, "MX-JAL")
+      assert Map.has_key?(range_entries, "MX-JAL") == true
       assert range_entries["MX-JAL"].precision == "exact"
       assert range_entries["MX-JAL"].distribution_type == "native"
     end
@@ -623,7 +623,7 @@ defmodule GallformersWeb.Admin.HostLive.FormTest do
       render_click(view, "toggle_region", %{"code" => "MX-JAL"})
 
       range_entries = get_assign(view, :range_entries)
-      assert Map.has_key?(range_entries, "MX-JAL")
+      assert Map.has_key?(range_entries, "MX-JAL") == true
       assert range_entries["MX-JAL"].distribution_type == "introduced"
       assert range_entries["MX-JAL"].precision == "exact"
     end
@@ -682,8 +682,8 @@ defmodule GallformersWeb.Admin.HostLive.FormTest do
       range_entries = get_assign(view, :range_entries)
       original = get_assign(view, :original_range_entries)
       assert range_entries == original
-      assert Map.has_key?(range_entries, "MX-JAL")
-      assert Map.has_key?(range_entries, "US-CA")
+      assert Map.has_key?(range_entries, "MX-JAL") == true
+      assert Map.has_key?(range_entries, "US-CA") == true
     end
   end
 

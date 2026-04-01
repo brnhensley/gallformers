@@ -78,7 +78,7 @@ defmodule Gallformers.Search.RankingTest do
       # Species with parenthesized terms should score lower
       # "(agamic)" doesn't prefix-match "agamic" due to the paren
       species_scores = scored |> tl() |> Enum.map(& &1.match_score)
-      assert Enum.all?(species_scores, &(&1 > -1))
+      assert Enum.all?(species_scores, &(&1 > -1)) == true
     end
   end
 end

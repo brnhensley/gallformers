@@ -52,7 +52,7 @@ defmodule Gallformers.Keys.PdfGeneratorTest do
       key = create_test_key()
       {:ok, pdf_path} = PdfGenerator.generate_pdf(key, images: false)
 
-      assert File.exists?(pdf_path)
+      assert File.exists?(pdf_path) == true
       # PDF files start with %PDF
       assert File.read!(pdf_path) |> String.starts_with?("%PDF")
 

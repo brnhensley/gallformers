@@ -98,7 +98,7 @@ defmodule Gallformers.TextMatchTest do
       filter = TextMatch.build_filter("plant", [:name, :taxoncode])
       results = from(s in Species, where: ^filter) |> Repo.all()
 
-      assert Enum.all?(results, &(&1.taxoncode == "plant"))
+      assert Enum.all?(results, &(&1.taxoncode == "plant")) == true
     end
 
     test "multi-term across multiple fields requires all terms match somewhere" do
@@ -113,16 +113,16 @@ defmodule Gallformers.TextMatchTest do
 
   describe "matches_all_terms?/2" do
     test "partial terms match" do
-      assert TextMatch.matches_all_terms?("q alba", "Quercus alba")
+      assert TextMatch.matches_all_terms?("q alba", "Quercus alba") == true
     end
 
     test "full terms match" do
-      assert TextMatch.matches_all_terms?("quercus alba", "Quercus alba")
+      assert TextMatch.matches_all_terms?("quercus alba", "Quercus alba") == true
     end
 
     test "matching is case insensitive" do
-      assert TextMatch.matches_all_terms?("QUERCUS ALBA", "Quercus alba")
-      assert TextMatch.matches_all_terms?("quercus alba", "QUERCUS ALBA")
+      assert TextMatch.matches_all_terms?("QUERCUS ALBA", "Quercus alba") == true
+      assert TextMatch.matches_all_terms?("quercus alba", "QUERCUS ALBA") == true
     end
 
     test "all terms must match (fails when one misses)" do
@@ -130,12 +130,12 @@ defmodule Gallformers.TextMatchTest do
     end
 
     test "empty search matches anything" do
-      assert TextMatch.matches_all_terms?("", "Quercus alba")
-      assert TextMatch.matches_all_terms?("", "anything at all")
+      assert TextMatch.matches_all_terms?("", "Quercus alba") == true
+      assert TextMatch.matches_all_terms?("", "anything at all") == true
     end
 
     test "nil search matches anything" do
-      assert TextMatch.matches_all_terms?(nil, "Quercus alba")
+      assert TextMatch.matches_all_terms?(nil, "Quercus alba") == true
     end
 
     test "nil text returns false" do
@@ -143,11 +143,11 @@ defmodule Gallformers.TextMatchTest do
     end
 
     test "single term match" do
-      assert TextMatch.matches_all_terms?("alba", "Quercus alba")
+      assert TextMatch.matches_all_terms?("alba", "Quercus alba") == true
     end
 
     test "whitespace-only search matches anything" do
-      assert TextMatch.matches_all_terms?("   ", "Quercus alba")
+      assert TextMatch.matches_all_terms?("   ", "Quercus alba") == true
     end
   end
 end

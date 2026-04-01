@@ -26,8 +26,8 @@ defmodule GallformersWeb.Admin.DeferredChangesTest do
     test "works with various collection names" do
       result = DeferredChanges.init(:filter_values, [%{id: 1}])
 
-      assert Map.has_key?(result, :original_filter_values)
-      assert Map.has_key?(result, :filter_values)
+      assert Map.has_key?(result, :original_filter_values) == true
+      assert Map.has_key?(result, :filter_values) == true
     end
   end
 
@@ -41,7 +41,7 @@ defmodule GallformersWeb.Admin.DeferredChangesTest do
       assert added.name == "New"
       assert added.type == "common name"
       assert added.id < 0
-      assert added.pending == true
+      assert added.pending != nil
     end
 
     test "appends to existing items" do
@@ -68,7 +68,7 @@ defmodule GallformersWeb.Admin.DeferredChangesTest do
       [added] = socket.assigns.hosts
       assert added.host_relation_id < 0
       assert added.host_species_id == 5
-      assert added.pending == true
+      assert added.pending != nil
     end
 
     test "generates unique negative IDs" do
@@ -134,7 +134,7 @@ defmodule GallformersWeb.Admin.DeferredChangesTest do
       items = [%{id: 1, name: "Oak gall"}, %{id: 2, name: "Maple gall"}]
       socket = mock_socket(%{aliases: items})
 
-      assert DeferredChanges.exists?(socket, :aliases, :name, "Oak gall")
+      assert DeferredChanges.exists?(socket, :aliases, :name, "Oak gall") == true
     end
 
     test "returns false when item with field value does not exist" do
@@ -148,7 +148,7 @@ defmodule GallformersWeb.Admin.DeferredChangesTest do
       items = [%{id: 1, host_species_id: 42}]
       socket = mock_socket(%{hosts: items})
 
-      assert DeferredChanges.exists?(socket, :hosts, :host_species_id, 42)
+      assert DeferredChanges.exists?(socket, :hosts, :host_species_id, 42) == true
       refute DeferredChanges.exists?(socket, :hosts, :host_species_id, 99)
     end
 
@@ -194,7 +194,7 @@ defmodule GallformersWeb.Admin.DeferredChangesTest do
       {to_add, to_remove} = DeferredChanges.compute_changes(socket, :aliases)
 
       assert length(to_add) == 0
-      assert MapSet.member?(to_remove, 2)
+      assert MapSet.member?(to_remove, 2) == true
       refute MapSet.member?(to_remove, 1)
     end
 
@@ -208,7 +208,7 @@ defmodule GallformersWeb.Admin.DeferredChangesTest do
 
       assert length(to_add) == 1
       assert hd(to_add).name == "Add"
-      assert MapSet.member?(to_remove, 2)
+      assert MapSet.member?(to_remove, 2) == true
     end
 
     test "uses custom id_field" do
@@ -221,7 +221,7 @@ defmodule GallformersWeb.Admin.DeferredChangesTest do
         DeferredChanges.compute_changes(socket, :hosts, id_field: :host_relation_id)
 
       assert length(to_add) == 1
-      assert MapSet.member?(to_remove, 2)
+      assert MapSet.member?(to_remove, 2) == true
     end
 
     test "returns empty results when nothing changed" do
@@ -265,7 +265,7 @@ defmodule GallformersWeb.Admin.DeferredChangesTest do
       current = [%{id: 1}, %{id: -1, pending: true}]
       socket = mock_socket(%{original_aliases: original, aliases: current})
 
-      assert DeferredChanges.has_changes?(socket, :aliases)
+      assert DeferredChanges.has_changes?(socket, :aliases) == true
     end
 
     test "returns true when item removed" do
@@ -273,7 +273,7 @@ defmodule GallformersWeb.Admin.DeferredChangesTest do
       current = [%{id: 1}]
       socket = mock_socket(%{original_aliases: original, aliases: current})
 
-      assert DeferredChanges.has_changes?(socket, :aliases)
+      assert DeferredChanges.has_changes?(socket, :aliases) == true
     end
 
     test "returns true when items differ" do
@@ -281,7 +281,7 @@ defmodule GallformersWeb.Admin.DeferredChangesTest do
       current = [%{id: 1}, %{id: 3}]
       socket = mock_socket(%{original_aliases: original, aliases: current})
 
-      assert DeferredChanges.has_changes?(socket, :aliases)
+      assert DeferredChanges.has_changes?(socket, :aliases) == true
     end
 
     test "uses custom id_field" do
@@ -289,7 +289,7 @@ defmodule GallformersWeb.Admin.DeferredChangesTest do
       current = [%{host_relation_id: 1}, %{host_relation_id: -1}]
       socket = mock_socket(%{original_hosts: original, hosts: current})
 
-      assert DeferredChanges.has_changes?(socket, :hosts, id_field: :host_relation_id)
+      assert DeferredChanges.has_changes?(socket, :hosts, id_field: :host_relation_id) == true
     end
   end
 

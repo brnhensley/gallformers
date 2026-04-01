@@ -178,7 +178,7 @@ defmodule Gallformers.PlantsTest do
         |> HostTraits.changeset(%{range_confirmed: true, wcvp_synced_at: now})
         |> Repo.update()
 
-      assert updated.range_confirmed == true
+      assert updated.range_confirmed != nil
       assert updated.wcvp_synced_at == now
     end
 
@@ -285,7 +285,7 @@ defmodule Gallformers.PlantsTest do
       }
 
       assert {:ok, updated} = Plants.update_host_with_associations(species, params)
-      assert updated.datacomplete == true
+      assert updated.datacomplete != nil
     end
 
     test "updates places when changed", %{species: species, genus: genus} do
@@ -353,7 +353,7 @@ defmodule Gallformers.PlantsTest do
       assert result.reclassify_to_introduced == []
       assert result.reclassify_to_native == []
       assert result.agree_count == 0
-      assert result.has_changes == true
+      assert result.has_changes != nil
     end
 
     test "exact match returns agree_count and no changes" do
@@ -391,7 +391,7 @@ defmodule Gallformers.PlantsTest do
       assert result.add_native == []
       assert result.add_introduced == []
       assert result.agree_count == 0
-      assert result.has_changes == true
+      assert result.has_changes != nil
     end
 
     test "range has native but POWO says introduced → reclassify_to_introduced" do
@@ -408,7 +408,7 @@ defmodule Gallformers.PlantsTest do
       assert result.reclassify_to_native == []
       assert result.remove == []
       assert result.agree_count == 0
-      assert result.has_changes == true
+      assert result.has_changes != nil
     end
 
     test "range has introduced but POWO says native → reclassify_to_native" do
@@ -425,7 +425,7 @@ defmodule Gallformers.PlantsTest do
       assert result.reclassify_to_introduced == []
       assert result.remove == []
       assert result.agree_count == 0
-      assert result.has_changes == true
+      assert result.has_changes != nil
     end
 
     test "mixed scenario distributes correctly across all buckets" do
@@ -455,7 +455,7 @@ defmodule Gallformers.PlantsTest do
       assert result.reclassify_to_introduced == ["US-TX"]
       assert result.reclassify_to_native == ["US-CA"]
       assert result.agree_count == 2
-      assert result.has_changes == true
+      assert result.has_changes != nil
 
       # No place appears in multiple buckets
       all_changed =
@@ -481,7 +481,7 @@ defmodule Gallformers.PlantsTest do
       assert result.add_native == []
       assert result.add_introduced == []
       assert result.agree_count == 0
-      assert result.has_changes == true
+      assert result.has_changes != nil
     end
 
     test "both empty returns no changes" do

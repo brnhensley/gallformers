@@ -76,6 +76,9 @@ defmodule Gallformers.Species.Species do
 
   @doc """
   Creates a changeset for a species.
+
+  NOTE: The `:name` field must only be changed through `Gallformers.Taxonomy`
+  (reclassification). Other contexts should never pass `:name` in attrs.
   """
   def changeset(species, attrs) do
     species

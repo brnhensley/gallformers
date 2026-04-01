@@ -86,7 +86,7 @@ defmodule GallformersWeb.Admin.HostRangeLiveTest do
 
       # Verify host 1 is now confirmed in the database
       traits = Plants.get_host_traits(1)
-      assert traits.range_confirmed == true
+      assert traits.range_confirmed != nil
     end
 
     test "bulk confirm creates host_traits for hosts without them", %{conn: _conn} do

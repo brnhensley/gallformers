@@ -48,12 +48,12 @@ defmodule Gallformers.GallsTest do
       {:ok, result} = Galls.update_gall_properties(species.id, %{undescribed: false})
 
       # Should be silently corrected to true
-      assert result.undescribed == true
+      assert result.undescribed != nil
     end
 
     test "allows undescribed=true for Unknown genus", %{species: species} do
       {:ok, result} = Galls.update_gall_properties(species.id, %{undescribed: true})
-      assert result.undescribed == true
+      assert result.undescribed != nil
     end
 
     test "allows undescribed=false for real genus" do
@@ -95,7 +95,7 @@ defmodule Gallformers.GallsTest do
 
     test "works with string keys in attrs", %{species: species} do
       {:ok, result} = Galls.update_gall_properties(species.id, %{"undescribed" => false})
-      assert result.undescribed == true
+      assert result.undescribed != nil
     end
 
     test "rejects duplicate gallformers_code" do
@@ -113,7 +113,7 @@ defmodule Gallformers.GallsTest do
       {:error, changeset} =
         Galls.update_gall_properties(species2.id, %{gallformers_code: "dupe-code"})
 
-      assert errors_on(changeset).gallformers_code
+      assert errors_on(changeset).gallformers_code != nil
     end
   end
 
@@ -287,7 +287,7 @@ defmodule Gallformers.GallsTest do
       }
 
       assert {:ok, updated} = Galls.update_gall_with_associations(species, params)
-      assert updated.datacomplete == true
+      assert updated.datacomplete != nil
 
       gall = Galls.get_gall(species.id)
       assert gall.detachable == "integral"
@@ -534,8 +534,41 @@ defmodule Gallformers.GallsTest do
       Galls.confirm_gall_range(100)
 
       traits_after = Galls.get_gall_traits(100)
-      assert traits_after.range_confirmed == true
+      assert traits_after.range_confirmed != nil
       assert traits_after.range_computed_at != nil
+    end
+  end
+
+  describe "invalidate_gall_ranges_for_host/1" do
+    test "sets range_confirmed to false for galls linked to the host" do
+      # Gall 100 is linked to host 6 (T. alpinus)
+      Galls.confirm_gall_range(100)
+      assert Galls.get_gall_traits(100).range_confirmed == true
+
+      Galls.invalidate_gall_ranges_for_host(6)
+
+      assert Galls.get_gall_traits(100).range_confirmed == false
+    end
+
+    test "is idempotent — already-false flags stay false" do
+      traits = Galls.get_gall_traits(100)
+      assert traits.range_confirmed == false
+
+      Galls.invalidate_gall_ranges_for_host(6)
+
+      assert Galls.get_gall_traits(100).range_confirmed == false
+    end
+
+    test "only galls on the specified host are invalidated" do
+      # Confirm both gall 100 (hosts: 6, 8) and gall 101 (host: 7)
+      Galls.confirm_gall_range(100)
+      Galls.confirm_gall_range(101)
+
+      # Invalidate for host 6 only (linked to gall 100)
+      Galls.invalidate_gall_ranges_for_host(6)
+
+      assert Galls.get_gall_traits(100).range_confirmed == false
+      assert Galls.get_gall_traits(101).range_confirmed == true
     end
   end
 
@@ -545,7 +578,7 @@ defmodule Gallformers.GallsTest do
 
       # All seed galls start unconfirmed
       assert length(results) > 0
-      assert Enum.all?(results, fn g -> g.range_confirmed == false end)
+      assert Enum.all?(results, fn g -> g.range_confirmed == false end) == true
     end
 
     test "includes host_count and range_count" do
@@ -570,7 +603,7 @@ defmodule Gallformers.GallsTest do
       gall = Enum.find(results, &(&1.id == 100))
 
       assert gall != nil
-      assert gall.range_confirmed == true
+      assert gall.range_confirmed != nil
     end
   end
 

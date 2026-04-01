@@ -180,7 +180,7 @@ defmodule Gallformers.ProdData.WriteOperationsTest do
         assert updated.name == new_name
 
         aliases = get_alias_names(species.id)
-        assert Enum.any?(aliases, &(&1.name == old_name))
+        assert Enum.any?(aliases, &(&1.name == old_name)) == true
 
         assert get_genus_id_for_species(species.id) == different_family_genus.id
         assert Repo.get(GallTraits, species.id) != nil
@@ -267,7 +267,7 @@ defmodule Gallformers.ProdData.WriteOperationsTest do
 
       # Alias created for old name
       aliases = get_alias_names(species.id)
-      assert Enum.any?(aliases, &(&1.name == old_name))
+      assert Enum.any?(aliases, &(&1.name == old_name)) == true
 
       # Genus link unchanged
       assert get_genus_id_for_species(species.id) == lineage.genus.id
@@ -352,7 +352,7 @@ defmodule Gallformers.ProdData.WriteOperationsTest do
 
         # Alias created with old unknown name
         aliases = get_alias_names(undescribed_gall.id)
-        assert Enum.any?(aliases, &(&1.name == old_name))
+        assert Enum.any?(aliases, &(&1.name == old_name)) == true
 
         # Genus link updated
         assert get_genus_id_for_species(undescribed_gall.id) == real_genus.id
@@ -407,7 +407,7 @@ defmodule Gallformers.ProdData.WriteOperationsTest do
           })
 
         # Name should reflect the Unknown genus
-        assert String.starts_with?(updated.name, "Unknown (")
+        assert String.starts_with?(updated.name, "Unknown (") == true
 
         # undescribed should be forced to true
         gall_traits = Repo.get(GallTraits, described_gall.id)

@@ -7,16 +7,16 @@ defmodule Gallformers.PlacesTest do
     test "returns all continents ordered alphabetically" do
       continents = Places.list_continents()
       assert length(continents) == 3
-      assert Enum.all?(continents, &(&1.type == "continent"))
+      assert Enum.all?(continents, &(&1.type == "continent")) == true
       names = Enum.map(continents, & &1.name)
       assert names == Enum.sort(names)
     end
 
     test "includes expected continent codes" do
       codes = Places.list_continents() |> Enum.map(& &1.code) |> MapSet.new()
-      assert MapSet.member?(codes, "XN")
-      assert MapSet.member?(codes, "XB")
-      assert MapSet.member?(codes, "XE")
+      assert MapSet.member?(codes, "XN") == true
+      assert MapSet.member?(codes, "XB") == true
+      assert MapSet.member?(codes, "XE") == true
     end
   end
 
@@ -103,9 +103,9 @@ defmodule Gallformers.PlacesTest do
 
     test "includes group field for typeahead grouping" do
       results = Places.search_places_grouped("ca", 10)
-      assert Enum.all?(results, &Map.has_key?(&1, :group))
+      assert Enum.all?(results, &Map.has_key?(&1, :group)) == true
       groups = Enum.map(results, & &1.group) |> Enum.uniq()
-      assert Enum.all?(groups, &(&1 in ["Countries", "States & Provinces"]))
+      assert Enum.all?(groups, &(&1 in ["Countries", "States & Provinces"])) == true
     end
 
     test "includes parent_name for context display" do
@@ -280,7 +280,7 @@ defmodule Gallformers.PlacesTest do
       tree = Places.get_places_tree()
       xn = Enum.find(tree, &(&1.key == "p-XN"))
       us = Enum.find(xn.nodes, &(&1.key == "p-US"))
-      assert Enum.any?(us.nodes, &(&1.key == "p-US-CA"))
+      assert Enum.any?(us.nodes, &(&1.key == "p-US-CA")) == true
     end
 
     test "leaf countries have no nodes key" do

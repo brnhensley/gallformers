@@ -20,7 +20,7 @@ defmodule Gallformers.Images.AuditCacheTest do
   describe "start_link/1" do
     test "starts the GenServer" do
       {pid, _name} = start_test_cache()
-      assert Process.alive?(pid)
+      assert Process.alive?(pid) == true
       GenServer.stop(pid)
     end
   end

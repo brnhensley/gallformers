@@ -25,7 +25,7 @@ defmodule Gallformers.SpeciesTest do
     test "returns only gall species with correct fields" do
       galls = Galls.list_galls()
       assert length(galls) == 6
-      assert Enum.all?(galls, &(&1.taxoncode == "gall"))
+      assert Enum.all?(galls, &(&1.taxoncode == "gall")) == true
     end
 
     test "returns galls ordered by name" do
@@ -51,7 +51,7 @@ defmodule Gallformers.SpeciesTest do
 
       first_ids = MapSet.new(Enum.map(first_page, & &1.id))
       second_ids = MapSet.new(Enum.map(second_page, & &1.id))
-      assert MapSet.disjoint?(first_ids, second_ids)
+      assert MapSet.disjoint?(first_ids, second_ids) == true
     end
   end
 
@@ -167,7 +167,7 @@ defmodule Gallformers.SpeciesTest do
       # "ercus" is a substring of "Quercus"
       results = Species.search_species("ercus", 10)
       assert length(results) > 0
-      assert Enum.all?(results, &String.contains?(String.downcase(&1.name), "ercus"))
+      assert Enum.all?(results, &String.contains?(String.downcase(&1.name), "ercus")) == true
     end
 
     test "multi-word queries work" do
@@ -175,7 +175,7 @@ defmodule Gallformers.SpeciesTest do
       results = Species.search_species("q alba", 10)
       assert length(results) > 0
       names = Enum.map(results, & &1.name)
-      assert Enum.any?(names, &String.contains?(String.downcase(&1), "alba"))
+      assert Enum.any?(names, &String.contains?(String.downcase(&1), "alba")) == true
     end
 
     test "returns empty list for nonsense query" do
@@ -190,11 +190,11 @@ defmodule Gallformers.SpeciesTest do
 
     test "results have expected fields" do
       [result | _] = Species.search_species("quercus", 5)
-      assert result.id
-      assert String.contains?(String.downcase(result.name), "quercus")
+      assert result.id != nil
+      assert String.contains?(String.downcase(result.name), "quercus") == true
       assert result.taxoncode in ["plant", "gall"]
-      assert Map.has_key?(result, :datacomplete)
-      assert Map.has_key?(result, :abundance_name)
+      assert Map.has_key?(result, :datacomplete) == true
+      assert Map.has_key?(result, :abundance_name) == true
     end
 
     test "respects limit parameter" do

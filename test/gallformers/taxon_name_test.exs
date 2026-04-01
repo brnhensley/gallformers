@@ -169,11 +169,11 @@ defmodule Gallformers.TaxonNameTest do
 
   describe "unknown_genus?/1" do
     test "returns true for bare Unknown" do
-      assert TaxonName.unknown_genus?("Unknown")
+      assert TaxonName.unknown_genus?("Unknown") == true
     end
 
     test "returns true for Unknown (Family)" do
-      assert TaxonName.unknown_genus?("Unknown (Cynipidae)")
+      assert TaxonName.unknown_genus?("Unknown (Cynipidae)") == true
     end
 
     test "returns false for regular genus" do
@@ -187,15 +187,15 @@ defmodule Gallformers.TaxonNameTest do
 
   describe "italicize_rank?/1" do
     test "species is italic" do
-      assert TaxonName.italicize_rank?("species")
+      assert TaxonName.italicize_rank?("species") == true
     end
 
     test "genus is italic" do
-      assert TaxonName.italicize_rank?("genus")
+      assert TaxonName.italicize_rank?("genus") == true
     end
 
     test "section is italic" do
-      assert TaxonName.italicize_rank?("section")
+      assert TaxonName.italicize_rank?("section") == true
     end
 
     test "family is not italic" do
@@ -209,11 +209,11 @@ defmodule Gallformers.TaxonNameTest do
 
   describe "italicize_name?/1" do
     test "genus name is italic" do
-      assert TaxonName.italicize_name?("Andricus")
+      assert TaxonName.italicize_name?("Andricus") == true
     end
 
     test "species name is italic" do
-      assert TaxonName.italicize_name?("Andricus quercuslanigera")
+      assert TaxonName.italicize_name?("Andricus quercuslanigera") == true
     end
 
     test "family name (-idae) is not italic" do
@@ -237,7 +237,7 @@ defmodule Gallformers.TaxonNameTest do
     end
 
     test "name with parenthetical uses first word only" do
-      assert TaxonName.italicize_name?("Andricus (subgenus)")
+      assert TaxonName.italicize_name?("Andricus (subgenus)") == true
     end
   end
 end

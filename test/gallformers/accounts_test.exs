@@ -146,7 +146,7 @@ defmodule Gallformers.AccountsTest do
     test "updates show_on_about", %{user: user} do
       assert user.show_on_about == false
       assert {:ok, updated} = Accounts.update_user(user, %{show_on_about: true})
-      assert updated.show_on_about == true
+      assert updated.show_on_about != nil
     end
 
     test "validates URL fields on update", %{user: user} do

@@ -39,7 +39,7 @@ defmodule Gallformers.Galls do
     Walls
   }
 
-  alias Gallformers.Galls.{GallTraits, HostAssociations, Identification}
+  alias Gallformers.Galls.{GallHost, GallTraits, HostAssociations, Identification}
   alias Gallformers.Images.Image
   alias Gallformers.Repo
   alias Gallformers.Species.{Abundance, Species}
@@ -856,6 +856,31 @@ defmodule Gallformers.Galls do
         range_computed_at: DateTime.utc_now() |> DateTime.truncate(:second)
       ]
     )
+  end
+
+  @doc """
+  Invalidates gall range confirmation for all galls linked to a host species.
+
+  Called when a host's range data changes so that gall ranges can be reviewed.
+  Sets `range_confirmed = false` on `gall_traits` for every gall linked to the host.
+  """
+  @spec invalidate_gall_ranges_for_host(integer()) :: :ok
+  def invalidate_gall_ranges_for_host(host_species_id) do
+    gall_ids =
+      from(gh in GallHost,
+        where: gh.host_species_id == ^host_species_id,
+        select: gh.gall_species_id
+      )
+      |> Repo.all()
+
+    if gall_ids != [] do
+      from(gt in GallTraits,
+        where: gt.species_id in ^gall_ids
+      )
+      |> Repo.update_all(set: [range_confirmed: false])
+    end
+
+    :ok
   end
 
   @doc """

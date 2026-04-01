@@ -61,7 +61,7 @@ defmodule Gallformers.GlossariesTest do
     test "returns matching entries for valid query" do
       results = Glossaries.search_glossary("cyn")
       assert length(results) >= 1
-      assert Enum.any?(results, &(&1.word == "cynipid"))
+      assert Enum.any?(results, &(&1.word == "cynipid")) == true
     end
 
     test "search is case-insensitive" do
@@ -75,7 +75,7 @@ defmodule Gallformers.GlossariesTest do
     test "searches in definitions too" do
       # "detachment" appears in abscission's definition, not its word
       results = Glossaries.search_glossary("detachment")
-      assert Enum.any?(results, &(&1.word == "abscission"))
+      assert Enum.any?(results, &(&1.word == "abscission")) == true
     end
   end
 

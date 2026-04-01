@@ -97,7 +97,7 @@ defmodule Gallformers.Wcvp.LookupTest do
 
   describe "available?/0" do
     test "returns true when repo is started" do
-      assert Lookup.available?()
+      assert Lookup.available?() == true
     end
   end
 
@@ -118,7 +118,7 @@ defmodule Gallformers.Wcvp.LookupTest do
     test "finds species by genus prefix" do
       results = Lookup.search("Quercus")
       assert length(results) == 3
-      assert Enum.all?(results, fn r -> r.genus == "Quercus" end)
+      assert Enum.all?(results, fn r -> r.genus == "Quercus" end) == true
     end
 
     test "finds exact species by full name" do
@@ -159,7 +159,7 @@ defmodule Gallformers.Wcvp.LookupTest do
     test "matches genus-only query" do
       results = Lookup.search_contains("Alnus")
       assert length(results) == 2
-      assert Enum.all?(results, fn r -> r.genus == "Alnus" end)
+      assert Enum.all?(results, fn r -> r.genus == "Alnus" end) == true
     end
 
     test "is case insensitive" do
@@ -217,7 +217,7 @@ defmodule Gallformers.Wcvp.LookupTest do
     test "includes synonyms when option is set" do
       results = Lookup.search("Quercus", include_synonyms: true)
       assert length(results) == 4
-      assert Enum.any?(results, fn r -> r.taxon_status == "Synonym" end)
+      assert Enum.any?(results, fn r -> r.taxon_status == "Synonym" end) == true
     end
 
     test "includes taxon_status and accepted_plant_name_id in results" do
@@ -237,7 +237,7 @@ defmodule Gallformers.Wcvp.LookupTest do
     test "includes synonyms when option is set" do
       results = Lookup.search_contains("Quercus", include_synonyms: true)
       assert length(results) == 4
-      assert Enum.any?(results, fn r -> r.taxon_status == "Synonym" end)
+      assert Enum.any?(results, fn r -> r.taxon_status == "Synonym" end) == true
     end
   end
 

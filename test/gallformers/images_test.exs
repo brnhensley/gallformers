@@ -17,16 +17,16 @@ defmodule Gallformers.ImagesTest do
     end
 
     test "returns true for CC-BY licenses" do
-      assert Images.requires_attribution?("CC-BY")
-      assert Images.requires_attribution?("CC-BY-SA")
-      assert Images.requires_attribution?("CC-BY-NC")
-      assert Images.requires_attribution?("CC-BY-NC-SA")
-      assert Images.requires_attribution?("CC-BY-ND")
-      assert Images.requires_attribution?("CC-BY-NC-ND")
+      assert Images.requires_attribution?("CC-BY") == true
+      assert Images.requires_attribution?("CC-BY-SA") == true
+      assert Images.requires_attribution?("CC-BY-NC") == true
+      assert Images.requires_attribution?("CC-BY-NC-SA") == true
+      assert Images.requires_attribution?("CC-BY-ND") == true
+      assert Images.requires_attribution?("CC-BY-NC-ND") == true
     end
 
     test "returns true for All Rights Reserved" do
-      assert Images.requires_attribution?("All Rights Reserved")
+      assert Images.requires_attribution?("All Rights Reserved") == true
     end
 
     test "returns false for invalid license strings" do
@@ -44,7 +44,7 @@ defmodule Gallformers.ImagesTest do
         source: nil
       }
 
-      assert Images.image_attributed?(image)
+      assert Images.image_attributed?(image) == true
     end
 
     test "returns true for CC-BY with creator" do
@@ -55,7 +55,7 @@ defmodule Gallformers.ImagesTest do
         source: nil
       }
 
-      assert Images.image_attributed?(image)
+      assert Images.image_attributed?(image) == true
     end
 
     test "returns false for CC-BY without creator" do
@@ -115,7 +115,7 @@ defmodule Gallformers.ImagesTest do
         source: source
       }
 
-      assert Images.image_attributed?(image)
+      assert Images.image_attributed?(image) == true
     end
   end
 

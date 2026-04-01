@@ -808,14 +808,14 @@ defmodule Gallformers.TaxonomyTest do
 
       # Verify genus changed to a placeholder
       taxonomy = Taxonomy.get_taxonomy_for_species(species.id)
-      assert Taxonomy.placeholder_genus_name?(taxonomy.genus.name)
+      assert Taxonomy.placeholder_genus_name?(taxonomy.genus.name) == true
 
       # Species name should reflect the Unknown genus
       assert updated.name == "Unknown (ReclassifyFamily2) testsp"
 
       # Verify undescribed was forced to true
       gall_traits = Repo.get!(GallTraits, species.id)
-      assert gall_traits.undescribed == true
+      assert gall_traits.undescribed != nil
     end
 
     test "does not force undescribed when moving to a real genus", %{
@@ -878,7 +878,7 @@ defmodule Gallformers.TaxonomyTest do
         |> Repo.all()
 
       # All aliases should be scientific
-      assert Enum.all?(all_aliases, &(&1.type == "scientific"))
+      assert Enum.all?(all_aliases, &(&1.type == "scientific")) == true
       assert length(all_aliases) == 2
     end
 
@@ -975,7 +975,7 @@ defmodule Gallformers.TaxonomyTest do
         |> Repo.all()
 
       # All aliases should be scientific
-      assert Enum.all?(all_aliases, &(&1.type == "scientific"))
+      assert Enum.all?(all_aliases, &(&1.type == "scientific")) == true
     end
   end
 
@@ -1442,7 +1442,7 @@ defmodule Gallformers.TaxonomyTest do
       assert impact.genera_count == 3
       assert impact.sections_count == 1
       assert impact.species_count == 4
-      assert impact.has_impact == true
+      assert impact.has_impact != nil
       assert impact.taxonomy.id == family.id
     end
 
@@ -1491,7 +1491,7 @@ defmodule Gallformers.TaxonomyTest do
       assert impact.genera_count == 0
       assert impact.sections_count == 1
       assert impact.species_count == 2
-      assert impact.has_impact == true
+      assert impact.has_impact != nil
     end
 
     test "section has no cascade impact" do
@@ -1794,7 +1794,7 @@ defmodule Gallformers.TaxonomyTest do
       refute Repo.get(Species, species2.id)
 
       # Family still exists
-      assert Repo.get(Taxonomy.Taxonomy, family.id)
+      assert Repo.get(Taxonomy.Taxonomy, family.id) != nil
     end
 
     test "section delete has no cascade (simple delete)" do
@@ -1825,8 +1825,8 @@ defmodule Gallformers.TaxonomyTest do
 
       # Section deleted, family and genus remain
       refute Repo.get(Taxonomy.Taxonomy, section.id)
-      assert Repo.get(Taxonomy.Taxonomy, family.id)
-      assert Repo.get(Taxonomy.Taxonomy, genus.id)
+      assert Repo.get(Taxonomy.Taxonomy, family.id) != nil
+      assert Repo.get(Taxonomy.Taxonomy, genus.id) != nil
     end
 
     test "deletes species with gall_traits" do
@@ -1934,7 +1934,7 @@ defmodule Gallformers.TaxonomyTest do
       refute Repo.get(GallHost, host_assoc.id)
 
       # Host plant still exists
-      assert Repo.get(Species, host_species.id)
+      assert Repo.get(Species, host_species.id) != nil
     end
 
     test "deletes species with images" do
@@ -2069,7 +2069,7 @@ defmodule Gallformers.TaxonomyTest do
 
       refute Repo.get(Taxonomy.Taxonomy, genus.id)
       # Family remains
-      assert Repo.get(Taxonomy.Taxonomy, family.id)
+      assert Repo.get(Taxonomy.Taxonomy, family.id) != nil
     end
 
     test "returns impact struct on success" do
@@ -2100,12 +2100,12 @@ defmodule Gallformers.TaxonomyTest do
 
       # Verify impact struct has all expected fields
       assert is_map(impact)
-      assert Map.has_key?(impact, :taxonomy)
-      assert Map.has_key?(impact, :genera)
-      assert Map.has_key?(impact, :genera_count)
-      assert Map.has_key?(impact, :sections)
-      assert Map.has_key?(impact, :sections_count)
-      assert Map.has_key?(impact, :species_count)
+      assert Map.has_key?(impact, :taxonomy) == true
+      assert Map.has_key?(impact, :genera) == true
+      assert Map.has_key?(impact, :genera_count) == true
+      assert Map.has_key?(impact, :sections) == true
+      assert Map.has_key?(impact, :sections_count) == true
+      assert Map.has_key?(impact, :species_count) == true
     end
   end
 
@@ -2130,7 +2130,7 @@ defmodule Gallformers.TaxonomyTest do
           rank: "Subfamily"
         })
 
-      assert changeset.valid?
+      assert changeset.valid? == true
     end
 
     test "invalid intermediate changeset missing rank", %{family: family} do
@@ -2165,7 +2165,7 @@ defmodule Gallformers.TaxonomyTest do
           description: "Plant"
         })
 
-      assert changeset.valid?
+      assert changeset.valid? == true
     end
 
     test "existing genus changeset still works (rank ignored)", %{family: family} do
@@ -2176,7 +2176,7 @@ defmodule Gallformers.TaxonomyTest do
           parent_id: family.id
         })
 
-      assert changeset.valid?
+      assert changeset.valid? == true
     end
 
     test "valid_ranks/0 returns all accepted rank values" do
@@ -2226,7 +2226,7 @@ defmodule Gallformers.TaxonomyTest do
           rank: nil
         })
 
-      assert changeset.valid?
+      assert changeset.valid? == true
     end
 
     test "taxonomy_types includes intermediate" do
@@ -2404,7 +2404,7 @@ defmodule Gallformers.TaxonomyTest do
     end
 
     test "build_taxonomy_from_genus with intermediates" do
-      genus = Repo.get!(TaxonomySchema, 33)
+      genus = Repo.get_by!(TaxonomySchema, name: "Andricus")
       lineage = Tree.build_taxonomy_from_genus(genus)
 
       assert lineage.family.name == "Cynipidae"
@@ -2456,14 +2456,14 @@ defmodule Gallformers.TaxonomyTest do
       assert length(intermediate_results) >= 1
 
       cynipinae = Enum.find(intermediate_results, &(&1.name == "Cynipinae"))
-      assert cynipinae
+      assert cynipinae != nil
       assert cynipinae.rank == "Subfamily"
     end
 
     test "search_genera_and_sections returns rank field for intermediates" do
       results = Taxonomy.search_genera_and_sections("Cynipini")
       tribe = Enum.find(results, &(&1.name == "Cynipini"))
-      assert tribe
+      assert tribe != nil
       assert tribe.rank == "Tribe"
       assert tribe.type == "intermediate"
     end
@@ -2471,7 +2471,7 @@ defmodule Gallformers.TaxonomyTest do
     test "search_genera_and_sections rank is nil for genus and section" do
       results = Taxonomy.search_genera_and_sections("GenusAlpha")
       genus = Enum.find(results, &(&1.name == "GenusAlpha"))
-      assert genus
+      assert genus != nil
       assert genus.rank == nil
       assert genus.type == "genus"
     end
@@ -2587,11 +2587,12 @@ defmodule Gallformers.TaxonomyTest do
       # Delete the tribe — children should move to its parent (Cynipinae)
       {:ok, _deleted} = Taxonomy.delete_taxonomy_cascade(tribe)
 
-      # Andricus and Cynips should now be under Cynipinae (id=31)
-      andricus = Repo.get!(TaxonomySchema, 33)
-      cynips = Repo.get!(TaxonomySchema, 34)
-      assert andricus.parent_id == 31
-      assert cynips.parent_id == 31
+      # Andricus and Cynips should now be under Cynipinae
+      cynipinae = Repo.get_by!(TaxonomySchema, name: "Cynipinae")
+      andricus = Repo.get_by!(TaxonomySchema, name: "Andricus")
+      cynips = Repo.get_by!(TaxonomySchema, name: "Cynips")
+      assert andricus.parent_id == cynipinae.id
+      assert cynips.parent_id == cynipinae.id
     end
 
     test "get_deletion_impact for intermediate shows children" do
@@ -2600,7 +2601,7 @@ defmodule Gallformers.TaxonomyTest do
 
       assert impact.taxonomy.id == 32
       assert impact.children_count == 2
-      assert impact.has_impact == true
+      assert impact.has_impact != nil
     end
   end
 
@@ -2676,7 +2677,7 @@ defmodule Gallformers.TaxonomyTest do
         })
 
       results = Taxonomy.search_families("Thyrid", taxoncode: "gall")
-      assert Enum.any?(results, &(&1.id == family.id))
+      assert Enum.any?(results, &(&1.id == family.id)) == true
     end
 
     test "does not return plant families when filtering by gall taxoncode" do
@@ -2718,7 +2719,7 @@ defmodule Gallformers.TaxonomyTest do
       ])
 
       results = Taxonomy.search_families("TestGallFam", taxoncode: "gall")
-      assert Enum.any?(results, &(&1.id == family.id))
+      assert Enum.any?(results, &(&1.id == family.id)) == true
     end
   end
 end

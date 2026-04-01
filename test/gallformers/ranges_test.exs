@@ -25,14 +25,14 @@ defmodule Gallformers.RangesTest do
     test "host_covers_place?/2 returns true for exact match" do
       # M. arvensis (8) has exact range in California (US-CA)
       california = Places.get_place_by_code("US-CA")
-      assert Ranges.host_covers_place?(8, california.id)
+      assert Ranges.host_covers_place?(8, california.id) == true
     end
 
     test "host_covers_place?/2 returns true when ancestor has range" do
       # M. arvensis (8) has country-level range for US
       # So any US state should be covered
       california = Places.get_place_by_code("US-CA")
-      assert Ranges.host_covers_place?(8, california.id)
+      assert Ranges.host_covers_place?(8, california.id) == true
     end
 
     test "host_covers_place?/2 returns false for unrelated place" do
@@ -129,7 +129,7 @@ defmodule Gallformers.RangesTest do
       inherited_set = MapSet.new(result.inherited_range)
 
       # No overlap between exact and inherited
-      assert MapSet.disjoint?(exact_set, inherited_set)
+      assert MapSet.disjoint?(exact_set, inherited_set) == true
 
       # MX-JAL is NOT in range (not in gall_range table)
       refute "MX-JAL" in result.in_range
@@ -207,7 +207,7 @@ defmodule Gallformers.RangesTest do
       assert length(results) > 0
 
       for entry <- results do
-        assert Map.has_key?(entry, :distribution_type)
+        assert Map.has_key?(entry, :distribution_type) == true
         assert entry.distribution_type in ["native", "introduced"]
       end
     end
@@ -247,7 +247,7 @@ defmodule Gallformers.RangesTest do
         changeset =
           HostRange.changeset(%HostRange{}, %{species_id: 1, place_id: 1, distribution_type: dt})
 
-        assert changeset.valid?
+        assert changeset.valid? == true
       end
     end
 
@@ -397,7 +397,7 @@ defmodule Gallformers.RangesTest do
 
       for p <- ~w(exact country) do
         changeset = GallRange.changeset(%GallRange{}, %{species_id: 1, place_id: 1, precision: p})
-        assert changeset.valid?
+        assert changeset.valid? == true
       end
     end
 
@@ -456,81 +456,6 @@ defmodule Gallformers.RangesTest do
     test "clears all entries when given empty list" do
       {:ok, :ok} = Ranges.set_gall_range(100, [])
       assert Ranges.get_gall_range_place_ids(100) == []
-    end
-  end
-
-  describe "gall range invalidation cascade" do
-    test "update_host_places invalidates range_confirmed for linked galls" do
-      # Confirm gall 100's range
-      Gallformers.Galls.confirm_gall_range(100)
-      traits = Gallformers.Galls.get_gall_traits(100)
-      assert traits.range_confirmed == true
-
-      # Gall 100 is linked to host 6 (T. alpinus)
-      # Update host 6's range — should invalidate gall 100
-      california = Places.get_place_by_code("US-CA")
-      {:ok, _} = Ranges.update_host_places(6, [california.id])
-
-      traits = Gallformers.Galls.get_gall_traits(100)
-      assert traits.range_confirmed == false
-    end
-
-    test "invalidation is idempotent — already-false flags stay false" do
-      # Gall 100 starts unconfirmed (default)
-      traits = Gallformers.Galls.get_gall_traits(100)
-      assert traits.range_confirmed == false
-
-      # Update host range — should not error
-      california = Places.get_place_by_code("US-CA")
-      {:ok, _} = Ranges.update_host_places(6, [california.id])
-
-      traits = Gallformers.Galls.get_gall_traits(100)
-      assert traits.range_confirmed == false
-    end
-
-    test "only galls on the modified host are invalidated" do
-      # Confirm both gall 100 (hosts: 6, 8) and gall 101 (host: 7)
-      Gallformers.Galls.confirm_gall_range(100)
-      Gallformers.Galls.confirm_gall_range(101)
-
-      # Update host 6's range (linked to gall 100 only)
-      california = Places.get_place_by_code("US-CA")
-      {:ok, _} = Ranges.update_host_places(6, [california.id])
-
-      # Gall 100 invalidated (host 6 changed)
-      assert Gallformers.Galls.get_gall_traits(100).range_confirmed == false
-      # Gall 101 still confirmed (host 7 unchanged)
-      assert Gallformers.Galls.get_gall_traits(101).range_confirmed == true
-    end
-
-    test "add_place_to_host invalidates gall range_confirmed" do
-      Gallformers.Galls.confirm_gall_range(100)
-      assert Gallformers.Galls.get_gall_traits(100).range_confirmed == true
-
-      bahamas = Places.get_place_by_code("BS")
-      {:ok, _} = Ranges.add_place_to_host(6, bahamas.id)
-
-      assert Gallformers.Galls.get_gall_traits(100).range_confirmed == false
-    end
-
-    test "remove_place_from_host invalidates gall range_confirmed" do
-      Gallformers.Galls.confirm_gall_range(100)
-      assert Gallformers.Galls.get_gall_traits(100).range_confirmed == true
-
-      california = Places.get_place_by_code("US-CA")
-      {:ok, _} = Ranges.remove_place_from_host(6, california.id)
-
-      assert Gallformers.Galls.get_gall_traits(100).range_confirmed == false
-    end
-
-    test "toggle_place_for_host invalidates gall range_confirmed" do
-      Gallformers.Galls.confirm_gall_range(100)
-      assert Gallformers.Galls.get_gall_traits(100).range_confirmed == true
-
-      bahamas = Places.get_place_by_code("BS")
-      {:added, _} = Ranges.toggle_place_for_host(6, bahamas.id)
-
-      assert Gallformers.Galls.get_gall_traits(100).range_confirmed == false
     end
   end
 

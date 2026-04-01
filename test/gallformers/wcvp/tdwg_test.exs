@@ -61,8 +61,8 @@ defmodule Gallformers.Wcvp.TdwgTest do
 
   describe "us_canada_code?/1" do
     test "identifies US and Canadian place codes" do
-      assert Tdwg.us_canada_code?("US-CA")
-      assert Tdwg.us_canada_code?("CA-AB")
+      assert Tdwg.us_canada_code?("US-CA") == true
+      assert Tdwg.us_canada_code?("CA-AB") == true
       refute Tdwg.us_canada_code?("MX")
       refute Tdwg.us_canada_code?("BR-PR")
     end

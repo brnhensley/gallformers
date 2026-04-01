@@ -69,7 +69,7 @@ defmodule Gallformers.Taxonomy.ReclassificationTest do
 
       # Should be findable via search
       results = Species.search_species("xyzuniquename", 10)
-      assert Enum.any?(results, &(&1.id == species1.id))
+      assert Enum.any?(results, &(&1.id == species1.id)) == true
     end
   end
 
@@ -182,7 +182,7 @@ defmodule Gallformers.Taxonomy.ReclassificationTest do
       assert updated.name == "Brandnewreclgenus alpha"
 
       # Verify genus was created
-      assert Taxonomy.get_taxonomy_by_name("Brandnewreclgenus", "genus")
+      assert Taxonomy.get_taxonomy_by_name("Brandnewreclgenus", "genus") != nil
     end
 
     test "reclassify to new genus under new family", ctx do
@@ -203,8 +203,8 @@ defmodule Gallformers.Taxonomy.ReclassificationTest do
       assert updated.name == "Freshreclgenus alpha"
 
       # Verify family and genus were created
-      assert Taxonomy.get_taxonomy_by_name("FreshReclFamily", "family")
-      assert Taxonomy.get_taxonomy_by_name("Freshreclgenus", "genus")
+      assert Taxonomy.get_taxonomy_by_name("FreshReclFamily", "family") != nil
+      assert Taxonomy.get_taxonomy_by_name("Freshreclgenus", "genus") != nil
     end
 
     test "alias created for old name when requested", ctx do
@@ -234,7 +234,7 @@ defmodule Gallformers.Taxonomy.ReclassificationTest do
       assert {:ok, _updated} = Reclassification.reclassify_species(ctx.species.id, params)
 
       aliases = Species.get_aliases_for_species(ctx.species.id)
-      assert Enum.any?(aliases, &(&1.name == "Reclassifytestgenus alpha"))
+      assert Enum.any?(aliases, &(&1.name == "Reclassifytestgenus alpha")) == true
     end
   end
 end

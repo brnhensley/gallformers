@@ -538,7 +538,7 @@ defmodule GallformersWeb.Admin.GallLive.FormTest do
       assert html =~ "updated successfully"
 
       # Verify genus was actually created in the DB
-      assert Gallformers.Taxonomy.get_taxonomy_by_name("Newcynipgenus", "genus")
+      assert Gallformers.Taxonomy.get_taxonomy_by_name("Newcynipgenus", "genus") != nil
     end
   end
 

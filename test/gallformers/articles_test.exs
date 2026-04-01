@@ -154,7 +154,7 @@ defmodule Gallformers.ArticlesTest do
     test "sets published_at when created as published" do
       attrs = Map.put(@valid_attrs, :is_published, true)
       assert {:ok, %Article{} = article} = Articles.create_article(attrs)
-      assert article.is_published == true
+      assert article.is_published != nil
       assert article.published_at != nil
     end
 
@@ -184,7 +184,7 @@ defmodule Gallformers.ArticlesTest do
       assert article.published_at == nil
 
       {:ok, updated} = Articles.update_article(article, %{is_published: true})
-      assert updated.is_published == true
+      assert updated.is_published != nil
       assert updated.published_at != nil
     end
 

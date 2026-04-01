@@ -45,7 +45,7 @@ defmodule GallformersWeb.Admin.DashboardLiveTest do
       {:ok, _view, html} = live(conn, ~p"/admin")
 
       # Stats should be displayed (numbers)
-      assert Regex.match?(~r/\d+/, html)
+      assert Regex.match?(~r/\d+/, html) == true
     end
 
     test "displays quick actions section", %{conn: conn} do

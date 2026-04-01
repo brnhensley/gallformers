@@ -9,12 +9,12 @@ defmodule GallformersWeb.API.SearchControllerTest do
       conn = get(conn, ~p"/api/v2/search?q=oak")
 
       response = json_response(conn, 200)
-      assert Map.has_key?(response, "galls")
-      assert Map.has_key?(response, "hosts")
-      assert Map.has_key?(response, "glossary")
-      assert Map.has_key?(response, "sources")
-      assert Map.has_key?(response, "taxonomy")
-      assert Map.has_key?(response, "places")
+      assert Map.has_key?(response, "galls") == true
+      assert Map.has_key?(response, "hosts") == true
+      assert Map.has_key?(response, "glossary") == true
+      assert Map.has_key?(response, "sources") == true
+      assert Map.has_key?(response, "taxonomy") == true
+      assert Map.has_key?(response, "places") == true
     end
 
     test "returns empty results for empty query", %{conn: conn} do

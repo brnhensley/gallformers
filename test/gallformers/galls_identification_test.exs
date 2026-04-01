@@ -148,7 +148,7 @@ defmodule Gallformers.GallsIdentificationTest do
       gall = Enum.find(results, &(&1.id == 100))
 
       assert gall != nil
-      assert Map.has_key?(gall, :place_match)
+      assert Map.has_key?(gall, :place_match) == true
       assert gall[:place_match] in [:documented, :country_level]
     end
 

@@ -33,7 +33,7 @@ defmodule Gallformers.Taxonomy.TreeTest do
       result = Tree.update_taxonomy(genus, %{"type" => "section", "name" => "NewName"})
 
       assert {:error, changeset} = result
-      assert changeset.errors[:type]
+      assert changeset.errors[:type] != nil
     end
 
     test "blocks type change when species are linked", %{genus: genus} do
@@ -81,17 +81,17 @@ defmodule Gallformers.Taxonomy.TreeTest do
       assert length(results) > 0
 
       # Every result should be a genus
-      assert Enum.all?(results, fn opt -> opt.type == "genus" end)
+      assert Enum.all?(results, fn opt -> opt.type == "genus" end) == true
 
       # Each result should have the expected keys
       first = hd(results)
-      assert Map.has_key?(first, :id)
-      assert Map.has_key?(first, :name)
-      assert Map.has_key?(first, :path)
+      assert Map.has_key?(first, :id) == true
+      assert Map.has_key?(first, :name) == true
+      assert Map.has_key?(first, :path) == true
 
       # GenusAlpha should be present with its family path
       genus_alpha = Enum.find(results, &(&1.name == "GenusAlpha"))
-      assert genus_alpha
+      assert genus_alpha != nil
       assert genus_alpha.path == "FamilyAlpha / GenusAlpha"
     end
 
@@ -104,7 +104,7 @@ defmodule Gallformers.Taxonomy.TreeTest do
       results = Tree.list_parent_options_with_paths("section")
       section_genus = Enum.find(results, &(&1.id == genus.id))
 
-      assert section_genus
+      assert section_genus != nil
       assert section_genus.path =~ "Cynipidae"
       assert section_genus.path =~ "SectionTestGenus"
     end
