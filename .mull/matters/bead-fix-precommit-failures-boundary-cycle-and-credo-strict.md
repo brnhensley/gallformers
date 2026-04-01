@@ -1,5 +1,5 @@
 ---
-status: raw
+status: done
 created: 2026-04-01
 updated: 2026-04-01
 epic: platform
@@ -32,4 +32,3 @@ All from custom Credo checks (no upstream Credo issues):
 - 12 × misc (nested modules, hardcoded IDs)
 
 The bulk remediation is tracked in matter b016. The precommit question is: should `--strict` stay in precommit (aspirational but red), or should it move to `check-full` until b016 reduces the count to zero?
-
