@@ -486,7 +486,20 @@ defmodule Gallformers.Search do
         |> Repo.all()
         |> MapSet.new()
 
-      Enum.filter(results, &MapSet.member?(galls_in_continent, &1.id))
+      # Galls with no range data should appear in every region
+      galls_without_range =
+        from(s in Species,
+          left_join: gr in "gall_range",
+          on: gr.species_id == s.id,
+          where: s.id in ^gall_ids and is_nil(gr.species_id),
+          select: s.id
+        )
+        |> Repo.all()
+        |> MapSet.new()
+
+      Enum.filter(results, fn r ->
+        MapSet.member?(galls_in_continent, r.id) or MapSet.member?(galls_without_range, r.id)
+      end)
     end
   end
 

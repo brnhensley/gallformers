@@ -1,10 +1,10 @@
 ---
 status: active
 created: 2026-03-18
-updated: 2026-03-23
+updated: 2026-04-01
 epic: platform
 docs: [docs/testing-philosophy.md]
-relates: [2648, 8757]
+relates: [2648, 8757, bead]
 ---
 
 # Test suite alignment to testing philosophy

@@ -1,9 +1,9 @@
 ---
 status: done
 created: 2026-03-24
-updated: 2026-03-26
+updated: 2026-04-01
 epic: platform
-relates: [8757, 881c, 3f58]
+relates: [8757, 881c, 3f58, bead]
 ---
 
 # Boundary violations and dependency cycles to resolve

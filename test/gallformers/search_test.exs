@@ -1,7 +1,10 @@
 defmodule Gallformers.SearchTest do
   use Gallformers.DataCase, async: true
 
+  alias Gallformers.Galls.GallTraits
+  alias Gallformers.Repo
   alias Gallformers.Search
+  alias Gallformers.Species.Species
 
   describe "global_search/2 multi-term matching" do
     test "multi-word query matches species with each term independently" do
@@ -77,6 +80,24 @@ defmodule Gallformers.SearchTest do
       assert all_results.glossary == na_results.glossary
       assert all_results.sources == na_results.sources
       assert all_results.taxonomy == na_results.taxonomy
+    end
+
+    test "galls with no range data appear in every continent search" do
+      # Create a gall with traits but no gall_range entries
+      {:ok, gall} =
+        Repo.insert(%Species{
+          name: "Norangia mysterius",
+          taxoncode: "gall",
+          datacomplete: false
+        })
+
+      Repo.insert!(%GallTraits{species_id: gall.id, detachable: "unknown", undescribed: false})
+
+      na_results = Search.global_search("Norangia", "XN")
+      eu_results = Search.global_search("Norangia", "XE")
+
+      assert "Norangia mysterius" in Enum.map(na_results.galls, & &1.name)
+      assert "Norangia mysterius" in Enum.map(eu_results.galls, & &1.name)
     end
 
     test "nil continent returns all results" do
