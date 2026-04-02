@@ -70,7 +70,6 @@ defmodule Gallformers.Taxonomy do
   defdelegate list_child_genera(family_id), to: Tree
   defdelegate list_child_sections(genus_id), to: Tree
   defdelegate list_sections_for_family_tree(family_id), to: Tree
-  defdelegate list_sections_for_family(family_id), to: Tree
   defdelegate list_sections_for_genus(genus_id), to: Tree
   defdelegate list_families_for_select(filter \\ :all), to: Tree
   defdelegate list_genera_for_select(filter \\ :all), to: Tree

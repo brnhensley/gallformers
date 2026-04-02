@@ -293,8 +293,10 @@ defmodule Gallformers.Taxonomy.Reclassification do
   """
   @spec get_deletion_impact(Taxonomy.t()) :: map()
   def get_deletion_impact(%Taxonomy{id: id, type: "family"} = taxonomy) do
-    genera = Tree.list_child_genera(id)
+    genera = Tree.list_genera_for_family(id)
     genera_ids = Enum.map(genera, & &1.id)
+
+    intermediates = Tree.list_intermediates_for_family(id)
 
     sections = Tree.list_sections_for_family_tree(id)
     section_ids = Enum.map(sections, & &1.id)
@@ -308,10 +310,12 @@ defmodule Gallformers.Taxonomy.Reclassification do
       taxonomy: taxonomy,
       genera: genera,
       genera_count: length(genera),
+      intermediates: intermediates,
+      intermediates_count: length(intermediates),
       sections: sections,
       sections_count: length(sections),
       species_count: species_count,
-      has_impact: genera != [] or sections != [] or species_count > 0
+      has_impact: genera != [] or intermediates != [] or sections != [] or species_count > 0
     }
   end
 
@@ -337,11 +341,13 @@ defmodule Gallformers.Taxonomy.Reclassification do
 
   def get_deletion_impact(%Taxonomy{id: id, type: "intermediate"} = taxonomy) do
     children = Tree.get_children(id)
+    reparent_target = if taxonomy.parent_id, do: Tree.get_taxonomy!(taxonomy.parent_id), else: nil
 
     %{
       taxonomy: taxonomy,
       children: children,
       children_count: length(children),
+      reparent_target: if(reparent_target, do: reparent_target.name),
       genera: [],
       genera_count: 0,
       sections: [],
@@ -382,8 +388,10 @@ defmodule Gallformers.Taxonomy.Reclassification do
   def delete_taxonomy_cascade(%Taxonomy{id: id, type: "family"} = taxonomy) do
     Logger.info("Cascade delete starting for family #{taxonomy.name} (id=#{id})")
 
-    genera = Tree.list_child_genera(id)
+    genera = Tree.list_genera_for_family(id)
     genera_ids = Enum.map(genera, & &1.id)
+
+    intermediates = Tree.list_intermediates_for_family(id)
 
     sections = Tree.list_sections_for_family_tree(id)
     section_ids = Enum.map(sections, & &1.id)
@@ -394,7 +402,7 @@ defmodule Gallformers.Taxonomy.Reclassification do
       SpeciesLink.count_species_for_taxonomies(all_taxonomy_ids)
 
     Logger.info(
-      "Family #{taxonomy.name}: deleting #{length(genera)} genera, #{length(sections)} sections, #{species_count} species"
+      "Family #{taxonomy.name}: deleting #{length(genera)} genera, #{length(intermediates)} intermediates, #{length(sections)} sections, #{species_count} species"
     )
 
     result =
@@ -402,12 +410,16 @@ defmodule Gallformers.Taxonomy.Reclassification do
         delete_species_for_cascade(all_taxonomy_ids)
         Enum.each(sections, &Repo.delete!/1)
         Enum.each(genera, &Repo.delete!/1)
+        # Intermediates ordered deepest-first for safe deletion
+        Enum.each(intermediates, &Repo.delete!/1)
         Repo.delete!(taxonomy)
 
         %{
           taxonomy: taxonomy,
           genera: genera,
           genera_count: length(genera),
+          intermediates: intermediates,
+          intermediates_count: length(intermediates),
           sections: sections,
           sections_count: length(sections),
           species_count: species_count

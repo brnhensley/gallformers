@@ -789,7 +789,24 @@ defmodule Gallformers.Plants do
       left_join: g in "taxonomy",
       on: g.id == st.taxonomy_id and g.type == "genus",
       left_join: f in "taxonomy",
-      on: f.id == g.parent_id and f.type == "family",
+      on:
+        f.type == "family" and
+          fragment(
+            """
+            ?.id = (
+              WITH RECURSIVE walk AS (
+                SELECT id, parent_id, type FROM taxonomy WHERE id = ?.parent_id
+                UNION ALL
+                SELECT t.id, t.parent_id, t.type
+                FROM walk w JOIN taxonomy t ON t.id = w.parent_id
+                WHERE w.type != 'family'
+              )
+              SELECT id FROM walk WHERE type = 'family' LIMIT 1
+            )
+            """,
+            f,
+            g
+          ),
       where: s.taxoncode == "plant",
       group_by: [s.id, s.name]
     )

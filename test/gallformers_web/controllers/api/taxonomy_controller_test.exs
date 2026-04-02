@@ -225,4 +225,16 @@ defmodule GallformersWeb.API.TaxonomyControllerTest do
       assert found["genus_name"] == "GenusAlpha"
     end
   end
+
+  describe "GET /api/v2/genera/:id resolves family through intermediates" do
+    test "returns ancestor family, not intermediate parent", %{conn: conn} do
+      # Seed: Andricus (id=33) → Cynipini (tribe, 32) → Cynipinae (subfamily, 31) → Cynipidae (family, 30)
+      conn = get(conn, ~p"/api/v2/genera/33")
+      response = json_response(conn, 200)
+
+      assert response["name"] == "Andricus"
+      assert response["family"]["name"] == "Cynipidae"
+      assert response["family"]["id"] == 30
+    end
+  end
 end

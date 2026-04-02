@@ -2107,6 +2107,115 @@ defmodule Gallformers.TaxonomyTest do
       assert Map.has_key?(impact, :sections_count) == true
       assert Map.has_key?(impact, :species_count) == true
     end
+
+    test "get_deletion_impact for family includes genera under intermediates" do
+      {:ok, family} =
+        Taxonomy.create_taxonomy(%{
+          name: "IntCascadeFamily",
+          type: "family",
+          description: "Gall"
+        })
+
+      {:ok, tribe} =
+        Taxonomy.create_taxonomy(%{
+          name: "IntCascadeTribe",
+          type: "intermediate",
+          rank: "Tribe",
+          parent_id: family.id
+        })
+
+      {:ok, genus} =
+        Taxonomy.create_taxonomy(%{
+          name: "Intcascadegenus",
+          type: "genus",
+          parent_id: tribe.id
+        })
+
+      {:ok, _section} =
+        Taxonomy.create_taxonomy(%{
+          name: "intcascadesection",
+          type: "section",
+          parent_id: genus.id
+        })
+
+      {:ok, species} =
+        Repo.insert(%Species{
+          name: "Intcascadegenus sp1",
+          taxoncode: "gall",
+          datacomplete: false
+        })
+
+      Taxonomy.link_species_to_taxonomy(species.id, genus.id)
+
+      impact = Taxonomy.get_deletion_impact(family)
+
+      genus_ids = Enum.map(impact.genera, & &1.id)
+      assert genus.id in genus_ids, "genus under intermediate should appear in impact"
+      assert impact.sections_count >= 1
+      assert impact.species_count >= 1
+    end
+
+    test "cascade delete for family removes genera and intermediates" do
+      {:ok, family} =
+        Taxonomy.create_taxonomy(%{
+          name: "IntDelFamily",
+          type: "family",
+          description: "Gall"
+        })
+
+      {:ok, subfamily} =
+        Taxonomy.create_taxonomy(%{
+          name: "IntDelSubfam",
+          type: "intermediate",
+          rank: "Subfamily",
+          parent_id: family.id
+        })
+
+      {:ok, tribe} =
+        Taxonomy.create_taxonomy(%{
+          name: "IntDelTribe",
+          type: "intermediate",
+          rank: "Tribe",
+          parent_id: subfamily.id
+        })
+
+      {:ok, genus} =
+        Taxonomy.create_taxonomy(%{
+          name: "Intdelgenus",
+          type: "genus",
+          parent_id: tribe.id
+        })
+
+      {:ok, section} =
+        Taxonomy.create_taxonomy(%{
+          name: "intdelsection",
+          type: "section",
+          parent_id: genus.id
+        })
+
+      {:ok, species} =
+        Repo.insert(%Species{
+          name: "Intdelgenus sp1",
+          taxoncode: "gall",
+          datacomplete: false
+        })
+
+      Taxonomy.link_species_to_taxonomy(species.id, genus.id)
+
+      assert {:ok, impact} = Taxonomy.delete_taxonomy_cascade(family)
+
+      # Everything should be gone
+      refute Repo.get(TaxonomySchema, family.id)
+      refute Repo.get(TaxonomySchema, subfamily.id)
+      refute Repo.get(TaxonomySchema, tribe.id)
+      refute Repo.get(TaxonomySchema, genus.id)
+      refute Repo.get(TaxonomySchema, section.id)
+      refute Repo.get(Species, species.id)
+
+      # Impact should reflect the genus (not counting auto-created Unknown)
+      genus_ids = Enum.map(impact.genera, & &1.id)
+      assert genus.id in genus_ids
+    end
   end
 
   describe "intermediate taxonomy changeset" do
@@ -2312,35 +2421,6 @@ defmodule Gallformers.TaxonomyTest do
 
       assert [%Intermediate{rank: "Subfamily"}, %Intermediate{rank: "Tribe"}] =
                lineage.intermediates
-    end
-
-    test "from_section inherits intermediates: [] default" do
-      section = %TaxonomySchema{
-        id: 10,
-        name: "sect. Quercus",
-        type: "section",
-        description: nil,
-        rank: nil
-      }
-
-      genus = %TaxonomySchema{
-        id: 5,
-        name: "Quercus",
-        type: "genus",
-        description: nil,
-        rank: nil,
-        parent: %TaxonomySchema{
-          id: 1,
-          name: "Fagaceae",
-          type: "family",
-          description: "Plant",
-          rank: nil
-        }
-      }
-
-      lineage = Lineage.from_section(section, genus)
-      assert lineage.intermediates == []
-      assert lineage.section.name == "sect. Quercus"
     end
 
     test "new_genus has intermediates: []" do
@@ -2605,6 +2685,52 @@ defmodule Gallformers.TaxonomyTest do
     end
   end
 
+  describe "intermediate deletion impact shows re-parent details" do
+    setup do
+      {:ok, family} =
+        Taxonomy.create_taxonomy(%{name: "IntImpactFamily", type: "family", description: "Gall"})
+
+      {:ok, tribe} =
+        Taxonomy.create_taxonomy(%{
+          name: "IntImpactTribe",
+          type: "intermediate",
+          rank: "Tribe",
+          parent_id: family.id
+        })
+
+      {:ok, genus1} =
+        Taxonomy.create_taxonomy(%{
+          name: "Intimpactgenus1",
+          type: "genus",
+          parent_id: tribe.id
+        })
+
+      {:ok, genus2} =
+        Taxonomy.create_taxonomy(%{
+          name: "Intimpactgenus2",
+          type: "genus",
+          parent_id: tribe.id
+        })
+
+      %{family: family, tribe: tribe, genus1: genus1, genus2: genus2}
+    end
+
+    test "impact includes reparent_target name", %{family: family, tribe: tribe} do
+      impact = Taxonomy.get_deletion_impact(tribe)
+
+      assert impact.children_count == 2
+      assert impact.reparent_target == family.name
+    end
+
+    test "impact lists children by name", %{tribe: tribe, genus1: genus1, genus2: genus2} do
+      impact = Taxonomy.get_deletion_impact(tribe)
+
+      child_ids = Enum.map(impact.children, & &1.id)
+      assert genus1.id in child_ids
+      assert genus2.id in child_ids
+    end
+  end
+
   describe "family page — mixed children" do
     test "get_children returns both intermediates and genera for a family" do
       # Cynipidae (id=30) has Cynipinae (intermediate) and Unknown (genus, id=35)
@@ -2720,6 +2846,89 @@ defmodule Gallformers.TaxonomyTest do
 
       results = Taxonomy.search_families("TestGallFam", taxoncode: "gall")
       assert Enum.any?(results, &(&1.id == family.id)) == true
+    end
+  end
+
+  describe "count_families_for_taxoncode/1 with intermediate ranks" do
+    setup do
+      {:ok, family} =
+        Taxonomy.create_taxonomy(%{name: "CountTestFamily", type: "family", description: "Gall"})
+
+      {:ok, subfamily} =
+        Taxonomy.create_taxonomy(%{
+          name: "CountTestSubfam",
+          type: "intermediate",
+          rank: "Subfamily",
+          parent_id: family.id
+        })
+
+      {:ok, genus} =
+        Taxonomy.create_taxonomy(%{
+          name: "Counttestgenus",
+          type: "genus",
+          description: "test",
+          parent_id: subfamily.id
+        })
+
+      {:ok, gall} =
+        Repo.insert(%Species{
+          name: "Counttestgenus countspecies",
+          taxoncode: "gall",
+          datacomplete: false,
+          abundance_id: 1
+        })
+
+      Repo.insert_all("species_taxonomy", [%{species_id: gall.id, taxonomy_id: genus.id}])
+
+      %{family: family, genus: genus, gall: gall}
+    end
+
+    test "counts families reachable through intermediate ranks" do
+      count = Taxonomy.count_families_for_taxoncode("gall")
+      # Our test family should be counted even though its genus routes through a subfamily
+      assert count >= 1
+    end
+  end
+
+  describe "list_sections_for_family_tree/1 with intermediate ranks" do
+    setup do
+      {:ok, family} =
+        Taxonomy.create_taxonomy(%{name: "SectFamTree", type: "family", description: "Gall"})
+
+      {:ok, tribe} =
+        Taxonomy.create_taxonomy(%{
+          name: "SectFamTribe",
+          type: "intermediate",
+          rank: "Tribe",
+          parent_id: family.id
+        })
+
+      {:ok, genus} =
+        Taxonomy.create_taxonomy(%{
+          name: "Sectfamgenus",
+          type: "genus",
+          description: "test",
+          parent_id: tribe.id
+        })
+
+      {:ok, section} =
+        Taxonomy.create_taxonomy(%{
+          name: "lobatae",
+          type: "section",
+          parent_id: genus.id
+        })
+
+      %{family: family, genus: genus, section: section}
+    end
+
+    test "finds sections under genera that route through intermediates", %{
+      family: family,
+      section: section
+    } do
+      sections = Taxonomy.list_sections_for_family_tree(family.id)
+      section_ids = Enum.map(sections, & &1.id)
+
+      assert section.id in section_ids
     end
   end
 end

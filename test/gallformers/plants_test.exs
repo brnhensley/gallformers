@@ -353,7 +353,7 @@ defmodule Gallformers.PlantsTest do
       assert result.reclassify_to_introduced == []
       assert result.reclassify_to_native == []
       assert result.agree_count == 0
-      assert result.has_changes != nil
+      assert result.has_changes == true
     end
 
     test "exact match returns agree_count and no changes" do
@@ -391,7 +391,7 @@ defmodule Gallformers.PlantsTest do
       assert result.add_native == []
       assert result.add_introduced == []
       assert result.agree_count == 0
-      assert result.has_changes != nil
+      assert result.has_changes == true
     end
 
     test "range has native but POWO says introduced → reclassify_to_introduced" do
@@ -408,7 +408,7 @@ defmodule Gallformers.PlantsTest do
       assert result.reclassify_to_native == []
       assert result.remove == []
       assert result.agree_count == 0
-      assert result.has_changes != nil
+      assert result.has_changes == true
     end
 
     test "range has introduced but POWO says native → reclassify_to_native" do
@@ -425,7 +425,7 @@ defmodule Gallformers.PlantsTest do
       assert result.reclassify_to_introduced == []
       assert result.remove == []
       assert result.agree_count == 0
-      assert result.has_changes != nil
+      assert result.has_changes == true
     end
 
     test "mixed scenario distributes correctly across all buckets" do
@@ -455,7 +455,7 @@ defmodule Gallformers.PlantsTest do
       assert result.reclassify_to_introduced == ["US-TX"]
       assert result.reclassify_to_native == ["US-CA"]
       assert result.agree_count == 2
-      assert result.has_changes != nil
+      assert result.has_changes == true
 
       # No place appears in multiple buckets
       all_changed =
@@ -481,7 +481,7 @@ defmodule Gallformers.PlantsTest do
       assert result.add_native == []
       assert result.add_introduced == []
       assert result.agree_count == 0
-      assert result.has_changes != nil
+      assert result.has_changes == true
     end
 
     test "both empty returns no changes" do
@@ -561,6 +561,40 @@ defmodule Gallformers.PlantsTest do
 
       results = Plants.find_duplicate_host_candidates("Testgallus notaplant")
       assert results == []
+    end
+  end
+
+  describe "list_hosts_for_range_review family resolution with intermediates" do
+    test "resolves family name through intermediate ranks" do
+      {:ok, family} =
+        Taxonomy.create_taxonomy(%{name: "RangeRevFamily", type: "family", description: "Plant"})
+
+      {:ok, tribe} =
+        Taxonomy.create_taxonomy(%{
+          name: "RangeRevTribe",
+          type: "intermediate",
+          rank: "Tribe",
+          parent_id: family.id
+        })
+
+      {:ok, genus} =
+        Taxonomy.create_taxonomy(%{
+          name: "Rangerevgenus",
+          type: "genus",
+          description: "test",
+          parent_id: tribe.id
+        })
+
+      host = create_host("Rangerevgenus testplant")
+      Taxonomy.link_species_to_taxonomy(host.id, genus.id)
+
+      Repo.insert!(%HostTraits{species_id: host.id})
+
+      results = Plants.list_hosts_for_range_review(filter: :all, search: "Rangerevgenus")
+      host_result = Enum.find(results, &(&1.id == host.id))
+
+      assert host_result != nil, "host should appear in results"
+      assert host_result.family_name == "RangeRevFamily"
     end
   end
 end

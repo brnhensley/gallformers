@@ -27,7 +27,7 @@ defmodule Gallformers.Galls.Identification do
   alias Gallformers.Ranges
   alias Gallformers.Repo
   alias Gallformers.Species.Species, as: SpeciesSchema
-  alias Gallformers.Taxonomy.Taxonomy
+  alias Gallformers.Taxonomy.Tree
 
   @doc """
   Returns all filter field options for the ID tool.
@@ -250,12 +250,12 @@ defmodule Gallformers.Galls.Identification do
   defp apply_family_filter(query, nil), do: query
 
   defp apply_family_filter(query, family_id) do
+    genus_ids = Tree.genus_ids_for_family(family_id)
+
     from [s, gt] in query,
       join: st in "species_taxonomy",
       on: st.species_id == s.id,
-      join: t in Taxonomy,
-      on: st.taxonomy_id == t.id,
-      where: t.parent_id == ^family_id
+      where: st.taxonomy_id in ^genus_ids
   end
 
   defp apply_plant_part_filter(query, nil, _logic), do: query

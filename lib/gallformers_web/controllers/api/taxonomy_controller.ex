@@ -124,7 +124,10 @@ defmodule GallformersWeb.API.TaxonomyController do
   def genus(conn, %{"id" => id}) do
     with {:ok, id} <- parse_id(id),
          {:ok, genus} <- fetch_taxonomy_by_type(id, "genus") do
-      parent = Taxonomy.get_parent(id)
+      family =
+        Taxonomy.get_taxonomy_path(id)
+        |> Enum.find(&(&1.type == "family"))
+
       species_ids = Taxonomy.get_species_ids_for_genus(id)
       species = get_species_by_ids(species_ids)
 
@@ -133,7 +136,7 @@ defmodule GallformersWeb.API.TaxonomyController do
         name: genus.name,
         type: genus.type,
         description: genus.description,
-        family: parent_to_map(parent),
+        family: parent_to_map(family),
         species: species
       })
     else

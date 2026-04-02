@@ -166,4 +166,32 @@ defmodule Gallformers.GallsIdentificationTest do
       assert gall[:place_match] == :documented
     end
   end
+
+  describe "family filter with intermediate taxonomy ranks" do
+    # Seed data taxonomy chain:
+    #   Cynipidae(30) → Cynipinae(31, subfamily) → Cynipini(32, tribe) → Andricus(33), Cynips(34)
+    # Gall species:
+    #   200 (A. crystallinus) → genus Andricus(33)
+    #   201 (C. quercus) → genus Cynips(34)
+
+    test "family filter finds galls whose genera are nested under intermediate ranks" do
+      results = Galls.filter_galls(%{family_id: 30})
+      gall_ids = Enum.map(results, & &1.id)
+
+      assert 200 in gall_ids,
+             "Andricus crystallinus should match Cynipidae filter (via tribe→subfamily→family)"
+
+      assert 201 in gall_ids,
+             "Cynips quercus should match Cynipidae filter (via tribe→subfamily→family)"
+    end
+
+    test "family filter does not return galls from unrelated families" do
+      # FamilyAlpha is id=20, galls 200/201 are under Cynipidae(30)
+      results = Galls.filter_galls(%{family_id: 20})
+      gall_ids = Enum.map(results, & &1.id)
+
+      refute 200 in gall_ids
+      refute 201 in gall_ids
+    end
+  end
 end

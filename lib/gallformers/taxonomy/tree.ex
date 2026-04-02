@@ -759,17 +759,30 @@ defmodule Gallformers.Taxonomy.Tree do
   """
   @spec count_families_for_taxoncode(String.t()) :: integer()
   def count_families_for_taxoncode(taxoncode) do
-    from(s in Species,
-      join: st in "species_taxonomy",
-      on: st.species_id == s.id,
-      join: g in Taxonomy,
-      on: st.taxonomy_id == g.id,
-      join: f in Taxonomy,
-      on: g.parent_id == f.id,
-      where: s.taxoncode == ^taxoncode and g.type == "genus" and f.type == "family",
-      select: count(f.name, :distinct)
+    query = """
+    WITH RECURSIVE genus_to_family AS (
+      SELECT st.taxonomy_id AS genus_id, g.parent_id AS current_parent_id, g.type AS current_type
+      FROM species_taxonomy st
+      JOIN taxonomy g ON st.taxonomy_id = g.id AND g.type = 'genus'
+      JOIN species s ON st.species_id = s.id AND s.taxoncode = $1
+
+      UNION ALL
+
+      SELECT gf.genus_id, t.parent_id, t.type
+      FROM genus_to_family gf
+      JOIN taxonomy t ON t.id = gf.current_parent_id
+      WHERE gf.current_type != 'family'
     )
-    |> Repo.one()
+    SELECT COUNT(DISTINCT f.name)
+    FROM genus_to_family gf
+    JOIN taxonomy f ON f.id = gf.current_parent_id AND f.type = 'family'
+    WHERE gf.current_type != 'family'
+    """
+
+    case Repo.query(query, [taxoncode]) do
+      {:ok, %{rows: [[count]]}} -> count
+      {:error, _} -> 0
+    end
   end
 
   @doc """
@@ -801,6 +814,79 @@ defmodule Gallformers.Taxonomy.Tree do
   end
 
   @doc """
+  Returns genus IDs that belong to a family, walking through intermediate ranks
+  (subfamilies, tribes, etc.) in the parent chain.
+
+  Use this instead of `t.parent_id == family_id` wherever you need all genera
+  under a family — the direct check misses genera nested under intermediate ranks.
+  """
+  @spec genus_ids_for_family(integer()) :: [integer()]
+  def genus_ids_for_family(family_id) do
+    query = """
+    WITH RECURSIVE descendants AS (
+      SELECT id, type FROM taxonomy WHERE parent_id = $1::bigint
+      UNION ALL
+      SELECT t.id, t.type
+      FROM taxonomy t
+      JOIN descendants d ON t.parent_id = d.id
+      WHERE d.type != 'genus'
+    )
+    SELECT id FROM descendants WHERE type = 'genus'
+    """
+
+    case Repo.query(query, [family_id]) do
+      {:ok, %{rows: rows}} -> Enum.map(rows, fn [id] -> id end)
+      {:error, _} -> []
+    end
+  end
+
+  @doc """
+  Returns all genera under a family as loaded Taxonomy structs, walking through
+  intermediate ranks. Ordered by name.
+  """
+  @spec list_genera_for_family(integer()) :: [Taxonomy.t()]
+  def list_genera_for_family(family_id) do
+    genus_ids = genus_ids_for_family(family_id)
+
+    from(t in Taxonomy, where: t.id in ^genus_ids, order_by: t.name)
+    |> Repo.all()
+  end
+
+  @doc """
+  Returns all intermediate taxonomy nodes under a family, ordered deepest-first
+  for safe deletion (children before parents).
+  """
+  @spec list_intermediates_for_family(integer()) :: [Taxonomy.t()]
+  def list_intermediates_for_family(family_id) do
+    query = """
+    WITH RECURSIVE descendants AS (
+      SELECT id, type, 1 AS depth FROM taxonomy WHERE parent_id = $1::bigint
+      UNION ALL
+      SELECT t.id, t.type, d.depth + 1
+      FROM taxonomy t
+      JOIN descendants d ON t.parent_id = d.id
+      WHERE d.type = 'intermediate'
+    )
+    SELECT id FROM descendants WHERE type = 'intermediate' ORDER BY depth DESC
+    """
+
+    case Repo.query(query, [family_id]) do
+      {:ok, %{rows: rows}} ->
+        ids = Enum.map(rows, fn [id] -> id end)
+        # Load full structs preserving deepest-first order
+        taxonomy_map =
+          from(t in Taxonomy, where: t.id in ^ids)
+          |> Repo.all()
+          |> Map.new(&{&1.id, &1})
+
+        Enum.map(ids, &Map.fetch!(taxonomy_map, &1))
+
+      {:error, _} ->
+        []
+    end
+  end
+
+  @doc """
   Lists all sections that are direct children of a genus.
   """
   @spec list_child_sections(integer()) :: [Taxonomy.t()]
@@ -813,38 +899,19 @@ defmodule Gallformers.Taxonomy.Tree do
   end
 
   @doc """
-  Lists all sections under a family tree (sections whose parent genus is a child of this family).
+  Lists all sections under a family tree, walking through intermediate ranks
+  to find genera that belong to the family.
   """
   @spec list_sections_for_family_tree(integer()) :: [Taxonomy.t()]
   def list_sections_for_family_tree(family_id) do
+    genus_ids = genus_ids_for_family(family_id)
+
     from(s in Taxonomy,
-      join: g in Taxonomy,
-      on: s.parent_id == g.id,
-      where: s.type == "section" and g.type == "genus" and g.parent_id == ^family_id,
+      where: s.type == "section" and s.parent_id in ^genus_ids,
       order_by: s.name
     )
     |> Repo.all()
   end
-
-  @doc """
-  Returns sections for a given family, for use in select dropdowns.
-
-  Sections are children of genera, not families directly. This function
-  finds all sections under any genus that belongs to the given family.
-  """
-  @spec list_sections_for_family(integer()) :: [{String.t(), integer()}]
-  def list_sections_for_family(family_id) when is_integer(family_id) do
-    from(s in Taxonomy,
-      join: g in Taxonomy,
-      on: s.parent_id == g.id,
-      where: s.type == "section" and g.type == "genus" and g.parent_id == ^family_id,
-      order_by: s.name,
-      select: {s.name, s.id}
-    )
-    |> Repo.all()
-  end
-
-  def list_sections_for_family(_), do: []
 
   @doc """
   Returns sections for a given genus, for use in select dropdowns.

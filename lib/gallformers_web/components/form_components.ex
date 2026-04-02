@@ -1025,12 +1025,35 @@ defmodule GallformersWeb.FormComponents do
       </:header>
       <:body>
         <div class="space-y-4">
-          <p class="text-red-700 font-medium">
+          <%!-- Intermediate: re-parent message --%>
+          <div :if={@impact.taxonomy.type == "intermediate" and @impact.has_impact}>
+            <p class="text-amber-700 font-medium">
+              Deleting this {@impact.taxonomy.rank || "intermediate"} will re-parent its children:
+            </p>
+            <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mt-2">
+              <ul class="list-disc list-inside space-y-1 text-amber-800">
+                <li :for={child <- @impact.children}>
+                  <.taxon_name name={child.name} rank={child.type} />
+                </li>
+              </ul>
+              <p :if={@impact[:reparent_target]} class="mt-2 text-sm text-amber-700">
+                These will become children of <strong>{@impact.reparent_target}</strong>.
+              </p>
+            </div>
+          </div>
+          <%!-- Family/genus: cascade delete message --%>
+          <p
+            :if={@impact.taxonomy.type != "intermediate"}
+            class="text-red-700 font-medium"
+          >
             To delete this {@impact.taxonomy.type}, all dependent data will be permanently deleted.
           </p>
 
-          <%!-- Impact Summary --%>
-          <div :if={@impact.has_impact} class="bg-red-50 border border-red-200 rounded-lg p-4">
+          <%!-- Impact Summary (family/genus cascade) --%>
+          <div
+            :if={@impact.taxonomy.type != "intermediate" and @impact.has_impact}
+            class="bg-red-50 border border-red-200 rounded-lg p-4"
+          >
             <p class="font-medium text-red-800 mb-2">This will delete:</p>
             <ul class="list-disc list-inside space-y-1 text-red-700">
               <li :if={@impact.genera_count > 0}>
