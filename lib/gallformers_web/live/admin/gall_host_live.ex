@@ -480,7 +480,11 @@ defmodule GallformersWeb.Admin.GallHostLive do
     |> mark_dirty()
   end
 
-  # Check if a code is in the current host range (clickable on the map)
+  # Check if a code is in the current host range (clickable on the map).
+  # When no hosts have any range data, allow all places — the admin is
+  # curating a gall range for a genus-level placeholder host or similar.
+  defp code_in_host_range?(_code, %{assigns: %{host_places: []}}), do: true
+
   defp code_in_host_range?(code, socket) do
     code in socket.assigns.host_places
   end
@@ -645,6 +649,16 @@ defmodule GallformersWeb.Admin.GallHostLive do
               <p class="text-sm text-amber-800">
                 This gall's range has not been confirmed by an admin.
                 Review the range below and click "Save &amp; Confirm Range" when satisfied.
+              </p>
+            </div>
+
+            <div
+              :if={@selected_gall && @host_places == []}
+              class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded flex items-center gap-2"
+            >
+              <.icon name="ph-info" class="h-5 w-5 text-blue-600 flex-shrink-0" />
+              <p class="text-sm text-blue-800">
+                No hosts have range data. All places are available for selection.
               </p>
             </div>
 
