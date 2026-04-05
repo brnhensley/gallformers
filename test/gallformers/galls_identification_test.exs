@@ -194,4 +194,80 @@ defmodule Gallformers.GallsIdentificationTest do
       refute 201 in gall_ids
     end
   end
+
+  describe "count_filtered_galls/1" do
+    # Tests own their data: create galls, hosts, taxonomy, and links from scratch.
+    # The genus filter in filter_galls works via host→species_taxonomy,
+    # and the family filter works via gall→species_taxonomy (genus_ids_for_family).
+
+    defp create_species(name, taxoncode) do
+      Repo.insert!(%Gallformers.Species.Species{name: name, taxoncode: taxoncode})
+    end
+
+    defp create_gall_traits(species_id) do
+      Repo.insert!(%Gallformers.Galls.GallTraits{species_id: species_id})
+    end
+
+    defp create_taxonomy(name, type, opts \\ []) do
+      Repo.insert!(%Gallformers.Taxonomy.Taxonomy{
+        name: name,
+        type: type,
+        parent_id: Keyword.get(opts, :parent_id)
+      })
+    end
+
+    defp link_species_taxonomy(species_id, taxonomy_id) do
+      Repo.insert_all("species_taxonomy", [
+        %{species_id: species_id, taxonomy_id: taxonomy_id}
+      ])
+    end
+
+    defp create_gall_host(gall_id, host_id) do
+      Repo.insert!(%Gallformers.Galls.GallHost{
+        gall_species_id: gall_id,
+        host_species_id: host_id
+      })
+    end
+
+    test "respects genus filter" do
+      # Create two galls with hosts in different genera
+      genus_a = create_taxonomy("TestGenusA", "genus")
+      genus_b = create_taxonomy("TestGenusB", "genus")
+
+      host_a = create_species("Hostus alphus", "plant")
+      link_species_taxonomy(host_a.id, genus_a.id)
+
+      host_b = create_species("Hostus betus", "plant")
+      link_species_taxonomy(host_b.id, genus_b.id)
+
+      gall_a = create_species("Gall on A", "gall")
+      create_gall_traits(gall_a.id)
+      create_gall_host(gall_a.id, host_a.id)
+
+      gall_b = create_species("Gall on B", "gall")
+      create_gall_traits(gall_b.id)
+      create_gall_host(gall_b.id, host_b.id)
+
+      # count_filtered_galls with genus_a should only count gall_a
+      count = Galls.count_filtered_galls(%{genus_id: genus_a.id})
+      assert count == 1, "expected 1 gall for genus_a, got #{count}"
+    end
+
+    test "respects family filter" do
+      # Create a family→genus chain and a gall linked to that genus
+      family = create_taxonomy("TestFamily", "family")
+      genus = create_taxonomy("TestGenus", "genus", parent_id: family.id)
+
+      gall = create_species("Gall in family", "gall")
+      create_gall_traits(gall.id)
+      link_species_taxonomy(gall.id, genus.id)
+
+      other_gall = create_species("Gall not in family", "gall")
+      create_gall_traits(other_gall.id)
+      # No taxonomy link for other_gall
+
+      count = Galls.count_filtered_galls(%{family_id: family.id})
+      assert count == 1, "expected 1 gall for family, got #{count}"
+    end
+  end
 end

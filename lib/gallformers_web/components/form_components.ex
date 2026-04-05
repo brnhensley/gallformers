@@ -666,7 +666,15 @@ defmodule GallformersWeb.FormComponents do
         String.length(assigns.query) >= 2 &&
         not exact_match?
 
-    assigns = assign(assigns, :show_create_option, show_create_option)
+    show_no_matches =
+      Enum.empty?(assigns.results) &&
+        not show_create_option &&
+        String.length(assigns.query) >= 2
+
+    assigns =
+      assigns
+      |> assign(:show_create_option, show_create_option)
+      |> assign(:show_no_matches, show_no_matches)
 
     ~H"""
     <div
@@ -714,17 +722,25 @@ defmodule GallformersWeb.FormComponents do
             placeholder={@placeholder}
             class="gf-input"
             role="combobox"
-            aria-expanded={length(@results) > 0 || @show_create_option}
+            aria-expanded={length(@results) > 0 || @show_create_option || @show_no_matches}
             aria-controls={"#{@id}-results"}
             aria-autocomplete="list"
           />
           <div
-            :if={length(@results) > 0 || @show_create_option}
+            :if={length(@results) > 0 || @show_create_option || @show_no_matches}
             id={"#{@id}-results"}
             data-typeahead-results
             class="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto"
             role="listbox"
           >
+            <%!-- No matches message --%>
+            <div
+              :if={@show_no_matches}
+              class="px-3 py-2 text-sm text-gray-500 italic"
+              role="status"
+            >
+              No matches found
+            </div>
             <%!-- Existing results with optional group headers --%>
             <%= for {item, index} <- Enum.with_index(@results) do %>
               <%= if @group_key && show_group_header?(item, index, @results, @group_key) do %>

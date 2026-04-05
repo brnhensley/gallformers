@@ -105,6 +105,8 @@ defmodule Gallformers.Galls.Identification do
   def count_filtered_galls(filters \\ %{}) do
     base_query()
     |> apply_host_filter(filters[:host_ids])
+    |> apply_genus_filter(filters[:genus_id])
+    |> apply_family_filter(filters[:family_id])
     |> apply_plant_part_filter(filters[:plant_part_ids], filters[:plant_part_logic] || :or)
     |> apply_color_filter(filters[:color_ids])
     |> apply_shape_filter(filters[:shape_ids])
@@ -115,7 +117,9 @@ defmodule Gallformers.Galls.Identification do
     |> apply_form_filter(filters[:form_ids])
     |> apply_season_filter(filters[:season_ids])
     |> apply_detachable_filter(filters[:detachable])
-    |> apply_place_filter(filters[:place_codes], filters[:host_ids], nil)
+    |> apply_place_filter(filters[:place_codes], filters[:host_ids], filters[:genus_id])
+    |> apply_undescribed_filter(filters[:undescribed])
+    |> apply_exclude_non_gall_filter(filters[:exclude_non_galls])
     |> select([s, gt], count(s.id, :distinct))
     |> Repo.one()
   end

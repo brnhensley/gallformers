@@ -1,5 +1,5 @@
 defmodule GallformersWeb.FormComponentsTest do
-  use GallformersWeb.ConnCase
+  use GallformersWeb.ConnCase, async: true
   import Phoenix.LiveViewTest
 
   alias GallformersWeb.FormComponents
@@ -146,6 +146,34 @@ defmodule GallformersWeb.FormComponentsTest do
          query: "b",
          results: [%{id: 1, name: "Brazil"}, %{id: 2, name: "Canada"}]
        )}
+    end
+
+    def handle_event("search", _params, socket), do: {:noreply, socket}
+    def handle_event("select", _params, socket), do: {:noreply, socket}
+    def handle_event("clear", _params, socket), do: {:noreply, socket}
+  end
+
+  defmodule EmptyTypeaheadTestLive do
+    use Phoenix.LiveView
+
+    def render(assigns) do
+      ~H"""
+      <FormComponents.typeahead
+        id="test-empty"
+        label="Host"
+        query={@query}
+        results={@results}
+        selected={nil}
+        search_event="search"
+        select_event="select"
+        clear_event="clear"
+        display_fn={fn item -> item.name end}
+      />
+      """
+    end
+
+    def mount(_params, _session, socket) do
+      {:ok, assign(socket, query: "Pappostipa", results: [])}
     end
 
     def handle_event("search", _params, socket), do: {:noreply, socket}
@@ -497,6 +525,14 @@ defmodule GallformersWeb.FormComponentsTest do
       assert html =~ ~s(aria-modal="true")
       assert html =~ ~s(aria-labelledby="cascade-delete-modal-title")
       assert html =~ ~s(aria-label="close")
+    end
+  end
+
+  describe "typeahead with no results" do
+    test "shows no matches message when query is present but results are empty", %{conn: conn} do
+      {:ok, _view, html} = live_isolated(conn, EmptyTypeaheadTestLive)
+
+      assert html =~ "No matches found"
     end
   end
 end
