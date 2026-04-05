@@ -1,9 +1,10 @@
 ---
 status: planned
 created: 2026-03-10
-updated: 2026-03-10
+updated: 2026-04-05
 epic: geo-expansion
 relates: [383e, be9d, f6d4]
+blocks: [53cb]
 needs: [0df8, 6b43]
 ---
 
@@ -275,3 +276,16 @@ The PowoDiffReview component (Layer 2, Task 4) needs to support:
 - Configurable default selections per bucket (gall diff defaults `add_introduced` to unselected)
 - Bucket labels passed as props (host diff says "POWO native", gall diff says "Host native range")
 - This should be factored into Layer 2 design, not bolted on after.
+
+
+## Unresolved: Gall range independence from host range
+
+Matter 53cb (genus-level host associations) requires that gall range be independent of host range — the host union is the default starting point, not the authority. Admins must be able to freely add or remove any region, not just override within the host union.
+
+This changes the current design decision: "Authority for gall range is the union of host native ranges." Under the new model, the diff/review workflow remains useful as a **tool** (compute diff, show buckets, let admin decide), but "orphaned" places (gall range not in any host range) become a normal state rather than an anomaly.
+
+Key implications:
+- "Refresh from hosts" is advisory, not authoritative
+- Orphaned bucket semantics change: default should be "keep" (already is), and the label should not imply these are errors
+- Bulk recompute needs a confirmation that explicitly says it will REPLACE the admin's manual range with host union
+
