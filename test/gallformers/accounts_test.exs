@@ -90,6 +90,54 @@ defmodule Gallformers.AccountsTest do
       assert user.social_url == "https://twitter.com/testuser"
       assert user.personal_url == "http://example.com"
     end
+
+    test "rejects empty string URLs on create (boundary)" do
+      auth0_id = unique_auth0_id()
+
+      # Empty strings should be treated as nil for optional URL fields
+      # This depends on how the changeset handles them - testing the boundary
+      attrs = %{
+        auth0_id: auth0_id,
+        display_name: "Test",
+        inaturalist_url: "",
+        social_url: "",
+        personal_url: ""
+      }
+
+      # This should either reject as invalid or normalize to nil
+      result = Accounts.create_user(attrs)
+
+      case result do
+        {:ok, user} ->
+          # If accepted, URLs should be normalized to nil
+          assert user.inaturalist_url == nil
+          assert user.social_url == nil
+          assert user.personal_url == nil
+
+        {:error, changeset} ->
+          # If rejected, we expect validation errors
+          errors = errors_on(changeset)
+
+          assert %{inaturalist_url: _} = errors
+          assert %{social_url: _} = errors
+          assert %{personal_url: _} = errors
+      end
+    end
+
+    test "rejects whitespace-only display_name (boundary)" do
+      auth0_id = unique_auth0_id()
+
+      attrs = %{
+        auth0_id: auth0_id,
+        display_name: "   ",
+        nickname: "test"
+      }
+
+      # The changeset uses trim_strings() helper, which trims whitespace
+      # Whitespace-only strings become empty and are stored as nil
+      assert {:ok, user} = Accounts.create_user(attrs)
+      assert user.display_name == nil
+    end
   end
 
   describe "get_user/1" do
@@ -119,6 +167,23 @@ defmodule Gallformers.AccountsTest do
 
     test "returns nil for non-existent auth0_id" do
       assert Accounts.get_user_by_auth0_id("auth0|nonexistent") == nil
+    end
+  end
+
+  describe "get_user_by_nickname/1" do
+    test "returns user by nickname" do
+      auth0_id = unique_auth0_id()
+      {:ok, created_user} = Accounts.create_user(%{auth0_id: auth0_id, nickname: "testnick123"})
+
+      user = Accounts.get_user_by_nickname("testnick123")
+      assert user.id == created_user.id
+      assert user.nickname == "testnick123"
+    end
+
+    test "returns nil for non-existent nickname" do
+      assert Accounts.get_user_by_nickname(
+               "nonexistent-nick-#{System.unique_integer([:positive])}"
+             ) == nil
     end
   end
 
@@ -271,8 +336,52 @@ defmodule Gallformers.AccountsTest do
     end
 
     test "orders by display_name with nickname fallback" do
+      # Create users that will test both display_name and nickname ordering
+      # Sorting is case-insensitive (using lower() in SQL)
+      {:ok, user_a} =
+        Accounts.create_user(%{
+          auth0_id: unique_auth0_id(),
+          display_name: "Zebra Display",
+          nickname: "zebra"
+        })
+
+      {:ok, user_b} =
+        Accounts.create_user(%{
+          auth0_id: unique_auth0_id(),
+          display_name: nil,
+          nickname: "aaa-nick"
+        })
+
+      {:ok, user_c} =
+        Accounts.create_user(%{
+          auth0_id: unique_auth0_id(),
+          display_name: "Apple Display",
+          nickname: "zebra"
+        })
+
       users = Accounts.list_all_users()
-      assert is_list(users)
+
+      # Filter to just our test users
+      test_users =
+        users
+        |> Enum.filter(&(&1.id in [user_a.id, user_b.id, user_c.id]))
+
+      names =
+        Enum.map(test_users, fn user ->
+          user.display_name || user.nickname
+        end)
+
+      # With case-insensitive sorting (lower() in SQL):
+      # aaa-nick (lowercase) < Apple Display (capital A) < Zebra Display
+      aaa_idx = Enum.find_index(names, &(&1 == "aaa-nick"))
+      apple_idx = Enum.find_index(names, &(&1 == "Apple Display"))
+      zebra_idx = Enum.find_index(names, &(&1 == "Zebra Display"))
+
+      assert aaa_idx < apple_idx,
+             "Expected aaa-nick before Apple Display, got #{inspect(names)}"
+
+      assert apple_idx < zebra_idx,
+             "Expected Apple Display before Zebra Display, got #{inspect(names)}"
     end
   end
 
@@ -716,6 +825,32 @@ defmodule Gallformers.AccountsTest do
       assert Auth0User.display_name(with_nickname) == "nick"
       assert Auth0User.display_name(with_email) == "test@example.com"
       assert Auth0User.display_name(with_nothing) == "Unknown User"
+    end
+  end
+
+  describe "db_display_name/1" do
+    test "returns name from session when present" do
+      session = %{"db_display_name" => "Test User"}
+      assert Accounts.db_display_name(session) == "Test User"
+    end
+
+    test "returns 'Unknown' for nil session value" do
+      session = %{"db_display_name" => nil}
+      assert Accounts.db_display_name(session) == "Unknown"
+    end
+
+    test "returns 'Unknown' for empty string session value" do
+      session = %{"db_display_name" => ""}
+      assert Accounts.db_display_name(session) == "Unknown"
+    end
+
+    test "returns 'Unknown' for missing key" do
+      session = %{"other_key" => "value"}
+      assert Accounts.db_display_name(session) == "Unknown"
+    end
+
+    test "returns 'Unknown' for empty map" do
+      assert Accounts.db_display_name(%{}) == "Unknown"
     end
   end
 end

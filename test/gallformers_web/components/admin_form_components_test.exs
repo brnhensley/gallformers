@@ -1,5 +1,5 @@
 defmodule GallformersWeb.AdminFormComponentsTest do
-  use GallformersWeb.ConnCase
+  use GallformersWeb.ConnCase, async: true
   import Phoenix.LiveViewTest
 
   alias GallformersWeb.Admin.FormComponents

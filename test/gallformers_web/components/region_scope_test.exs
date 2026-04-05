@@ -2,7 +2,7 @@ defmodule GallformersWeb.RegionScopeTest do
   @moduledoc """
   Tests for the region scope widget component.
   """
-  use GallformersWeb.ConnCase
+  use GallformersWeb.ConnCase, async: true
   import Phoenix.LiveViewTest
 
   alias GallformersWeb.UIComponents

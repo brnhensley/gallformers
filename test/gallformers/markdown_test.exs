@@ -2,7 +2,7 @@ defmodule Gallformers.MarkdownTest do
   @moduledoc """
   Unit tests for markdown processing with glossary term auto-linking.
   """
-  use Gallformers.DataCase
+  use Gallformers.DataCase, async: true
 
   alias Gallformers.Markdown
 

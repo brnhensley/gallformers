@@ -2,7 +2,7 @@ defmodule Gallformers.AnalyticsTest do
   @moduledoc """
   Unit tests for the Analytics context.
   """
-  use Gallformers.DataCase
+  use Gallformers.DataCase, async: true
 
   alias Gallformers.Analytics
   alias Gallformers.Analytics.PageView
@@ -287,6 +287,41 @@ defmodule Gallformers.AnalyticsTest do
       refute changeset.valid?
       assert "can't be blank" in errors_on(changeset).path
       assert "can't be blank" in errors_on(changeset).visitor_hash
+    end
+
+    test "changeset trims whitespace from strings (boundary)" do
+      attrs = %{
+        path: "  /test/path  ",
+        visitor_hash: "  hash123  ",
+        referrer_host: "  google.com  ",
+        browser: "  Chrome  ",
+        device_type: "  desktop  "
+      }
+
+      changeset = PageView.changeset(%PageView{}, attrs)
+      assert changeset.valid?
+      assert Ecto.Changeset.get_field(changeset, :path) == "/test/path"
+      assert Ecto.Changeset.get_field(changeset, :visitor_hash) == "hash123"
+      assert Ecto.Changeset.get_field(changeset, :referrer_host) == "google.com"
+      assert Ecto.Changeset.get_field(changeset, :browser) == "Chrome"
+      assert Ecto.Changeset.get_field(changeset, :device_type) == "desktop"
+    end
+
+    test "changeset handles empty strings for optional fields (boundary)" do
+      attrs = %{
+        path: "/test",
+        visitor_hash: "hash123",
+        referrer_host: "",
+        browser: "",
+        device_type: ""
+      }
+
+      changeset = PageView.changeset(%PageView{}, attrs)
+      # Empty strings should be trimmed to nil for optional fields
+      assert changeset.valid?
+      assert Ecto.Changeset.get_field(changeset, :referrer_host) == nil
+      assert Ecto.Changeset.get_field(changeset, :browser) == nil
+      assert Ecto.Changeset.get_field(changeset, :device_type) == nil
     end
   end
 

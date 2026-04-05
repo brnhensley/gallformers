@@ -1,5 +1,5 @@
 defmodule GallformersWeb.TreeComponentsTest do
-  use GallformersWeb.ConnCase
+  use GallformersWeb.ConnCase, async: true
   import Phoenix.LiveViewTest
 
   defmodule TestLive do

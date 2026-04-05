@@ -1,5 +1,5 @@
 defmodule Gallformers.KeysTest do
-  use Gallformers.DataCase
+  use Gallformers.DataCase, async: true
 
   alias Gallformers.Keys
   alias Gallformers.Keys.Key

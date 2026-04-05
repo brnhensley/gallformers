@@ -2,7 +2,7 @@ defmodule Gallformers.ArticlesTest do
   @moduledoc """
   Unit tests for the Articles context.
   """
-  use Gallformers.DataCase
+  use Gallformers.DataCase, async: true
 
   alias Gallformers.Articles
   alias Gallformers.Articles.Article
@@ -124,6 +124,46 @@ defmodule Gallformers.ArticlesTest do
 
     test "returns error with invalid data" do
       assert {:error, %Ecto.Changeset{}} = Articles.create_article(@invalid_attrs)
+    end
+
+    test "validates max length for title (boundary)" do
+      long_title = String.duplicate("a", 201)
+
+      attrs = %{
+        title: long_title,
+        author: "Test Author",
+        content: "Content"
+      }
+
+      assert {:error, changeset} = Articles.create_article(attrs)
+      assert "should be at most 200 character(s)" in errors_on(changeset).title
+    end
+
+    test "trims whitespace from strings (boundary)" do
+      attrs = %{
+        title: "  Test Title  ",
+        author: "  Test Author  ",
+        content: "  Content  ",
+        description: "  Description  "
+      }
+
+      assert {:ok, article} = Articles.create_article(attrs)
+      assert article.title == "Test Title"
+      assert article.author == "Test Author"
+      assert article.content == "Content"
+      assert article.description == "Description"
+    end
+
+    test "rejects empty strings after trimming (boundary)" do
+      attrs = %{
+        title: "   ",
+        author: "Test Author",
+        content: "Content"
+      }
+
+      # Empty strings after trimming should fail required validation
+      assert {:error, changeset} = Articles.create_article(attrs)
+      assert "can't be blank" in errors_on(changeset).title
     end
 
     test "auto-generates unique slug on collision" do

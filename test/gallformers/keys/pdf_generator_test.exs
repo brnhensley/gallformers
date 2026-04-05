@@ -1,5 +1,5 @@
 defmodule Gallformers.Keys.PdfGeneratorTest do
-  use Gallformers.DataCase
+  use Gallformers.DataCase, async: true
 
   alias Gallformers.Keys
   alias Gallformers.Keys.PdfGenerator

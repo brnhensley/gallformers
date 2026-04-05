@@ -1,7 +1,7 @@
 ---
 status: active
 created: 2026-03-18
-updated: 2026-04-01
+updated: 2026-04-05
 epic: platform
 docs: [docs/testing-philosophy.md]
 relates: [2648, 8757, bead]
@@ -354,4 +354,5 @@ Which direction?
 ---
 
 **Next: Tier 1 Unit — JS Hooks or Tier 2 Integration — Admin LiveViews**
+
 
