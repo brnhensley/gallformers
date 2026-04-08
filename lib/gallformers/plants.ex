@@ -1109,6 +1109,11 @@ defmodule Gallformers.Plants do
     }
   end
 
+  # Builds {place_id, precision, distribution_type} tuples for Ranges.update_host_places/2.
+  # The native ++ introduced concatenation can produce duplicate place_ids because
+  # 219 ISO codes are mapped from multiple TDWG codes — a species can be native in
+  # one TDWG region and introduced in another, yet both map to the same ISO place.
+  # Deduplication happens downstream in Ranges.update_host_places/2 (native wins).
   defp build_sync_place_entries(native_entries, introduced_entries, place_code_to_id) do
     native =
       Enum.map(native_entries, fn %{code: code, precision: precision} ->

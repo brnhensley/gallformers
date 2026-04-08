@@ -1,8 +1,13 @@
 defmodule Gallformers.RangesTest do
   use Gallformers.DataCase, async: true
 
+  alias Gallformers.Galls.GallHost
   alias Gallformers.Places
+  alias Gallformers.Places.Place
   alias Gallformers.Ranges
+  alias Gallformers.Ranges.HostRange
+  alias Gallformers.Repo
+  alias Gallformers.Species.Species
 
   describe "precision-aware range queries" do
     test "get_places_for_host/1 returns both exact and country-level codes" do
@@ -334,6 +339,40 @@ defmodule Gallformers.RangesTest do
       assert mx.distribution_type == "introduced"
     end
 
+    test "update_host_places/2 deduplicates entries for the same place_id" do
+      # This is the WCVP sync bug: a place can appear in both native and introduced
+      # distributions. Native should win since the PK is (species_id, place_id).
+      host =
+        Repo.insert!(%Species{
+          name: "Dedup Test Host",
+          taxoncode: "plant",
+          datacomplete: false
+        })
+
+      california = Repo.get_by!(Place, code: "US-CA")
+
+      # Same place_id with different distribution_type — should not crash
+      {:ok, _} =
+        Ranges.update_host_places(host.id, [
+          {california.id, "exact", "native"},
+          {california.id, "exact", "introduced"}
+        ])
+
+      import Ecto.Query
+
+      rows =
+        Repo.all(
+          from(hr in HostRange,
+            where: hr.species_id == ^host.id,
+            select: %{place_id: hr.place_id, distribution_type: hr.distribution_type}
+          )
+        )
+
+      # Should have exactly one row, and native wins
+      assert length(rows) == 1
+      assert hd(rows).distribution_type == "native"
+    end
+
     test "normalize_entries backwards compatible with plain IDs defaults to native" do
       california = Places.get_place_by_code("US-CA")
 
@@ -488,6 +527,110 @@ defmodule Gallformers.RangesTest do
     test "get_gall_range_codes returns empty for gall without range" do
       # Gall 102 has no hosts, so no gall_range entries
       assert Ranges.get_gall_range_codes(102) == []
+    end
+  end
+
+  describe "gall range host fallback" do
+    setup do
+      # Create a gall with hosts but NO curated gall_range entries.
+      # Host A has native range in US-CA and introduced range in CA-AB.
+      # Host B has native range in MX-JAL.
+      # Expected fallback: union of native ranges only = US-CA + MX-JAL.
+      california = Repo.get_by!(Place, code: "US-CA")
+      alberta = Repo.get_by!(Place, code: "CA-AB")
+      jalisco = Repo.get_by!(Place, code: "MX-JAL")
+
+      gall =
+        Repo.insert!(%Species{
+          name: "Fallback Test Gall",
+          taxoncode: "gall",
+          datacomplete: false
+        })
+
+      host_a =
+        Repo.insert!(%Species{
+          name: "Fallback Host A",
+          taxoncode: "plant",
+          datacomplete: false
+        })
+
+      host_b =
+        Repo.insert!(%Species{
+          name: "Fallback Host B",
+          taxoncode: "plant",
+          datacomplete: false
+        })
+
+      # Link hosts to gall
+      Repo.insert!(%GallHost{host_species_id: host_a.id, gall_species_id: gall.id})
+      Repo.insert!(%GallHost{host_species_id: host_b.id, gall_species_id: gall.id})
+
+      # Host A: native in US-CA, introduced in CA-AB
+      Repo.insert!(%HostRange{
+        species_id: host_a.id,
+        place_id: california.id,
+        precision: "exact",
+        distribution_type: "native"
+      })
+
+      Repo.insert!(%HostRange{
+        species_id: host_a.id,
+        place_id: alberta.id,
+        precision: "exact",
+        distribution_type: "introduced"
+      })
+
+      # Host B: native in MX-JAL
+      Repo.insert!(%HostRange{
+        species_id: host_b.id,
+        place_id: jalisco.id,
+        precision: "exact",
+        distribution_type: "native"
+      })
+
+      %{gall: gall, host_a: host_a, host_b: host_b}
+    end
+
+    test "falls back to union of hosts' native ranges when gall has no curated range", %{
+      gall: gall
+    } do
+      result = Ranges.get_display_range_for_gall(gall.id)
+      assert %Ranges.DisplayRange{} = result
+
+      all_codes = result.in_range ++ result.inherited_range
+
+      # Native ranges from both hosts
+      assert "US-CA" in all_codes
+      assert "MX-JAL" in all_codes
+
+      # Introduced range (CA-AB) must NOT appear
+      refute "CA-AB" in all_codes
+    end
+
+    test "uses curated gall_range when it exists, ignoring host fallback", %{gall: gall} do
+      # Add a curated gall_range entry for just CA-AB
+      alberta = Repo.get_by!(Place, code: "CA-AB")
+      Ranges.set_gall_range(gall.id, [{alberta.id, "exact"}])
+
+      result = Ranges.get_display_range_for_gall(gall.id)
+
+      # Should use curated range, not host fallback
+      assert "CA-AB" in result.in_range
+      refute "US-CA" in result.in_range
+      refute "MX-JAL" in result.in_range
+    end
+
+    test "returns empty range for gall with no hosts and no curated range" do
+      gall =
+        Repo.insert!(%Species{
+          name: "Lonely Gall",
+          taxoncode: "gall",
+          datacomplete: false
+        })
+
+      result = Ranges.get_display_range_for_gall(gall.id)
+      assert result.in_range == []
+      assert result.inherited_range == []
     end
   end
 end

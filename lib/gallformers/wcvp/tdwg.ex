@@ -38,6 +38,10 @@ defmodule Gallformers.Wcvp.Tdwg do
   Returns a flat list of %{code, precision} maps.
   """
   def convert_tdwg_codes(tdwg_codes, lookup) do
+    # flat_map can produce duplicate ISO codes because 219 ISO places are mapped
+    # from multiple TDWG codes (e.g., CA-NL ← LAB + NFL). uniq_by deduplicates
+    # within this list, but callers that concatenate native + introduced results
+    # must handle cross-list duplicates separately (see Ranges.dedup_by_place_id).
     tdwg_codes
     |> Enum.flat_map(fn code -> Map.get(lookup, code, []) end)
     |> Enum.uniq_by(& &1.code)

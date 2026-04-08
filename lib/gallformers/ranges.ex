@@ -6,7 +6,11 @@ defmodule Gallformers.Ranges do
   - **Host ranges** (host_range table): Where host plants exist geographically
   - **Gall ranges** (gall_range table): Curated stored range for gall species
 
-  Gall range is stored directly in the gall_range table as the source of truth.
+  Gall range resolution: curated `gall_range` entries are the source of truth.
+  When a gall has no curated range, falls back to the union of its hosts'
+  native ranges (introduced excluded). See `get_display_range_for_gall/1`.
+
+  See `docs/architecture/range-system.md` for the full range system architecture.
   """
   use Boundary,
     deps: [
@@ -244,7 +248,10 @@ defmodule Gallformers.Ranges do
           [{integer(), String.t(), String.t()} | {integer(), String.t()} | integer()]
         ) :: {:ok, :ok}
   def update_host_places(host_species_id, place_entries) do
-    entries = normalize_entries(host_species_id, place_entries, distribution_type: true)
+    entries =
+      host_species_id
+      |> normalize_entries(place_entries, distribution_type: true)
+      |> dedup_by_place_id()
 
     result =
       Repo.transaction(fn ->
@@ -365,14 +372,21 @@ defmodule Gallformers.Ranges do
   @spec get_display_range_for_gall(integer()) :: DisplayRange.t()
   def get_display_range_for_gall(gall_species_id) do
     gall_ranges = get_gall_range_with_precision(gall_species_id)
-    {exact_codes, inherited_codes} = split_by_precision(gall_ranges)
 
-    exact_set = MapSet.new(exact_codes)
+    if gall_ranges == [] do
+      # No curated range — fall back to union of hosts' native ranges
+      host_ids = get_host_species_ids_for_gall(gall_species_id)
+      native_ranges = get_native_host_ranges_with_precision(host_ids)
+      compute_display_range(native_ranges)
+    else
+      {exact_codes, inherited_codes} = split_by_precision(gall_ranges)
+      exact_set = MapSet.new(exact_codes)
 
-    %DisplayRange{
-      in_range: exact_codes,
-      inherited_range: Enum.reject(inherited_codes, &MapSet.member?(exact_set, &1))
-    }
+      %DisplayRange{
+        in_range: exact_codes,
+        inherited_range: Enum.reject(inherited_codes, &MapSet.member?(exact_set, &1))
+      }
+    end
   end
 
   @doc """
@@ -504,6 +518,39 @@ defmodule Gallformers.Ranges do
   # ============================================
   # Private helpers
   # ============================================
+
+  # Queries the gallhost table directly (string table name) to avoid a
+  # circular dependency on the Galls context.
+  defp get_host_species_ids_for_gall(gall_species_id) do
+    from(gh in "gallhost",
+      where: gh.gall_species_id == ^gall_species_id,
+      select: gh.host_species_id
+    )
+    |> Repo.all()
+  end
+
+  defp get_native_host_ranges_with_precision([]), do: []
+
+  defp get_native_host_ranges_with_precision(host_species_ids) do
+    from(hr in HostRange,
+      join: p in Place,
+      on: hr.place_id == p.id,
+      where: hr.species_id in ^host_species_ids,
+      where: hr.distribution_type == "native",
+      distinct: true,
+      select: %{code: p.code, precision: hr.precision, place_id: p.id}
+    )
+    |> Repo.all()
+  end
+
+  # Deduplicates entries by place_id. Multiple TDWG botanical regions can map to
+  # the same ISO place code (219 cases), so WCVP sync can produce the same
+  # place_id with conflicting distribution types. Native wins over introduced.
+  defp dedup_by_place_id(entries) do
+    entries
+    |> Enum.sort_by(fn entry -> if entry[:distribution_type] == "native", do: 0, else: 1 end)
+    |> Enum.uniq_by(& &1.place_id)
+  end
 
   defp normalize_entries(species_id, entries, opts) do
     include_dt = Keyword.get(opts, :distribution_type, false)
