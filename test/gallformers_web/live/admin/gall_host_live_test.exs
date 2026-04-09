@@ -595,6 +595,118 @@ defmodule GallformersWeb.Admin.GallHostLiveTest do
   end
 
   # ============================================
+  # Continent-level drill-down
+  # ============================================
+
+  describe "Continent-level drill-down" do
+    setup %{conn: conn} do
+      gall = create_gall("Testicus continentalis")
+      host = create_host("Quercus continentalis")
+
+      {:ok, _rel} =
+        Galls.create_gall_host(%{gall_species_id: gall.id, host_species_id: host.id})
+
+      # Host ranges across multiple North American countries
+      create_host_range(host, "US-CA")
+      create_host_range(host, "CA-AB")
+      create_host_range(host, "MX-JAL")
+
+      # Gall range: only US-CA initially
+      create_gall_range(gall, "US-CA")
+      create_gall_traits(gall, %{range_confirmed: false})
+
+      {:ok, gall: gall, conn: setup_admin_session(conn)}
+    end
+
+    test "continent breadcrumb shown when country drill-down opens", %{conn: conn, gall: gall} do
+      {:ok, view, _html} = live(conn, ~p"/admin/gallhost?id=#{gall.id}")
+
+      # Open US drill-down (US has subdivisions, so it opens the panel)
+      render_click(view, "toggle_country", %{"code" => "US"})
+
+      assert has_element?(view, "[phx-click='navigate_to_continent']", "North America")
+    end
+
+    test "include all at continent level adds all leaf places to gall range", %{
+      conn: conn,
+      gall: gall
+    } do
+      {:ok, view, _html} = live(conn, ~p"/admin/gallhost?id=#{gall.id}")
+
+      # Open US drill-down, navigate up to North America, include all
+      render_click(view, "toggle_country", %{"code" => "US"})
+
+      view
+      |> element("[phx-click='navigate_to_continent']")
+      |> render_click()
+
+      view
+      |> element("[phx-click='include_all_continent']")
+      |> render_click()
+
+      # Save and verify all NA host places are in gall range
+      render_click(view, "save", %{})
+
+      gall_range_codes = Ranges.get_gall_range_codes(gall.id)
+      # US-CA, CA-AB, and MX-JAL should all be in gall range now
+      assert "US-CA" in gall_range_codes
+      assert "CA-AB" in gall_range_codes
+      assert "MX-JAL" in gall_range_codes
+    end
+
+    test "exclude all at continent level removes all leaf places from gall range", %{
+      conn: conn,
+      gall: gall
+    } do
+      {:ok, view, _html} = live(conn, ~p"/admin/gallhost?id=#{gall.id}")
+
+      # Open US drill-down, navigate up to North America, exclude all
+      render_click(view, "toggle_country", %{"code" => "US"})
+
+      view
+      |> element("[phx-click='navigate_to_continent']")
+      |> render_click()
+
+      view
+      |> element("[phx-click='exclude_all_continent']")
+      |> render_click()
+
+      # Save and verify all NA host places removed from gall range
+      render_click(view, "save", %{})
+
+      gall_range_codes = Ranges.get_gall_range_codes(gall.id)
+      # US-CA and CA-AB were in gall range, should be removed now
+      refute "US-CA" in gall_range_codes
+      refute "CA-AB" in gall_range_codes
+      refute "MX-JAL" in gall_range_codes
+    end
+
+    test "clicking country in continent view drills into that country's subdivisions", %{
+      conn: conn,
+      gall: gall
+    } do
+      {:ok, view, _html} = live(conn, ~p"/admin/gallhost?id=#{gall.id}")
+
+      # Open US drill-down, navigate up to North America
+      render_click(view, "toggle_country", %{"code" => "US"})
+
+      view
+      |> element("[phx-click='navigate_to_continent']")
+      |> render_click()
+
+      # Should see countries listed — click Canada to drill into it
+      view
+      |> element("[phx-click='drill_into_country'][phx-value-code='CA']")
+      |> render_click()
+
+      # Should now show Canada's subdivisions (Alberta)
+      assert has_element?(view, "input[phx-value-code='CA-AB']")
+      # And the continent breadcrumb should be back
+      assert has_element?(view, "[phx-click='navigate_to_continent']", "North America")
+    end
+  end
+
+  # ============================================
   # Page title
   # ============================================
 
