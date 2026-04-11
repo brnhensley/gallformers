@@ -26,10 +26,10 @@ defmodule GallformersWeb.Admin.RangeDrillDown do
   def update(%{action: {:open, country}}, socket) do
     host_places = socket.assigns.host_places
 
-    # Only show subdivisions that are in the host range
     subdivisions =
-      Places.get_children(country.id)
-      |> Enum.filter(&(&1.code in host_places))
+      country.id
+      |> Places.get_children()
+      |> filter_by_host_places(host_places)
       |> Enum.sort_by(& &1.name)
 
     # Find the continent ancestor for the "up" breadcrumb
@@ -123,8 +123,9 @@ defmodule GallformersWeb.Admin.RangeDrillDown do
         else
           # Country with subdivisions: switch to country mode
           subdivisions =
-            Places.get_children(country.id)
-            |> Enum.filter(&(&1.code in host_places))
+            country.id
+            |> Places.get_children()
+            |> filter_by_host_places(host_places)
             |> Enum.sort_by(& &1.name)
 
           {:noreply,
@@ -143,12 +144,9 @@ defmodule GallformersWeb.Admin.RangeDrillDown do
     host_places_set = MapSet.new(socket.assigns.host_places)
 
     countries =
-      Places.get_children(continent.id)
-      |> Enum.filter(fn country ->
-        # Country is relevant if it or any of its descendants are in host range
-        country.code in host_places_set or
-          Enum.any?(host_places_set, &String.starts_with?(&1, "#{country.code}-"))
-      end)
+      continent.id
+      |> Places.get_children()
+      |> filter_countries_by_host_places(host_places_set)
       |> Enum.sort_by(& &1.name)
 
     {:noreply,
@@ -176,6 +174,24 @@ defmodule GallformersWeb.Admin.RangeDrillDown do
         code == country.code or String.starts_with?(code, "#{country.code}-")
       end)
     end)
+  end
+
+  # When host_places is empty (no hosts have range data), all places are
+  # available for selection — skip filtering and show all children.
+  defp filter_by_host_places(children, []), do: children
+
+  defp filter_by_host_places(children, host_places),
+    do: Enum.filter(children, &(&1.code in host_places))
+
+  defp filter_countries_by_host_places(countries, host_places_set) do
+    if MapSet.size(host_places_set) == 0 do
+      countries
+    else
+      Enum.filter(countries, fn country ->
+        country.code in host_places_set or
+          Enum.any?(host_places_set, &String.starts_with?(&1, "#{country.code}-"))
+      end)
+    end
   end
 
   defp notify_parent(message) do

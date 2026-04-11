@@ -19,6 +19,13 @@ const Typeahead = {
       this.input.focus()
     }
 
+    // Clear input when dropdown closes (e.g., after selection).
+    // LiveView won't update a focused input's value, so we force-sync here.
+    const resultsContainer = this.el.querySelector("[data-typeahead-results]")
+    if (!resultsContainer && this.input && this.input.value !== '') {
+      this.input.value = ''
+    }
+
     // Reset highlight when results change
     const results = this.getResults()
     if (results.length === 0) {

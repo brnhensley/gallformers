@@ -90,11 +90,19 @@ defmodule GallformersWeb.Admin.PowoDiffReview do
 
       <div :if={@diff.has_changes} class="text-sm space-y-3">
         <.bucket_tree
-          :for={bucket <- @active_buckets}
+          :for={bucket <- Enum.reject(@active_buckets, &(&1 == :remove))}
           bucket={bucket}
           groups={Map.get(assigns, groups_field(bucket))}
           selected={Map.get(assigns, selected_field(bucket))}
           expanded={section_expanded(@expanded_countries, Atom.to_string(bucket))}
+          myself={@myself}
+        />
+        <.remove_bucket
+          :if={@diff.remove != []}
+          groups={@groups_remove}
+          selected={@selected_remove}
+          introduced={@remove_as_introduced}
+          expanded={section_expanded(@expanded_countries, "remove")}
           myself={@myself}
         />
       </div>
@@ -185,6 +193,132 @@ defmodule GallformersWeb.Admin.PowoDiffReview do
     """
   end
 
+  defp remove_bucket(assigns) do
+    total_items = Enum.reduce(assigns.groups, 0, fn g, acc -> acc + length(g.items) end)
+
+    kept_count =
+      Enum.reduce(assigns.groups, 0, fn g, acc ->
+        acc + Enum.count(g.items, &MapSet.member?(assigns.selected, &1.id))
+      end)
+
+    introduced_count = MapSet.size(MapSet.intersection(assigns.introduced, assigns.selected))
+    removed_count = total_items - kept_count
+    all_selected = total_items > 0 and kept_count == total_items
+
+    assigns =
+      assigns
+      |> assign(:total_items, total_items)
+      |> assign(:kept_count, kept_count)
+      |> assign(:introduced_count, introduced_count)
+      |> assign(:removed_count, removed_count)
+      |> assign(:all_selected, all_selected)
+
+    ~H"""
+    <div id="powo-remove" class="bg-red-50 border border-red-200 rounded p-3">
+      <div class="flex items-center justify-between">
+        <span class="font-medium text-red-800">
+          Places in current range but not in WCVP ({@kept_count}/{@total_items} kept)
+        </span>
+        <button
+          type="button"
+          phx-click={if @all_selected, do: "deselect_all_remove", else: "select_all_remove"}
+          phx-target={@myself}
+          class="text-xs text-red-700 hover:underline"
+        >
+          {if @all_selected, do: "Exclude all", else: "Include all"}
+        </button>
+      </div>
+
+      <p class="text-xs text-red-700 mt-1 mb-2">
+        <.icon name="ph-warning" class="h-3.5 w-3.5 inline-block align-text-bottom" />
+        These places were added before this WCVP sync. Review each for correct
+        native/introduced status. Use the badge to toggle classification.
+      </p>
+
+      <p :if={@introduced_count > 0 or @removed_count > 0} class="text-xs text-gray-600 mb-2">
+        {@kept_count} kept<span :if={@introduced_count > 0}>
+          ({@introduced_count} as introduced)</span>, {@removed_count} excluded
+      </p>
+
+      <div class="mt-2 max-h-96 overflow-y-auto space-y-1">
+        <div :for={group <- @groups}>
+          <% gs = remove_group_state(group, @selected, @expanded) %>
+          <div class="flex items-center gap-1.5">
+            <input
+              id={"powo-remove-group-#{group.id}"}
+              type="checkbox"
+              checked={gs.all_selected}
+              data-indeterminate={to_string(!gs.all_selected and !gs.none_selected)}
+              phx-hook="IndeterminateCheckbox"
+              phx-click="toggle_group_remove"
+              phx-target={@myself}
+              phx-value-group={to_string(group.id)}
+              class="rounded border-gray-300 text-red-600 focus:ring-red-500"
+            />
+            <button
+              type="button"
+              phx-click="expand_group_remove"
+              phx-target={@myself}
+              phx-value-group={to_string(group.id)}
+              class="flex items-center gap-1 text-xs font-medium text-red-800 hover:underline"
+            >
+              <span class="w-3 text-center">{if gs.expanded, do: "▾", else: "▸"}</span>
+              {group.label}
+              <span class="font-normal text-gray-500">
+                ({gs.selected_count}/{gs.total_count})
+              </span>
+            </button>
+          </div>
+          <div :if={gs.expanded} class="ml-6 space-y-0.5 mt-0.5">
+            <div :for={item <- group.items} class="flex items-center gap-2">
+              <label class="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={MapSet.member?(@selected, item.id)}
+                  phx-click="toggle_item_remove"
+                  phx-target={@myself}
+                  phx-value-id={to_string(item.id)}
+                  class="rounded border-gray-300 text-red-600 focus:ring-red-500"
+                />
+                <span class="text-xs">{item.label}</span>
+              </label>
+              <button
+                :if={MapSet.member?(@selected, item.id)}
+                type="button"
+                phx-click="toggle_remove_introduced"
+                phx-target={@myself}
+                phx-value-id={to_string(item.id)}
+                class={[
+                  "text-[10px] px-1.5 py-0.5 rounded-full font-medium cursor-pointer",
+                  if(MapSet.member?(@introduced, item.id),
+                    do: "bg-amber-100 text-amber-700 hover:bg-amber-200",
+                    else: "bg-green-100 text-green-700 hover:bg-green-200"
+                  )
+                ]}
+              >
+                {if MapSet.member?(@introduced, item.id), do: "Introduced", else: "Native"}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    """
+  end
+
+  defp remove_group_state(group, selected, expanded) do
+    selected_count = Enum.count(group.items, &MapSet.member?(selected, &1.id))
+    total_count = length(group.items)
+
+    %{
+      selected_count: selected_count,
+      total_count: total_count,
+      all_selected: selected_count == total_count,
+      none_selected: selected_count == 0,
+      expanded: MapSet.member?(expanded, group.id)
+    }
+  end
+
   # --- Event handlers ---
 
   # Per-bucket event handlers generated from bucket config.
@@ -239,11 +373,27 @@ defmodule GallformersWeb.Admin.PowoDiffReview do
   end
 
   @impl true
+  def handle_event("toggle_remove_introduced", %{"id" => code}, socket) do
+    {:noreply,
+     assign(
+       socket,
+       :remove_as_introduced,
+       toggle_set(socket.assigns.remove_as_introduced, code)
+     )}
+  end
+
+  @impl true
   def handle_event("apply", _params, socket) do
+    # Intersect remove_as_introduced with selected_remove to discard stale entries
+    # (items the user unchecked after marking as introduced)
+    remove_as_introduced =
+      MapSet.intersection(socket.assigns.remove_as_introduced, socket.assigns.selected_remove)
+
     selections = %{
       add_native: socket.assigns.selected_add_native,
       add_introduced: socket.assigns.selected_add_introduced,
       remove: socket.assigns.selected_remove,
+      remove_as_introduced: remove_as_introduced,
       reclassify_to_introduced: socket.assigns.selected_reclassify_to_introduced,
       reclassify_to_native: socket.assigns.selected_reclassify_to_native
     }
@@ -261,10 +411,15 @@ defmodule GallformersWeb.Admin.PowoDiffReview do
   # --- Private helpers ---
 
   defp init_selections(socket, diff) do
-    Enum.reduce(@buckets, socket, fn bucket, sock ->
-      codes = Map.get(diff, bucket, [])
-      assign(sock, selected_field(bucket), MapSet.new(codes))
-    end)
+    socket =
+      Enum.reduce(@buckets, socket, fn bucket, sock ->
+        codes = Map.get(diff, bucket, [])
+        assign(sock, selected_field(bucket), MapSet.new(codes))
+      end)
+
+    # Items in the remove bucket start as native (not introduced).
+    # The user can toggle individual items to introduced via the secondary control.
+    assign(socket, :remove_as_introduced, MapSet.new())
   end
 
   defp init_groups(socket, diff, place_by_code) do

@@ -696,12 +696,15 @@ defmodule GallformersWeb.Admin.HostLive.Form do
   # For remove: selected codes are KEPT (unselected get removed).
   # For reclassify: selected codes change distribution_type.
   defp apply_powo_selections(range_entries, diff, selections) do
+    remove_as_introduced = Map.get(selections, :remove_as_introduced, MapSet.new())
+
     range_entries
     |> add_codes(selections.add_native, "native")
     |> add_codes(selections.add_introduced, "introduced")
     |> remove_unselected(diff.remove, selections.remove)
     |> reclassify_codes(selections.reclassify_to_introduced, "introduced")
     |> reclassify_codes(selections.reclassify_to_native, "native")
+    |> reclassify_codes(remove_as_introduced, "introduced")
   end
 
   defp add_codes(entries, codes, dist_type) do

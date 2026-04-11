@@ -170,6 +170,88 @@ defmodule GallformersWeb.Admin.PowoDiffReviewTest do
     end
   end
 
+  describe "remove bucket" do
+    test "shows review warning text", %{conn: conn} do
+      {:ok, _view, html} = mount_harness(conn, diff_with_changes())
+
+      assert html =~ "Review each for correct"
+      assert html =~ "native/introduced status"
+    end
+
+    test "items start with native badge when kept", %{conn: conn} do
+      diff = %{diff_with_changes() | remove: ["CA-BC", "US-CA"]}
+      {:ok, view, _html} = mount_harness(conn, diff)
+
+      # Expand the CA group to see CA-BC
+      view
+      |> element("#powo-remove button[phx-click=expand_group_remove][phx-value-group=CA]")
+      |> render_click()
+
+      # Badge button should show "Native"
+      assert has_element?(
+               view,
+               "button[phx-click=toggle_remove_introduced][phx-value-id=CA-BC]",
+               "Native"
+             )
+
+      refute has_element?(
+               view,
+               "button[phx-click=toggle_remove_introduced][phx-value-id=CA-BC]",
+               "Introduced"
+             )
+    end
+
+    test "toggling introduced badge cycles to introduced", %{conn: conn} do
+      diff = %{diff_with_changes() | remove: ["CA-BC", "US-CA"]}
+      {:ok, view, _html} = mount_harness(conn, diff)
+
+      # Expand CA group
+      view
+      |> element("#powo-remove button[phx-click=expand_group_remove][phx-value-group=CA]")
+      |> render_click()
+
+      # Toggle CA-BC to introduced
+      view
+      |> element("button[phx-click=toggle_remove_introduced][phx-value-id=CA-BC]")
+      |> render_click()
+
+      assert has_element?(
+               view,
+               "button[phx-click=toggle_remove_introduced][phx-value-id=CA-BC]",
+               "Introduced"
+             )
+    end
+
+    test "introduced badge hidden when item is excluded", %{conn: conn} do
+      diff = %{diff_with_changes() | remove: ["CA-BC"]}
+      {:ok, view, _html} = mount_harness(conn, diff)
+
+      # Expand CA group
+      view
+      |> element("#powo-remove button[phx-click=expand_group_remove][phx-value-group=CA]")
+      |> render_click()
+
+      # Mark CA-BC as introduced
+      view
+      |> element("button[phx-click=toggle_remove_introduced][phx-value-id=CA-BC]")
+      |> render_click()
+
+      assert has_element?(
+               view,
+               "button[phx-click=toggle_remove_introduced][phx-value-id=CA-BC]",
+               "Introduced"
+             )
+
+      # Uncheck CA-BC (exclude it)
+      view
+      |> element("input[phx-click=toggle_item_remove][phx-value-id=CA-BC]")
+      |> render_click()
+
+      # Badge button should be gone (item is excluded)
+      refute has_element?(view, "button[phx-click=toggle_remove_introduced][phx-value-id=CA-BC]")
+    end
+  end
+
   describe "apply and cancel" do
     test "apply sends correct selections to parent", %{conn: conn} do
       {:ok, view, _html} = mount_harness(conn, diff_with_changes())
@@ -188,6 +270,30 @@ defmodule GallformersWeb.Admin.PowoDiffReviewTest do
       # The harness renders the last_message
       assert html =~ "last-message"
       assert html =~ ":apply"
+    end
+
+    test "apply includes remove_as_introduced in selections", %{conn: conn} do
+      diff = %{diff_with_changes() | remove: ["CA-BC"]}
+      {:ok, view, _html} = mount_harness(conn, diff)
+
+      # Expand CA group and mark CA-BC as introduced
+      view
+      |> element("#powo-remove button[phx-click=expand_group_remove][phx-value-group=CA]")
+      |> render_click()
+
+      view
+      |> element("button[phx-click=toggle_remove_introduced][phx-value-id=CA-BC]")
+      |> render_click()
+
+      # Apply
+      view
+      |> element("button", "Apply Selected Changes")
+      |> render_click()
+
+      html = render(view)
+      assert html =~ ":apply"
+      assert html =~ "remove_as_introduced"
+      assert html =~ "CA-BC"
     end
 
     test "cancel sends cancel to parent", %{conn: conn} do

@@ -199,6 +199,11 @@ const RangeMap = {
         newEditable !== this.editable ||
         newNavigable !== this.navigable ||
         newPlaceMode !== this.placeMode) {
+      // Detect range expansion: new codes were added (not just toggled/removed)
+      const rangeExpanded = [...newInRange, ...newInheritedRange].some(
+        code => !this.inRange.has(code) && !this.inheritedRange.has(code)
+      )
+
       this.inRange = newInRange
       this.excludedRange = newExcludedRange
       this.inheritedRange = newInheritedRange
@@ -210,6 +215,11 @@ const RangeMap = {
         ? { inRange: COLORS.placeHighlight, inheritedRange: COLORS.placeHighlightLight }
         : null
       this.updateChoropleth()
+
+      // Re-zoom when range expands (e.g., after WCVP sync adds new regions)
+      if (rangeExpanded) {
+        this.fitToRange(true)
+      }
     }
   },
 

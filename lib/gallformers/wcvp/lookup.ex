@@ -9,6 +9,8 @@ defmodule Gallformers.Wcvp.Lookup do
 
   @behaviour Gallformers.Wcvp.LookupBehaviour
 
+  require Logger
+
   import Ecto.Query
 
   alias Gallformers.Repo
@@ -165,6 +167,10 @@ defmodule Gallformers.Wcvp.Lookup do
   @impl true
   @spec match_by_name(String.t(), keyword()) :: WcvpName.t() | nil
   def match_by_name(name, opts \\ []) do
+    with_retry("match_by_name(#{name})", fn -> do_match_by_name(name, opts) end)
+  end
+
+  defp do_match_by_name(name, opts) do
     case Repo.WCVP.one(
            from(n in name_query(),
              where: n.taxon_name == ^name and n.taxon_status == "Accepted",
@@ -180,10 +186,6 @@ defmodule Gallformers.Wcvp.Lookup do
           resolve_synonym_by_name(name)
         end
     end
-  rescue
-    _ -> nil
-  catch
-    :exit, _ -> nil
   end
 
   defp resolve_synonym_by_name(name) do
@@ -220,33 +222,31 @@ defmodule Gallformers.Wcvp.Lookup do
   @impl true
   @spec get(String.t()) :: WcvpName.t() | nil
   def get(plant_name_id) do
-    case Repo.WCVP.one(from(n in name_query(), where: n.plant_name_id == ^plant_name_id)) do
-      nil ->
-        nil
+    with_retry("get(#{plant_name_id})", fn ->
+      case Repo.WCVP.one(from(n in name_query(), where: n.plant_name_id == ^plant_name_id)) do
+        nil ->
+          nil
 
-      %WcvpName{} = name ->
-        distributions =
-          from(d in WcvpDistribution,
-            where:
-              d.plant_name_id == ^plant_name_id and
-                d.extinct == "0" and d.location_doubtful == "0",
-            order_by: d.area_code_l3,
-            select: %{area_code_l3: d.area_code_l3, introduced: d.introduced}
-          )
-          |> Repo.WCVP.all()
+        %WcvpName{} = name ->
+          distributions =
+            from(d in WcvpDistribution,
+              where:
+                d.plant_name_id == ^plant_name_id and
+                  d.extinct == "0" and d.location_doubtful == "0",
+              order_by: d.area_code_l3,
+              select: %{area_code_l3: d.area_code_l3, introduced: d.introduced}
+            )
+            |> Repo.WCVP.all()
 
-        {introduced, native} = Enum.split_with(distributions, &(&1.introduced == "1"))
+          {introduced, native} = Enum.split_with(distributions, &(&1.introduced == "1"))
 
-        %{
-          name
-          | native_distribution: Enum.map(native, & &1.area_code_l3),
-            introduced_distribution: Enum.map(introduced, & &1.area_code_l3)
-        }
-    end
-  rescue
-    _ -> nil
-  catch
-    :exit, _ -> nil
+          %{
+            name
+            | native_distribution: Enum.map(native, & &1.area_code_l3),
+              introduced_distribution: Enum.map(introduced, & &1.area_code_l3)
+          }
+      end
+    end)
   end
 
   @doc """
@@ -306,5 +306,34 @@ defmodule Gallformers.Wcvp.Lookup do
         powo_id: n.powo_id
       }
     )
+  end
+
+  # Runs a WCVP query function with a single retry on transient DB errors.
+  # After idle periods, pool connections can go stale; the first query fails
+  # but the pool reconnects, so the retry succeeds.
+  defp with_retry(label, fun) do
+    fun.()
+  rescue
+    e ->
+      Logger.warning("WCVP #{label} failed (#{Exception.message(e)}), retrying once")
+
+      try do
+        fun.()
+      rescue
+        _ -> nil
+      catch
+        :exit, _ -> nil
+      end
+  catch
+    :exit, reason ->
+      Logger.warning("WCVP #{label} exit (#{inspect(reason)}), retrying once")
+
+      try do
+        fun.()
+      rescue
+        _ -> nil
+      catch
+        :exit, _ -> nil
+      end
   end
 end
