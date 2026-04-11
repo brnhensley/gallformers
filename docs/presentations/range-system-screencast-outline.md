@@ -31,7 +31,11 @@ Hosts are the data source that gall ranges build on.
 3. **Syncing a single host** — navigate to Host Edit (`/admin/hosts/:id`)
    - The 6-bucket diff: add native, add introduced, remove, reclassify (x2), agree
    - Cherry-picking changes — you don't have to accept everything WCVP says
-   - Save applies your selections
+   - **The remove bucket** — "Places in current range but not in WCVP"
+     - These are regions you added before the sync. WCVP may not have data for them but they could still be valid.
+     - Warning text reminds you to review native/introduced status
+     - Each kept item has a Native/Introduced badge you can click to reclassify without leaving the diff
+   - Save applies your selections; the map zooms out to show any newly added regions
 4. **CountryDrillDown panel** — click a country on the host map
    - Toggle country-level precision on/off
    - Set distribution type (native/introduced) at country level
@@ -58,7 +62,7 @@ Now that admins understand host ranges, show how gall ranges layer on top.
 4. **RangeDrillDown panel** — click a country with subdivisions
    - Checkboxes: checked = included, unchecked = excluded
    - Include All / Exclude All shortcuts
-   - Only shows subdivisions where hosts actually occur (no phantom entries)
+   - Shows subdivisions where hosts occur; when no hosts have range data, all subdivisions are available (a blue info banner explains this)
 5. **The implicit exclusion model** — there is no "exclusions table." If a place is in the host range but not in gall_range, it's excluded. Simple as that.
 6. **Save vs Save & Confirm** — when to use which
 
