@@ -50,7 +50,11 @@ const Typeahead = {
       this.input.addEventListener("input", () => {
         const searchEvent = this.el.dataset.searchEvent
         if (searchEvent) {
-          this.pushTargetedEvent(searchEvent, {value: this.input.value})
+          const payload = {value: this.input.value}
+          if (this.el.dataset.searchType) {
+            payload.type = this.el.dataset.searchType
+          }
+          this.pushTargetedEvent(searchEvent, payload)
         }
       })
     }

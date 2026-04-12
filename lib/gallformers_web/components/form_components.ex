@@ -444,6 +444,7 @@ defmodule GallformersWeb.FormComponents do
         phx-hook="Typeahead"
         data-input-id={"#{@id}-input"}
         data-search-event={@on_search}
+        data-search-type={@type}
         data-close-event={@on_close}
         class="relative"
       >

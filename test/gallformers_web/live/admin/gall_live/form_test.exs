@@ -292,6 +292,19 @@ defmodule GallformersWeb.Admin.GallLive.FormTest do
         assert html =~ gall.name, "Failed for filter type: #{filter_type}"
       end
     end
+
+    test "filter dropdowns render data-search-type for typeahead hook", %{conn: conn} do
+      gall = require_gall()
+      {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
+
+      # The Typeahead hook needs data-search-type on the wrapper div to include
+      # the filter type in search events. Without it, filter_search receives no
+      # type param and crashes the LiveView (regression from phx-keyup removal).
+      for id <- ~w(colors shapes textures alignments walls cells plant_parts forms seasons) do
+        assert has_element?(view, "##{id}[data-search-type]"),
+               "#{id} dropdown missing data-search-type attribute"
+      end
+    end
   end
 
   describe "Detachable - update_detachable event" do
