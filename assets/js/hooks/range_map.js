@@ -644,7 +644,7 @@ const RangeMap = {
    * Show or hide an overlay when there is no range data to display.
    */
   updateEmptyState() {
-    const hasData = this.inRange.size > 0 || this.inheritedRange.size > 0
+    const hasData = this.inRange.size > 0 || this.inheritedRange.size > 0 || this.excludedRange.size > 0
     const existing = this.el.querySelector('.range-map-empty-overlay')
 
     if (hasData && existing) {
@@ -666,7 +666,7 @@ const RangeMap = {
    */
   fitToRange(animate) {
     if (!this.map) return
-    if (this.inRange.size === 0 && this.inheritedRange.size === 0) {
+    if (this.inRange.size === 0 && this.inheritedRange.size === 0 && this.excludedRange.size === 0) {
       this.map.fitBounds(WORLD_BOUNDS, { padding: 20, animate })
       return
     }

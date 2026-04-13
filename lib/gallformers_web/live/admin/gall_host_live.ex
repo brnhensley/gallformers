@@ -662,6 +662,17 @@ defmodule GallformersWeb.Admin.GallHostLive do
               </p>
             </div>
 
+            <div
+              :if={@selected_gall && @in_range == [] && @inherited_range == [] && @host_places != []}
+              class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded flex items-center gap-2"
+            >
+              <.icon name="ph-info" class="h-5 w-5 text-blue-600 flex-shrink-0" />
+              <p class="text-sm text-blue-800">
+                This gall has no range defined. The public page will default to its hosts' native ranges.
+                Use the drill-down panel to add places to the gall's range.
+              </p>
+            </div>
+
             <%!-- Range Section --%>
             <div class="mb-4">
               <div class="flex items-center gap-2 mb-1">

@@ -10,6 +10,45 @@ defmodule Gallformers.GallsIdentificationTest do
   #   Places: Alberta(CA-AB)=1, California(US-CA)=2, US=902, Canada=903
   #   host_range: T. alpinus→US-CA, M. arvensis→CA-AB+US-CA+US(country), T. serpyllum→US-CA
 
+  # Shared test helpers
+  defp create_species(name, taxoncode) do
+    Repo.insert!(%Gallformers.Species.Species{name: name, taxoncode: taxoncode})
+  end
+
+  defp create_gall_traits(species_id) do
+    Repo.insert!(%Gallformers.Galls.GallTraits{species_id: species_id})
+  end
+
+  defp create_taxonomy(name, type, opts \\ []) do
+    Repo.insert!(%Gallformers.Taxonomy.Taxonomy{
+      name: name,
+      type: type,
+      parent_id: Keyword.get(opts, :parent_id)
+    })
+  end
+
+  defp link_species_taxonomy(species_id, taxonomy_id) do
+    Repo.insert_all("species_taxonomy", [
+      %{species_id: species_id, taxonomy_id: taxonomy_id}
+    ])
+  end
+
+  defp create_gall_host(gall_id, host_id) do
+    Repo.insert!(%Gallformers.Galls.GallHost{
+      gall_species_id: gall_id,
+      host_species_id: host_id
+    })
+  end
+
+  defp create_host_range(host_id, place_id, opts \\ []) do
+    Repo.insert!(%Gallformers.Ranges.HostRange{
+      species_id: host_id,
+      place_id: place_id,
+      precision: Keyword.get(opts, :precision, "exact"),
+      distribution_type: Keyword.get(opts, :distribution_type, "native")
+    })
+  end
+
   describe "get_summary_data/1" do
     test "returns filter data for given gall_ids" do
       # Empty list returns empty map
@@ -196,39 +235,6 @@ defmodule Gallformers.GallsIdentificationTest do
   end
 
   describe "count_filtered_galls/1" do
-    # Tests own their data: create galls, hosts, taxonomy, and links from scratch.
-    # The genus filter in filter_galls works via host→species_taxonomy,
-    # and the family filter works via gall→species_taxonomy (genus_ids_for_family).
-
-    defp create_species(name, taxoncode) do
-      Repo.insert!(%Gallformers.Species.Species{name: name, taxoncode: taxoncode})
-    end
-
-    defp create_gall_traits(species_id) do
-      Repo.insert!(%Gallformers.Galls.GallTraits{species_id: species_id})
-    end
-
-    defp create_taxonomy(name, type, opts \\ []) do
-      Repo.insert!(%Gallformers.Taxonomy.Taxonomy{
-        name: name,
-        type: type,
-        parent_id: Keyword.get(opts, :parent_id)
-      })
-    end
-
-    defp link_species_taxonomy(species_id, taxonomy_id) do
-      Repo.insert_all("species_taxonomy", [
-        %{species_id: species_id, taxonomy_id: taxonomy_id}
-      ])
-    end
-
-    defp create_gall_host(gall_id, host_id) do
-      Repo.insert!(%Gallformers.Galls.GallHost{
-        gall_species_id: gall_id,
-        host_species_id: host_id
-      })
-    end
-
     test "respects genus filter" do
       # Create two galls with hosts in different genera
       genus_a = create_taxonomy("TestGenusA", "genus")
@@ -268,6 +274,61 @@ defmodule Gallformers.GallsIdentificationTest do
 
       count = Galls.count_filtered_galls(%{family_id: family.id})
       assert count == 1, "expected 1 gall for family, got #{count}"
+    end
+  end
+
+  describe "place filter host range fallback" do
+    # When a gall has no gall_range entries, it should default to the union
+    # of its hosts' native ranges for place filtering (same as public page).
+
+    test "gall with no gall_range included via host native range" do
+      host = create_species("Hostus fallbackus", "plant")
+      gall = create_species("Gall without range", "gall")
+      create_gall_traits(gall.id)
+      create_gall_host(gall.id, host.id)
+      # US-CA
+      create_host_range(host.id, 2)
+
+      # No gall_range entries for this gall — should fall back to host range
+      results = Galls.filter_galls(%{place_codes: ["US-CA"]})
+      gall_ids = Enum.map(results, & &1.id)
+      assert gall.id in gall_ids
+    end
+
+    test "gall with no gall_range excluded when host range is only introduced" do
+      host = create_species("Hostus introductus", "plant")
+      gall = create_species("Gall intro only", "gall")
+      create_gall_traits(gall.id)
+      create_gall_host(gall.id, host.id)
+      # US-CA introduced
+      create_host_range(host.id, 2, distribution_type: "introduced")
+
+      # Only introduced range — should NOT match for fallback
+      results = Galls.filter_galls(%{place_codes: ["US-CA"]})
+      gall_ids = Enum.map(results, & &1.id)
+      refute gall.id in gall_ids
+    end
+
+    test "gall WITH gall_range still uses gall_range not host fallback" do
+      # Gall 100 has explicit gall_range for US-CA and CA-AB
+      # Should still work via gall_range, not fallback
+      results = Galls.filter_galls(%{place_codes: ["US-CA"]})
+      gall_ids = Enum.map(results, & &1.id)
+      assert 100 in gall_ids
+    end
+
+    test "host country-level range fallback matches subdivision filter" do
+      host = create_species("Hostus countrius", "plant")
+      gall = create_species("Gall country fallback", "gall")
+      create_gall_traits(gall.id)
+      create_gall_host(gall.id, host.id)
+      # US country-level
+      create_host_range(host.id, 902, precision: "country")
+
+      # Filter by California — should match via ancestor expansion
+      results = Galls.filter_galls(%{place_codes: ["US-CA"]})
+      gall_ids = Enum.map(results, & &1.id)
+      assert gall.id in gall_ids
     end
   end
 end

@@ -410,13 +410,36 @@ defmodule Gallformers.Galls.Identification do
     # Ancestor IDs: when user selects "US-CA", match country-level US ranges
     ancestor_ids = Enum.flat_map(place_ids, &Places.ancestor_ids/1) |> Enum.uniq()
 
-    # Combined: a gall_range row matches if its place_id is in either set
+    # Combined: a range row matches if its place_id is in either set
     all_matching_place_ids = Enum.uniq(descendant_ids ++ ancestor_ids)
 
+    # Galls with explicit gall_range entries matching the place
+    galls_with_range_match =
+      from(gr in "gall_range",
+        where: gr.place_id in ^all_matching_place_ids,
+        select: gr.species_id,
+        distinct: true
+      )
+
+    # Galls with NO gall_range entries that fall back to host native ranges.
+    # Mirrors Ranges.get_display_range_for_gall/1 fallback behavior.
+    galls_with_any_range = from(gr in "gall_range", select: gr.species_id, distinct: true)
+
+    galls_with_host_fallback =
+      from(gh in "gallhost",
+        join: hr in "host_range",
+        on: hr.species_id == gh.host_species_id,
+        where: hr.place_id in ^all_matching_place_ids,
+        where: hr.distribution_type == "native",
+        where: gh.gall_species_id not in subquery(galls_with_any_range),
+        select: gh.gall_species_id,
+        distinct: true
+      )
+
     from [s, gt] in query,
-      join: gr in "gall_range",
-      on: gr.species_id == s.id,
-      where: gr.place_id in ^all_matching_place_ids
+      where:
+        s.id in subquery(galls_with_range_match) or
+          s.id in subquery(galls_with_host_fallback)
   end
 
   defp apply_undescribed_filter(query, nil), do: query
