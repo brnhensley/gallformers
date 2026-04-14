@@ -292,6 +292,16 @@ describe('Typeahead event routing', () => {
 // ============================================
 
 describe('Typeahead updated', () => {
+  test('does not clear the input when no server query is provided', () => {
+    const hook = mountHook(Typeahead, typeaheadHTML())
+    hook.mounted()
+
+    hook.input.value = 'Q'
+    hook.updated()
+
+    expect(hook.input.value).toBe('Q')
+  })
+
   test('does not clear a non-empty input when results are closed but query still exists', () => {
     const hook = mountHook(Typeahead, typeaheadHTML())
     hook.mounted()

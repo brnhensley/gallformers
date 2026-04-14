@@ -445,6 +445,7 @@ defmodule GallformersWeb.FormComponents do
         data-input-id={"#{@id}-input"}
         data-search-event={@on_search}
         data-search-type={@type}
+        data-query={@search_query}
         data-close-event={@on_close}
         class="relative"
       >
@@ -858,6 +859,7 @@ defmodule GallformersWeb.FormComponents do
       data-clear-event={"#{@name}_clear"}
       data-search-event={"#{@name}_search"}
       data-input-id={@id}
+      data-query={@query}
       class="mb-2"
     >
       <label class="gf-label">

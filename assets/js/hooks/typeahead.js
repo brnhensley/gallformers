@@ -21,8 +21,9 @@ const Typeahead = {
 
     // Clear input when the server-side query was reset (e.g., after selection/clear).
     // LiveView won't update a focused input's value, so we force-sync here.
+    const hasServerQuery = this.el.hasAttribute("data-query")
     const serverQuery = this.el.dataset.query || ''
-    if (this.input && serverQuery === '' && this.input.value !== '') {
+    if (this.input && hasServerQuery && serverQuery === '' && this.input.value !== '') {
       this.input.value = ''
     }
 
