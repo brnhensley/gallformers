@@ -19,10 +19,10 @@ const Typeahead = {
       this.input.focus()
     }
 
-    // Clear input when dropdown closes (e.g., after selection).
+    // Clear input when the server-side query was reset (e.g., after selection/clear).
     // LiveView won't update a focused input's value, so we force-sync here.
-    const resultsContainer = this.el.querySelector("[data-typeahead-results]")
-    if (!resultsContainer && this.input && this.input.value !== '') {
+    const serverQuery = this.el.dataset.query || ''
+    if (this.input && serverQuery === '' && this.input.value !== '') {
       this.input.value = ''
     }
 

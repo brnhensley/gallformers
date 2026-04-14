@@ -292,6 +292,28 @@ describe('Typeahead event routing', () => {
 // ============================================
 
 describe('Typeahead updated', () => {
+  test('does not clear a non-empty input when results are closed but query still exists', () => {
+    const hook = mountHook(Typeahead, typeaheadHTML())
+    hook.mounted()
+
+    hook.el.dataset.query = 'Q'
+    hook.input.value = 'Q'
+    hook.updated()
+
+    expect(hook.input.value).toBe('Q')
+  })
+
+  test('clears the input when the server-side query is reset', () => {
+    const hook = mountHook(Typeahead, typeaheadHTML())
+    hook.mounted()
+
+    hook.el.dataset.query = ''
+    hook.input.value = 'Q'
+    hook.updated()
+
+    expect(hook.input.value).toBe('')
+  })
+
   test('focuses input when pendingFocus is true', () => {
     const hook = mountHook(Typeahead, typeaheadHTML())
     hook.mounted()
