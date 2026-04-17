@@ -85,8 +85,8 @@ defmodule GallformersWeb.Router do
     # Gall-Host mapping admin
     live "/gallhost", Admin.GallHostLive, :index
 
-    # Gall range review (disabled — not ready for production)
-    # live "/gall-range", Admin.GallRangeLive
+    # Gall range review
+    live "/gall-range", Admin.GallRangeLive
 
     # Host range review
     live "/host-range", Admin.HostRangeLive

@@ -361,6 +361,72 @@ defmodule GallformersWeb.Admin.GallHostLiveTest do
     end
   end
 
+  describe "Refresh from hosts diff review" do
+    setup %{conn: conn} do
+      gall = create_gall("Testicus difficus")
+      host = create_host("Quercus diffa")
+
+      {:ok, _rel} =
+        Galls.create_gall_host(%{gall_species_id: gall.id, host_species_id: host.id})
+
+      create_host_range(host, "US-CA")
+      create_host_range(host, "MX-JAL", distribution_type: "introduced")
+
+      create_gall_range(gall, "CA-AB")
+      create_gall_traits(gall, %{range_confirmed: false})
+
+      {:ok, gall: gall, conn: setup_admin_session(conn)}
+    end
+
+    test "refresh from hosts shows diff and applying defaults stages native additions only", %{
+      conn: conn,
+      gall: gall
+    } do
+      {:ok, view, _html} = live(conn, ~p"/admin/gallhost?id=#{gall.id}")
+
+      html = render_click(view, "refresh_from_hosts", %{})
+      assert html =~ "Host Range Comparison"
+      assert html =~ "Native host range places not in gall range"
+      assert html =~ "Introduced host range places not in gall range"
+      assert html =~ "Gall range places outside current host-range suggestion"
+
+      view |> element("button", "Apply Selected Changes") |> render_click()
+      render_click(view, "save", %{})
+
+      gall_range_codes = Ranges.get_gall_range_codes(gall.id)
+      assert "US-CA" in gall_range_codes
+      assert "CA-AB" in gall_range_codes
+      refute "MX-JAL" in gall_range_codes
+    end
+
+    test "introduced additions can be opted in and orphaned places removed", %{
+      conn: conn,
+      gall: gall
+    } do
+      {:ok, view, _html} = live(conn, ~p"/admin/gallhost?id=#{gall.id}")
+
+      render_click(view, "refresh_from_hosts", %{})
+
+      view
+      |> element(
+        "#powo-add-introduced input[phx-click=toggle_group_add-introduced][phx-value-group=MX]"
+      )
+      |> render_click()
+
+      view
+      |> element("#powo-orphaned input[phx-click=toggle_group_orphaned][phx-value-group=CA]")
+      |> render_click()
+
+      view |> element("button", "Apply Selected Changes") |> render_click()
+      render_click(view, "save", %{})
+
+      gall_range_codes = Ranges.get_gall_range_codes(gall.id)
+      assert "US-CA" in gall_range_codes
+      assert "MX-JAL" in gall_range_codes
+      refute "CA-AB" in gall_range_codes
+    end
+  end
+
   # ============================================
   # Save: range persists to database
   # ============================================

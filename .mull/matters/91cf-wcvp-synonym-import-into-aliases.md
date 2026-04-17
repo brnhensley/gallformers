@@ -1,7 +1,7 @@
 ---
-status: raw
+status: refined
 created: 2026-03-10
-updated: 2026-03-11
+updated: 2026-04-15
 epic: admin
 relates: [be9d, e79e]
 ---
@@ -71,4 +71,3 @@ When `match_by_name` resolves a synonym (i.e., the host's current name in gallfo
 2. **Add the old name as an alias** (synonym type)
 
 This is related to the `resolve_synonyms: true` path added in `match_by_name/2` and used by both `sync_host_from_wcvp` (bulk) and `refresh_from_wcvp` (individual host form). The detection point is wherever the synonym fallback fires — surface it in the UI rather than silently proceeding.
-

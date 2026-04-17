@@ -1,12 +1,11 @@
 ---
-status: raw
+status: refined
 effort: 5-7 days
 created: 2026-02-16
-updated: 2026-03-11
+updated: 2026-04-15
 epic: taxonomy
 relates: [5b3d, ede2, cdfd]
 blocks: [f49a]
-needs: [5b3d]
 docket: true
 ---
 
@@ -14,26 +13,32 @@ docket: true
 
 Taxonomic merges (synonymization) and splits are frequent operations that need to be easy and safe. Primarily about galls but should not exclude plants. Key challenge: handling all the associated data (traits, hosts, images, sources, aliases) correctly during these operations.
 
-## Merge (Synonymization)
+Interview with Adam on 2026-02-22 validated the core gall-side model and exposed additional requirements for host taxonomy, iNaturalist mapping, and review workflows.
+
+## Core model
+
+### Merge (synonymization)
 
 Merge is NOT a destructive data-union operation. It's aliasing + redirect. So merging B -> A:
 
-- B stays in the database — its record, traits, hosts, images, everything stays intact
-- B becomes read-only (frozen) — no more edits allowed
+- B stays in the database; its record, traits, hosts, images, and sources stay intact
+- B becomes read-only (frozen)
 - B's name becomes a scientific synonym alias on A
-- B redirects to A — public page for B shows synonymization notice or redirects to A
-- B's gallformers_code stays on B — iNat links keep working because B still resolves to A
-- Search for B finds A — FTS and typeahead resolve through the redirect
-- Admin can optionally copy specific values from B → A as part of the merge workflow (details TBD)
+- B redirects to A on the public site
+- B's Gallformers code stays on B so existing references still resolve through the redirect
+- Search for B finds A through redirect-aware search/typeahead
+- Admin can selectively copy data from B -> A during the merge workflow
+
+Important clarification from Adam: the selective "copy from B to A" flow is not a side feature. In practice the taxonomically valid name is often the sparser record, so the merge UI needs a first-class interface for pulling chosen data from the frozen synonym into the keeper.
 
 Data model changes:
-- `merged_into_id` (FK to species, nullable) — 'this species is now considered a synonym of X'
-- Read-only status implied by merged_into_id being non-null
-- Display/routing layer handles the redirect
+- `merged_into_id` (FK to species, nullable) -> this species is now considered a synonym of X
+- Read-only status implied by `merged_into_id` being non-null
+- Display/routing layer handles redirect
 - Admin layer blocks edits on merged species
-- Need to think about how to handle in API
+- API behavior needs explicit design
 
-## Split (Clone + Diverge)
+### Split (clone + diverge)
 
 Split is a clone operation followed by manual cleanup:
 
@@ -43,69 +48,136 @@ Split is a clone operation followed by manual cleanup:
 - A new alias is added to B pointing back to A (its former name)
 - Admin then edits both A and B to trim/adjust what doesn't apply to each
 
-This avoids needing a complex allocation wizard — just clone and diverge.
+Adam confirmed this works for gall splits. Revision papers generally make it clear enough which traits and hosts belong to each resulting species, even if Gallformers-specific ecological data still needs manual cleanup.
 
-## Data Surface
+## Data surface
 
-All FKs pointing at species.id that merge/split must account for:
-- gall_traits (1:1, includes gallformers_code, undescribed, detachable)
-- 9 M:M trait tables (gall_color, gall_walls, gall_cells, gall_shape, gall_texture, gall_alignment, gall_plant_part, gall_form, gall_season)
-- gallhost (gall-host relationships)
-- image (photos)
-- species_source (citations)
-- alias_species (alternative names)
-- species_taxonomy (family/genus/section links)
-- host_range (plant geographic range)
-- gall_range_exclusion (gall range exclusions)
-- abundance (species-level field)
+All FKs pointing at `species.id` that merge/split must account for:
+- `gall_traits` (1:1, includes `gallformers_code`, `undescribed`, `detachable`)
+- 9 M:M trait tables (`gall_color`, `gall_walls`, `gall_cells`, `gall_shape`, `gall_texture`, `gall_alignment`, `gall_plant_part`, `gall_form`, `gall_season`)
+- `gallhost` (gall-host relationships)
+- `image` (photos)
+- `species_source` (citations)
+- `alias_species` (alternative names)
+- `species_taxonomy` (family/genus/section links)
+- `host_range` (plant geographic range)
+- `gall_range_exclusion` (gall range exclusions)
+- `abundance` (species-level field)
 
-## Applies to both galls and plants
+## Validated decisions from Adam
 
-## Design Decisions (2026-02-16)
+### Gall merges are well-served by the non-destructive model
 
-### Chained merges
-Must handle redirect chains (B → A → C). When A merges into C, update B to point directly to C — no chains.
+The "freeze B, redirect to A, keep B intact" model maps cleanly onto gall synonymization. The valid name may not be the richer record, so preserving the synonym's data is essential.
 
-### Unmerge
-Taxonomic reversals happen. Design for unmerge from the start — unfreeze B, remove redirect. Non-destructive model makes this viable since B's data is preserved.
+### Gall splits are well-served by clone + diverge
+
+The proposed split workflow is realistic for galls. It does not need a complex allocation wizard.
+
+### Unmerge should be supported from the start
+
+Taxonomic reversals happen. Because the merge is non-destructive, unmerge is mostly: unfreeze B, remove redirect, and optionally clean up anything copied into A.
+
+### Chained merges should be flattened
+
+If B -> A and later A -> C, update B to point directly to C. No redirect chains.
+
+### Rank changes need no separate tool
+
+Gallformers does not currently model subspecific ranks. In practice these changes present as rename or merge/split operations.
+
+### Batch operations matter
+
+Revision papers can trigger many discrete merges and splits in a burst. The system does not need a special compound-operation model, but it does need merge and split workflows that are fast and repeatable.
+
+## Host-side complexity
+
+Adam's strongest feedback was that host taxonomy changes cascade differently than gall taxonomy changes.
+
+### Host plant splits need a triage workflow
+
+When a host plant splits, every gall referencing the old host is affected. The workflow needs to surface the impacted galls and offer at least three distribution modes:
+
+1. Fan out -> apply the gall-host association to all resulting species, flag each as unverified
+2. Default substitute -> pick one likely successor species for most galls, flag as unverified
+3. Per-gall assignment -> let the admin route affected galls individually
+
+This is not a different data model so much as a more sophisticated UI flow than the gall split path.
+
+### Host plant merges need review of affected galls
+
+A host merge is simpler than a host split because there is only one target, but it still should not silently repoint every gall-host association. The UI should show affected galls and make the repointing visible/reviewable.
+
+### Inherited/unverified marker on gall-host associations
+
+When host-split workflows create successor associations automatically, those new associations should carry an inherited/unverified flag so they can be found and corrected over time.
+
+Open question: whether this marker is purely internal/admin-only or also visible publicly.
+
+### Host taxonomy override flag
+
+Gallformers sometimes intentionally diverges from POWO or iNaturalist on host taxonomy. Host records need a taxonomy override/exemption flag so future automated syncs do not overwrite deliberate editorial decisions.
+
+## iNaturalist implications
+
+### First-class iNaturalist taxon ID mapping
+
+Gallformers species records should carry a direct mapping to iNaturalist taxon IDs. This is important in its own right and becomes more important when taxonomy changes on either side.
+
+### iNat mismatch detection and task queue
+
+When a Gallformers merge or split breaks the correspondence with iNaturalist taxonomy, the system should:
+- detect the mismatch automatically
+- record the old-name -> new-name mapping
+- surface it as a task/queue item so the iNat-side cleanup work is tracked
+
+The actual iNaturalist work remains human-driven, but the system should make sure the mismatch does not disappear into memory.
+
+## Design decisions
 
 ### Display: A shows A's data only
-A's page shows A's own data. B is NOT unioned into A at query time. Instead, A should have a taxonomic history section that shows 'B was synonymized into this species' with a link to B (not just an alias entry). This implies tracking merges and splits more formally — likely a separate table (e.g., species_history or taxonomic_events) rather than just merged_into_id + aliases.
+
+A's page shows A's own data. B is NOT unioned into A at query time. Instead, A should have a taxonomic history section that shows that B was synonymized into this species, with a link to B.
+
+This implies tracking merges and splits more formally -> likely a separate table such as `species_history` or `taxonomic_events`, not just `merged_into_id` + aliases.
 
 ### Split: S3 images
+
 Copy the S3 files during split so each species owns its images independently. Admin can then delete irrelevant ones from either side. Likely present this as an option during the split workflow.
 
 ### Split: unique constraints
-Copy values as-is during clone, then alert the admin that gallformers_code and name must be changed to be unique before saving. Validation prevents saving until resolved.
 
-### Host-side merges
-Host plant merges are a bigger deal — every gall referencing host B needs consideration. Will likely need a more sophisticated merge process for hosts that surfaces the affected galls and lets the admin decide how to handle each relationship.
+Copy values as-is during clone, then alert the admin that Gallformers code and name must be changed to be unique before saving. Validation prevents saving until resolved.
+
+### Merge direction is about taxonomy, not data volume
+
+The UI should make it explicit that merge direction is determined by which name is taxonomically valid, not which record has more data. Because the model is non-destructive, the richer record can safely become the frozen synonym.
 
 ### Formal history tracking
-Merges and splits should be recorded in a dedicated table (not just aliases), capturing: event type (merge/split), source species, target species, admin who performed it, timestamp, notes. This feeds the taxonomic history section on species pages.
 
-## Prompt For Adam
+Merges and splits should be recorded in a dedicated table, capturing:
+- event type (merge/split)
+- source species
+- target species
+- admin who performed it
+- timestamp
+- notes
 
-You are a Product Manager for Gallformers, an online database of plant galls. You're interviewing a domain expert (a biologist/naturalist who cofounded the site) about a proposed feature for merging and splitting species records.
+This feeds the taxonomic history section on species pages and supports auditability.
 
-You have been given a design document that describes the high-level approach. Your job is to:
+## What this matter now includes
 
-1. Understand how this works in real taxonomy — Ask about real-world examples of species merges (synonymizations) and splits. What triggers them? How often do they happen? Are there patterns (e.g., molecular work splitting old morphological
-species)?
-2. Stress-test the merge model — The proposal says "freeze B, redirect to A, keep B's data intact." Ask whether this matches how taxonomists think about synonymy. Are there cases where it's not clear which species is A (the keeper) vs B (the
-synonym)? What about cases where both names have equal standing and a third name is chosen?
-3. Stress-test the split model — The proposal says "clone A into B, then the admin trims both." Ask whether this matches how splits actually work in practice. When a species is split, is it usually obvious which specimens/observations belong
-to which resulting species? Or is it ambiguous?
-4. Probe the host plant side — When a host plant gets merged or split, every gall associated with it is affected. Ask about how common host plant taxonomic changes are compared to gall taxonomic changes, and what the practical impact is.
-5. Find what's missing — Are there taxonomic operations beyond merge and split that we're not thinking about? What about rank changes (species promoted to genus, subspecies promoted to species)? What about uncertain synonymies where
-taxonomists disagree?
-6. Think about the iNaturalist connection — Gallformers codes are used on iNaturalist observations. When species get merged or split, what happens on the iNat side? Does Adam have to update observations there too? How does that workflow
-interact with what we're building?
+- Gall merge workflow
+- Gall split workflow
+- Unmerge support
+- Host merge review workflow
+- Host split triage workflow
+- Taxonomic history/event tracking
+- Inherited/unverified marker for propagated host associations
+- Host taxonomy override/exemption marker
+- iNaturalist taxon ID mapping
+- iNat mismatch queue/task tracking
 
-Keep your questions conversational and non-technical. You're not asking about databases or code — you're asking about how taxonomy works and whether this design will hold up against real-world scenarios. If Adam describes a scenario that seems
-  like it would break the proposed design, dig into it.
+## Sequencing thought
 
-At the end of the conversation, summarize:
-- Scenarios that the current design handles well
-- Scenarios that reveal gaps or need more thought
-- Any new operations or concepts that should be added to the design
+This matter is now clearly larger than a single simple feature. It may need to split into follow-up implementation matters, especially if host-side operations and iNat mismatch tracking would otherwise delay the core gall merge/split workflow.

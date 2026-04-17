@@ -2,10 +2,10 @@
 status: planned
 tags: [design]
 created: 2026-03-04
-updated: 2026-03-25
+updated: 2026-04-15
 epic: ingestion
 relates: [ef0e, c836, 881c, fa48, dd3a]
-needs: [c836, 881c, dd3a]
+needs: [881c, dd3a]
 ---
 
 # Source ingestion system — pipeline, review UI, Oban integration
@@ -17,6 +17,12 @@ Decisions captured from design sessions 2026-03-19 through 2026-03-23. See also:
 ### Overview
 
 LLM-powered pipeline extracts structured gall data from scholarly sources (PDFs, URLs, text/docx files). Admin review UI for triage: match/create species, link sources, verify traits. Review-first import — nothing enters the DB without human confirmation.
+
+### Prerequisite status
+
+The taxonomy/API prerequisite for this work is satisfied by `881c` (unified species creation and reclassification API, done 2026-04-01). Matter `c836` was folded into `881c` and is no longer a separate open dependency.
+
+The remaining substantive prerequisite from the original dependency set is `dd3a` (Oban infrastructure).
 
 ### Supported Input Types
 
@@ -71,9 +77,9 @@ All input types feed into the same pipeline from extract onward. The entry point
 2. `preprocess` (free, Elixir) — deterministic cleanup (boilerplate removal, line rejoining, etc.)
 3. **Hash preprocessed text** — SHA-256 of the preprocessed output
 4. **Duplicate check** — hash match against `source_ingestions.content_hashes`, plus heuristic title match from first ~500 chars against existing ingestion titles
-5. If potential duplicate → pause, show user the match, ask to confirm or skip
-6. User confirms duplicate → store new hash in existing record's `content_hashes` array, redirect to existing detail page
-7. User says proceed → continue to LLM steps
+5. If potential duplicate -> pause, show user the match, ask to confirm or skip
+6. User confirms duplicate -> store new hash in existing record's `content_hashes` array, redirect to existing detail page
+7. User says proceed -> continue to LLM steps
 
 ### S3 Storage
 
@@ -110,12 +116,13 @@ Each stage is an Oban job. A pipeline job enqueues stage 1, which on success enq
 
 ### Open Questions (Resolved)
 
-- ~~UI deep dive~~ → matter fa48
-- ~~Non-PDF input~~ → URL, .txt, .docx supported (2026-03-23)
-- ~~Getting on main~~ → merged, superadmin-gated
-- ~~Operationalization~~ → Oban workers, single deployment
-- ~~S3 storage~~ → artifacts only, no original files
-- ~~PDF dedup~~ → hash at preprocess step, content-based not file-based
+- ~~UI deep dive~~ -> matter fa48
+- ~~Non-PDF input~~ -> URL, .txt, .docx supported (2026-03-23)
+- ~~Getting on main~~ -> merged, superadmin-gated
+- ~~Operationalization~~ -> Oban workers, single deployment
+- ~~Species creation/reclassification prerequisite~~ -> completed in 881c; c836 folded into 881c
+- ~~S3 storage~~ -> artifacts only, no original files
+- ~~PDF dedup~~ -> hash at preprocess step, content-based not file-based
 - Future automation: pipeline design must not preclude automated discovery. Oban's scheduling and queue model supports this naturally. Not in scope now.
 
 ### Pipeline Improvement: Gall-Level Prose Extraction
@@ -127,3 +134,4 @@ The current `data-extract` step pulls a brief `description` snippet per gall-hos
 **Output structure per gall:**
 - `description`: full prose block (paragraph(s) from the source about this gall)
 - `traits.{trait}.original`: the specific phrase supporting the trait value (fragment within the prose)
+

@@ -61,14 +61,12 @@ defmodule GallformersWeb.Admin.DashboardLive do
             icon="ph-arrows-left-right"
             accent="blue"
           />
-          <%!-- Gall range review disabled — not ready for production
           <.action_card
             label="Review Gall Ranges"
             href="/admin/gall-range"
             icon="ph-map-trifold"
             accent="blue"
           />
-          --%>
           <.action_card
             label="Review Host Ranges"
             href="/admin/host-range"

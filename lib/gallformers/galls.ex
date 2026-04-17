@@ -41,6 +41,7 @@ defmodule Gallformers.Galls do
 
   alias Gallformers.Galls.{GallHost, GallTraits, HostAssociations, Identification}
   alias Gallformers.Images.Image
+  alias Gallformers.Places.Place
   alias Gallformers.Repo
   alias Gallformers.Species.{Abundance, Species}
   alias Gallformers.TaxonName
@@ -859,6 +860,18 @@ defmodule Gallformers.Galls do
   end
 
   @doc """
+  Marks a gall's range as needing review.
+
+  Used when range data is reset or otherwise changed without an explicit admin
+  confirmation step.
+  """
+  @spec unconfirm_gall_range(integer()) :: {non_neg_integer(), nil}
+  def unconfirm_gall_range(species_id) do
+    from(gt in GallTraits, where: gt.species_id == ^species_id)
+    |> Repo.update_all(set: [range_confirmed: false])
+  end
+
+  @doc """
   Invalidates gall range confirmation for all galls linked to a host species.
 
   Called when a host's range data changes so that gall ranges can be reviewed.
@@ -884,16 +897,93 @@ defmodule Gallformers.Galls do
   end
 
   @doc """
+  Computes the union of a gall's host ranges, split into native and introduced sets.
+
+  Introduced codes exclude any codes that also appear in the native union so the
+  caller can treat native as the default/authoritative suggestion.
+  """
+  @spec compute_host_union_for_gall(integer()) :: {[String.t()], [String.t()]}
+  def compute_host_union_for_gall(gall_species_id) do
+    host_species_ids = get_host_species_ids_for_gall(gall_species_id)
+
+    host_ranges =
+      Gallformers.Ranges.get_host_ranges_with_precision_for_species_ids(host_species_ids)
+
+    native_codes =
+      host_ranges
+      |> Enum.reject(&(Map.get(&1, :distribution_type) == "introduced"))
+      |> union_display_codes()
+
+    introduced_codes =
+      host_ranges
+      |> Enum.filter(&(Map.get(&1, :distribution_type) == "introduced"))
+      |> union_display_codes()
+      |> Kernel.--(native_codes)
+
+    {native_codes, introduced_codes}
+  end
+
+  @doc """
+  Compares the current gall range against the host union suggestion.
+
+  Returns bucketed code lists suitable for the shared diff review component.
+  """
+  @spec compute_host_range_diff([String.t()], [String.t()], [String.t()]) :: map()
+  def compute_host_range_diff(gall_range_codes, host_native_codes, host_introduced_codes) do
+    gall_range_set = code_set(gall_range_codes)
+    host_native_set = code_set(host_native_codes)
+    host_introduced_set = code_set(host_introduced_codes)
+
+    host_union_codes = MapSet.union(host_native_set, host_introduced_set)
+
+    add_native =
+      host_native_set
+      |> MapSet.difference(gall_range_set)
+      |> MapSet.to_list()
+      |> Enum.sort()
+
+    add_introduced =
+      host_introduced_set
+      |> MapSet.difference(gall_range_set)
+      |> MapSet.to_list()
+      |> Enum.sort()
+
+    orphaned =
+      gall_range_set
+      |> MapSet.difference(host_union_codes)
+      |> MapSet.to_list()
+      |> Enum.sort()
+
+    agree_count =
+      gall_range_set
+      |> MapSet.intersection(host_union_codes)
+      |> MapSet.size()
+
+    %{
+      add_native: add_native,
+      add_introduced: add_introduced,
+      orphaned: orphaned,
+      agree_count: agree_count,
+      has_changes: add_native != [] or add_introduced != [] or orphaned != []
+    }
+  end
+
+  @doc """
   Lists galls with their range confirmation status and counts.
   Used by the bulk range admin page.
 
   Options:
-    - :unconfirmed_only (boolean, default true) - only show galls with range_confirmed = false
+    - :filter (:unconfirmed | :confirmed | :all, default :unconfirmed)
+    - :has_range (:yes | :no | :all, default :all)
+    - :search (string, default "")
+    - :limit (integer, optional)
+    - :offset (integer, optional)
+
+  Legacy options:
+    - :unconfirmed_only (boolean) - translated into :filter for older callers
   """
   @spec list_galls_for_range_review(keyword()) :: [map()]
   def list_galls_for_range_review(opts \\ []) do
-    unconfirmed_only = Keyword.get(opts, :unconfirmed_only, true)
-
     query =
       from s in Species,
         join: gt in GallTraits,
@@ -909,11 +999,10 @@ defmodule Gallformers.Galls do
         }
 
     query =
-      if unconfirmed_only do
-        from [s, gt] in query, where: gt.range_confirmed == false
-      else
-        query
-      end
+      query
+      |> apply_gall_range_review_filters(normalize_gall_range_review_opts(opts))
+      |> maybe_limit(Keyword.get(opts, :limit))
+      |> maybe_offset(Keyword.get(opts, :offset))
 
     results = Repo.all(query)
 
@@ -927,6 +1016,21 @@ defmodule Gallformers.Galls do
       |> Map.put(:host_count, Map.get(host_counts, gall.id, 0))
       |> Map.put(:range_count, Map.get(range_counts, gall.id, 0))
     end)
+  end
+
+  @doc """
+  Counts galls matching the gall range review filters.
+  """
+  @spec count_galls_for_range_review(keyword()) :: non_neg_integer()
+  def count_galls_for_range_review(opts \\ []) do
+    from(s in Species,
+      join: gt in GallTraits,
+      on: gt.species_id == s.id,
+      where: s.taxoncode == "gall",
+      select: count(s.id)
+    )
+    |> apply_gall_range_review_filters(normalize_gall_range_review_opts(opts))
+    |> Repo.one()
   end
 
   defp get_range_counts_for_galls([]), do: %{}
@@ -955,6 +1059,125 @@ defmodule Gallformers.Galls do
       where: gt.species_id in ^species_ids
     )
     |> Repo.update_all(set: [range_confirmed: true, range_computed_at: now])
+  end
+
+  @doc """
+  Replaces a gall's curated range with the union of its hosts' native ranges.
+
+  Returns `{:ok, changed?}` where `changed?` reports whether the curated range
+  codes differed from the computed native union before the reset.
+  """
+  @spec recompute_gall_range_from_hosts(integer()) :: {:ok, boolean()} | {:error, term()}
+  def recompute_gall_range_from_hosts(gall_species_id) do
+    {native_codes, _introduced_codes} = compute_host_union_for_gall(gall_species_id)
+
+    current_codes =
+      gall_species_id
+      |> Gallformers.Ranges.get_gall_range_codes()
+      |> Enum.sort()
+
+    place_entries =
+      native_codes
+      |> place_entries_for_codes()
+
+    changed? = current_codes != native_codes
+
+    Repo.transaction(fn ->
+      {:ok, :ok} = Gallformers.Ranges.set_gall_range(gall_species_id, place_entries)
+      unconfirm_gall_range(gall_species_id)
+      Gallformers.Species.touch(gall_species_id)
+      changed?
+    end)
+  end
+
+  defp normalize_gall_range_review_opts(opts) do
+    case Keyword.fetch(opts, :filter) do
+      {:ok, filter} ->
+        Keyword.put_new(opts, :has_range, :all)
+        |> Keyword.put_new(:search, "")
+        |> Keyword.put(:filter, filter)
+
+      :error ->
+        filter =
+          if Keyword.get(opts, :unconfirmed_only, true), do: :unconfirmed, else: :all
+
+        opts
+        |> Keyword.put_new(:has_range, :all)
+        |> Keyword.put_new(:search, "")
+        |> Keyword.put(:filter, filter)
+    end
+  end
+
+  defp apply_gall_range_review_filters(query, opts) do
+    query
+    |> maybe_filter_confirmation(Keyword.get(opts, :filter, :unconfirmed))
+    |> maybe_filter_has_range(Keyword.get(opts, :has_range, :all))
+    |> maybe_filter_search(Keyword.get(opts, :search, ""))
+  end
+
+  defp maybe_filter_confirmation(query, :all), do: query
+
+  defp maybe_filter_confirmation(query, :confirmed) do
+    from [s, gt] in query, where: gt.range_confirmed == true
+  end
+
+  defp maybe_filter_confirmation(query, :unconfirmed) do
+    from [s, gt] in query, where: gt.range_confirmed == false
+  end
+
+  defp maybe_filter_has_range(query, :all), do: query
+
+  defp maybe_filter_has_range(query, :yes) do
+    from [s, gt] in query,
+      where: fragment("EXISTS (SELECT 1 FROM gall_range gr WHERE gr.species_id = ?)", s.id)
+  end
+
+  defp maybe_filter_has_range(query, :no) do
+    from [s, gt] in query,
+      where: fragment("NOT EXISTS (SELECT 1 FROM gall_range gr WHERE gr.species_id = ?)", s.id)
+  end
+
+  defp maybe_filter_search(query, search) when search in [nil, ""], do: query
+
+  defp maybe_filter_search(query, search) do
+    pattern = "%#{String.trim(search)}%"
+    from [s, gt] in query, where: ilike(s.name, ^pattern)
+  end
+
+  defp maybe_limit(query, nil), do: query
+  defp maybe_limit(query, limit), do: from(q in query, limit: ^limit)
+
+  defp maybe_offset(query, nil), do: query
+  defp maybe_offset(query, offset), do: from(q in query, offset: ^offset)
+
+  @spec union_display_codes([map()]) :: [String.t()]
+  defp union_display_codes([]), do: []
+
+  defp union_display_codes(range_entries) do
+    display = Gallformers.Ranges.compute_display_range(range_entries)
+
+    display.in_range
+    |> Kernel.++(display.inherited_range)
+    |> Enum.uniq()
+    |> Enum.sort()
+  end
+
+  defp code_set(codes), do: MapSet.new(codes)
+
+  defp place_entries_for_codes([]), do: []
+
+  defp place_entries_for_codes(codes) do
+    from(p in Place,
+      where: p.code in ^codes,
+      select: {p.code, p.id}
+    )
+    |> Repo.all()
+    |> Enum.into(%{})
+    |> then(fn place_ids_by_code ->
+      codes
+      |> Enum.sort()
+      |> Enum.map(&{Map.fetch!(place_ids_by_code, &1), "exact"})
+    end)
   end
 
   # ============================================

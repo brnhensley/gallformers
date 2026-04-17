@@ -1,7 +1,7 @@
 ---
-status: planned
+status: refined
 created: 2026-02-18
-updated: 2026-03-08
+updated: 2026-04-15
 epic: platform
 relates: [1edb, 8ae6, 8c5c, 8166]
 ---
@@ -76,4 +76,3 @@ The `visibilitychange` listener addresses the dead-socket UX problem for all Liv
 ## Status
 
 Phase 1 complete. Phase 2 approach undecided — needs more investigation.
-

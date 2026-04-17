@@ -1,7 +1,7 @@
 ---
-status: refined
+status: planned
 created: 2026-03-25
-updated: 2026-03-25
+updated: 2026-04-15
 epic: platform
 docs: [docs/architecture/oban-background-jobs-research.md]
 relates: [7fda, 16bb, c52c]

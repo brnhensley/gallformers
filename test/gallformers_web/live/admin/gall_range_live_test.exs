@@ -1,19 +1,18 @@
 defmodule GallformersWeb.Admin.GallRangeLiveTest do
-  @moduledoc """
-  LiveView tests for the gall range review admin page.
-  Disabled while the route is commented out — re-enable with the route.
-  """
   use GallformersWeb.ConnCase
-  @moduletag :skip
+
+  import Ecto.Query
   import Phoenix.LiveViewTest
 
   alias Gallformers.Accounts.Auth0User
   alias Gallformers.Galls
+  alias Gallformers.Places.Place
+  alias Gallformers.Ranges
+  alias Gallformers.Ranges.{GallRange, HostRange}
+  alias Gallformers.Repo
+  alias Gallformers.Species.Species
 
-  # Route is commented out in router — use plain strings to avoid compile-time ~p warnings.
-  @gall_range_path "/admin/gall-range"
-
-  setup %{conn: conn} do
+  defp setup_admin_session(conn) do
     user = %Auth0User{
       id: "test-user-id",
       email: "admin@test.com",
@@ -23,119 +22,160 @@ defmodule GallformersWeb.Admin.GallRangeLiveTest do
       roles: ["admin"]
     }
 
-    conn =
-      conn
-      |> init_test_session(%{})
-      |> put_session(:current_user, user)
-      |> put_session(:db_display_name, "Test User")
+    conn
+    |> init_test_session(%{})
+    |> put_session(:current_user, user)
+    |> put_session(:db_display_name, "Test User")
+  end
 
-    {:ok, conn: conn}
+  defp create_species(name, taxoncode) do
+    Repo.insert!(%Species{name: name, taxoncode: taxoncode})
+  end
+
+  defp create_gall(name), do: create_species(name, "gall")
+  defp create_host(name), do: create_species(name, "plant")
+
+  defp place_id!(code) do
+    Repo.one!(from(p in Place, where: p.code == ^code, select: p.id))
+  end
+
+  defp create_gall_traits(gall, attrs) do
+    Repo.insert!(struct(Gallformers.Galls.GallTraits, Map.merge(%{species_id: gall.id}, attrs)))
+  end
+
+  defp create_gall_range(gall, place_code) do
+    Repo.insert!(%GallRange{
+      species_id: gall.id,
+      place_id: place_id!(place_code),
+      precision: "exact"
+    })
+  end
+
+  defp create_host_range(host, place_code, opts \\ []) do
+    Repo.insert!(%HostRange{
+      species_id: host.id,
+      place_id: place_id!(place_code),
+      precision: Keyword.get(opts, :precision, "exact"),
+      distribution_type: Keyword.get(opts, :distribution_type, "native")
+    })
+  end
+
+  defp create_review_world do
+    alpha = create_gall("Alpha gall")
+    beta = create_gall("Beta gall")
+    gamma = create_gall("Gamma gall")
+
+    create_gall_traits(alpha, %{range_confirmed: false, undescribed: false})
+    create_gall_traits(beta, %{range_confirmed: true, undescribed: false})
+    create_gall_traits(gamma, %{range_confirmed: false, undescribed: true})
+
+    create_gall_range(alpha, "US-CA")
+
+    host = create_host("Host alpha")
+    {:ok, _} = Galls.create_gall_host(%{gall_species_id: alpha.id, host_species_id: host.id})
+    create_host_range(host, "CA-AB")
+
+    %{alpha: alpha, beta: beta, gamma: gamma}
   end
 
   describe "Gall Range Review page" do
-    test "renders the page with unconfirmed galls", %{conn: conn} do
-      {:ok, _view, html} = live(conn, @gall_range_path)
+    setup %{conn: conn} do
+      {:ok, Map.merge(create_review_world(), %{conn: setup_admin_session(conn)})}
+    end
+
+    test "renders unconfirmed galls by default", %{
+      conn: conn,
+      alpha: alpha,
+      gamma: gamma,
+      beta: beta
+    } do
+      {:ok, _view, html} = live(conn, ~p"/admin/gall-range")
 
       assert html =~ "Gall Range Review"
-      assert html =~ "Needs Review"
+      assert html =~ alpha.name
+      assert html =~ gamma.name
+      refute html =~ beta.name
     end
 
-    test "shows gall names from seed data", %{conn: conn} do
-      {:ok, _view, html} = live(conn, @gall_range_path)
+    test "status filter can show confirmed galls", %{conn: conn, beta: beta} do
+      {:ok, view, _html} = live(conn, ~p"/admin/gall-range?filter=all")
 
-      # Seed data has gall species at IDs 100, 101, 102
-      assert html =~ "Andricus quercuscalifornicus"
-      assert html =~ "Amphibolips confluenta"
-    end
-
-    test "toggle show_all includes confirmed galls", %{conn: conn} do
-      # Confirm a gall first
-      Galls.confirm_gall_range(100)
-
-      {:ok, view, _html} = live(conn, @gall_range_path)
-
-      # Initially, gall 100 should not appear (it's confirmed)
-      refute render(view) =~ "Confirmed"
-
-      # Toggle show all
-      view |> element("input[phx-click=toggle_show_all]") |> render_click()
+      render_change(view, "filter", %{"value" => "confirmed"})
 
       html = render(view)
+      assert html =~ beta.name
       assert html =~ "Confirmed"
     end
 
-    test "select and confirm a gall", %{conn: conn} do
-      {:ok, view, _html} = live(conn, @gall_range_path)
+    test "search filters gall names", %{conn: conn, alpha: alpha, gamma: gamma} do
+      {:ok, view, _html} = live(conn, ~p"/admin/gall-range?filter=all")
 
-      # Select gall 100
-      view |> element("input[phx-click=toggle_select][phx-value-id='100']") |> render_click()
+      render_keyup(view, "search", %{"value" => "Alpha"})
 
-      # Confirm selected
+      html = render(view)
+      assert html =~ alpha.name
+      refute html =~ gamma.name
+    end
+
+    test "confirm selected marks gall as confirmed", %{conn: conn, alpha: alpha} do
+      {:ok, view, _html} = live(conn, ~p"/admin/gall-range?filter=all")
+
+      view
+      |> element("input[phx-click=toggle_select][phx-value-id='#{alpha.id}']")
+      |> render_click()
+
       view |> element("button", "Confirm Selected") |> render_click()
-
-      # Verify flash message
-      assert render(view) =~ "Confirmed range for 1 gall(s)"
-
-      # Verify gall 100 is now confirmed in the database
-      traits = Galls.get_gall_traits(100)
-      assert traits.range_confirmed != nil
-    end
-
-    test "select all and deselect all", %{conn: conn} do
-      {:ok, view, _html} = live(conn, @gall_range_path)
-
-      # Click the header checkbox to select all
-      view |> element("th input[type=checkbox]") |> render_click()
+      view |> element("button[phx-click=do_confirm_selected]") |> render_click()
 
       html = render(view)
-      assert html =~ "Confirm Selected"
+      assert html =~ "Confirmed range for 1 gall(s)"
 
-      # Click deselect all
-      view |> element("button", "Clear selection") |> render_click()
+      traits = Galls.get_gall_traits(alpha.id)
+      assert traits.range_confirmed == true
+      assert traits.range_computed_at != nil
+    end
+
+    test "recompute selected replaces range with host-native union and leaves it unconfirmed", %{
+      conn: conn,
+      alpha: alpha
+    } do
+      Galls.confirm_gall_range(alpha.id)
+
+      {:ok, view, _html} = live(conn, ~p"/admin/gall-range?filter=all")
+
+      view
+      |> element("input[phx-click=toggle_select][phx-value-id='#{alpha.id}']")
+      |> render_click()
+
+      view |> element("button", "Recompute from hosts") |> render_click()
+      view |> element("button[phx-click=do_recompute_selected]") |> render_click()
+
+      render(view)
+      assert Ranges.get_gall_range_codes(alpha.id) == ["CA-AB"]
+
+      traits = Galls.get_gall_traits(alpha.id)
+      assert traits.range_confirmed == false
+    end
+
+    test "range filter can show galls without stored ranges", %{
+      conn: conn,
+      gamma: gamma,
+      alpha: alpha
+    } do
+      {:ok, view, _html} = live(conn, ~p"/admin/gall-range")
+
+      render_change(view, "range_filter", %{"value" => "no"})
 
       html = render(view)
-      refute html =~ "Confirm Selected"
-    end
-
-    test "shows error when confirming with nothing selected", %{conn: conn} do
-      {:ok, view, _html} = live(conn, @gall_range_path)
-
-      # The confirm button is only shown when something is selected,
-      # so send the event directly
-      view |> render_hook("confirm_selected", %{})
-
-      assert render(view) =~ "No galls selected"
-    end
-
-    test "shows empty state when all confirmed", %{conn: conn} do
-      # Confirm all seed galls
-      galls = Galls.list_galls_for_range_review(unconfirmed_only: false)
-
-      for gall <- galls do
-        Galls.confirm_gall_range(gall.id)
-      end
-
-      {:ok, _view, html} = live(conn, @gall_range_path)
-      assert html =~ "All gall ranges confirmed!"
-    end
-
-    test "gall name links to gallhost page", %{conn: conn} do
-      {:ok, view, _html} = live(conn, @gall_range_path)
-
-      assert has_element?(view, "a[href*='/admin/gallhost?id=100']")
-    end
-
-    test "back link navigates to admin dashboard", %{conn: conn} do
-      {:ok, view, _html} = live(conn, @gall_range_path)
-
-      assert has_element?(view, "a[href='/admin']")
+      assert html =~ gamma.name
+      refute html =~ alpha.name
     end
   end
 
   describe "authentication" do
-    test "redirects unauthenticated users", %{conn: _conn} do
-      conn = Phoenix.ConnTest.build_conn()
-      conn = get(conn, @gall_range_path)
+    test "redirects unauthenticated users" do
+      conn = build_conn()
+      conn = get(conn, ~p"/admin/gall-range")
 
       assert redirected_to(conn) =~ "/"
     end

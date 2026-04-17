@@ -19,9 +19,15 @@ defmodule GallformersWeb.Admin.PowoDiffReview do
 
   import GallformersWeb.BrowseHelpers, only: [toggle_set: 2, toggle_group_selection: 3]
 
-  @buckets ~w(add_native add_introduced remove reclassify_to_introduced reclassify_to_native)a
+  @default_buckets ~w(
+    add_native
+    add_introduced
+    remove
+    reclassify_to_introduced
+    reclassify_to_native
+  )a
 
-  @bucket_config %{
+  @default_bucket_config %{
     add_native: %{
       label: "+ Native places in WCVP but not in current range",
       container_class: "bg-green-50 border border-green-200 rounded p-3",
@@ -43,7 +49,13 @@ defmodule GallformersWeb.Admin.PowoDiffReview do
       container_class: "bg-red-50 border border-red-200 rounded p-3",
       text_class: "text-red-700",
       heading_class: "text-red-800",
-      checkbox_class: "text-red-600 focus:ring-red-500"
+      checkbox_class: "text-red-600 focus:ring-red-500",
+      mode: :review_remove,
+      selection_noun: "kept",
+      select_all_label: "Include all",
+      deselect_all_label: "Exclude all",
+      help_text:
+        "These places were added before this WCVP sync. Review each for correct native/introduced status. Use the badge to toggle classification."
     },
     reclassify_to_introduced: %{
       label: "Reclassify: WCVP says introduced (currently native)",
@@ -65,16 +77,35 @@ defmodule GallformersWeb.Admin.PowoDiffReview do
 
   @impl true
   def update(%{diff: diff, place_by_code: place_by_code} = assigns, socket) do
+    buckets = Map.get(assigns, :buckets, @default_buckets)
+    bucket_config = merge_bucket_config(Map.get(assigns, :bucket_config, %{}))
+    default_selections = Map.get(assigns, :default_selections, %{})
+    special_remove_bucket = Enum.find(buckets, &review_remove_bucket?(&1, bucket_config))
+
+    base_assigns =
+      assigns
+      |> Map.put(:buckets, buckets)
+      |> Map.put(:bucket_config, bucket_config)
+      |> Map.put(:default_selections, default_selections)
+      |> Map.put(:special_remove_bucket, special_remove_bucket)
+      |> Map.put(:title, Map.get(assigns, :title, "POWO-WCVP Data Comparison"))
+      |> Map.put(
+        :empty_message,
+        Map.get(assigns, :empty_message, "No differences found. Host data matches WCVP.")
+      )
+      |> Map.put(:apply_label, Map.get(assigns, :apply_label, "Apply Selected Changes"))
+
     if socket.assigns[:diff] != diff do
       {:ok,
        socket
+       |> assign(base_assigns)
        |> assign(:id, assigns.id)
        |> assign(:diff, diff)
        |> assign(:place_by_code, place_by_code)
-       |> init_selections(diff)
-       |> init_groups(diff, place_by_code)}
+       |> init_selections(diff, buckets, default_selections)
+       |> init_groups(diff, place_by_code, buckets)}
     else
-      {:ok, assign(socket, assigns)}
+      {:ok, assign(socket, base_assigns)}
     end
   end
 
@@ -82,27 +113,30 @@ defmodule GallformersWeb.Admin.PowoDiffReview do
   def render(assigns) do
     ~H"""
     <div class="border border-blue-200 rounded-lg p-4 bg-blue-50">
-      <h4 class="font-medium mb-2">POWO-WCVP Data Comparison</h4>
+      <h4 class="font-medium mb-2">{@title}</h4>
 
       <div :if={!@diff.has_changes} class="text-sm text-gray-600">
-        No differences found. Host data matches WCVP.
+        {@empty_message}
       </div>
 
       <div :if={@diff.has_changes} class="text-sm space-y-3">
         <.bucket_tree
-          :for={bucket <- Enum.reject(@active_buckets, &(&1 == :remove))}
+          :for={bucket <- Enum.reject(@active_buckets, &(&1 == @special_remove_bucket))}
           bucket={bucket}
+          bucket_config={@bucket_config}
           groups={Map.get(assigns, groups_field(bucket))}
           selected={Map.get(assigns, selected_field(bucket))}
           expanded={section_expanded(@expanded_countries, Atom.to_string(bucket))}
           myself={@myself}
         />
         <.remove_bucket
-          :if={@diff.remove != []}
-          groups={@groups_remove}
-          selected={@selected_remove}
+          :if={@special_remove_bucket && Map.get(@diff, @special_remove_bucket, []) != []}
+          bucket={@special_remove_bucket}
+          config={Map.fetch!(@bucket_config, @special_remove_bucket)}
+          groups={Map.get(assigns, groups_field(@special_remove_bucket))}
+          selected={Map.get(assigns, selected_field(@special_remove_bucket))}
           introduced={@remove_as_introduced}
-          expanded={section_expanded(@expanded_countries, "remove")}
+          expanded={section_expanded(@expanded_countries, Atom.to_string(@special_remove_bucket))}
           myself={@myself}
         />
       </div>
@@ -120,7 +154,7 @@ defmodule GallformersWeb.Admin.PowoDiffReview do
           size="sm"
           disabled={!has_any_selections?(assigns)}
         >
-          Apply Selected Changes
+          {@apply_label}
         </.button>
         <.button
           phx-click="cancel"
@@ -137,7 +171,7 @@ defmodule GallformersWeb.Admin.PowoDiffReview do
   end
 
   defp bucket_tree(assigns) do
-    config = Map.get(@bucket_config, assigns.bucket)
+    config = Map.fetch!(assigns.bucket_config, assigns.bucket)
     bid = bucket_id(assigns.bucket)
     has_style = Map.has_key?(config, :container_style)
 
@@ -194,6 +228,7 @@ defmodule GallformersWeb.Admin.PowoDiffReview do
   end
 
   defp remove_bucket(assigns) do
+    bid = bucket_id(assigns.bucket)
     total_items = Enum.reduce(assigns.groups, 0, fn g, acc -> acc + length(g.items) end)
 
     kept_count =
@@ -207,6 +242,7 @@ defmodule GallformersWeb.Admin.PowoDiffReview do
 
     assigns =
       assigns
+      |> assign(:bid, bid)
       |> assign(:total_items, total_items)
       |> assign(:kept_count, kept_count)
       |> assign(:introduced_count, introduced_count)
@@ -214,25 +250,24 @@ defmodule GallformersWeb.Admin.PowoDiffReview do
       |> assign(:all_selected, all_selected)
 
     ~H"""
-    <div id="powo-remove" class="bg-red-50 border border-red-200 rounded p-3">
+    <div id={"powo-#{@bid}"} class={@config.container_class}>
       <div class="flex items-center justify-between">
-        <span class="font-medium text-red-800">
-          Places in current range but not in WCVP ({@kept_count}/{@total_items} kept)
+        <span class={["font-medium", @config.heading_class]}>
+          {@config.label} ({@kept_count}/{@total_items} {@config.selection_noun})
         </span>
         <button
           type="button"
-          phx-click={if @all_selected, do: "deselect_all_remove", else: "select_all_remove"}
+          phx-click={if @all_selected, do: "deselect_all_#{@bid}", else: "select_all_#{@bid}"}
           phx-target={@myself}
-          class="text-xs text-red-700 hover:underline"
+          class={["text-xs hover:underline", @config.text_class]}
         >
-          {if @all_selected, do: "Exclude all", else: "Include all"}
+          {if @all_selected, do: @config.deselect_all_label, else: @config.select_all_label}
         </button>
       </div>
 
-      <p class="text-xs text-red-700 mt-1 mb-2">
+      <p :if={@config[:help_text]} class={["text-xs mt-1 mb-2", @config.text_class]}>
         <.icon name="ph-warning" class="h-3.5 w-3.5 inline-block align-text-bottom" />
-        These places were added before this WCVP sync. Review each for correct
-        native/introduced status. Use the badge to toggle classification.
+        {@config.help_text}
       </p>
 
       <p :if={@introduced_count > 0 or @removed_count > 0} class="text-xs text-gray-600 mb-2">
@@ -245,22 +280,25 @@ defmodule GallformersWeb.Admin.PowoDiffReview do
           <% gs = remove_group_state(group, @selected, @expanded) %>
           <div class="flex items-center gap-1.5">
             <input
-              id={"powo-remove-group-#{group.id}"}
+              id={"powo-#{@bid}-group-#{group.id}"}
               type="checkbox"
               checked={gs.all_selected}
               data-indeterminate={to_string(!gs.all_selected and !gs.none_selected)}
               phx-hook="IndeterminateCheckbox"
-              phx-click="toggle_group_remove"
+              phx-click={"toggle_group_#{@bid}"}
               phx-target={@myself}
               phx-value-group={to_string(group.id)}
-              class="rounded border-gray-300 text-red-600 focus:ring-red-500"
+              class={["rounded border-gray-300", @config.checkbox_class]}
             />
             <button
               type="button"
-              phx-click="expand_group_remove"
+              phx-click={"expand_group_#{@bid}"}
               phx-target={@myself}
               phx-value-group={to_string(group.id)}
-              class="flex items-center gap-1 text-xs font-medium text-red-800 hover:underline"
+              class={[
+                "flex items-center gap-1 text-xs font-medium hover:underline",
+                @config.heading_class
+              ]}
             >
               <span class="w-3 text-center">{if gs.expanded, do: "▾", else: "▸"}</span>
               {group.label}
@@ -275,10 +313,10 @@ defmodule GallformersWeb.Admin.PowoDiffReview do
                 <input
                   type="checkbox"
                   checked={MapSet.member?(@selected, item.id)}
-                  phx-click="toggle_item_remove"
+                  phx-click={"toggle_item_#{@bid}"}
                   phx-target={@myself}
                   phx-value-id={to_string(item.id)}
-                  class="rounded border-gray-300 text-red-600 focus:ring-red-500"
+                  class={["rounded border-gray-300", @config.checkbox_class]}
                 />
                 <span class="text-xs">{item.label}</span>
               </label>
@@ -324,15 +362,8 @@ defmodule GallformersWeb.Admin.PowoDiffReview do
   # Per-bucket event handlers generated from bucket config.
   # Each bucket gets toggle_item, toggle_group, expand_group, select_all, deselect_all.
 
-  for bucket <- @buckets do
-    bid =
-      case bucket do
-        :add_native -> "add-native"
-        :add_introduced -> "add-introduced"
-        :remove -> "remove"
-        :reclassify_to_introduced -> "reclassify-to-introduced"
-        :reclassify_to_native -> "reclassify-to-native"
-      end
+  for bucket <- @default_buckets ++ [:orphaned] do
+    bid = bucket |> Atom.to_string() |> String.replace("_", "-")
 
     sel_field = :"selected_#{bucket}"
     grp_field = :"groups_#{bucket}"
@@ -384,19 +415,13 @@ defmodule GallformersWeb.Admin.PowoDiffReview do
 
   @impl true
   def handle_event("apply", _params, socket) do
-    # Intersect remove_as_introduced with selected_remove to discard stale entries
-    # (items the user unchecked after marking as introduced)
-    remove_as_introduced =
-      MapSet.intersection(socket.assigns.remove_as_introduced, socket.assigns.selected_remove)
-
-    selections = %{
-      add_native: socket.assigns.selected_add_native,
-      add_introduced: socket.assigns.selected_add_introduced,
-      remove: socket.assigns.selected_remove,
-      remove_as_introduced: remove_as_introduced,
-      reclassify_to_introduced: socket.assigns.selected_reclassify_to_introduced,
-      reclassify_to_native: socket.assigns.selected_reclassify_to_native
-    }
+    selections =
+      socket.assigns.buckets
+      |> Enum.map(fn bucket ->
+        {bucket, Map.get(socket.assigns, selected_field(bucket), MapSet.new())}
+      end)
+      |> Enum.into(%{})
+      |> maybe_put_remove_as_introduced(socket)
 
     send(self(), {__MODULE__, {:apply, selections}})
     {:noreply, socket}
@@ -410,11 +435,16 @@ defmodule GallformersWeb.Admin.PowoDiffReview do
 
   # --- Private helpers ---
 
-  defp init_selections(socket, diff) do
+  defp init_selections(socket, diff, buckets, default_selections) do
     socket =
-      Enum.reduce(@buckets, socket, fn bucket, sock ->
+      Enum.reduce(buckets, socket, fn bucket, sock ->
         codes = Map.get(diff, bucket, [])
-        assign(sock, selected_field(bucket), MapSet.new(codes))
+
+        assign(
+          sock,
+          selected_field(bucket),
+          initial_selection(codes, Map.get(default_selections, bucket, true))
+        )
       end)
 
     # Items in the remove bucket start as native (not introduced).
@@ -422,14 +452,14 @@ defmodule GallformersWeb.Admin.PowoDiffReview do
     assign(socket, :remove_as_introduced, MapSet.new())
   end
 
-  defp init_groups(socket, diff, place_by_code) do
+  defp init_groups(socket, diff, place_by_code, buckets) do
     active_buckets =
-      Enum.filter(@buckets, fn bucket ->
+      Enum.filter(buckets, fn bucket ->
         Map.get(diff, bucket, []) != []
       end)
 
     socket =
-      Enum.reduce(@buckets, socket, fn bucket, sock ->
+      Enum.reduce(buckets, socket, fn bucket, sock ->
         codes = Map.get(diff, bucket, [])
         assign(sock, groups_field(bucket), group_places_by_country(codes, place_by_code))
       end)
@@ -439,23 +469,9 @@ defmodule GallformersWeb.Admin.PowoDiffReview do
     |> assign(:expanded_countries, MapSet.new())
   end
 
-  defp selected_field(:add_native), do: :selected_add_native
-  defp selected_field(:add_introduced), do: :selected_add_introduced
-  defp selected_field(:remove), do: :selected_remove
-  defp selected_field(:reclassify_to_introduced), do: :selected_reclassify_to_introduced
-  defp selected_field(:reclassify_to_native), do: :selected_reclassify_to_native
-
-  defp groups_field(:add_native), do: :groups_add_native
-  defp groups_field(:add_introduced), do: :groups_add_introduced
-  defp groups_field(:remove), do: :groups_remove
-  defp groups_field(:reclassify_to_introduced), do: :groups_reclassify_to_introduced
-  defp groups_field(:reclassify_to_native), do: :groups_reclassify_to_native
-
-  defp bucket_id(:add_native), do: "add-native"
-  defp bucket_id(:add_introduced), do: "add-introduced"
-  defp bucket_id(:remove), do: "remove"
-  defp bucket_id(:reclassify_to_introduced), do: "reclassify-to-introduced"
-  defp bucket_id(:reclassify_to_native), do: "reclassify-to-native"
+  defp selected_field(bucket), do: String.to_atom("selected_#{bucket}")
+  defp groups_field(bucket), do: String.to_atom("groups_#{bucket}")
+  defp bucket_id(bucket), do: bucket |> Atom.to_string() |> String.replace("_", "-")
 
   defp section_expanded(expanded_countries, section) do
     expanded_countries
@@ -464,9 +480,46 @@ defmodule GallformersWeb.Admin.PowoDiffReview do
   end
 
   defp has_any_selections?(assigns) do
-    Enum.any?(@buckets, fn bucket ->
+    Enum.any?(assigns.buckets, fn bucket ->
       MapSet.size(Map.get(assigns, selected_field(bucket))) > 0
     end)
+  end
+
+  defp review_remove_bucket?(bucket, bucket_config) do
+    Map.get(bucket_config[bucket] || %{}, :mode) == :review_remove
+  end
+
+  defp merge_bucket_config(overrides) do
+    Enum.reduce(overrides, @default_bucket_config, fn {bucket, config}, acc ->
+      Map.update(acc, bucket, config, &Map.merge(&1, config))
+    end)
+  end
+
+  defp initial_selection(codes, true), do: MapSet.new(codes)
+  defp initial_selection(_codes, false), do: MapSet.new()
+
+  defp initial_selection(codes, values) when is_list(values),
+    do: MapSet.new(values) |> MapSet.intersection(MapSet.new(codes))
+
+  defp initial_selection(codes, %MapSet{} = values),
+    do: MapSet.intersection(values, MapSet.new(codes))
+
+  defp initial_selection(codes, _), do: MapSet.new(codes)
+
+  defp maybe_put_remove_as_introduced(selections, socket) do
+    case socket.assigns.special_remove_bucket do
+      nil ->
+        selections
+
+      bucket ->
+        selected = Map.get(selections, bucket, MapSet.new())
+
+        Map.put(
+          selections,
+          :remove_as_introduced,
+          MapSet.intersection(socket.assigns.remove_as_introduced, selected)
+        )
+    end
   end
 
   defp place_display(code, place_by_code) do

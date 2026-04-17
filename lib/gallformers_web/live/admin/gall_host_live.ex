@@ -22,7 +22,35 @@ defmodule GallformersWeb.Admin.GallHostLive do
   alias Gallformers.Ranges
   alias Gallformers.Species
   alias GallformersWeb.Admin.DeferredChanges
-  alias GallformersWeb.Admin.RangeDrillDown
+  alias GallformersWeb.Admin.PlaceDrillDown
+  alias GallformersWeb.Admin.PowoDiffReview
+
+  @host_range_diff_buckets ~w(add_native add_introduced orphaned)a
+  @host_range_diff_bucket_config %{
+    add_native: %{
+      label: "+ Native host range places not in gall range",
+      container_class: "bg-green-50 border border-green-200 rounded p-3",
+      text_class: "text-green-700",
+      heading_class: "text-green-800",
+      checkbox_class: "text-green-600 focus:ring-green-500"
+    },
+    add_introduced: %{
+      label: "+ Introduced host range places not in gall range",
+      container_class: "border border-amber-200 rounded p-3",
+      container_style:
+        "background: repeating-linear-gradient(-45deg, #fef3c7, #fef3c7 3px, #fde68a 3px, #fde68a 6px)",
+      text_class: "text-amber-800",
+      heading_class: "text-amber-900",
+      checkbox_class: "text-amber-600 focus:ring-amber-500"
+    },
+    orphaned: %{
+      label: "Gall range places outside current host-range suggestion",
+      container_class: "bg-slate-50 border border-slate-200 rounded p-3",
+      text_class: "text-slate-700",
+      heading_class: "text-slate-800",
+      checkbox_class: "text-slate-600 focus:ring-slate-500"
+    }
+  }
 
   @impl true
   def mount(_params, session, socket) do
@@ -47,6 +75,9 @@ defmodule GallformersWeb.Admin.GallHostLive do
       |> assign(:host_search_query, "")
       |> assign(:host_search_results, [])
       |> assign(:host_dropdown_open, false)
+      |> assign(:host_range_diff, nil)
+      |> assign(:host_range_diff_buckets, @host_range_diff_buckets)
+      |> assign(:host_range_diff_bucket_config, @host_range_diff_bucket_config)
       |> reset_range_state()
       # Form state
       |> init_form_state()
@@ -173,6 +204,7 @@ defmodule GallformersWeb.Admin.GallHostLive do
             |> assign(:host_search_query, "")
             |> assign(:host_search_results, [])
             |> assign(:host_dropdown_open, false)
+            |> assign(:host_range_diff, nil)
             |> recompute_range()
             |> push_range_update()
             |> mark_dirty()
@@ -195,6 +227,7 @@ defmodule GallformersWeb.Admin.GallHostLive do
         socket =
           socket
           |> DeferredChanges.remove_pending(:hosts, relation_id, id_field: :host_relation_id)
+          |> assign(:host_range_diff, nil)
           |> recompute_range()
           |> push_range_update()
           |> mark_dirty()
@@ -209,6 +242,33 @@ defmodule GallformersWeb.Admin.GallHostLive do
   # ============================================
   # Range Curation Events
   # ============================================
+
+  @impl true
+  def handle_event("refresh_from_hosts", _params, socket) do
+    case socket.assigns.selected_gall do
+      %{id: gall_id} ->
+        {host_native_codes, host_introduced_codes} = Galls.compute_host_union_for_gall(gall_id)
+
+        gall_range_codes =
+          socket.assigns.gall_range_place_ids
+          |> Enum.map(&Map.get(socket.assigns.place_by_id, &1))
+          |> Enum.reject(&is_nil/1)
+          |> Enum.map(& &1.code)
+          |> Enum.sort()
+
+        diff =
+          Galls.compute_host_range_diff(
+            gall_range_codes,
+            host_native_codes,
+            host_introduced_codes
+          )
+
+        {:noreply, assign(socket, :host_range_diff, diff)}
+
+      _ ->
+        {:noreply, put_flash(socket, :error, "Select a gall first")}
+    end
+  end
 
   @impl true
   def handle_event("toggle_region", %{"code" => code}, socket) do
@@ -236,7 +296,7 @@ defmodule GallformersWeb.Admin.GallHostLive do
         end
       else
         # Country with subdivisions: open drill-down
-        send_update(RangeDrillDown,
+        send_update(PlaceDrillDown,
           id: "range-drill-down",
           action: {:open, place}
         )
@@ -303,7 +363,7 @@ defmodule GallformersWeb.Admin.GallHostLive do
   # =================================================================
 
   @impl true
-  def handle_info({RangeDrillDown, {:toggle_place, code}}, socket) do
+  def handle_info({PlaceDrillDown, {:toggle_place, code}}, socket) do
     case Map.get(socket.assigns.place_by_code, code) do
       %{id: place_id} -> {:noreply, toggle_gall_range(socket, place_id)}
       nil -> {:noreply, socket}
@@ -311,7 +371,7 @@ defmodule GallformersWeb.Admin.GallHostLive do
   end
 
   @impl true
-  def handle_info({RangeDrillDown, {:include_all, codes}}, socket) do
+  def handle_info({PlaceDrillDown, {:include_all, codes}}, socket) do
     place_by_code = socket.assigns.place_by_code
 
     place_ids_to_add =
@@ -331,7 +391,7 @@ defmodule GallformersWeb.Admin.GallHostLive do
   end
 
   @impl true
-  def handle_info({RangeDrillDown, {:exclude_all, codes}}, socket) do
+  def handle_info({PlaceDrillDown, {:exclude_all, codes}}, socket) do
     place_by_code = socket.assigns.place_by_code
 
     place_ids_to_remove =
@@ -351,8 +411,49 @@ defmodule GallformersWeb.Admin.GallHostLive do
   end
 
   @impl true
-  def handle_info({RangeDrillDown, :zoom_out}, socket) do
+  def handle_info({PlaceDrillDown, :zoom_out}, socket) do
     {:noreply, push_event(socket, "range-zoom-out", %{})}
+  end
+
+  @impl true
+  def handle_info({PowoDiffReview, {:apply, selections}}, socket) do
+    diff = socket.assigns.host_range_diff
+    add_codes = MapSet.union(selections.add_native, selections.add_introduced)
+
+    place_ids_to_add =
+      add_codes
+      |> Enum.map(&Map.get(socket.assigns.place_by_code, &1))
+      |> Enum.reject(&is_nil/1)
+      |> Enum.map(& &1.id)
+
+    orphaned_codes = MapSet.new(diff.orphaned)
+    kept_orphaned = Map.get(selections, :orphaned, MapSet.new())
+
+    place_ids_to_remove =
+      orphaned_codes
+      |> MapSet.difference(kept_orphaned)
+      |> Enum.map(&Map.get(socket.assigns.place_by_code, &1))
+      |> Enum.reject(&is_nil/1)
+      |> MapSet.new(& &1.id)
+
+    gall_range_place_ids =
+      socket.assigns.gall_range_place_ids
+      |> Enum.reject(&MapSet.member?(place_ids_to_remove, &1))
+      |> Kernel.++(place_ids_to_add)
+      |> Enum.uniq()
+
+    {:noreply,
+     socket
+     |> assign(:gall_range_place_ids, gall_range_place_ids)
+     |> assign(:host_range_diff, nil)
+     |> recompute_range_from_assigns()
+     |> push_range_update()
+     |> mark_dirty()}
+  end
+
+  @impl true
+  def handle_info({PowoDiffReview, :cancel}, socket) do
+    {:noreply, assign(socket, :host_range_diff, nil)}
   end
 
   # ============================================
@@ -381,6 +482,7 @@ defmodule GallformersWeb.Admin.GallHostLive do
           |> assign(:original_gall_range_place_ids, gall_range_place_ids)
           |> assign(:gall_range_precision_map, gall_range_precision_map)
           |> assign(:range_confirmed, gall_traits && gall_traits.range_confirmed)
+          |> assign(:host_range_diff, nil)
           |> recompute_range()
           |> assign(:page_title, "Gall-Host Mappings - #{gall.name}")
           |> reset_dirty()
@@ -402,6 +504,7 @@ defmodule GallformersWeb.Admin.GallHostLive do
     |> assign(:omitted_from_range_place_ids, [])
     |> assign(:range_confirmed, false)
     |> assign(:introduced_range, [])
+    |> assign(:host_range_diff, nil)
   end
 
   # Recompute range from current hosts (hits DB for host ranges).
@@ -412,6 +515,7 @@ defmodule GallformersWeb.Admin.GallHostLive do
 
     socket
     |> assign(:host_ranges, host_ranges)
+    |> assign(:host_range_diff, nil)
     |> recompute_range_from_assigns()
   end
 
@@ -475,6 +579,7 @@ defmodule GallformersWeb.Admin.GallHostLive do
 
     socket
     |> assign(:gall_range_place_ids, new_ids)
+    |> assign(:host_range_diff, nil)
     |> recompute_range_from_assigns()
     |> push_range_update()
     |> mark_dirty()
@@ -675,14 +780,49 @@ defmodule GallformersWeb.Admin.GallHostLive do
 
             <%!-- Range Section --%>
             <div class="mb-4">
-              <div class="flex items-center gap-2 mb-1">
-                <label class="gf-label mb-0">Range:</label>
-                <span
-                  class="text-gray-400 cursor-help"
-                  title="Green places are in this gall's curated range. Red places are in the host range but not the gall's range. Click places to toggle their inclusion."
+              <div class="flex items-center justify-between gap-3 mb-1">
+                <div class="flex items-center gap-2">
+                  <label class="gf-label mb-0">Range:</label>
+                  <span
+                    class="text-gray-400 cursor-help"
+                    title="Green places are in this gall's curated range. Red places are in the host range but not the gall's range. Click places to toggle their inclusion."
+                  >
+                    <.icon name="ph-question" class="h-4 w-4" />
+                  </span>
+                </div>
+                <button
+                  :if={@selected_gall}
+                  type="button"
+                  phx-click="refresh_from_hosts"
+                  class="gf-btn gf-btn-secondary text-sm"
                 >
-                  <.icon name="ph-question" class="h-4 w-4" />
-                </span>
+                  Refresh from hosts
+                </button>
+              </div>
+
+              <p :if={@selected_gall} class="text-sm text-gray-600 mb-3">
+                Review the host-native union as a suggested baseline. Introduced host places are opt-in,
+                and places outside the current suggestion can still be kept.
+              </p>
+
+              <div
+                :if={@host_range_diff}
+                class="mb-4"
+                onchange="event.stopPropagation()"
+                oninput="event.stopPropagation()"
+              >
+                <.live_component
+                  module={PowoDiffReview}
+                  id="host-range-diff"
+                  diff={@host_range_diff}
+                  place_by_code={@place_by_code}
+                  title="Host Range Comparison"
+                  empty_message="No differences found. The gall range already matches the current host-based suggestion."
+                  apply_label="Apply Selected Changes"
+                  buckets={@host_range_diff_buckets}
+                  bucket_config={@host_range_diff_bucket_config}
+                  default_selections={%{add_introduced: false}}
+                />
               </div>
 
               <div class="border border-gray-300 rounded">
@@ -712,8 +852,9 @@ defmodule GallformersWeb.Admin.GallHostLive do
                           />
                         </div>
                         <.live_component
-                          module={RangeDrillDown}
+                          module={PlaceDrillDown}
                           id="range-drill-down"
+                          mode={:gall}
                           omitted_place_ids={@omitted_from_range_place_ids}
                           host_places={@host_places}
                           all_places={@all_places}
