@@ -563,10 +563,31 @@ For background work, prefer the simplest tool that fits:
 
 | Need | Use | Example |
 |------|-----|---------|
+| Durable, retryable, or scheduled background work | `Oban` | Analytics rollups, ingestion, image processing |
 | One-off async work | `Task.async/1` or `Task.Supervisor` | Sending emails |
-| Periodic work | `Process.send_after/3` in GenServer | Cache expiration |
+| Periodic in-memory work | `Process.send_after/3` in GenServer | Cache expiration |
 | Stateful process | `GenServer` | Connection pool, rate limiter |
 | Simple state | `Agent` | Counters, simple caches |
+
+**Oban basics:**
+
+```elixir
+defmodule MyApp.Workers.Example do
+  use Oban.Worker, queue: :default, max_attempts: 5
+
+  @impl Oban.Worker
+  def perform(%Oban.Job{args: args}) do
+    MyApp.do_work(args)
+    :ok
+  end
+end
+```
+
+**Oban notes:**
+- Prefer Oban for anything that must survive deploys or node restarts
+- Keep workers thin; put domain logic in regular modules that can be tested directly
+- Use cron via `Oban.Plugins.Cron` for scheduled jobs, not ad hoc GenServer timers
+- Monitor queues and failed jobs via `/admin/jobs`
 
 **GenServer basics:**
 

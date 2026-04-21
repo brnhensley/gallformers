@@ -18,6 +18,7 @@ defmodule Gallformers.Application do
       Repo,
       {Ecto.Migrator,
        repos: Application.fetch_env!(:gallformers, :ecto_repos), skip: skip_migrations?()},
+      {Oban, Application.fetch_env!(:gallformers, Oban)},
       Repo.WCVP,
       {DNSCluster, query: Application.get_env(:gallformers, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Gallformers.PubSub},
@@ -27,8 +28,6 @@ defmodule Gallformers.Application do
       Gallformers.Images.AuditCache,
       # Site-wide settings with persistent_term cache
       Gallformers.SiteSettings,
-      # Nightly analytics rollup and pruning
-      Gallformers.Analytics.Rollup,
       # Start to serve requests, typically the last entry
       GallformersWeb.Endpoint
     ]

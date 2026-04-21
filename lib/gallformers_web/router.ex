@@ -8,6 +8,7 @@ defmodule GallformersWeb.Router do
     plug :fetch_session
     plug :fetch_live_flash
     plug :put_root_layout, html: {GallformersWeb.Layouts, :root}
+    plug GallformersWeb.Plugs.LegacyFrontend
     plug :protect_from_forgery
     plug :put_secure_browser_headers
     plug GallformersWeb.Plugs.ContentSecurityPolicy
@@ -272,7 +273,14 @@ defmodule GallformersWeb.Router do
   end
 
   # LiveDashboard — superadmin only in all environments
+  import Oban.Web.Router
   import Phoenix.LiveDashboard.Router
+
+  scope "/admin" do
+    pipe_through [:browser, :superadmin]
+
+    oban_dashboard("/jobs")
+  end
 
   scope "/admin" do
     pipe_through [:browser, :superadmin]

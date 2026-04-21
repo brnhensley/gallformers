@@ -11,6 +11,19 @@ config :gallformers,
   ecto_repos: [Gallformers.Repo],
   generators: [timestamp_type: :utc_datetime]
 
+config :gallformers, Oban,
+  repo: Gallformers.Repo,
+  queues: [default: 10, extraction: 2, maintenance: 5],
+  plugins: [
+    {Oban.Plugins.Pruner, max_age: 7 * 24 * 60 * 60},
+    Oban.Plugins.Reindexer,
+    {Oban.Plugins.Lifeline, rescue_after: :timer.hours(1)},
+    {Oban.Plugins.Cron,
+     crontab: [
+       {"0 7 * * *", Gallformers.Analytics.RollupWorker}
+     ]}
+  ]
+
 # Configure the endpoint
 config :gallformers, GallformersWeb.Endpoint,
   url: [host: "localhost"],
@@ -36,7 +49,7 @@ config :esbuild,
   version: "0.25.4",
   gallformers: [
     args:
-      ~w(js/app.js --bundle --target=es2022 --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/* --alias:@=.),
+      ~w(js/app.js --bundle --target=es2018 --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/* --alias:@=.),
     cd: Path.expand("../assets", __DIR__),
     env: %{"NODE_PATH" => [Path.expand("../deps", __DIR__), Mix.Project.build_path()]}
   ]

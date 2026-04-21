@@ -1,13 +1,13 @@
-**CRITICAL**: These standards override any instinct to "move fast" or "show quick progress."
-
+**CRITICAL**: 
 - Investigation Before Action
 - Search Before You Write
+- The most common agent failure is writing new code for something that already exists. Do not do this.
+- Do not commit until precommit passes.
+- Always compile with `--warnings-as-errors`**. When verifying code changes, NEVER use plain `mix compile` - always use `mix compile --warnings-as-errors` or run `mix precommit`. CI enforces warnings-as-errors, so skipping this locally will cause CI failures.
 
-**CRITICAL**: The most common agent failure is writing new code for something that already exists. Do not do this.
+## Background Jobs
 
-Do not commit until precommit passes.
-
-**CRITICAL: Always compile with `--warnings-as-errors`**. When verifying code changes, NEVER use plain `mix compile` - always use `mix compile --warnings-as-errors` or run `mix precommit`. CI enforces warnings-as-errors, so skipping this locally will cause CI failures.
+Use `Oban` for durable, retryable, or scheduled background work. Reserve plain `GenServer` loops and `Process.send_after/3` for in-memory process behavior where persistence, retries, and operator visibility do not matter. The canonical queue dashboard is mounted at `/admin/jobs`.
 
 ### Test Database
 
@@ -61,7 +61,7 @@ After a planning or brainstorming session:
 |---------|----------|------------|
 | Work tracking, plans, status | Mull matter body | Yes (until purged) |
 | Ephemeral planning drafts | `docs/plans/` (gitignored) | No |
-| Durable reference material | `docs/investigations/` | Yes |
+| Incident docs | `docs/investigations/` | Yes |
 | Operational procedures | `runbooks/` | Yes |
 
 ### Planning workflow
@@ -71,8 +71,6 @@ When planning work for a matter:
 2. Do research, brainstorm, design — use whatever tools help
 3. Write findings and decisions into the matter via `mull append`
 4. When the plan is solid, mark the matter as `planned` with `mull plan <id>`
-
-Do NOT create separate implementation plan files. The matter body is the plan. If the scope is small enough that the plan fits in a few paragraphs, that's fine — not everything needs a 200-line design doc.
 
 Check the `infra/` dir for OpenTofu defintions if you need to work with the AWS infrastructure.
 

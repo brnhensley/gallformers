@@ -2,6 +2,8 @@ import Config
 
 config :gallformers, env: :test
 
+config :gallformers, Oban, testing: :inline
+
 # Tiles URL for test — matches dev (local file, though tests don't render maps)
 config :gallformers, tiles_url: "/data/boundaries.pmtiles"
 

@@ -1,7 +1,7 @@
 ---
-status: planned
+status: done
 created: 2026-03-25
-updated: 2026-04-15
+updated: 2026-04-21
 epic: platform
 docs: [docs/architecture/oban-background-jobs-research.md]
 relates: [7fda, 16bb, c52c]
@@ -66,3 +66,16 @@ visibility, no monitoring — remain architectural gaps that Oban addresses stru
 
 - **HealthWatchdog** — periodic health checks, no persistence needed, no retries
 - **SiteSettings** — persistent_term cache, event-driven, not a job
+
+Implemented Oban infrastructure across the Phoenix app.
+
+- Added `oban` and `oban_web` dependencies plus Oban config with `default`, `extraction`, and `maintenance` queues.
+- Started Oban in the application supervisor after the migrator, and added migration `20260421110000_add_oban_jobs.exs` with `Oban.Migrations.up/0` plus `oban_jobs` autovacuum tuning.
+- Replaced the analytics rollup GenServer scheduler with `Gallformers.Analytics.RollupWorker` enqueued daily at `0 7 * * *` via `Oban.Plugins.Cron`.
+- Mounted Oban Web at `/admin/jobs` behind the existing admin pipeline.
+- Added operator docs in `CLAUDE.md`, `CODING_STANDARDS.md`, and `runbooks/oban.md`.
+- Added focused tests for rollup logic, the worker, and the admin jobs route contract.
+
+Verification:
+- `mix compile --warnings-as-errors`
+- `mix test test/gallformers/analytics/rollup_test.exs test/gallformers/analytics/rollup_worker_test.exs test/gallformers_web/controllers/admin_jobs_dashboard_test.exs`

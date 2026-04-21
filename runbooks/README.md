@@ -10,6 +10,7 @@ Operational runbooks for Gallformers.
 | [Rollback Deployment](./rollback-deployment.md) | Revert to a previous release |
 | [Restore Database](./restore-database.md) | Recover PostgreSQL database from backup |
 | [Postgres Maintenance](./postgres-maintenance.md) | Day-to-day Postgres operations, monitoring, and queries |
+| [Oban Operations](./oban.md) | Inspect queues, retry jobs, and troubleshoot background work |
 | [PostgreSQL Migration Cutover](./postgres-cutover.md) | Cutover procedures and post-migration cleanup |
 | [Incident Response](./incident-response.md) | Coordinate response to production incidents |
 | [Fly Operations](./fly-operations.md) | Fly.io infrastructure operations and safety rules |

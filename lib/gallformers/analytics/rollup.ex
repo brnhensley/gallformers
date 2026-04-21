@@ -1,13 +1,11 @@
 defmodule Gallformers.Analytics.Rollup do
   @moduledoc """
-  GenServer that aggregates raw `page_views` into daily summary tables.
+  Aggregates raw `page_views` into daily summary tables.
 
-  Runs nightly at ~07:00 UTC (3:00 AM ET) to roll up pending days and prune
-  old raw rows. Gap-aware: retries any previously failed days rather than
-  skipping over them.
+  This module contains the idempotent rollup and pruning logic that the
+  scheduled Oban worker calls. It is intentionally synchronous and free of
+  process lifecycle concerns so the same functions are easy to test directly.
   """
-
-  use GenServer
 
   import Ecto.Query
 
@@ -17,12 +15,6 @@ defmodule Gallformers.Analytics.Rollup do
   alias Gallformers.Repo
 
   @default_prune_days 30
-
-  # -- Public API --
-
-  def start_link(opts \\ []) do
-    GenServer.start_link(__MODULE__, opts, name: __MODULE__)
-  end
 
   @doc """
   Rolls up all pending days through yesterday.
@@ -122,53 +114,7 @@ defmodule Gallformers.Analytics.Rollup do
     |> Repo.delete_all()
   end
 
-  # -- GenServer callbacks --
-
-  @impl true
-  def init(_opts) do
-    schedule_next_run()
-    {:ok, %{}}
-  end
-
-  @impl true
-  def handle_info(:run_rollup, state) do
-    try do
-      case rollup_pending_days() do
-        {:ok, 0} ->
-          Logger.debug("Analytics rollup: no pending days")
-
-        {:ok, count} ->
-          Logger.info("Analytics rollup: processed #{count} day(s)")
-      end
-
-      {pruned, _} = prune_old_page_views()
-
-      if pruned > 0 do
-        Logger.info("Analytics rollup: pruned #{pruned} old page views")
-      end
-    rescue
-      e ->
-        Logger.error("Analytics rollup crashed: #{Exception.message(e)}")
-    end
-
-    schedule_next_run()
-    {:noreply, state}
-  end
-
   # -- Private --
-
-  defp schedule_next_run do
-    ms = ms_until_next_run()
-    Process.send_after(self(), :run_rollup, ms)
-  end
-
-  defp ms_until_next_run do
-    now = NaiveDateTime.utc_now()
-    today = NaiveDateTime.to_date(now)
-    # Target: 07:00 UTC (3:00 AM ET) — low-traffic window
-    target = NaiveDateTime.new!(Date.add(today, 1), ~T[07:00:00])
-    max(NaiveDateTime.diff(target, now, :millisecond), 1_000)
-  end
 
   defp date_bounds(date) do
     {NaiveDateTime.new!(date, ~T[00:00:00]), NaiveDateTime.new!(Date.add(date, 1), ~T[00:00:00])}

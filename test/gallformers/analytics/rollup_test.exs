@@ -1,6 +1,6 @@
 defmodule Gallformers.Analytics.RollupTest do
   @moduledoc """
-  Tests for the Analytics Rollup GenServer.
+  Tests for analytics rollup helpers.
 
   Verifies daily aggregation into summary tables, idempotency,
   and pruning of old raw data.
