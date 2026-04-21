@@ -1,5 +1,3 @@
-import {storageRemove, storageSet} from "../lib/browser_storage"
-
 // RegionScope hook for the per-page region scope widget
 const RegionScope = {
   mounted() {
@@ -29,11 +27,11 @@ const RegionScope = {
       const active = this.el.querySelector("[data-region-code].font-bold")
       const currentCode = active ? active.dataset.regionCode : ""
       if (currentCode === "") {
-        storageRemove("gf_continent")
+        localStorage.removeItem("gf_continent")
       } else {
-        storageSet("gf_continent", currentCode)
+        localStorage.setItem("gf_continent", currentCode)
       }
-      storageSet("gf_continent_dismissed", "true")
+      localStorage.setItem("gf_continent_dismissed", "true")
       // Reload to propagate the new default across the session
       window.location.reload()
     })

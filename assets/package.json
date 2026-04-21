@@ -3,8 +3,6 @@
   "private": true,
   "type": "commonjs",
   "scripts": {
-    "build:legacy": "tailwindcss --config tailwind.config.js --input css/app_legacy.css --output ../priv/static/assets/css/app-legacy.css",
-    "build:legacy:minify": "tailwindcss --config tailwind.config.js --input css/app_legacy.css --output ../priv/static/assets/css/app-legacy.css --minify",
     "test": "vitest run",
     "test:watch": "vitest"
   },
@@ -17,10 +15,8 @@
     "pmtiles": "^4.4.0"
   },
   "devDependencies": {
-    "@tailwindcss/typography": "^0.5.16",
     "jsdom": "^29.0.0",
     "playwright": "^1.58.2",
-    "tailwindcss": "^3.4.17",
     "vitest": "^4.1.0"
   }
 }

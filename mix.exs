@@ -116,22 +116,10 @@ defmodule Gallformers.MixProject do
         "test.check_exclusions_run"
       ],
       "test.check_exclusions_run": &check_test_exclusions/1,
-      "assets.setup": [
-        "tailwind.install --if-missing",
-        "esbuild.install --if-missing",
-        "cmd --cd assets npm install"
-      ],
-      "assets.build": [
-        "compile",
-        "tailwind gallformers",
-        "cmd --cd assets node scripts/prepare_legacy_entry.cjs",
-        "cmd --cd assets npm run build:legacy",
-        "esbuild gallformers"
-      ],
+      "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
+      "assets.build": ["compile", "tailwind gallformers", "esbuild gallformers"],
       "assets.deploy": [
         "tailwind gallformers --minify",
-        "cmd --cd assets node scripts/prepare_legacy_entry.cjs",
-        "cmd --cd assets npm run build:legacy:minify",
         "esbuild gallformers --minify",
         "phx.digest"
       ],

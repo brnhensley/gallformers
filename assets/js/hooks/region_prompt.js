@@ -1,10 +1,8 @@
-import {storageGet, storageSet} from "../lib/browser_storage"
-
 // RegionPrompt hook for the contextual first-visit modal on scoped pages
 const RegionPrompt = {
   mounted() {
-    const hasContinent = storageGet("gf_continent")
-    const dismissed = storageGet("gf_continent_dismissed")
+    const hasContinent = localStorage.getItem("gf_continent")
+    const dismissed = localStorage.getItem("gf_continent_dismissed")
 
     if (!hasContinent && !dismissed) {
       this.el.classList.remove("hidden")
@@ -15,10 +13,10 @@ const RegionPrompt = {
       btn.addEventListener("click", () => {
         const code = btn.dataset.promptCode
         if (code === "") {
-          storageSet("gf_continent_dismissed", "true")
+          localStorage.setItem("gf_continent_dismissed", "true")
         } else {
-          storageSet("gf_continent", code)
-          storageSet("gf_continent_dismissed", "true")
+          localStorage.setItem("gf_continent", code)
+          localStorage.setItem("gf_continent_dismissed", "true")
         }
         this.el.classList.add("hidden")
       })

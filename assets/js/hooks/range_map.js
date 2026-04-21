@@ -77,13 +77,6 @@ function computeEffectiveSets(inRange, excludedRange, inheritedRange) {
   return { effectiveInRange, effectiveInherited }
 }
 
-function supportsFullscreen(container) {
-  return !!(
-    document.fullscreenEnabled &&
-    (container.requestFullscreen || container.webkitRequestFullscreen)
-  )
-}
-
 /**
  * Build a MapLibre case expression for choropleth coloring.
  * Accepts pre-computed effective sets from computeEffectiveSets().
@@ -367,20 +360,19 @@ const RangeMap = {
       'top-right'
     )
 
-    if (supportsFullscreen(container)) {
-      this.map.addControl(new maplibregl.FullscreenControl(), 'top-right')
+    // Add fullscreen control with escape hint
+    this.map.addControl(new maplibregl.FullscreenControl(), 'top-right')
 
-      container.addEventListener('fullscreenchange', () => {
-        if (document.fullscreenElement === container) {
-          const hint = document.createElement('div')
-          hint.textContent = 'Press Esc to exit fullscreen'
-          hint.className = 'fixed top-4 left-1/2 -translate-x-1/2 bg-black/70 text-white px-4 py-2 rounded-md text-sm z-[9999] pointer-events-none transition-opacity duration-500'
-          container.appendChild(hint)
-          setTimeout(() => { hint.style.opacity = '0' }, 2000)
-          setTimeout(() => { hint.remove() }, 2500)
-        }
-      })
-    }
+    container.addEventListener('fullscreenchange', () => {
+      if (document.fullscreenElement === container) {
+        const hint = document.createElement('div')
+        hint.textContent = 'Press Esc to exit fullscreen'
+        hint.className = 'fixed top-4 left-1/2 -translate-x-1/2 bg-black/70 text-white px-4 py-2 rounded-md text-sm z-[9999] pointer-events-none transition-opacity duration-500'
+        container.appendChild(hint)
+        setTimeout(() => { hint.style.opacity = '0' }, 2000)
+        setTimeout(() => { hint.remove() }, 2500)
+      }
+    })
 
     // Popup for hover tooltips
     this.popup = new maplibregl.Popup({
