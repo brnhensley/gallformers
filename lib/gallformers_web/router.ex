@@ -11,6 +11,7 @@ defmodule GallformersWeb.Router do
     plug :protect_from_forgery
     plug :put_secure_browser_headers
     plug GallformersWeb.Plugs.ContentSecurityPolicy
+    plug GallformersWeb.Plugs.BrowserSupportBanner
     plug :fetch_current_user
     plug GallformersWeb.Plugs.Analytics
   end

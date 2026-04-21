@@ -3,6 +3,7 @@
   "private": true,
   "type": "commonjs",
   "scripts": {
+    "build:browser-support": "node scripts/build_browser_support.js",
     "test": "vitest run",
     "test:watch": "vitest"
   },
@@ -15,6 +16,7 @@
     "pmtiles": "^4.4.0"
   },
   "devDependencies": {
+    "browserslist-useragent-regexp": "^4.1.4",
     "jsdom": "^29.0.0",
     "playwright": "^1.58.2",
     "vitest": "^4.1.0"

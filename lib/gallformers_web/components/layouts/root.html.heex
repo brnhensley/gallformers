@@ -46,6 +46,15 @@
   </head>
   <body class="min-h-screen">
     <div
+      :if={assigns[:unsupported_browser]}
+      id="unsupported-browser-banner"
+      role="alert"
+      style="position:sticky;top:0;z-index:101;padding:0.75rem 1rem;background:#fef3c7;color:#78350f;border-bottom:1px solid #f59e0b;font:600 0.9375rem/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;"
+    >
+      <strong>Limited browser support.</strong>
+      {GallformersWeb.BrowserSupport.banner_message()}
+    </div>
+    <div
       :if={Application.get_env(:gallformers, :preview_deploy)}
       class="bg-red-600 text-white text-center py-2 font-bold text-sm sticky top-0 z-[100]"
     >
