@@ -167,6 +167,13 @@ defmodule GallformersWeb.Admin.DashboardLive do
               small
             />
             <.action_card
+              label="Jobs Dashboard"
+              href="/admin/jobs"
+              icon="ph-list-bullets"
+              accent="slate"
+              small
+            />
+            <.action_card
               label="Live Dashboard"
               href="/admin/dashboard"
               icon="ph-chart-line"
