@@ -4,6 +4,7 @@ import "phoenix_html"
 import {Socket} from "phoenix"
 import {LiveSocket} from "phoenix_live_view"
 import topbar from "../vendor/topbar"
+import {storageGet} from "./lib/browser_storage"
 
 // Hooks
 import AdminNav from "./hooks/admin_nav"
@@ -27,7 +28,7 @@ import Typeahead from "./hooks/typeahead"
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
-  params: () => ({_csrf_token: csrfToken, continent: localStorage.getItem("gf_continent")}),
+  params: () => ({_csrf_token: csrfToken, continent: storageGet("gf_continent")}),
   hooks: {AdminNav, ArticleImageUpload, AutoDismiss, ContentImageUpload, CopyToClipboard, DailyChart, ImageGallery, ImageUpload, IndeterminateCheckbox, InputEvent, RangeMap, RegionPrompt, RegionScope, ScrollToCouplet, SortableImages, Tabs, Typeahead},
 })
 

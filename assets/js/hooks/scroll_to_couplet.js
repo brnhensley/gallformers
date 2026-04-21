@@ -1,4 +1,8 @@
 // ScrollToCouplet hook for dichotomous key navigation
+function replaceAll(text, search, replacement) {
+  return text.split(search).join(replacement)
+}
+
 const ScrollToCouplet = {
   mounted() {
     this.handleEvent("scroll_to_couplet", ({id}) => {
@@ -19,7 +23,7 @@ const ScrollToCouplet = {
       if (url_path) {
         finalText = finalText.replace("{{KEY_URL}}", origin + url_path)
       }
-      finalText = finalText.replaceAll("{{KEY_URL_ORIGIN}}", origin)
+      finalText = replaceAll(finalText, "{{KEY_URL_ORIGIN}}", origin)
       navigator.clipboard.writeText(finalText).then(() => {
         this.pushEvent("clipboard_copy_success", {})
       }).catch(() => {
