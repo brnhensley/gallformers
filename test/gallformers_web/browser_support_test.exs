@@ -18,7 +18,7 @@ defmodule GallformersWeb.BrowserSupportTest do
       assert BrowserSupport.supported_user_agent?(
                "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_3) " <>
                  "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.4 Safari/605.1.15"
-             )
+             ) == true
     end
 
     test "rejects Firefox 127" do
@@ -32,7 +32,7 @@ defmodule GallformersWeb.BrowserSupportTest do
       assert BrowserSupport.supported_user_agent?(
                "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_2_1) " <>
                  "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36"
-             )
+             ) == true
     end
   end
 

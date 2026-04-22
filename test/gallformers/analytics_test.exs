@@ -299,7 +299,7 @@ defmodule Gallformers.AnalyticsTest do
       }
 
       changeset = PageView.changeset(%PageView{}, attrs)
-      assert changeset.valid?
+      assert changeset.valid? == true
       assert Ecto.Changeset.get_field(changeset, :path) == "/test/path"
       assert Ecto.Changeset.get_field(changeset, :visitor_hash) == "hash123"
       assert Ecto.Changeset.get_field(changeset, :referrer_host) == "google.com"
@@ -318,7 +318,7 @@ defmodule Gallformers.AnalyticsTest do
 
       changeset = PageView.changeset(%PageView{}, attrs)
       # Empty strings should be trimmed to nil for optional fields
-      assert changeset.valid?
+      assert changeset.valid? == true
       assert Ecto.Changeset.get_field(changeset, :referrer_host) == nil
       assert Ecto.Changeset.get_field(changeset, :browser) == nil
       assert Ecto.Changeset.get_field(changeset, :device_type) == nil
