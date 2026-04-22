@@ -1,9 +1,9 @@
 ---
 status: refined
 created: 2026-03-22
-updated: 2026-03-22
+updated: 2026-04-21
 epic: ingestion
-relates: [7fda, c836, 881c]
+relates: [7fda, c836, 881c, 7c67]
 needs: [c836, 881c]
 ---
 
@@ -130,4 +130,3 @@ For multi-value traits: Final defaults to Current (conservative, don't override)
 - Source creation: inline form vs new tab (depends on scope of 881c unified API)
 - Upload mechanism: direct-to-S3 vs LiveView socket (production performance concern)
 - Pipeline operationalization: Oban worker design, S3 artifact storage (tracked in 7fda)
-
