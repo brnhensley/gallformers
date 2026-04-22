@@ -319,7 +319,7 @@ defmodule Gallformers.Ingestions do
     attrs = Map.new(attrs)
 
     candidate_status =
-      normalize_candidate_confirmation_status(attr_value(attrs, :status) || "confirmed")
+      normalize_status(attr_value(attrs, :status) || "confirmed")
 
     case candidate_status do
       status when status in ["confirmed", "auto_confirmed"] ->
@@ -501,13 +501,19 @@ defmodule Gallformers.Ingestions do
   end
 
   defp no_pending_duplicate_candidates?(source_ingestion_id) do
-    from(duplicate_candidate in DuplicateCandidate,
-      where:
-        duplicate_candidate.source_ingestion_id == ^source_ingestion_id and
-          duplicate_candidate.status == "pending"
-    )
-    |> Repo.exists?()
-    |> Kernel.not()
+    # Lock pending candidates to prevent race conditions with concurrent insertions.
+    # We select IDs with FOR UPDATE rather than using aggregate count (which doesn't support locking).
+    pending_ids =
+      from(duplicate_candidate in DuplicateCandidate,
+        where:
+          duplicate_candidate.source_ingestion_id == ^source_ingestion_id and
+            duplicate_candidate.status == "pending",
+        select: duplicate_candidate.id,
+        lock: "FOR UPDATE"
+      )
+      |> Repo.all()
+
+    Enum.empty?(pending_ids)
   end
 
   defp do_confirm_duplicate_candidate(duplicate_candidate, attrs, candidate_status) do
@@ -654,16 +660,16 @@ defmodule Gallformers.Ingestions do
   end
 
   defp attr_value(attrs, key) do
-    Map.get(attrs, key) || Map.get(attrs, Atom.to_string(key))
+    # Look up by atom key first, then fall back to string key.
+    # Explicitly checks for nil to preserve false/0/"" values.
+    case Map.get(attrs, key) do
+      nil -> Map.get(attrs, Atom.to_string(key))
+      value -> value
+    end
   end
 
   defp normalize_status(status) when is_atom(status), do: Atom.to_string(status)
   defp normalize_status(status) when is_binary(status), do: status
-
-  defp normalize_candidate_confirmation_status(status) when is_atom(status),
-    do: Atom.to_string(status)
-
-  defp normalize_candidate_confirmation_status(status) when is_binary(status), do: status
 
   defp blank_artifacts_path?(artifacts_path), do: artifacts_path in [nil, ""]
 

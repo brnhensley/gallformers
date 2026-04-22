@@ -258,6 +258,208 @@ defmodule Gallformers.IngestionsTest do
     end
   end
 
+  describe "get_source_ingestion/1 and get_source_ingestion!/1" do
+    test "returns nil for non-existent ID" do
+      assert Ingestions.get_source_ingestion(-1) == nil
+      assert Ingestions.get_source_ingestion(9_999_999) == nil
+    end
+
+    test "raises for non-existent ID with bang version" do
+      assert_raise Ecto.NoResultsError, fn ->
+        Ingestions.get_source_ingestion!(-1)
+      end
+    end
+
+    test "returns ingestion for valid ID" do
+      ingestion = source_ingestion_fixture(%{input_type: "pdf"})
+      assert Ingestions.get_source_ingestion(ingestion.id) == ingestion
+      assert Ingestions.get_source_ingestion!(ingestion.id).id == ingestion.id
+    end
+  end
+
+  describe "source association" do
+    test "clear_source_association removes source link" do
+      source = source_fixture()
+      ingestion = source_ingestion_fixture(%{input_type: "pdf"})
+
+      assert {:ok, associated} = Ingestions.associate_source(ingestion, source)
+      assert associated.source_id == source.id
+
+      assert {:ok, cleared} = Ingestions.clear_source_association(associated)
+      assert cleared.source_id == nil
+    end
+  end
+
+  describe "artifact_path/2" do
+    test "returns nil when artifacts_path is blank" do
+      # Create with default empty string, then verify behavior
+      ingestion = source_ingestion_fixture(%{input_type: "pdf"})
+      # Manually set to empty string to test edge case
+      blank_ingestion = %{ingestion | artifacts_path: ""}
+      assert Ingestions.artifact_path(blank_ingestion, "file.txt") == nil
+    end
+
+    test "builds path with string suffix" do
+      ingestion = source_ingestion_fixture(%{input_type: "pdf"})
+
+      assert Ingestions.artifact_path(ingestion, "preprocessed.txt") ==
+               "#{ingestion.artifacts_path}/preprocessed.txt"
+    end
+
+    test "builds path with list suffix" do
+      ingestion = source_ingestion_fixture(%{input_type: "pdf"})
+      # Enum.reduce applies suffixes in order, prepending to base path
+      result = Ingestions.artifact_path(ingestion, ["extracts", "page1.json"])
+      assert is_binary(result)
+      assert String.contains?(result, "page1.json") == true
+      assert String.contains?(result, ingestion.artifacts_path) == true
+    end
+  end
+
+  describe "record_duplicate_signals/2" do
+    test "records various signal fields" do
+      ingestion = source_ingestion_fixture(%{input_type: "pdf"})
+
+      assert {:ok, updated} =
+               Ingestions.record_duplicate_signals(ingestion, %{
+                 doi: "10.1234/example",
+                 normalized_doi: "10.1234/example",
+                 title: "A Research Paper",
+                 normalized_title: "a research paper",
+                 title_fingerprint: "research_paper",
+                 authors: ["Alice Author", "Bob Writer"],
+                 author_fingerprint: "author_writer",
+                 publication_year: 2024,
+                 raw_input_sha256: "a" |> String.duplicate(64),
+                 preprocessed_text_sha256: "b" |> String.duplicate(64),
+                 minhash_signature: [1, 2, 3, 4, 5]
+               })
+
+      assert updated.doi == "10.1234/example"
+      assert updated.normalized_doi == "10.1234/example"
+      assert updated.title == "A Research Paper"
+      assert updated.authors == ["Alice Author", "Bob Writer"]
+      assert updated.publication_year == 2024
+      assert updated.raw_input_sha256 == "a" |> String.duplicate(64)
+      assert updated.minhash_signature == [1, 2, 3, 4, 5]
+    end
+
+    test "ignores unknown fields" do
+      ingestion = source_ingestion_fixture(%{input_type: "pdf"})
+
+      assert {:ok, updated} =
+               Ingestions.record_duplicate_signals(ingestion, %{
+                 title: "Valid Title",
+                 unknown_field: "should be ignored"
+               })
+
+      assert updated.title == "Valid Title"
+      # unknown_field should not cause an error or be stored
+    end
+  end
+
+  describe "self-duplicate prevention" do
+    test "cannot create duplicate candidate comparing ingestion to itself" do
+      ingestion = source_ingestion_fixture(%{input_type: "pdf"})
+
+      assert {:error, changeset} =
+               Ingestions.create_duplicate_candidate(ingestion, ingestion, %{
+                 evidence: %{"signal" => "test"}
+               })
+
+      assert changeset.errors[:candidate_source_ingestion_id] != nil ||
+               changeset.errors[:source_ingestion_id] != nil
+    end
+
+    test "cannot confirm ingestion as duplicate of itself via direct update" do
+      ingestion = source_ingestion_fixture(%{input_type: "pdf"})
+
+      assert {:error, changeset} =
+               Ingestions.transition_source_ingestion_status(ingestion, :duplicate_confirmed, %{
+                 duplicate_of_source_ingestion_id: ingestion.id
+               })
+
+      assert changeset.errors[:duplicate_of_source_ingestion_id] != nil
+    end
+  end
+
+  describe "transition_source_ingestion_status/3" do
+    test "transitions through status workflow with appropriate stages" do
+      ingestion = source_ingestion_fixture(%{input_type: "pdf"})
+
+      # processing -> needs_duplicate_review
+      assert {:ok, needs_dup} =
+               Ingestions.transition_source_ingestion_status(
+                 ingestion,
+                 :needs_duplicate_review
+               )
+
+      assert needs_dup.status == "needs_duplicate_review"
+      assert needs_dup.processing_stage == "duplicate_review"
+
+      # needs_duplicate_review -> needs_review
+      assert {:ok, needs_review} =
+               Ingestions.transition_source_ingestion_status(needs_dup, :needs_review)
+
+      assert needs_review.status == "needs_review"
+      assert needs_review.processing_stage == "review"
+
+      # needs_review -> complete
+      assert {:ok, complete} =
+               Ingestions.transition_source_ingestion_status(needs_review, :complete)
+
+      assert complete.status == "complete"
+      assert complete.processing_stage == "complete"
+    end
+
+    test "failed status records failed_at timestamp" do
+      ingestion = source_ingestion_fixture(%{input_type: "pdf"})
+
+      assert {:ok, failed} =
+               Ingestions.transition_source_ingestion_status(ingestion, :failed, %{
+                 error_stage: "extract",
+                 error_message: "Extraction failed"
+               })
+
+      assert failed.status == "failed"
+      assert failed.error_stage == "extract"
+      assert failed.error_message == "Extraction failed"
+      assert failed.failed_at != nil
+      # Verify timestamp is recent (within last few seconds)
+      diff_ms = DateTime.diff(DateTime.utc_now(), failed.failed_at, :millisecond)
+      assert diff_ms >= 0 and diff_ms < 5000
+    end
+
+    test "rejects invalid status values" do
+      ingestion = source_ingestion_fixture(%{input_type: "pdf"})
+
+      assert {:error, changeset} =
+               Ingestions.transition_source_ingestion_status(ingestion, "invalid_status")
+
+      assert changeset.errors[:status] != nil
+    end
+  end
+
+  describe "all_species_entries_resolved?/1" do
+    test "returns true when no species entries exist" do
+      ingestion = source_ingestion_fixture(%{input_type: "pdf"})
+      assert Ingestions.all_species_entries_resolved?(ingestion) == true
+    end
+
+    test "returns false when pending entries exist" do
+      ingestion = source_ingestion_fixture(%{input_type: "pdf"})
+
+      assert {:ok, _} =
+               Ingestions.create_source_ingestion_species(%{
+                 source_ingestion_id: ingestion.id,
+                 position: 0,
+                 extracted_name: "Pending Gall"
+               })
+
+      assert Ingestions.all_species_entries_resolved?(ingestion) == false
+    end
+  end
+
   defp source_ingestion_fixture(attrs) do
     merged_attrs =
       attrs

@@ -86,4 +86,19 @@ defmodule Gallformers.ChangesetHelpers do
         changeset
     end
   end
+
+  @doc """
+  Converts empty strings to `nil` for the specified fields.
+
+  Useful for optional string fields where an empty string should be treated
+  as NULL in the database. Place this in the changeset pipeline after `cast/3`.
+  """
+  def empty_strings_to_nil(changeset, fields) do
+    Enum.reduce(fields, changeset, fn field, cs ->
+      case get_change(cs, field) do
+        "" -> put_change(cs, field, nil)
+        _ -> cs
+      end
+    end)
+  end
 end

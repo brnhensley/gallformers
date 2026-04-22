@@ -5,7 +5,7 @@ defmodule Gallformers.Ingestions.SourceIngestionSpecies do
 
   use Ecto.Schema
   import Ecto.Changeset
-  import Gallformers.ChangesetHelpers, only: [trim_strings: 1]
+  import Gallformers.ChangesetHelpers, only: [trim_strings: 1, empty_strings_to_nil: 2]
 
   @statuses ~w(pending mapped created skipped complete)
   @required_fields [:source_ingestion_id, :position, :status]
@@ -68,7 +68,7 @@ defmodule Gallformers.Ingestions.SourceIngestionSpecies do
     source_ingestion_species
     |> cast(attrs, @required_fields ++ @optional_fields)
     |> trim_strings()
-    |> normalize_empty_strings([:extracted_name, :extracted_authority])
+    |> empty_strings_to_nil([:extracted_name, :extracted_authority])
     |> validate_required(@required_fields)
     |> validate_inclusion(:status, @statuses)
     |> validate_number(:position, greater_than_or_equal_to: 0)
@@ -79,14 +79,5 @@ defmodule Gallformers.Ingestions.SourceIngestionSpecies do
     |> foreign_key_constraint(:source_ingestion_id)
     |> foreign_key_constraint(:species_id)
     |> foreign_key_constraint(:reviewed_by_id)
-  end
-
-  defp normalize_empty_strings(changeset, fields) do
-    Enum.reduce(fields, changeset, fn field, cs ->
-      case get_change(cs, field) do
-        "" -> put_change(cs, field, nil)
-        _ -> cs
-      end
-    end)
   end
 end

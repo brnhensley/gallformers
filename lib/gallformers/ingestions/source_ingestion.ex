@@ -5,7 +5,7 @@ defmodule Gallformers.Ingestions.SourceIngestion do
 
   use Ecto.Schema
   import Ecto.Changeset
-  import Gallformers.ChangesetHelpers, only: [trim_strings: 1]
+  import Gallformers.ChangesetHelpers, only: [trim_strings: 1, empty_strings_to_nil: 2]
 
   @behaviour Gallformers.SchemaFields
 
@@ -169,7 +169,7 @@ defmodule Gallformers.Ingestions.SourceIngestion do
     source_ingestion
     |> cast(attrs, @required_fields ++ @optional_fields)
     |> trim_strings()
-    |> normalize_empty_strings(@nullable_string_fields)
+    |> empty_strings_to_nil(@nullable_string_fields)
     |> validate_required(@required_fields)
     |> validate_inclusion(:input_type, @input_types)
     |> validate_inclusion(:status, @statuses)
@@ -188,14 +188,5 @@ defmodule Gallformers.Ingestions.SourceIngestion do
       name: :source_ingestions_no_self_duplicate,
       message: "cannot point to itself as the canonical ingestion"
     )
-  end
-
-  defp normalize_empty_strings(changeset, fields) do
-    Enum.reduce(fields, changeset, fn field, cs ->
-      case get_change(cs, field) do
-        "" -> put_change(cs, field, nil)
-        _ -> cs
-      end
-    end)
   end
 end
