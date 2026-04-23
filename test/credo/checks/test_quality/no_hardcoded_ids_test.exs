@@ -1,3 +1,7 @@
+Code.require_file(
+  Path.expand("../../../../dev/credo/checks/test_quality/no_hardcoded_ids.ex", __DIR__)
+)
+
 defmodule Gallformers.Credo.Checks.TestQuality.NoHardcodedIdsTest do
   use Credo.Test.Case
 

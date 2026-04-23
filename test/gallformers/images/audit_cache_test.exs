@@ -4,6 +4,8 @@ defmodule Gallformers.Images.AuditCacheTest do
   """
   use Gallformers.DataCase
 
+  import ExUnit.CaptureLog
+
   alias Ecto.Adapters.SQL.Sandbox
   alias Gallformers.Images.AuditCache
 
@@ -187,8 +189,13 @@ defmodule Gallformers.Images.AuditCacheTest do
     test "records error and clears scanning flag" do
       {pid, name} = start_test_cache()
 
-      send(pid, {:scan_error, :timeout})
-      Process.sleep(10)
+      log =
+        capture_log([level: :error], fn ->
+          send(pid, {:scan_error, :timeout})
+          Process.sleep(10)
+        end)
+
+      assert log =~ "Image audit cache scan failed: :timeout"
 
       status = GenServer.call(name, :status)
       assert status.scanning? == false

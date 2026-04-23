@@ -1,3 +1,7 @@
+Code.require_file(
+  Path.expand("../../../../dev/credo/checks/test_quality/tests_own_their_data.ex", __DIR__)
+)
+
 defmodule Gallformers.Credo.Checks.TestQuality.TestsOwnTheirDataTest do
   use Credo.Test.Case
 

@@ -1,3 +1,7 @@
+Code.require_file(
+  Path.expand("../../../../dev/credo/checks/architecture/no_ecto_query_in_liveview.ex", __DIR__)
+)
+
 defmodule Gallformers.Credo.Checks.Architecture.NoEctoQueryInLiveViewTest do
   use Credo.Test.Case
 

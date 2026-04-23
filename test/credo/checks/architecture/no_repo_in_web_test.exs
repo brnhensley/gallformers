@@ -1,3 +1,7 @@
+Code.require_file(
+  Path.expand("../../../../dev/credo/checks/architecture/no_repo_in_web.ex", __DIR__)
+)
+
 defmodule Gallformers.Credo.Checks.Architecture.NoRepoInWebTest do
   use Credo.Test.Case
 

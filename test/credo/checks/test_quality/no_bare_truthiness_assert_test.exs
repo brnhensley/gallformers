@@ -1,3 +1,7 @@
+Code.require_file(
+  Path.expand("../../../../dev/credo/checks/test_quality/no_bare_truthiness_assert.ex", __DIR__)
+)
+
 defmodule Gallformers.Credo.Checks.TestQuality.NoBareTruthinessAssertTest do
   use Credo.Test.Case
 

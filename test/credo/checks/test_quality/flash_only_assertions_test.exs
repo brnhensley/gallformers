@@ -1,3 +1,7 @@
+Code.require_file(
+  Path.expand("../../../../dev/credo/checks/test_quality/flash_only_assertions.ex", __DIR__)
+)
+
 defmodule Gallformers.Credo.Checks.TestQuality.FlashOnlyAssertionsTest do
   use Credo.Test.Case
 

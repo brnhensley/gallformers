@@ -8,6 +8,8 @@ defmodule GallformersWeb.AuthControllerTest do
   """
   use GallformersWeb.ConnCase, async: true
 
+  import ExUnit.CaptureLog
+
   alias Gallformers.Accounts
   alias Gallformers.Accounts.Auth0User
 
@@ -147,16 +149,22 @@ defmodule GallformersWeb.AuthControllerTest do
         ]
       }
 
-      conn =
-        conn
-        |> init_test_session(%{})
-        |> assign(:ueberauth_failure, failure)
-        |> get(~p"/auth/auth0/callback")
+      {conn, log} =
+        capture_conn_log(fn ->
+          conn =
+            conn
+            |> init_test_session(%{})
+            |> assign(:ueberauth_failure, failure)
+            |> get(~p"/auth/auth0/callback")
+
+          {conn, conn}
+        end)
 
       # Should redirect to home
       assert redirected_to(conn) == "/"
       # Should have error flash
       assert Phoenix.Flash.get(conn.assigns.flash, :error) =~ "Authentication failed"
+      assert log =~ "Auth0 authentication failed"
     end
   end
 
@@ -218,5 +226,20 @@ defmodule GallformersWeb.AuthControllerTest do
         }
       }
     }
+  end
+
+  defp capture_conn_log(fun) do
+    conn_holder = self()
+
+    log =
+      capture_log([level: :warning], fn ->
+        {conn, return} = fun.()
+        send(conn_holder, {:captured_conn, conn})
+        return
+      end)
+
+    receive do
+      {:captured_conn, conn} -> {conn, log}
+    end
   end
 end

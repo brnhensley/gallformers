@@ -1,3 +1,10 @@
+Code.require_file(
+  Path.expand(
+    "../../../../dev/credo/checks/architecture/no_transaction_outside_context.ex",
+    __DIR__
+  )
+)
+
 defmodule Gallformers.Credo.Checks.Architecture.NoTransactionOutsideContextTest do
   use Credo.Test.Case
 

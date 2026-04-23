@@ -1,3 +1,7 @@
+Code.require_file(
+  Path.expand("../../../../dev/credo/checks/architecture/no_mocking_libraries.ex", __DIR__)
+)
+
 defmodule Gallformers.Credo.Checks.Architecture.NoMockingLibrariesTest do
   use Credo.Test.Case
 
