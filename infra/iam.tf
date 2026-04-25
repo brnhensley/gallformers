@@ -73,7 +73,7 @@ resource "aws_iam_policy" "gallformers_image_upload" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid    = "ApplicationBucketObjectAccess"
+        Sid    = "ImageBucketWrite"
         Effect = "Allow"
         Action = [
           "s3:GetObject",
@@ -86,7 +86,7 @@ resource "aws_iam_policy" "gallformers_image_upload" {
         ]
       },
       {
-        Sid    = "ApplicationBucketList"
+        Sid    = "ImageBucketList"
         Effect = "Allow"
         Action = [
           "s3:ListBucket",

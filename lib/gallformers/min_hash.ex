@@ -1,4 +1,4 @@
-defmodule Gallformers.IngestionPipeline.MinHash do
+defmodule Gallformers.MinHash do
   @moduledoc """
   Deterministic MinHash implementation for fuzzy duplicate detection.
   """

@@ -7,7 +7,7 @@ defmodule Gallformers.IngestionPipeline.Stages.Metadata do
 
   alias Gallformers.IngestionPipeline.Broadcaster
   alias Gallformers.IngestionPipeline.DuplicateSignals
-  alias Gallformers.IngestionPipeline.LLMClient
+  alias Gallformers.IngestionPipeline.Stages.LLMSupport
   alias Gallformers.IngestionPipeline.Storage
   alias Gallformers.Ingestions
   alias Gallformers.Ingestions.SourceIngestion
@@ -22,7 +22,7 @@ defmodule Gallformers.IngestionPipeline.Stages.Metadata do
   @impl true
   def perform_stage(%SourceIngestion{} = ingestion) do
     with {:ok, cleaned_text} <- Storage.download_artifact(ingestion.id, :llm_clean, "text.txt"),
-         prompt <- load_prompt(),
+         prompt <- LLMSupport.load_prompt!("metadata.txt"),
          truncated_text <- String.slice(cleaned_text, 0, @max_input_chars),
          {:ok, raw_response, metadata_attrs} <-
            extract_metadata(prompt, truncated_text),
@@ -67,7 +67,7 @@ defmodule Gallformers.IngestionPipeline.Stages.Metadata do
 
   defp parse_metadata(raw_response) do
     raw_response
-    |> strip_fenced_json()
+    |> LLMSupport.strip_fenced_json()
     |> Jason.decode()
     |> case do
       {:ok, decoded} -> cast_metadata(decoded)
@@ -104,24 +104,7 @@ defmodule Gallformers.IngestionPipeline.Stages.Metadata do
   defp cast_optional_integer(value) when is_integer(value), do: {:ok, value}
   defp cast_optional_integer(_value), do: {:error, :invalid_json}
 
-  defp strip_fenced_json(raw_response) do
-    case Regex.run(~r/```(?:json)?\s*\n(.*?)(?:\n?```|\z)/s, raw_response,
-           capture: :all_but_first
-         ) do
-      [json] -> String.trim(json)
-      _ -> String.trim(raw_response)
-    end
-  end
-
-  defp load_prompt do
-    [:code.priv_dir(:gallformers), "prompts", "metadata.txt"]
-    |> Path.join()
-    |> File.read!()
-  end
-
   defp llm_client do
-    :gallformers
-    |> Application.get_env(__MODULE__, [])
-    |> Keyword.get(:llm_client, LLMClient)
+    LLMSupport.llm_client(__MODULE__)
   end
 end

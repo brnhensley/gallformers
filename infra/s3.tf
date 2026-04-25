@@ -80,14 +80,6 @@ resource "aws_s3_bucket" "private" {
   }
 }
 
-resource "aws_s3_bucket_versioning" "private" {
-  bucket = aws_s3_bucket.private.id
-
-  versioning_configuration {
-    status = "Enabled"
-  }
-}
-
 resource "aws_s3_bucket_public_access_block" "private" {
   bucket = aws_s3_bucket.private.id
 

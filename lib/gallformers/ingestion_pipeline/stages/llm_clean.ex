@@ -7,6 +7,7 @@ defmodule Gallformers.IngestionPipeline.Stages.LLMClean do
 
   alias Gallformers.IngestionPipeline.Broadcaster
   alias Gallformers.IngestionPipeline.LLMClient
+  alias Gallformers.IngestionPipeline.Stages.LLMSupport
   alias Gallformers.IngestionPipeline.Storage
   alias Gallformers.Ingestions
   alias Gallformers.Ingestions.SourceIngestion
@@ -23,7 +24,7 @@ defmodule Gallformers.IngestionPipeline.Stages.LLMClean do
   def perform_stage(%SourceIngestion{} = ingestion) do
     with {:ok, preprocessed_text} <-
            Storage.download_artifact(ingestion.id, :preprocess, "text.txt"),
-         prompt <- load_prompt(),
+         prompt <- LLMSupport.load_prompt!("llm_clean.txt"),
          chunks <- LLMClient.chunk_text(preprocessed_text, @chunk_size),
          {:ok, cleaned_text} <- clean_chunks(prompt, chunks),
          {:ok, _artifact_path} <-
@@ -51,7 +52,7 @@ defmodule Gallformers.IngestionPipeline.Stages.LLMClean do
       ordered: true,
       timeout: @task_timeout
     )
-    |> Enum.reduce_while({:ok, []}, &reduce_chunk_result/2)
+    |> Enum.reduce_while({:ok, []}, &LLMSupport.reduce_async_result/2)
     |> case do
       {:ok, cleaned_chunks} -> {:ok, cleaned_chunks |> Enum.reverse() |> Enum.join("\n\n")}
       error -> error
@@ -66,21 +67,7 @@ defmodule Gallformers.IngestionPipeline.Stages.LLMClean do
     end
   end
 
-  defp reduce_chunk_result({:ok, {:ok, cleaned_chunk}}, {:ok, acc}),
-    do: {:cont, {:ok, [cleaned_chunk | acc]}}
-
-  defp reduce_chunk_result({:ok, {:error, reason}}, _acc), do: {:halt, {:error, reason}}
-  defp reduce_chunk_result({:exit, reason}, _acc), do: {:halt, {:error, reason}}
-
-  defp load_prompt do
-    [:code.priv_dir(:gallformers), "prompts", "llm_clean.txt"]
-    |> Path.join()
-    |> File.read!()
-  end
-
   defp llm_client do
-    :gallformers
-    |> Application.get_env(__MODULE__, [])
-    |> Keyword.get(:llm_client, LLMClient)
+    LLMSupport.llm_client(__MODULE__)
   end
 end

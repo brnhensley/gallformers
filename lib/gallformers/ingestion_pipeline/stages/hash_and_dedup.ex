@@ -7,10 +7,10 @@ defmodule Gallformers.IngestionPipeline.Stages.HashAndDedup do
 
   alias Gallformers.IngestionPipeline.Broadcaster
   alias Gallformers.IngestionPipeline.DuplicateDetection
-  alias Gallformers.IngestionPipeline.MinHash
   alias Gallformers.IngestionPipeline.Storage
   alias Gallformers.Ingestions
   alias Gallformers.Ingestions.SourceIngestion
+  alias Gallformers.MinHash
 
   @impl true
   def stage_name, do: :hash_and_dedup

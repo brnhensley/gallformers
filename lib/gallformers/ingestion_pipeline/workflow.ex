@@ -131,6 +131,8 @@ defmodule Gallformers.IngestionPipeline.Workflow do
     }
   }
 
+  @duplicate_detection_excluded_statuses ["duplicate_confirmed", "failed"]
+
   @doc """
   Returns the persisted workflow state tuple.
   """
@@ -163,6 +165,12 @@ defmodule Gallformers.IngestionPipeline.Workflow do
   def paused?({"needs_duplicate_review", "duplicate_review"}), do: true
   def paused?({_, _}), do: false
   def paused?(%{} = ingestion), do: ingestion |> state() |> paused?()
+
+  @doc """
+  Returns statuses that should be excluded from duplicate-detection candidate queries.
+  """
+  @spec duplicate_detection_excluded_statuses() :: [String.t()]
+  def duplicate_detection_excluded_statuses, do: @duplicate_detection_excluded_statuses
 
   @doc """
   Returns whether the ingestion is in a terminal persisted state.

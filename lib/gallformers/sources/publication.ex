@@ -45,6 +45,12 @@ defmodule Gallformers.Sources.Publication do
     "#{base_name}.md"
   end
 
+  # Filename algorithm:
+  # 1. lowercase the title
+  # 2. drop punctuation except underscores and hyphens
+  # 3. collapse runs of spaces/hyphens into a single underscore
+  # 4. collapse repeated underscores and trim them from the ends
+  # 5. cap the base name length and fall back to source_{id} if nothing remains
   defp normalize_title(title) when is_binary(title) do
     title
     |> String.downcase()

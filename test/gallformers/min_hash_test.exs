@@ -1,7 +1,7 @@
-defmodule Gallformers.IngestionPipeline.MinHashTest do
+defmodule Gallformers.MinHashTest do
   use ExUnit.Case, async: true
 
-  alias Gallformers.IngestionPipeline.MinHash
+  alias Gallformers.MinHash
 
   test "compute_signature/1 returns a deterministic 128-element signature" do
     text = "oak gall wasp larva inside spherical gall on stem with thick walls and many cells"

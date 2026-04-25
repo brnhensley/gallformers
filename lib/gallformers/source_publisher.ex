@@ -1,7 +1,11 @@
-defmodule Gallformers.Ingestions.Publication do
+defmodule Gallformers.SourcePublisher do
   @moduledoc """
   Bridges reviewed ingestions to published public source artifacts.
   """
+
+  use Boundary,
+    deps: [Gallformers.Ingestions, Gallformers.Sources, Gallformers.Storage],
+    exports: :all
 
   alias Gallformers.Ingestions
   alias Gallformers.Ingestions.SourceIngestion

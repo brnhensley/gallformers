@@ -1,8 +1,8 @@
-defmodule Gallformers.Ingestions.PublicationTest do
+defmodule Gallformers.SourcePublisherTest do
   use ExUnit.Case, async: false
 
-  alias Gallformers.Ingestions.Publication
   alias Gallformers.Ingestions.SourceIngestion
+  alias Gallformers.SourcePublisher
   alias Gallformers.Sources.Source
   alias Gallformers.Storage.SourceArtifacts
 
@@ -50,7 +50,7 @@ defmodule Gallformers.Ingestions.PublicationTest do
 
       Process.put({:object, private_bucket, private_path}, %{body: markdown})
 
-      assert {:ok, publication} = Publication.publish_markdown(source, ingestion)
+      assert {:ok, publication} = SourcePublisher.publish_markdown(source, ingestion)
 
       assert_received {:copy_object, ^public_bucket, "sources/7/gall_paper.md", ^private_bucket,
                        ^private_path}
@@ -74,10 +74,10 @@ defmodule Gallformers.Ingestions.PublicationTest do
       public_path = "sources/7/gall_paper.md"
 
       Process.put({:object, private_bucket, private_path}, %{body: "first"})
-      assert {:ok, first_publication} = Publication.publish_markdown(source, ingestion)
+      assert {:ok, first_publication} = SourcePublisher.publish_markdown(source, ingestion)
 
       Process.put({:object, private_bucket, private_path}, %{body: "second"})
-      assert {:ok, second_publication} = Publication.publish_markdown(source, ingestion)
+      assert {:ok, second_publication} = SourcePublisher.publish_markdown(source, ingestion)
 
       assert first_publication.path == public_path
       assert second_publication.path == public_path
@@ -89,14 +89,15 @@ defmodule Gallformers.Ingestions.PublicationTest do
       ingestion = %SourceIngestion{id: 88, artifacts_path: "source-ingestions/88"}
 
       assert {:error, :private_markdown_not_found} =
-               Publication.publish_markdown(source, ingestion)
+               SourcePublisher.publish_markdown(source, ingestion)
     end
 
     test "fails clearly when the ingestion has no artifacts path" do
       source = %Source{id: 7, title: "Gall Paper"}
       ingestion = %SourceIngestion{id: 88, artifacts_path: nil}
 
-      assert {:error, :missing_artifacts_path} = Publication.publish_markdown(source, ingestion)
+      assert {:error, :missing_artifacts_path} =
+               SourcePublisher.publish_markdown(source, ingestion)
     end
   end
 end

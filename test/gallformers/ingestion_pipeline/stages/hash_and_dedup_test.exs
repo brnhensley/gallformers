@@ -2,10 +2,10 @@ defmodule Gallformers.IngestionPipeline.Stages.HashAndDedupTest do
   use Gallformers.DataCase, async: false
 
   alias Gallformers.IngestionPipeline.Broadcaster
-  alias Gallformers.IngestionPipeline.MinHash
   alias Gallformers.IngestionPipeline.Stages.HashAndDedup
   alias Gallformers.IngestionPipeline.Storage
   alias Gallformers.Ingestions
+  alias Gallformers.MinHash
 
   defmodule StorageBackendStub do
     @behaviour Gallformers.IngestionPipeline.Storage.Backend

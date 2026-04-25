@@ -8,6 +8,7 @@ defmodule Gallformers.IngestionPipeline.Stages.DataExtract do
   alias Gallformers.IngestionPipeline.Broadcaster
   alias Gallformers.IngestionPipeline.LLMClient
   alias Gallformers.IngestionPipeline.Schema
+  alias Gallformers.IngestionPipeline.Stages.LLMSupport
   alias Gallformers.IngestionPipeline.Storage
   alias Gallformers.Ingestions
   alias Gallformers.Ingestions.SourceIngestion
@@ -53,7 +54,7 @@ defmodule Gallformers.IngestionPipeline.Stages.DataExtract do
       ordered: true,
       timeout: @task_timeout
     )
-    |> Enum.reduce_while({:ok, []}, &reduce_chunk_result/2)
+    |> Enum.reduce_while({:ok, []}, &LLMSupport.reduce_async_result/2)
     |> case do
       {:ok, chunk_records} ->
         {:ok, chunk_records |> Enum.reverse() |> List.flatten()}
@@ -62,12 +63,6 @@ defmodule Gallformers.IngestionPipeline.Stages.DataExtract do
         error
     end
   end
-
-  defp reduce_chunk_result({:ok, {:ok, records}}, {:ok, acc}),
-    do: {:cont, {:ok, [records | acc]}}
-
-  defp reduce_chunk_result({:ok, {:error, reason}}, _acc), do: {:halt, {:error, reason}}
-  defp reduce_chunk_result({:exit, reason}, _acc), do: {:halt, {:error, reason}}
 
   defp extract_chunk(prompt, chunk, attempts_remaining \\ @json_attempts)
 
@@ -97,19 +92,12 @@ defmodule Gallformers.IngestionPipeline.Stages.DataExtract do
 
   defp parse_json_response(response) do
     response
-    |> strip_fenced_json()
+    |> LLMSupport.strip_fenced_json()
     |> trim_to_json_array()
     |> Jason.decode()
     |> case do
       {:ok, records} when is_list(records) -> {:ok, records}
       _ -> {:error, :invalid_json}
-    end
-  end
-
-  defp strip_fenced_json(response) do
-    case Regex.run(~r/```(?:json)?\s*\n(.*?)(?:\n?```|\z)/s, response, capture: :all_but_first) do
-      [json] -> String.trim(json)
-      _ -> String.trim(response)
     end
   end
 
@@ -124,16 +112,11 @@ defmodule Gallformers.IngestionPipeline.Stages.DataExtract do
   end
 
   defp load_prompt(schema_module) do
-    [:code.priv_dir(:gallformers), "prompts", "data_extract.txt"]
-    |> Path.join()
-    |> File.read!()
-    |> String.replace("{{SCHEMA}}", schema_module.prompt_text())
+    LLMSupport.load_prompt!("data_extract.txt", %{"SCHEMA" => schema_module.prompt_text()})
   end
 
   defp llm_client do
-    :gallformers
-    |> Application.get_env(__MODULE__, [])
-    |> Keyword.get(:llm_client, LLMClient)
+    LLMSupport.llm_client(__MODULE__)
   end
 
   defp schema_module do

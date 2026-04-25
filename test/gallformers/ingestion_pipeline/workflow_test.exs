@@ -60,6 +60,13 @@ defmodule Gallformers.IngestionPipeline.WorkflowTest do
     assert Workflow.next_stage({"failed", "failed"}) == :terminal
   end
 
+  test "duplicate detection exclusion statuses are workflow-owned" do
+    assert Workflow.duplicate_detection_excluded_statuses() == [
+             "duplicate_confirmed",
+             "failed"
+           ]
+  end
+
   test "transition_attrs resolves normal success checkpoints" do
     assert Workflow.transition_attrs({"processing", "submitted"}, :extract_succeeded) ==
              {:ok, %{status: "processing", processing_stage: "extract"}}

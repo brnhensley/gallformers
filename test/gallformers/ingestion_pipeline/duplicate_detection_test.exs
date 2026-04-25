@@ -2,8 +2,8 @@ defmodule Gallformers.IngestionPipeline.DuplicateDetectionTest do
   use Gallformers.DataCase, async: false
 
   alias Gallformers.IngestionPipeline.DuplicateDetection
-  alias Gallformers.IngestionPipeline.MinHash
   alias Gallformers.Ingestions
+  alias Gallformers.MinHash
 
   test "exact raw input sha match returns an exact duplicate" do
     candidate =

@@ -4,16 +4,20 @@ defmodule Gallformers.IngestionPipeline.DuplicateDetection do
   """
 
   use Boundary,
-    deps: [Gallformers.Ingestions, Gallformers.Repo, Gallformers.IngestionPipeline.MinHash],
+    deps: [
+      Gallformers.Ingestions,
+      Gallformers.Repo,
+      Gallformers.MinHash,
+      Gallformers.IngestionPipeline.Workflow
+    ],
     exports: :all
 
   import Ecto.Query
 
-  alias Gallformers.IngestionPipeline.MinHash
+  alias Gallformers.IngestionPipeline.Workflow
   alias Gallformers.Ingestions.SourceIngestion
+  alias Gallformers.MinHash
   alias Gallformers.Repo
-
-  @terminal_statuses ["duplicate_confirmed", "failed"]
   @minhash_fallback_limit 200
 
   @type evidence :: map()
@@ -223,7 +227,7 @@ defmodule Gallformers.IngestionPipeline.DuplicateDetection do
     |> where(
       [source_ingestion],
       source_ingestion.id != ^ingestion_id and
-        source_ingestion.status not in ^@terminal_statuses
+        source_ingestion.status not in ^Workflow.duplicate_detection_excluded_statuses()
     )
   end
 

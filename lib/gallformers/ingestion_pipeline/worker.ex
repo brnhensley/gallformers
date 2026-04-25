@@ -3,6 +3,8 @@ defmodule Gallformers.IngestionPipeline.Worker do
   Oban orchestrator for the source ingestion pipeline.
   """
 
+  require Logger
+
   use Boundary,
     deps: [
       Gallformers.Ingestions,
@@ -86,6 +88,15 @@ defmodule Gallformers.IngestionPipeline.Worker do
     stage = module.stage_name()
 
     if final_attempt?(job) do
+      Logger.error(
+        "Source ingestion stage failed permanently",
+        ingestion_id: ingestion.id,
+        stage: stage,
+        attempt: job.attempt,
+        max_attempts: job.max_attempts,
+        reason: inspect(reason)
+      )
+
       case ingestions_module().transition_source_ingestion_workflow(
              ingestion,
              {:stage_failed, stage, reason}
@@ -95,15 +106,52 @@ defmodule Gallformers.IngestionPipeline.Worker do
           {:error, reason}
 
         {:error, :invalid_transition} ->
+          Logger.error(
+            "Source ingestion failure transition was invalid",
+            ingestion_id: ingestion.id,
+            stage: stage,
+            attempt: job.attempt,
+            max_attempts: job.max_attempts,
+            reason: inspect(reason)
+          )
+
           {:error, :invalid_transition}
 
         {:error, :invalid_state} ->
+          Logger.error(
+            "Source ingestion failure transition saw invalid state",
+            ingestion_id: ingestion.id,
+            stage: stage,
+            attempt: job.attempt,
+            max_attempts: job.max_attempts,
+            reason: inspect(reason)
+          )
+
           {:error, :invalid_state}
 
         {:error, changeset} ->
+          Logger.error(
+            "Source ingestion failure transition changeset error",
+            ingestion_id: ingestion.id,
+            stage: stage,
+            attempt: job.attempt,
+            max_attempts: job.max_attempts,
+            reason: inspect(reason),
+            changeset_errors: inspect(changeset.errors)
+          )
+
           {:error, changeset}
       end
     else
+      Logger.warning(
+        "Source ingestion stage failed and will retry",
+        ingestion_id: ingestion.id,
+        stage: stage,
+        attempt: job.attempt,
+        max_attempts: job.max_attempts,
+        reason: inspect(reason)
+      )
+
       {:error, reason}
     end
   end
