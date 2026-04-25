@@ -1,9 +1,8 @@
 ---
 status: raw
 created: 2026-03-17
-updated: 2026-03-17
+updated: 2026-04-25
 epic: postgres
-relates: [973c]
 ---
 
 # Preview Postgres setup with WCVP data
@@ -16,4 +15,3 @@ Includes:
 - Load WCVP data via pg_restore from the S3 dump artifact
 - Restore the main gallformers data for preview use
 - Update runbooks/preview procedures
-

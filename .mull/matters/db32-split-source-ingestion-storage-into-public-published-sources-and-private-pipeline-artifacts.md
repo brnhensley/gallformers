@@ -3,7 +3,6 @@ status: planned
 created: 2026-04-25
 updated: 2026-04-25
 epic: ingestion
-relates: [a80e]
 parent: 7fda
 ---
 
@@ -242,4 +241,3 @@ The following storage and ingestion pieces already exist and should be refactore
 - publication copies final markdown from private pipeline storage to the public `sources/` namespace without a second normalization pass
 - the application storage API clearly distinguishes private pipeline artifacts from public published-source artifacts
 - the implementation supports v1 markdown publication without preventing future public source derivatives from being added under `sources/`
-

@@ -1,10 +1,9 @@
 ---
 status: refined
 created: 2026-03-22
-updated: 2026-04-21
+updated: 2026-04-25
 epic: ingestion
-relates: [7fda, c836, 881c, 7c67]
-needs: [c836, 881c]
+relates: [7fda, 7c67]
 ---
 
 # Source ingestion review UI design

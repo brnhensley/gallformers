@@ -2,9 +2,8 @@
 status: refined
 effort: 2 days
 created: 2026-02-18
-updated: 2026-02-19
+updated: 2026-04-25
 epic: platform
-relates: [1edb, 5323, 4474]
 ---
 
 # Observability and metrics infrastructure

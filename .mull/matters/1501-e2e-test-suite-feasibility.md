@@ -2,9 +2,8 @@
 status: raw
 effort: 2 hours
 created: 2026-02-13
-updated: 2026-03-25
+updated: 2026-04-25
 epic: platform
-relates: [4474, 7000]
 ---
 
 # E2E test suite feasibility

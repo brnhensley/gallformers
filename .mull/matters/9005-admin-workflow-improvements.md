@@ -1,9 +1,9 @@
 ---
 status: raw
 created: 2026-02-13
-updated: 2026-03-04
+updated: 2026-04-25
 epic: admin
-relates: [f554, 8ba0, 1db6]
+relates: [8ba0]
 ---
 
 # Admin workflow improvements
@@ -18,4 +18,3 @@ relates: [f554, 8ba0, 1db6]
 - Checklist/progress indicator showing what's been completed vs. missing
 - "Next step" prompts after completing each admin action
 - Data completeness indicator on admin pages (already have `data_complete_badge` component — could expand)
-

@@ -1,9 +1,9 @@
 ---
 status: refined
 created: 2026-02-18
-updated: 2026-04-15
+updated: 2026-04-25
 epic: platform
-relates: [1edb, 8ae6, 8c5c, 8166]
+relates: [8c5c, 8166]
 ---
 
 # Audit LiveView usage — convert read-only pages to controllers

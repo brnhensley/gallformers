@@ -1,11 +1,10 @@
 ---
 status: raw
 created: 2026-02-13
-updated: 2026-02-17
+updated: 2026-04-25
 epic: identification
-relates: [0f79, 4c24]
+relates: [4c24]
 blocks: [4c24]
-needs: [0f79]
 ---
 
 # Mobile-first ID tool

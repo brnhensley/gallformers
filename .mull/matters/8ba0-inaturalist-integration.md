@@ -1,10 +1,9 @@
 ---
 status: raw
 created: 2026-02-13
-updated: 2026-02-18
+updated: 2026-04-25
 epic: idea-bucket
 relates: [9005]
-needs: [2708]
 ---
 
 # iNaturalist integration

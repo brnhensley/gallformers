@@ -1,9 +1,8 @@
 ---
 status: raw
 created: 2026-03-17
-updated: 2026-03-17
+updated: 2026-04-25
 epic: postgres
-relates: [973c]
 ---
 
 # WCVP worker machine for automated refresh and heavy operations
@@ -19,4 +18,3 @@ Dedicated temp Fly machine (or GH Action) for heavy WCVP operations:
 Generalizes beyond WCVP to any heavy operation we don't want on the app server (bulk range syncs, analytics rollups, data imports). Good fit for Elixir/Erlang distributed processing roots.
 
 Depends on 973c (WCVP Postgres migration) being complete first.
-

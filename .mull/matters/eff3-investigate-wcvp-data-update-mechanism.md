@@ -1,9 +1,8 @@
 ---
 status: raw
 created: 2026-03-13
-updated: 2026-03-13
+updated: 2026-04-25
 epic: platform
-relates: [4474]
 ---
 
 # Investigate WCVP data update mechanism
@@ -37,4 +36,3 @@ RUN mkdir -p /app/data && \
 ```
 
 When WCVP is updated on S3, pass `--build-arg WCVP_VERSION=<new>` to bust the cache. Without it, the default value matches and Docker reuses the cached layer. Applies to both Dockerfile and Dockerfile.preview.
-
