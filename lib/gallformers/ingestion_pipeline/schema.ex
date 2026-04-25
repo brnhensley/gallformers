@@ -8,25 +8,9 @@ defmodule Gallformers.IngestionPipeline.Schema do
 
   @schema_path "gall_record.json"
 
-  @trait_vocab_definitions %{
-    shape: "shape_vocab",
-    color: "color_vocab",
-    texture: "texture_vocab",
-    walls: "walls_vocab",
-    cells: "cells_vocab",
-    alignment: "alignment_vocab",
-    plant_part: "plant_part_vocab",
-    form: "form_vocab",
-    season: "season_vocab",
-    detachable: "detachable_vocab"
-  }
-
-  defp load do
-    [:code.priv_dir(:gallformers), "schemas", @schema_path]
-    |> Path.join()
-    |> File.read!()
-    |> Jason.decode!()
-  end
+  # Prompt order is presentation-only. The contract itself comes from the schema file.
+  @prompt_field_order ~w(gall_species host_species traits description location confidence)
+  @prompt_trait_order ~w(shape color texture walls cells alignment plant_part form season detachable)
 
   @doc """
   Render a human-readable prompt description of the gall record contract.
@@ -36,31 +20,14 @@ defmodule Gallformers.IngestionPipeline.Schema do
   """
   @spec prompt_text() :: String.t()
   def prompt_text do
-    vocabs = trait_vocabs()
+    schema = load()
 
     """
     ## Data Schema
 
     Produce one JSON object per gall-host association with these fields:
 
-    - "gall_species": {"name": "Genus species", "authority": "Author", "family": "Family", "order": "Order"}
-    - "host_species": {"name": "Genus species", "authority": "Author", "family": "Family"}
-    - "traits": an object with the following keys. Each trait (except detachable) has
-      "original" (exact text from source, or null) and "suggested" (list of closest matches
-      from the vocabulary below, or empty list):
-        - "shape": #{Enum.join(vocabs.shape, ", ")}
-        - "color": #{Enum.join(vocabs.color, ", ")}
-        - "texture": #{Enum.join(vocabs.texture, ", ")}
-        - "walls": #{Enum.join(vocabs.walls, ", ")}
-        - "cells": #{Enum.join(vocabs.cells, ", ")}
-        - "alignment": #{Enum.join(vocabs.alignment, ", ")}
-        - "plant_part": #{Enum.join(vocabs.plant_part, ", ")}
-        - "form": #{Enum.join(vocabs.form, ", ")}
-        - "season": #{Enum.join(vocabs.season, ", ")}
-        - "detachable": one of #{Enum.join(vocabs.detachable, ", ")}
-    - "description": full morphological description text from the source
-    - "location": collection locality if mentioned, or null
-    - "confidence": your confidence in the extraction accuracy, 0.0 to 1.0
+    #{schema_prompt_body(schema)}
     """
   end
 
@@ -71,12 +38,13 @@ defmodule Gallformers.IngestionPipeline.Schema do
   """
   @spec validate([map()]) :: {:ok, [map()]} | {:error, :invalid_contract, [String.t()]}
   def validate(records) when is_list(records) do
-    schema = resolved_schema()
+    raw_schema = load()
+    schema = ExJsonSchema.Schema.resolve(raw_schema)
 
     records
     |> Enum.with_index()
     |> Enum.reduce_while({:ok, []}, fn {record, idx}, {:ok, acc} ->
-      errors = schema_errors(schema, record, idx) ++ vocabulary_errors(record, idx)
+      errors = schema_errors(schema, record, idx) ++ vocabulary_errors(record, idx, raw_schema)
 
       if errors == [] do
         {:cont, {:ok, [record | acc]}}
@@ -92,16 +60,78 @@ defmodule Gallformers.IngestionPipeline.Schema do
 
   def validate(_), do: {:error, :invalid_contract, ["Expected a list of records"]}
 
-  defp trait_vocabs do
-    Enum.into(@trait_vocab_definitions, %{}, fn {trait, definition_name} ->
-      {trait, schema_vocab(definition_name)}
-    end)
+  defp load do
+    [:code.priv_dir(:gallformers), "schemas", @schema_path]
+    |> Path.join()
+    |> File.read!()
+    |> Jason.decode!()
   end
 
-  defp resolved_schema do
-    load()
-    |> ExJsonSchema.Schema.resolve()
+  defp schema_prompt_body(schema) do
+    schema
+    |> prompt_properties()
+    |> Enum.map_join("\n", &prompt_line(&1, schema))
   end
+
+  defp prompt_properties(schema) do
+    properties = Map.fetch!(schema, "properties")
+
+    @prompt_field_order
+    |> Enum.map(fn field_name -> {field_name, Map.fetch!(properties, field_name)} end)
+  end
+
+  defp prompt_line({"gall_species", property_schema}, _schema) do
+    ~s(- "gall_species": object with keys #{quoted_keys(property_schema)})
+  end
+
+  defp prompt_line({"host_species", property_schema}, _schema) do
+    ~s(- "host_species": object with keys #{quoted_keys(property_schema)})
+  end
+
+  defp prompt_line({"traits", property_schema}, schema) do
+    trait_lines =
+      property_schema
+      |> Map.fetch!("properties")
+      |> prompt_traits(schema)
+
+    """
+    - "traits": object with the following keys:
+      #{trait_lines}
+    """
+    |> String.trim_trailing()
+  end
+
+  defp prompt_line({field_name, %{"description" => description}}, _schema) do
+    ~s(- "#{field_name}": #{decapitalize(description)})
+  end
+
+  defp prompt_traits(trait_properties, schema) do
+    @prompt_trait_order
+    |> Enum.map(fn trait_name -> {trait_name, Map.fetch!(trait_properties, trait_name)} end)
+    |> Enum.map_join("\n      ", &prompt_trait_line(&1, schema))
+  end
+
+  defp prompt_trait_line({trait_name, %{"$ref" => _} = trait_schema}, schema) do
+    ~s|- "#{trait_name}": object with "original" (exact text from source, or null) and "suggested" (list of closest matches from: | <>
+      "#{Enum.join(trait_vocab(trait_name, trait_schema, schema), ", ")}, or empty list)"
+  end
+
+  defp prompt_trait_line({trait_name, trait_schema}, schema) do
+    "- \"#{trait_name}\": one of #{Enum.join(trait_vocab(trait_name, trait_schema, schema), ", ")} or null"
+  end
+
+  defp quoted_keys(property_schema) do
+    property_schema
+    |> Map.fetch!("properties")
+    |> Map.keys()
+    |> Enum.map_join(", ", &~s("#{&1}"))
+  end
+
+  defp decapitalize(<<first::utf8, rest::binary>>) do
+    String.downcase(<<first::utf8>>) <> rest
+  end
+
+  defp decapitalize(""), do: ""
 
   defp schema_errors(schema, record, idx) do
     case ExJsonSchema.Validator.validate(schema, record) do
@@ -113,8 +143,9 @@ defmodule Gallformers.IngestionPipeline.Schema do
     end
   end
 
-  defp vocabulary_errors(record, idx) do
-    trait_vocabs()
+  defp vocabulary_errors(record, idx, raw_schema) do
+    raw_schema
+    |> trait_vocabs()
     |> Map.delete(:detachable)
     |> Enum.flat_map(fn {trait_name, vocab} ->
       record
@@ -123,15 +154,24 @@ defmodule Gallformers.IngestionPipeline.Schema do
     end)
   end
 
-  defp schema_vocab("detachable_vocab") do
-    load()
-    |> get_in(["properties", "traits", "properties", "detachable", "enum"])
-    |> Enum.reject(&is_nil/1)
+  defp trait_vocabs(raw_schema) do
+    raw_schema
+    |> get_in(["properties", "traits", "properties"])
+    |> Enum.into(%{}, fn {trait_name, trait_schema} ->
+      {String.to_atom(trait_name), trait_vocab(trait_name, trait_schema, raw_schema)}
+    end)
   end
 
-  defp schema_vocab(definition_name) do
-    load()
-    |> get_in(["definitions", definition_name, "enum"]) || []
+  defp trait_vocab(_trait_name, %{"enum" => enum}, _raw_schema) when is_list(enum) do
+    Enum.reject(enum, &is_nil/1)
+  end
+
+  defp trait_vocab(trait_name, %{"$ref" => _ref}, raw_schema) do
+    definition_name = "#{trait_name}_vocab"
+
+    raw_schema
+    |> get_in(["definitions", definition_name, "enum"])
+    |> List.wrap()
   end
 
   defp format_schema_error(idx, {message, path}) do
