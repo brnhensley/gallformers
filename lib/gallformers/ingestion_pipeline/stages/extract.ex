@@ -7,7 +7,7 @@ defmodule Gallformers.IngestionPipeline.Stages.Extract do
 
   require Logger
 
-  alias Gallformers.IngestionPipeline.PythonPort
+  alias Gallformers.IngestionPipeline.Stages.Extract.PythonExtractor
   alias Gallformers.IngestionPipeline.Storage
   alias Gallformers.Ingestions
   alias Gallformers.Ingestions.SourceIngestion
@@ -22,7 +22,7 @@ defmodule Gallformers.IngestionPipeline.Stages.Extract do
     try do
       with {:ok, input_pdf} <- download_input_pdf(ingestion),
            :ok <- File.write(temp_file_path, input_pdf),
-           {:ok, result} <- python_port().extract_text(temp_file_path, ocr_fallback: false),
+           {:ok, result} <- extractor().extract_text(temp_file_path, ocr_fallback: false),
            {:ok, _artifact_path} <-
              Storage.upload_artifact(
                ingestion.id,
@@ -62,9 +62,9 @@ defmodule Gallformers.IngestionPipeline.Stages.Extract do
     :ok
   end
 
-  defp python_port do
+  defp extractor do
     :gallformers
     |> Application.get_env(__MODULE__, [])
-    |> Keyword.get(:python_port, PythonPort)
+    |> Keyword.get(:extractor, PythonExtractor)
   end
 end

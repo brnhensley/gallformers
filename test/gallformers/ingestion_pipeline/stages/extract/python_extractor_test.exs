@@ -1,16 +1,16 @@
-defmodule Gallformers.IngestionPipeline.PythonPortTest do
+defmodule Gallformers.IngestionPipeline.Stages.Extract.PythonExtractorTest do
   use ExUnit.Case, async: false
 
-  alias Gallformers.IngestionPipeline.PythonPort
+  alias Gallformers.IngestionPipeline.Stages.Extract.PythonExtractor
 
   setup do
-    previous_config = Application.get_env(:gallformers, PythonPort)
+    previous_config = Application.get_env(:gallformers, PythonExtractor)
 
     on_exit(fn ->
       if previous_config == nil do
-        Application.delete_env(:gallformers, PythonPort)
+        Application.delete_env(:gallformers, PythonExtractor)
       else
-        Application.put_env(:gallformers, PythonPort, previous_config)
+        Application.put_env(:gallformers, PythonExtractor, previous_config)
       end
     end)
 
@@ -18,7 +18,7 @@ defmodule Gallformers.IngestionPipeline.PythonPortTest do
   end
 
   describe "extract_text/2" do
-    test "spawns the port runner and returns extracted text for a sample pdf fixture" do
+    test "spawns the extractor through uv and returns extracted text for a sample pdf fixture" do
       tmp_dir = tmp_dir!()
       pdf_path = write_sample_pdf(tmp_dir, "sample.pdf")
       fake_modules_dir = write_fake_python_modules(tmp_dir)
@@ -26,7 +26,21 @@ defmodule Gallformers.IngestionPipeline.PythonPortTest do
 
       put_config(uv_executable: fake_uv)
 
-      assert {:ok, result} = PythonPort.extract_text(pdf_path)
+      assert {:ok, result} = PythonExtractor.extract_text(pdf_path)
+      assert result.text == "markdown::sample.pdf"
+      assert result.page_count == 2
+      assert result.metadata == %{"title" => "Fixture PDF"}
+    end
+
+    test "uses a configured python executable when available" do
+      tmp_dir = tmp_dir!()
+      pdf_path = write_sample_pdf(tmp_dir, "sample.pdf")
+      fake_modules_dir = write_fake_python_modules(tmp_dir)
+      fake_python = write_python_wrapper(tmp_dir)
+
+      put_config(python_executable: fake_python, python_path: fake_modules_dir)
+
+      assert {:ok, result} = PythonExtractor.extract_text(pdf_path)
       assert result.text == "markdown::sample.pdf"
       assert result.page_count == 2
       assert result.metadata == %{"title" => "Fixture PDF"}
@@ -39,7 +53,7 @@ defmodule Gallformers.IngestionPipeline.PythonPortTest do
       put_config(uv_executable: fake_uv, timeout_ms: 25)
 
       assert {:error, :extraction_failed, :timeout} =
-               PythonPort.extract_text("/tmp/never-used.pdf")
+               PythonExtractor.extract_text("/tmp/never-used.pdf")
     end
 
     test "returns extraction_failed when the Python process exits non-zero" do
@@ -49,7 +63,7 @@ defmodule Gallformers.IngestionPipeline.PythonPortTest do
       put_config(uv_executable: fake_uv)
 
       assert {:error, :extraction_failed, %{exit_status: 1, output: output}} =
-               PythonPort.extract_text("/tmp/error.pdf")
+               PythonExtractor.extract_text("/tmp/error.pdf")
 
       assert output =~ ~s({"error":"boom"})
     end
@@ -62,7 +76,7 @@ defmodule Gallformers.IngestionPipeline.PythonPortTest do
 
       put_config(uv_executable: fake_uv)
 
-      assert {:ok, result} = PythonPort.extract_text(pdf_path, ocr_fallback: true)
+      assert {:ok, result} = PythonExtractor.extract_text(pdf_path, ocr_fallback: true)
       assert result.text == "ocr page 1\n\nocr page 2"
       assert result.page_count == 2
     end
@@ -74,12 +88,14 @@ defmodule Gallformers.IngestionPipeline.PythonPortTest do
       put_config(uv_executable: fake_uv)
 
       assert {:error, :invalid_response, "not-json\n"} =
-               PythonPort.extract_text("/tmp/invalid.pdf")
+               PythonExtractor.extract_text("/tmp/invalid.pdf")
     end
   end
 
   defp tmp_dir! do
-    dir = Path.join(System.tmp_dir!(), "python_port_test_#{System.unique_integer([:positive])}")
+    dir =
+      Path.join(System.tmp_dir!(), "python_extractor_test_#{System.unique_integer([:positive])}")
+
     File.mkdir_p!(dir)
     dir
   end
@@ -101,19 +117,31 @@ defmodule Gallformers.IngestionPipeline.PythonPortTest do
   end
 
   defp write_python_uv_wrapper(tmp_dir, fake_modules_dir) do
-    python_executable = System.find_executable("python3") || System.find_executable("python")
+    python_executable = system_python_executable!()
     path = Path.join(tmp_dir, "uv")
-
-    if is_nil(python_executable) do
-      raise "python executable not found for PythonPort test"
-    end
 
     File.write!(
       path,
       """
       #!/bin/sh
       export PYTHONPATH="#{fake_modules_dir}${PYTHONPATH:+:$PYTHONPATH}"
-      exec "#{python_executable}" extraction_port.py
+      exec "#{python_executable}" pdf_text_extractor.py
+      """
+    )
+
+    File.chmod!(path, 0o755)
+    path
+  end
+
+  defp write_python_wrapper(tmp_dir) do
+    python_executable = system_python_executable!()
+    path = Path.join(tmp_dir, "python-wrapper")
+
+    File.write!(
+      path,
+      """
+      #!/bin/sh
+      exec "#{python_executable}" "$@"
       """
     )
 
@@ -206,7 +234,13 @@ defmodule Gallformers.IngestionPipeline.PythonPortTest do
     """
   end
 
+  defp system_python_executable! do
+    System.find_executable("python3") ||
+      System.find_executable("python") ||
+      raise "python executable not found for PythonExtractor test"
+  end
+
   defp put_config(opts) do
-    Application.put_env(:gallformers, PythonPort, opts)
+    Application.put_env(:gallformers, PythonExtractor, opts)
   end
 end

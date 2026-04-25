@@ -71,7 +71,7 @@ defmodule Gallformers.IngestionPipeline.FullPipelineTest do
     end
   end
 
-  defmodule PythonPortStub do
+  defmodule ExtractorStub do
     def extract_text(file_path, _opts) do
       pdf_body = File.read!(file_path)
 
@@ -125,7 +125,7 @@ defmodule Gallformers.IngestionPipeline.FullPipelineTest do
 
     Application.put_env(:gallformers, __MODULE__, state_pid: state_pid)
     Application.put_env(:gallformers, Storage, backend: StorageBackendStub)
-    Application.put_env(:gallformers, Extract, python_port: PythonPortStub)
+    Application.put_env(:gallformers, Extract, extractor: ExtractorStub)
     Application.put_env(:gallformers, LLMClean, llm_client: LLMClientStub)
     Application.put_env(:gallformers, Metadata, llm_client: LLMClientStub)
     Application.put_env(:gallformers, DataExtract, llm_client: LLMClientStub)

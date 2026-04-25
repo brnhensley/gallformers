@@ -1,5 +1,5 @@
 ---
-status: raw
+status: done
 created: 2026-04-25
 updated: 2026-04-25
 epic: source-ingestion
@@ -35,3 +35,20 @@ This makes the implementation detail (`Port`) part of the public shape of the co
 - This is an architecture and operability follow-up, not an ingestion-lock follow-up.
 - The deployment/runtime support gap is the highest-risk item in this set.
 
+Implemented the extraction adapter follow-up.
+
+Decisions captured in code:
+- Renamed the Elixir adapter from `Gallformers.IngestionPipeline.PythonPort` to `Gallformers.IngestionPipeline.Stages.Extract.PythonExtractor` so the boundary is owned by the extract stage and named for extraction responsibility rather than the Erlang transport.
+- Renamed the Python entrypoint from `priv/python/extraction_port.py` to `priv/python/pdf_text_extractor.py`.
+- Updated the extract stage config seam from `:python_port` to `:extractor`.
+- Kept `uv` as a local-development fallback, but production/preview release images no longer depend on `uv` being present at runtime.
+
+Runtime/deploy support:
+- Both `Dockerfile` and `Dockerfile.preview` now install `python3` in the runtime image.
+- Both builder stages vendor the Python extraction dependencies into `priv/python/vendor` with `pip install --target ... /app/priv/python` during image build.
+- The extractor prefers an explicitly configured Python executable, then a runtime Python + vendored dependency path, and only falls back to `uv run` when no vendored runtime is present.
+
+Verification:
+- `mix compile --warnings-as-errors`
+- targeted extraction tests
+- `mix precommit` (passed)

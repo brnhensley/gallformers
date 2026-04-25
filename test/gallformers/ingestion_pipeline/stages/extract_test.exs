@@ -30,12 +30,12 @@ defmodule Gallformers.IngestionPipeline.Stages.ExtractTest do
     defp test_pid, do: Process.get(:extract_test_pid, self())
   end
 
-  defmodule PythonPortStub do
+  defmodule ExtractorStub do
     def extract_text(file_path, opts) do
-      send(test_pid(), {:python_extract, file_path, opts, File.read!(file_path)})
+      send(test_pid(), {:extractor_extract, file_path, opts, File.read!(file_path)})
 
       Process.get(
-        :python_port_result,
+        :extractor_result,
         {:ok, %{text: "extracted text", page_count: 2, metadata: %{}}}
       )
     end
@@ -49,7 +49,7 @@ defmodule Gallformers.IngestionPipeline.Stages.ExtractTest do
 
     Process.put(:extract_test_pid, self())
     Application.put_env(:gallformers, Storage, backend: StorageBackendStub)
-    Application.put_env(:gallformers, Extract, python_port: PythonPortStub)
+    Application.put_env(:gallformers, Extract, extractor: ExtractorStub)
 
     on_exit(fn ->
       Process.delete(:extract_test_pid)
@@ -80,7 +80,7 @@ defmodule Gallformers.IngestionPipeline.Stages.ExtractTest do
 
       assert_received {:get_object, _, ^input_path}
 
-      assert_received {:python_extract, temp_file_path, [ocr_fallback: false],
+      assert_received {:extractor_extract, temp_file_path, [ocr_fallback: false],
                        "%PDF-1.4\nfixture\n"}
 
       refute File.exists?(temp_file_path)
@@ -91,9 +91,9 @@ defmodule Gallformers.IngestionPipeline.Stages.ExtractTest do
       assert updated_ingestion.status == "processing"
     end
 
-    test "returns python port errors without updating the ingestion" do
+    test "returns extractor errors without updating the ingestion" do
       ingestion = source_ingestion_fixture()
-      Process.put(:python_port_result, {:error, :extraction_failed, :boom})
+      Process.put(:extractor_result, {:error, :extraction_failed, :boom})
 
       assert {:error, :extraction_failed, :boom} = Extract.perform_stage(ingestion)
 

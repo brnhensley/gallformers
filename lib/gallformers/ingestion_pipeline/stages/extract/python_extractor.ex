@@ -1,11 +1,13 @@
-defmodule Gallformers.IngestionPipeline.PythonPort do
+defmodule Gallformers.IngestionPipeline.Stages.Extract.PythonExtractor do
   @moduledoc """
-  Runs the narrow Python PDF extraction script through an Erlang Port.
+  Runs the Python-backed PDF text extractor in an external process.
   """
 
   use Boundary, deps: [], exports: :all
 
   @default_timeout_ms 120_000
+  @script_name "pdf_text_extractor.py"
+  @vendor_dir_name "vendor"
 
   @type extraction_result :: %{
           text: String.t(),
@@ -13,16 +15,22 @@ defmodule Gallformers.IngestionPipeline.PythonPort do
           metadata: map()
         }
 
+  @type runner :: %{
+          executable: String.t(),
+          args: [String.t()],
+          env: [{charlist(), charlist()}]
+        }
+
   @doc """
-  Extracts text from a PDF through the Python port.
+  Extracts text from a PDF through the Python-backed extractor.
   """
   @spec extract_text(Path.t(), keyword()) ::
           {:ok, extraction_result()}
           | {:error, :extraction_failed, term()}
           | {:error, :invalid_response, binary()}
   def extract_text(file_path, opts \\ []) when is_binary(file_path) and is_list(opts) do
-    with {:ok, uv_executable} <- find_uv_executable(),
-         {:ok, port} <- open_port(uv_executable),
+    with {:ok, runner} <- find_runner(),
+         {:ok, port} <- open_port(runner),
          :ok <- send_request(port, file_path, opts) do
       collect_response(port, "", timeout_ms())
     end
@@ -39,24 +47,72 @@ defmodule Gallformers.IngestionPipeline.PythonPort do
     |> to_string()
   end
 
-  defp open_port(uv_executable) do
-    port =
-      Port.open(
-        {:spawn_executable, uv_executable},
-        [
-          :binary,
-          :exit_status,
-          :stderr_to_stdout,
-          args: ["run", "extraction_port.py"],
-          cd: priv_python_dir()
-        ]
-      )
+  defp find_runner do
+    case config()[:python_executable] do
+      executable when is_binary(executable) ->
+        {:ok, python_runner(executable, config()[:python_path])}
+
+      _ ->
+        case {system_python_executable(), vendored_python_path()} do
+          {executable, python_path} when is_binary(executable) and is_binary(python_path) ->
+            {:ok, python_runner(executable, python_path)}
+
+          _ ->
+            find_uv_runner()
+        end
+    end
+  end
+
+  defp python_runner(executable, nil) do
+    %{executable: executable, args: [@script_name], env: []}
+  end
+
+  defp python_runner(executable, python_path) do
+    %{
+      executable: executable,
+      args: [@script_name],
+      env: [{~c"PYTHONPATH", to_charlist(python_path)}]
+    }
+  end
+
+  defp find_uv_runner do
+    case config()[:uv_executable] || System.find_executable("uv") do
+      nil -> {:error, :extraction_failed, "python extractor runner not found"}
+      executable -> {:ok, %{executable: executable, args: ["run", @script_name], env: []}}
+    end
+  end
+
+  defp vendored_python_path do
+    path = Path.join(priv_python_dir(), @vendor_dir_name)
+
+    if File.dir?(path), do: path, else: nil
+  end
+
+  defp system_python_executable do
+    System.find_executable("python3") || System.find_executable("python")
+  end
+
+  defp open_port(%{executable: executable, args: args, env: env}) do
+    options =
+      [
+        :binary,
+        :exit_status,
+        :stderr_to_stdout,
+        args: args,
+        cd: priv_python_dir()
+      ]
+      |> maybe_put_env(env)
+
+    port = Port.open({:spawn_executable, executable}, options)
 
     {:ok, port}
   rescue
     error ->
       {:error, :extraction_failed, Exception.message(error)}
   end
+
+  defp maybe_put_env(options, []), do: options
+  defp maybe_put_env(options, env), do: Keyword.put(options, :env, env)
 
   defp send_request(port, file_path, opts) do
     payload = %{
@@ -120,13 +176,6 @@ defmodule Gallformers.IngestionPipeline.PythonPort do
 
       {:error, _reason} ->
         {:error, :invalid_response, raw_output}
-    end
-  end
-
-  defp find_uv_executable do
-    case config()[:uv_executable] || System.find_executable("uv") do
-      nil -> {:error, :extraction_failed, "uv executable not found"}
-      executable -> {:ok, executable}
     end
   end
 
