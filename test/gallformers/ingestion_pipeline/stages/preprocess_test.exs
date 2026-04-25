@@ -3,7 +3,6 @@ defmodule Gallformers.IngestionPipeline.Stages.PreprocessTest do
 
   alias Gallformers.IngestionPipeline.Stages.Preprocess
   alias Gallformers.IngestionPipeline.Storage
-  alias Gallformers.IngestionPipeline.TextProcessing
   alias Gallformers.Ingestions
 
   defmodule StorageBackendStub do
@@ -103,7 +102,7 @@ defmodule Gallformers.IngestionPipeline.Stages.PreprocessTest do
     assert reloaded_ingestion.status == "processing"
 
     assert reloaded_ingestion.preprocessed_text_sha256 ==
-             TextProcessing.compute_sha256(cleaned_text)
+             compute_sha256(cleaned_text)
 
     assert reloaded_ingestion.doi == "10.1234/example"
     assert reloaded_ingestion.normalized_doi == "10.1234/example"
@@ -131,5 +130,11 @@ defmodule Gallformers.IngestionPipeline.Stages.PreprocessTest do
 
     {:ok, ingestion} = Ingestions.create_source_ingestion(attrs)
     ingestion
+  end
+
+  defp compute_sha256(text) do
+    :sha256
+    |> :crypto.hash(text)
+    |> Base.encode16(case: :lower)
   end
 end

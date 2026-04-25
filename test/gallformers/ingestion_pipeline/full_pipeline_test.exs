@@ -10,7 +10,6 @@ defmodule Gallformers.IngestionPipeline.FullPipelineTest do
   alias Gallformers.IngestionPipeline.FullPipelineTest, as: TestSupport
   alias Gallformers.IngestionPipeline.Stages.{DataExtract, Extract, LLMClean, Metadata}
   alias Gallformers.IngestionPipeline.Storage
-  alias Gallformers.IngestionPipeline.TextProcessing
   alias Gallformers.IngestionPipeline.Worker
   alias Gallformers.IngestionPipeline.Workflow
   alias Gallformers.Ingestions
@@ -164,7 +163,7 @@ defmodule Gallformers.IngestionPipeline.FullPipelineTest do
       Rounded woody gall on oak twigs.
       """
 
-    preprocessed_text = TextProcessing.preprocess(extracted_text)
+    preprocessed_text = String.trim(extracted_text)
     cleaned_text = "# Cleaned gall paper\n\nRounded woody gall on oak twigs."
 
     metadata_json =
@@ -232,8 +231,8 @@ defmodule Gallformers.IngestionPipeline.FullPipelineTest do
       Rounded woody gall on oak twigs.
       """
 
-    preprocessed_text = TextProcessing.preprocess(extracted_text)
-    preprocessed_hash = TextProcessing.compute_sha256(preprocessed_text)
+    preprocessed_text = String.trim(extracted_text)
+    preprocessed_hash = compute_sha256(preprocessed_text)
 
     canonical =
       source_ingestion_fixture(%{
@@ -406,7 +405,7 @@ defmodule Gallformers.IngestionPipeline.FullPipelineTest do
       Rounded woody gall on oak twigs.
       """
 
-    preprocessed_text = TextProcessing.preprocess(extracted_text)
+    preprocessed_text = String.trim(extracted_text)
     cleaned_text = "# Resume after duplicate review\n\nRounded woody gall on oak twigs."
 
     metadata_json =
@@ -496,7 +495,7 @@ defmodule Gallformers.IngestionPipeline.FullPipelineTest do
       Rounded woody gall on oak twigs.
       """
 
-    preprocessed_text = TextProcessing.preprocess(extracted_text)
+    preprocessed_text = String.trim(extracted_text)
 
     seed_pipeline_input(ingestion, "pdf:llm-error", extracted_text)
 
@@ -665,6 +664,12 @@ defmodule Gallformers.IngestionPipeline.FullPipelineTest do
 
   defp usage do
     %{prompt_tokens: 1, completion_tokens: 1}
+  end
+
+  defp compute_sha256(text) do
+    :sha256
+    |> :crypto.hash(text)
+    |> Base.encode16(case: :lower)
   end
 
   defp valid_record(gall_name, host_name, confidence) do

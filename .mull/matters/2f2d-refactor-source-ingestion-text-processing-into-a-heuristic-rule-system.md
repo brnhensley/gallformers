@@ -1,5 +1,5 @@
 ---
-status: raw
+status: active
 created: 2026-04-25
 updated: 2026-04-25
 epic: source-ingestion
@@ -46,4 +46,3 @@ In particular, hard-coded rules like matching a specific publication title such 
 ## Notes
 - This is a maintainability and extensibility refactor, not a request for more comments on the current design.
 - The current issue is not just readability. It is that the architecture makes future heuristic growth messy by default.
-
