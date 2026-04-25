@@ -1,44 +1,38 @@
 defmodule GallformersWeb.E2E.AuthTest do
   @moduledoc """
-  E2E tests for authentication flows.
-  These verify login/logout routes exist and behave correctly.
+  E2E tests for authentication-related UI behavior.
 
-  Note: Full Auth0 OAuth flow cannot be tested in E2E without mocking.
-  These tests verify the application's auth routes and redirects.
+  The real Auth0 login/logout endpoints redirect to external pages, which the
+  E2E harness should not follow. These tests verify the local app behavior that
+  exposes those routes and the admin access mode used in E2E.
   """
   use GallformersWeb.E2ECase
 
   @moduletag :e2e
   @moduletag :e2e_auth
 
-  describe "login route" do
-    test "redirects to Auth0", %{conn: conn} do
-      # The login route should redirect to Auth0
-      # We can't follow the full OAuth flow, but we can verify the redirect
-      conn
-      |> visit("/auth/auth0")
-      # This will either redirect externally or show an error page
-      # In test mode without real Auth0, we expect some response
-      |> assert_has("body")
-    end
-  end
+  describe "auth links" do
+    test "home page shows login link when auth bypass is disabled", %{conn: conn} do
+      Application.put_env(:gallformers, :dev_auth_bypass, false)
+      on_exit(fn -> Application.put_env(:gallformers, :dev_auth_bypass, true) end)
 
-  describe "logout route" do
-    test "redirects appropriately", %{conn: conn} do
-      # Logout route should redirect
       conn
-      |> visit("/auth/logout")
-      # Should redirect to home or Auth0 logout
-      |> assert_has("body")
+      |> visit("/")
+      |> assert_has("a[href='/auth/auth0']", text: "Login")
+    end
+
+    test "home page shows logout link when auth bypass is enabled", %{conn: conn} do
+      conn
+      |> visit("/")
+      |> assert_has("a[href='/auth/logout']", text: "Log Out")
     end
   end
 
   describe "protected routes" do
-    test "admin redirects when not authenticated", %{conn: conn} do
+    test "admin dashboard loads through the E2E auth bypass", %{conn: conn} do
       conn
       |> visit("/admin")
-      # Should not show admin content without auth
-      |> refute_has("h1", text: "Dashboard")
+      |> assert_has("h2", text: "Quick Actions")
     end
   end
 end

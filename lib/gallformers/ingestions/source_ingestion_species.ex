@@ -26,7 +26,7 @@ defmodule Gallformers.Ingestions.SourceIngestionSpecies do
   @type t :: %__MODULE__{
           id: integer() | nil,
           source_ingestion_id: integer() | nil,
-          position: integer(),
+          position: integer() | nil,
           extracted_name: String.t() | nil,
           extracted_authority: String.t() | nil,
           species_id: integer() | nil,

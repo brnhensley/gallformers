@@ -1,0 +1,8 @@
+[project]
+name = "gallformers-ingestion-port"
+version = "0.1.0"
+description = "Narrow Python runtime for the Gallformers ingestion extraction port"
+requires-python = ">=3.12"
+dependencies = [
+    "pymupdf4llm>=0.0.17",
+]

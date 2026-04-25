@@ -65,6 +65,53 @@ resource "aws_s3_bucket_cors_configuration" "images" {
   }
 }
 
+# Private bucket for source-ingestion uploads and pipeline artifacts.
+#
+# Access patterns:
+#   - source-ingestions/* - source uploads, intermediate artifacts, and assembled
+#     markdown before publication
+
+resource "aws_s3_bucket" "private" {
+  bucket = "gallformers-private"
+
+  tags = {
+    Project   = var.project
+    ManagedBy = "opentofu"
+  }
+}
+
+resource "aws_s3_bucket_versioning" "private" {
+  bucket = aws_s3_bucket.private.id
+
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+resource "aws_s3_bucket_public_access_block" "private" {
+  bucket = aws_s3_bucket.private.id
+
+  block_public_acls       = true
+  ignore_public_acls      = true
+  block_public_policy     = true
+  restrict_public_buckets = true
+}
+
+resource "aws_s3_bucket_lifecycle_configuration" "private" {
+  bucket = aws_s3_bucket.private.id
+
+  rule {
+    id     = "expire-incomplete-multipart-uploads"
+    status = "Enabled"
+
+    filter {}
+
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 7
+    }
+  }
+}
+
 # -----------------------------------------------------------------------------
 # Backup Buckets
 # -----------------------------------------------------------------------------

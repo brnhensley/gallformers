@@ -13,13 +13,16 @@ defmodule Gallformers.Ingestions do
       Gallformers.SchemaFields,
       Gallformers.Accounts,
       Gallformers.Sources,
-      Gallformers.Species
+      Gallformers.Storage,
+      Gallformers.Species,
+      Gallformers.IngestionPipeline.Workflow
     ],
     exports: :all
 
   import Ecto.Changeset, only: [add_error: 3]
   import Ecto.Query
 
+  alias Gallformers.IngestionPipeline.Workflow
   alias Gallformers.Ingestions.{DuplicateCandidate, SourceIngestion, SourceIngestionSpecies}
   alias Gallformers.Repo
   alias Gallformers.Sources.Source
@@ -34,6 +37,8 @@ defmodule Gallformers.Ingestions do
   @ordered_species_entries_query from(source_ingestion_species in SourceIngestionSpecies,
                                    order_by: source_ingestion_species.position
                                  )
+
+  @source_ingestion_orchestration_lock_namespace 41_204
 
   @source_ingestion_detail_preloads [
     :source,
@@ -67,6 +72,27 @@ defmodule Gallformers.Ingestions do
   """
   @spec get_source_ingestion!(integer()) :: SourceIngestion.t()
   def get_source_ingestion!(id), do: Repo.get!(SourceIngestion, id)
+
+  @doc """
+  Runs a function while holding a per-ingestion orchestration lock.
+  """
+  @spec with_source_ingestion_orchestration_lock(integer(), (-> result)) ::
+          {:ok, result} | {:error, :already_processing}
+        when result: var
+  def with_source_ingestion_orchestration_lock(source_ingestion_id, fun)
+      when is_integer(source_ingestion_id) and is_function(fun, 0) do
+    Repo.checkout(fn ->
+      if acquire_source_ingestion_orchestration_lock(source_ingestion_id) do
+        try do
+          {:ok, fun.()}
+        after
+          release_source_ingestion_orchestration_lock(source_ingestion_id)
+        end
+      else
+        {:error, :already_processing}
+      end
+    end)
+  end
 
   @doc """
   Gets a source ingestion with the detail preloads needed by review workflows.
@@ -133,6 +159,27 @@ defmodule Gallformers.Ingestions do
     source_ingestion
     |> SourceIngestion.changeset(attrs)
     |> Repo.update()
+  end
+
+  @doc """
+  Persists a workflow event for an ingestion through the canonical workflow semantics.
+  """
+  @spec transition_source_ingestion_workflow(SourceIngestion.t(), Workflow.event(), map()) ::
+          {:ok, SourceIngestion.t()}
+          | {:error, :invalid_state | :invalid_transition | Ecto.Changeset.t()}
+  def transition_source_ingestion_workflow(
+        %SourceIngestion{} = source_ingestion,
+        event,
+        attrs \\ %{}
+      ) do
+    attrs = Map.new(attrs)
+
+    with {:ok, workflow_attrs} <- Workflow.transition_attrs(source_ingestion, event) do
+      status = Map.fetch!(workflow_attrs, :status)
+      transition_attrs = Map.merge(attrs, Map.delete(workflow_attrs, :status))
+
+      transition_source_ingestion_status(source_ingestion, status, transition_attrs)
+    end
   end
 
   @doc """
@@ -285,6 +332,16 @@ defmodule Gallformers.Ingestions do
   end
 
   @doc """
+  Gets a duplicate candidate by ID, raising if it does not exist.
+  """
+  @spec get_duplicate_candidate!(integer()) :: DuplicateCandidate.t()
+  def get_duplicate_candidate!(duplicate_candidate_id) when is_integer(duplicate_candidate_id) do
+    DuplicateCandidate
+    |> Repo.get!(duplicate_candidate_id)
+    |> Repo.preload([:reviewed_by, :candidate_source_ingestion])
+  end
+
+  @doc """
   Creates a duplicate candidate for an ingestion pair.
   """
   @spec create_duplicate_candidate(SourceIngestion.t(), SourceIngestion.t(), map()) ::
@@ -334,7 +391,8 @@ defmodule Gallformers.Ingestions do
   end
 
   @doc """
-  Rejects a duplicate candidate and unlocks normal review if no pending candidates remain.
+  Rejects a duplicate candidate and resumes pipeline processing if no pending
+  candidates remain.
   """
   @spec reject_duplicate_candidate(DuplicateCandidate.t(), map()) ::
           {:ok, %{candidate: DuplicateCandidate.t(), source_ingestion: SourceIngestion.t()}}
@@ -363,11 +421,10 @@ defmodule Gallformers.Ingestions do
         |> update_or_rollback()
 
       updated_source_ingestion =
-        if source_ingestion.status == "needs_duplicate_review" and
-             no_pending_duplicate_candidates?(source_ingestion.id) do
+        if no_pending_duplicate_candidates?(source_ingestion.id) do
           source_ingestion
-          |> SourceIngestion.changeset(%{status: "needs_review", processing_stage: "review"})
-          |> update_or_rollback()
+          |> transition_source_ingestion_workflow(:duplicate_rejected_resume)
+          |> update_result_or_rollback()
         else
           source_ingestion
         end
@@ -413,9 +470,11 @@ defmodule Gallformers.Ingestions do
   @doc """
   Creates a gall-level ingestion review item.
   """
-  @spec create_source_ingestion_species(map()) ::
+  @spec create_source_ingestion_species(map() | Enumerable.t()) ::
           {:ok, SourceIngestionSpecies.t()} | {:error, Ecto.Changeset.t()}
   def create_source_ingestion_species(attrs) do
+    attrs = Map.new(attrs)
+
     %SourceIngestionSpecies{}
     |> SourceIngestionSpecies.changeset(attrs)
     |> Repo.insert()
@@ -473,7 +532,7 @@ defmodule Gallformers.Ingestions do
           "needs_review" -> Map.put(attrs, :processing_stage, "review")
           "duplicate_confirmed" -> Map.put(attrs, :processing_stage, "duplicate_review")
           "complete" -> Map.put(attrs, :processing_stage, "complete")
-          "failed" -> attrs
+          "failed" -> Map.put(attrs, :processing_stage, "failed")
           _ -> Map.put(attrs, :processing_stage, processing_stage)
         end
 
@@ -499,6 +558,28 @@ defmodule Gallformers.Ingestions do
       _ -> attrs
     end
   end
+
+  defp acquire_source_ingestion_orchestration_lock(source_ingestion_id) do
+    %{rows: [[locked?]]} =
+      Repo.query!(
+        "SELECT pg_try_advisory_lock($1, $2)",
+        [@source_ingestion_orchestration_lock_namespace, source_ingestion_id]
+      )
+
+    locked?
+  end
+
+  defp release_source_ingestion_orchestration_lock(source_ingestion_id) do
+    Repo.query!(
+      "SELECT pg_advisory_unlock($1, $2)",
+      [@source_ingestion_orchestration_lock_namespace, source_ingestion_id]
+    )
+
+    :ok
+  end
+
+  defp update_result_or_rollback({:ok, result}), do: result
+  defp update_result_or_rollback({:error, reason}), do: Repo.rollback(reason)
 
   defp no_pending_duplicate_candidates?(source_ingestion_id) do
     # Lock pending candidates to prevent race conditions with concurrent insertions.
@@ -554,12 +635,10 @@ defmodule Gallformers.Ingestions do
 
       updated_source_ingestion =
         source_ingestion
-        |> SourceIngestion.changeset(%{
-          duplicate_of_source_ingestion_id: canonical_source_ingestion_id,
-          status: "duplicate_confirmed",
-          processing_stage: "duplicate_review"
+        |> transition_source_ingestion_workflow(:duplicate_confirmed, %{
+          duplicate_of_source_ingestion_id: canonical_source_ingestion_id
         })
-        |> update_or_rollback()
+        |> update_result_or_rollback()
 
       %{
         candidate: Repo.preload(updated_candidate, [:reviewed_by, :candidate_source_ingestion]),
@@ -632,19 +711,20 @@ defmodule Gallformers.Ingestions do
   end
 
   defp resolve_canonical_source_ingestion_id(source_ingestion_id) do
-    do_resolve_canonical_source_ingestion_id(source_ingestion_id, MapSet.new())
+    do_resolve_canonical_source_ingestion_id(source_ingestion_id, [])
   end
 
+  @spec do_resolve_canonical_source_ingestion_id(integer() | nil, [integer()]) :: integer() | nil
   defp do_resolve_canonical_source_ingestion_id(source_ingestion_id, visited_ids) do
     cond do
       is_nil(source_ingestion_id) ->
         nil
 
-      MapSet.member?(visited_ids, source_ingestion_id) ->
+      source_ingestion_id in visited_ids ->
         source_ingestion_id
 
       true ->
-        visited_ids = MapSet.put(visited_ids, source_ingestion_id)
+        visited_ids = [source_ingestion_id | visited_ids]
 
         case Repo.get(SourceIngestion, source_ingestion_id) do
           %SourceIngestion{duplicate_of_source_ingestion_id: nil} ->
