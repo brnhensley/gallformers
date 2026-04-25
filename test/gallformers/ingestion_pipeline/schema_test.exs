@@ -3,25 +3,6 @@ defmodule Gallformers.IngestionPipeline.SchemaTest do
 
   alias Gallformers.IngestionPipeline.Schema
 
-  describe "load/0" do
-    test "loads the gall_record schema from disk" do
-      schema = Schema.load()
-
-      assert is_map(schema)
-      assert schema["$schema"] == "http://json-schema.org/draft-07/schema#"
-      assert schema["title"] == "Gall Record"
-      assert schema["type"] == "object"
-
-      assert schema["required"] == [
-               "gall_species",
-               "host_species",
-               "traits",
-               "description",
-               "confidence"
-             ]
-    end
-  end
-
   describe "prompt_text/0" do
     test "renders schema as human-readable text" do
       prompt = Schema.prompt_text()
@@ -171,35 +152,6 @@ defmodule Gallformers.IngestionPipeline.SchemaTest do
                Schema.validate("not a list")
 
       assert {:error, :invalid_contract, ["Expected a list of records"]} = Schema.validate(nil)
-    end
-  end
-
-  describe "vocabulary accessors" do
-    test "shape_vocab returns list of valid shapes" do
-      vocab = Schema.shape_vocab()
-      assert is_list(vocab)
-      assert "cluster" in vocab
-      assert "conical" in vocab
-      assert "sphere" in vocab
-    end
-
-    test "detachable_vocab returns all valid values" do
-      vocab = Schema.detachable_vocab()
-      assert vocab == ["unknown", "integral", "detachable", "both"]
-    end
-
-    test "plant_part_vocab keeps multi-word values intact" do
-      vocab = Schema.plant_part_vocab()
-      assert "underground (roots+)" in vocab
-      assert "at leaf vein angles" in vocab
-    end
-
-    test "trait_vocabs returns all vocabularies as map" do
-      vocabs = Schema.trait_vocabs()
-      assert is_map(vocabs)
-      assert vocabs.shape == Schema.shape_vocab()
-      assert vocabs.color == Schema.color_vocab()
-      assert vocabs.detachable == Schema.detachable_vocab()
     end
   end
 end

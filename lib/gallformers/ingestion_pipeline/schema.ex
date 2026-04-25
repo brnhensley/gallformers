@@ -2,10 +2,8 @@ defmodule Gallformers.IngestionPipeline.Schema do
   @moduledoc """
   Loads and validates gall records against the JSON schema.
 
-  The schema file is the single source of truth for:
-  - Prompt rendering
-  - Structural validation
-  - Controlled-vocabulary validation
+  `priv/schemas/gall_record.json` is the canonical definition of the gall
+  record contract and controlled vocabularies used for structural validation.
   """
 
   @schema_path "gall_record.json"
@@ -23,11 +21,7 @@ defmodule Gallformers.IngestionPipeline.Schema do
     detachable: "detachable_vocab"
   }
 
-  @doc """
-  Load the gall record schema from disk.
-  """
-  @spec load() :: map()
-  def load do
+  defp load do
     [:code.priv_dir(:gallformers), "schemas", @schema_path]
     |> Path.join()
     |> File.read!()
@@ -35,7 +29,10 @@ defmodule Gallformers.IngestionPipeline.Schema do
   end
 
   @doc """
-  Render the schema as human-readable text for LLM prompts.
+  Render a human-readable prompt description of the gall record contract.
+
+  For the canonical machine-readable definition, see
+  `priv/schemas/gall_record.json`.
   """
   @spec prompt_text() :: String.t()
   def prompt_text do
@@ -95,49 +92,7 @@ defmodule Gallformers.IngestionPipeline.Schema do
 
   def validate(_), do: {:error, :invalid_contract, ["Expected a list of records"]}
 
-  @doc "Returns the list of valid shape values"
-  @spec shape_vocab() :: [String.t()]
-  def shape_vocab, do: vocab_for(:shape)
-
-  @doc "Returns the list of valid color values"
-  @spec color_vocab() :: [String.t()]
-  def color_vocab, do: vocab_for(:color)
-
-  @doc "Returns the list of valid texture values"
-  @spec texture_vocab() :: [String.t()]
-  def texture_vocab, do: vocab_for(:texture)
-
-  @doc "Returns the list of valid walls values"
-  @spec walls_vocab() :: [String.t()]
-  def walls_vocab, do: vocab_for(:walls)
-
-  @doc "Returns the list of valid cells values"
-  @spec cells_vocab() :: [String.t()]
-  def cells_vocab, do: vocab_for(:cells)
-
-  @doc "Returns the list of valid alignment values"
-  @spec alignment_vocab() :: [String.t()]
-  def alignment_vocab, do: vocab_for(:alignment)
-
-  @doc "Returns the list of valid plant_part values"
-  @spec plant_part_vocab() :: [String.t()]
-  def plant_part_vocab, do: vocab_for(:plant_part)
-
-  @doc "Returns the list of valid form values"
-  @spec form_vocab() :: [String.t()]
-  def form_vocab, do: vocab_for(:form)
-
-  @doc "Returns the list of valid season values"
-  @spec season_vocab() :: [String.t()]
-  def season_vocab, do: vocab_for(:season)
-
-  @doc "Returns the list of valid detachable values"
-  @spec detachable_vocab() :: [String.t()]
-  def detachable_vocab, do: vocab_for(:detachable)
-
-  @doc "Returns all trait vocabularies as a map"
-  @spec trait_vocabs() :: map()
-  def trait_vocabs do
+  defp trait_vocabs do
     Enum.into(@trait_vocab_definitions, %{}, fn {trait, definition_name} ->
       {trait, schema_vocab(definition_name)}
     end)
@@ -166,12 +121,6 @@ defmodule Gallformers.IngestionPipeline.Schema do
       |> suggested_values(trait_name)
       |> invalid_suggested_errors(idx, trait_name, vocab)
     end)
-  end
-
-  defp vocab_for(trait_name) do
-    @trait_vocab_definitions
-    |> Map.fetch!(trait_name)
-    |> schema_vocab()
   end
 
   defp schema_vocab("detachable_vocab") do

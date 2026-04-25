@@ -1,6 +1,6 @@
 defmodule Gallformers.IngestionPipeline.LLMClient do
   @moduledoc """
-  Thin DeepInfra OpenAI-compatible client for ingestion pipeline stages.
+  Thin OpenAI-compatible client for ingestion pipeline stages.
   """
 
   use Boundary, deps: [], exports: :all
