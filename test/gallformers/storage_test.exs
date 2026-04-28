@@ -61,4 +61,14 @@ defmodule Gallformers.StorageTest do
              end) =~ "Failed to generate size variants"
     end
   end
+
+  describe "presigned_upload_url/2" do
+    test "returns a presigned URL through the storage adapter" do
+      assert {:ok, url} =
+               Storage.presigned_upload_url("articles/42/upload.jpg", "image/jpeg")
+
+      assert url ==
+               "https://example.test/mock-s3/gallformers-images-us-east-1/articles/42/upload.jpg?method=PUT"
+    end
+  end
 end

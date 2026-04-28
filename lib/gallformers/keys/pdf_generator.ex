@@ -7,9 +7,8 @@ defmodule Gallformers.Keys.PdfGenerator do
 
   require Logger
 
-  alias Gallformers.Keys
+  alias Gallformers.Storage.PDFKeys
   alias Gallformers.Keys.Key
-  alias Gallformers.Storage
 
   @template_path "priv/typst/key.typ"
 
@@ -72,14 +71,12 @@ defmodule Gallformers.Keys.PdfGenerator do
   """
   @spec generate_and_upload(Key.t()) :: :ok | {:error, term()}
   def generate_and_upload(key) do
-    paths = Keys.s3_paths(key)
-
     with {:ok, pdf_path} <- generate_pdf(key, images: false),
          pdf_data = File.read!(pdf_path),
-         {:ok, _} <- Storage.upload(paths.text_only, pdf_data, "application/pdf"),
+         :ok <- PDFKeys.upload_pdf(key, :text_only, pdf_data),
          :ok <- File.rm(pdf_path) do
       if Key.key_has_images?(key) do
-        generate_and_upload_variant(key, paths.with_images, images: true)
+        generate_and_upload_variant(key, images: true)
       else
         :ok
       end
@@ -90,10 +87,10 @@ defmodule Gallformers.Keys.PdfGenerator do
     end
   end
 
-  defp generate_and_upload_variant(key, s3_path, opts) do
+  defp generate_and_upload_variant(key, opts) do
     with {:ok, pdf_path} <- generate_pdf(key, opts),
          pdf_data = File.read!(pdf_path),
-         {:ok, _} <- Storage.upload(s3_path, pdf_data, "application/pdf"),
+         :ok <- PDFKeys.upload_pdf(key, :with_images, pdf_data),
          :ok <- File.rm(pdf_path) do
       :ok
     else

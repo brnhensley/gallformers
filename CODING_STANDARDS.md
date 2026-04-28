@@ -916,7 +916,7 @@ Tailwind v4 uses CSS-based configuration (no `tailwind.config.js`):
 **CRITICAL**: Tests must NEVER make real AWS/S3 calls. This is enforced by:
 
 1. **Config flag**: `config :gallformers, s3_enabled: false` in `config/test.exs`
-2. **Wrapper module**: All S3 operations go through `Gallformers.S3.request/1` instead of `ExAws.request/1`
+2. **Wrapper module**: All S3 operations go through `Gallformers.Storage.S3.request/1` instead of `ExAws.request/1`
 
 When adding new S3 operations, always use the wrapper:
 
@@ -925,7 +925,7 @@ When adding new S3 operations, always use the wrapper:
 ExAws.S3.put_object(bucket, path, data) |> ExAws.request()
 
 # CORRECT - respects s3_enabled config
-ExAws.S3.put_object(bucket, path, data) |> Gallformers.S3.request()
+ExAws.S3.put_object(bucket, path, data) |> Gallformers.Storage.S3.request()
 ```
 
 The wrapper returns `{:ok, %{body: %{contents: []}}}` in test mode, which satisfies both list operations (need `body.contents`) and mutate operations (just check `{:ok, _}`).

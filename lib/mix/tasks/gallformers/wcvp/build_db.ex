@@ -34,7 +34,7 @@ defmodule Mix.Tasks.Gallformers.Wcvp.BuildDb do
   @s3_key "public/wcvp.dump"
 
   alias ExAws.S3, as: AwsS3
-  alias Gallformers.S3
+  alias Gallformers.Storage.S3
   alias Gallformers.Wcvp.{WcvpDistribution, WcvpName}
 
   @batch_size 1000

@@ -1,5 +1,5 @@
 ---
-status: active
+status: done
 created: 2026-04-25
 updated: 2026-04-25
 epic: source-ingestion

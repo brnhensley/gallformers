@@ -5,12 +5,13 @@ defmodule Gallformers.Storage do
   Top-level shared infrastructure for all S3 interactions including uploads,
   deletions, presigned URLs, size variant generation, and bucket listing operations.
   """
-  use Boundary, deps: [Gallformers.S3, Gallformers.Async], exports: :all
+  use Boundary, deps: [Gallformers.Async], exports: :all
 
   require Logger
 
   # Image processing library (vix-based)
   alias Image, as: ImageLib
+  alias Gallformers.Storage.S3
 
   # Image sizes for resizing (width in pixels)
   @sizes %{
@@ -137,9 +138,7 @@ defmodule Gallformers.Storage do
   def presigned_upload_url(path, content_type) do
     expiry = Application.get_env(:gallformers, :images)[:presign_expiry] || 300
 
-    config = ExAws.Config.new(:s3)
-
-    case ExAws.S3.presigned_url(config, :put, bucket(), path,
+    case S3.presigned_url(:put, bucket(), path,
            expires_in: expiry,
            query_params: [{"Content-Type", content_type}]
          ) do
@@ -157,7 +156,7 @@ defmodule Gallformers.Storage do
       content_type: content_type
       # Note: No ACL needed - bucket has public read policy
     )
-    |> Gallformers.S3.request()
+    |> Gallformers.Storage.S3.request()
   end
 
   # =============================================================================
@@ -275,7 +274,7 @@ defmodule Gallformers.Storage do
   def delete_content_image(path, sizes) when is_binary(path) do
     keys = variant_keys_for_path(path, sizes)
 
-    case ExAws.S3.delete_multiple_objects(bucket(), keys) |> Gallformers.S3.request() do
+    case ExAws.S3.delete_multiple_objects(bucket(), keys) |> Gallformers.Storage.S3.request() do
       {:ok, _} -> :ok
       {:error, reason} -> {:error, reason}
     end
@@ -297,7 +296,7 @@ defmodule Gallformers.Storage do
       end)
 
     # Delete all variants
-    case ExAws.S3.delete_multiple_objects(bucket(), keys) |> Gallformers.S3.request() do
+    case ExAws.S3.delete_multiple_objects(bucket(), keys) |> Gallformers.Storage.S3.request() do
       {:ok, _} -> :ok
       {:error, reason} -> {:error, reason}
     end
@@ -315,7 +314,7 @@ defmodule Gallformers.Storage do
   def delete_article_image(path) when is_binary(path) do
     Logger.info("Attempting to delete article image: #{path} from bucket: #{bucket()}")
 
-    case ExAws.S3.delete_object(bucket(), path) |> Gallformers.S3.request() do
+    case ExAws.S3.delete_object(bucket(), path) |> Gallformers.Storage.S3.request() do
       {:ok, _} ->
         Logger.info("Successfully deleted article image: #{path}")
         :ok
@@ -349,7 +348,7 @@ defmodule Gallformers.Storage do
   end
 
   defp list_article_images_with_prefix(prefix) do
-    case ExAws.S3.list_objects(bucket(), prefix: prefix) |> Gallformers.S3.request() do
+    case ExAws.S3.list_objects(bucket(), prefix: prefix) |> Gallformers.Storage.S3.request() do
       {:ok, %{body: body}} ->
         # contents may be missing, nil, or a list depending on S3 response
         contents = Map.get(body, :contents) || []
@@ -417,7 +416,7 @@ defmodule Gallformers.Storage do
       [prefix: prefix]
       |> maybe_add_continuation_token(continuation_token)
 
-    case ExAws.S3.list_objects_v2(bucket(), opts) |> Gallformers.S3.request() do
+    case ExAws.S3.list_objects_v2(bucket(), opts) |> Gallformers.Storage.S3.request() do
       {:ok, %{body: body}} ->
         contents = body[:contents] || []
         # Filter to only original images (not size variants)

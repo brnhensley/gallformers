@@ -4,7 +4,7 @@ defmodule Gallformers.IngestionPipeline.Storage do
   """
 
   use Boundary,
-    deps: [Gallformers.Ingestions, Gallformers.S3, Gallformers.Storage],
+    deps: [Gallformers.Ingestions, Gallformers.Storage],
     exports: :all
 
   alias Gallformers.Ingestions
@@ -31,7 +31,7 @@ defmodule Gallformers.IngestionPipeline.Storage do
 
     @behaviour Gallformers.IngestionPipeline.Storage.Backend
 
-    alias Gallformers.S3
+    alias Gallformers.Storage.S3
 
     @impl true
     def upload(bucket, path, content, content_type) do

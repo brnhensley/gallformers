@@ -3,6 +3,7 @@ defmodule Gallformers.KeysTest do
 
   alias Gallformers.Keys
   alias Gallformers.Keys.Key
+  alias Gallformers.Storage.PDFKeys
 
   @valid_couplets Jason.encode!(%{
                     "1" => %{
@@ -243,20 +244,21 @@ defmodule Gallformers.KeysTest do
     end
   end
 
-  describe "s3_paths/1" do
-    test "returns correct S3 paths for a key" do
+  describe "pdf_urls/1" do
+    test "returns full URLs for a key's PDFs" do
       {:ok, key} = Keys.create_key(valid_attrs())
-      paths = Keys.s3_paths(key)
+      urls = Keys.pdf_urls(key)
 
-      assert paths.text_only == "keys/test-key/test-key.pdf"
-      assert paths.with_images == "keys/test-key/test-key-images.pdf"
+      cdn = Gallformers.Storage.cdn_url()
+      assert urls.text_only == "#{cdn}/keys/test-key/test-key.pdf"
+      assert urls.with_images == "#{cdn}/keys/test-key/test-key-images.pdf"
     end
   end
 
-  describe "cdn_urls/1" do
-    test "returns full CDN URLs" do
+  describe "PDFKeys.public_urls/1" do
+    test "returns full URLs for key PDF storage objects" do
       {:ok, key} = Keys.create_key(valid_attrs())
-      urls = Keys.cdn_urls(key)
+      urls = PDFKeys.public_urls(key)
 
       cdn = Gallformers.Storage.cdn_url()
       assert urls.text_only == "#{cdn}/keys/test-key/test-key.pdf"

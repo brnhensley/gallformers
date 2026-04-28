@@ -4,7 +4,7 @@ defmodule Gallformers.Storage.SourceArtifacts do
   artifacts.
   """
 
-  alias Gallformers.S3
+  alias Gallformers.Storage.S3
 
   defmodule Backend do
     @moduledoc false
