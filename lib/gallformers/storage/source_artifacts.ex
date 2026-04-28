@@ -7,6 +7,13 @@ defmodule Gallformers.Storage.SourceArtifacts do
   alias Gallformers.Storage.S3
 
   @type stage :: atom() | String.t()
+  @type source_artifact_ref :: %{
+          required(:id) => integer(),
+          required(:title) => term(),
+          optional(any()) => any()
+        }
+  @published_sources_prefix "sources"
+  @max_filename_base_length 120
 
   defmodule Backend do
     @moduledoc false
@@ -220,6 +227,32 @@ defmodule Gallformers.Storage.SourceArtifacts do
   end
 
   @doc """
+  Returns the public `sources/{id}` prefix for a source.
+  """
+  @spec public_source_prefix(integer()) :: String.t()
+  def public_source_prefix(source_id) when is_integer(source_id) do
+    Path.join([@published_sources_prefix, Integer.to_string(source_id)])
+  end
+
+  @doc """
+  Returns the canonical public markdown path for a published source.
+  """
+  @spec published_markdown_path(source_artifact_ref()) :: String.t()
+  def published_markdown_path(%{id: source_id, title: title}) when is_integer(source_id) do
+    Path.join([public_source_prefix(source_id), markdown_filename(source_id, title)])
+  end
+
+  @doc """
+  Returns the public URL for a published source markdown file.
+  """
+  @spec published_markdown_url(source_artifact_ref()) :: String.t()
+  def published_markdown_url(source) when is_map(source) do
+    source
+    |> published_markdown_path()
+    |> public_url()
+  end
+
+  @doc """
   Builds a public URL for a published source artifact path.
   """
   @spec public_url(String.t()) :: String.t()
@@ -276,6 +309,36 @@ defmodule Gallformers.Storage.SourceArtifacts do
       {:error, reason} -> {:error, reason}
     end
   end
+
+  defp markdown_filename(source_id, title) do
+    base_name =
+      title
+      |> normalize_title()
+      |> truncate_base_name()
+      |> fallback_base_name(source_id)
+
+    "#{base_name}.md"
+  end
+
+  defp normalize_title(title) when is_binary(title) do
+    title
+    |> String.downcase()
+    |> String.replace(~r/[^\p{L}\p{N}\s_-]/u, "")
+    |> String.replace(~r/[\s-]+/u, "_")
+    |> String.replace(~r/_+/, "_")
+    |> String.trim("_")
+  end
+
+  defp normalize_title(_title), do: ""
+
+  defp truncate_base_name(base_name) do
+    base_name
+    |> String.slice(0, @max_filename_base_length)
+    |> String.trim_trailing("_")
+  end
+
+  defp fallback_base_name("", source_id), do: "source_#{source_id}"
+  defp fallback_base_name(base_name, _source_id), do: base_name
 
   defp normalize_stage(stage) when is_atom(stage), do: Atom.to_string(stage)
   defp normalize_stage(stage) when is_binary(stage), do: stage

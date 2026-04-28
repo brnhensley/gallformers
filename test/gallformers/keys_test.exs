@@ -3,6 +3,7 @@ defmodule Gallformers.KeysTest do
 
   alias Gallformers.Keys
   alias Gallformers.Keys.Key
+  alias Gallformers.Storage.Images, as: ImageStorage
   alias Gallformers.Storage.PDFKeys
 
   @valid_couplets Jason.encode!(%{
@@ -249,9 +250,7 @@ defmodule Gallformers.KeysTest do
       {:ok, key} = Keys.create_key(valid_attrs())
       urls = Keys.pdf_urls(key)
 
-      cdn = Gallformers.Storage.cdn_url()
-      assert urls.text_only == "#{cdn}/keys/test-key/test-key.pdf"
-      assert urls.with_images == "#{cdn}/keys/test-key/test-key-images.pdf"
+      assert urls == PDFKeys.public_urls(key)
     end
   end
 
@@ -260,9 +259,10 @@ defmodule Gallformers.KeysTest do
       {:ok, key} = Keys.create_key(valid_attrs())
       urls = PDFKeys.public_urls(key)
 
-      cdn = Gallformers.Storage.cdn_url()
-      assert urls.text_only == "#{cdn}/keys/test-key/test-key.pdf"
-      assert urls.with_images == "#{cdn}/keys/test-key/test-key-images.pdf"
+      assert urls.text_only == "#{ImageStorage.cdn_url()}/keys/test-key/test-key.pdf"
+
+      assert urls.with_images ==
+               "#{ImageStorage.cdn_url()}/keys/test-key/test-key-images.pdf"
     end
   end
 

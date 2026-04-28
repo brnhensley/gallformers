@@ -4,7 +4,7 @@ defmodule Gallformers.Storage.PDFKeys do
   """
 
   alias Gallformers.Keys.Key
-  alias Gallformers.Storage
+  alias Gallformers.Storage.S3
 
   @type variant :: :text_only | :with_images
 
@@ -13,11 +13,9 @@ defmodule Gallformers.Storage.PDFKeys do
   """
   @spec public_urls(Key.t()) :: %{text_only: String.t(), with_images: String.t()}
   def public_urls(key) do
-    cdn = Storage.cdn_url()
-
     %{
-      text_only: "#{cdn}/#{path(key, :text_only)}",
-      with_images: "#{cdn}/#{path(key, :with_images)}"
+      text_only: public_url(path(key, :text_only)),
+      with_images: public_url(path(key, :with_images))
     }
   end
 
@@ -26,9 +24,22 @@ defmodule Gallformers.Storage.PDFKeys do
   """
   @spec upload_pdf(Key.t(), variant(), binary()) :: :ok | {:error, term()}
   def upload_pdf(key, variant, pdf_data) do
-    with {:ok, _response} <- Storage.upload(path(key, variant), pdf_data, "application/pdf") do
+    with {:ok, _response} <-
+           ExAws.S3.put_object(public_bucket(), path(key, variant), pdf_data,
+             content_type: "application/pdf"
+           )
+           |> S3.request() do
       :ok
     end
+  end
+
+  defp public_url(path) do
+    base_url = Application.get_env(:gallformers, :images)[:cdn_url]
+    "#{base_url}/#{path}"
+  end
+
+  defp public_bucket do
+    Application.get_env(:gallformers, :images)[:bucket]
   end
 
   defp path(key, :text_only) do

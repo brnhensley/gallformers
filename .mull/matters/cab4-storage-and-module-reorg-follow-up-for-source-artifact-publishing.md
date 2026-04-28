@@ -1,8 +1,9 @@
 ---
-status: planned
+status: done
 created: 2026-04-25
-updated: 2026-04-26
+updated: 2026-04-28
 epic: source-ingestion
+relates: [fe8c]
 ---
 
 # Storage and module reorg follow-up for source artifact publishing
@@ -229,6 +230,8 @@ This module should exist only if it provides useful pipeline vocabulary. It shou
 
 ## Phase 6: Re-evaluate publication orchestration boundary
 
+*DONE*
+
 ### Objective
 After storage ownership is cleaned up, decide what the right home is for publication orchestration that crosses ingestions, sources, and storage.
 
@@ -249,6 +252,8 @@ After storage ownership is cleaned up, decide what the right home is for publica
 - broad source-domain redesign unrelated to storage/publication boundaries
 
 ## Phase 7: Collapse transitional wrappers and finalize boundaries
+
+*DONE*
 
 ### Objective
 Remove migration scaffolding once callers have moved to the new module layout.
@@ -288,45 +293,6 @@ For each phase:
 - merging image, PDF, and source artifact logic into a single generic storage abstraction
 - letting higher-level domains continue to own S3 bucket/path semantics after the refactor is complete
 
-
-## Phase 1A: Bring WCVP dump upload behind the storage boundary
-
-### Objective
-Handle the remaining non-storage-module `ExAws` usage in the WCVP build/upload task so the storage boundary is explicit even for operational upload code.
-
-### Why this needs its own phase
-The WCVP build task currently performs an S3 upload directly in the Mix task layer. Even though it routes the final request through `Gallformers.Storage.S3`, it still constructs the multipart upload operation itself with `ExAws.S3.Upload` and `ExAws.S3` calls. That leaves a storage-shaped responsibility outside the storage namespace.
-
-This is not as urgent as the main application runtime boundary cleanup, but it should be addressed intentionally rather than treated as a permanent special case.
-
-### Work
-1. Audit the current WCVP task upload flow and isolate exactly what is storage-related versus task/orchestration-related.
-2. Introduce a storage-owned home for this responsibility.
-3. Decide the shape of that home:
-   - a narrow helper inside `Gallformers.Storage`
-   - a dedicated storage slice for WCVP or backups
-   - or another clearly storage-owned module if that proves cleaner
-4. Move bucket/key naming for the uploaded dump out of the Mix task and into the storage-owned module.
-5. Move multipart upload construction out of the Mix task and behind the storage-owned API.
-6. Keep the Mix task responsible only for orchestration:
-   - building the dump
-   - deciding whether upload should happen
-   - reporting success/failure to the operator
-7. Preserve streaming upload behavior so large dumps are not loaded fully into memory.
-8. Add or adjust tests around the extracted storage-facing upload boundary if practical for the task architecture.
-
-### Design intent
-The Mix task should decide that a WCVP dump needs to be uploaded, but not know how S3 multipart upload operations are assembled.
-
-### Expected result
-- the remaining task-level `ExAws` usage is removed or intentionally minimized behind a storage-owned API
-- storage concerns are more consistently centralized
-- operational code still retains a pragmatic execution flow without forcing a broad redesign of Mix tasks
-
-### Things explicitly out of scope
-- redesigning the WCVP import/build process itself
-- changing dump format or retention policy unless storage extraction makes a small improvement obvious
-- forcing this work into the same PR as the main runtime storage refactor if that creates unnecessary churn
 
 ## Phase 1 note: presigned URL encapsulation
 

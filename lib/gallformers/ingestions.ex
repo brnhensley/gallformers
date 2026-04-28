@@ -235,22 +235,6 @@ defmodule Gallformers.Ingestions do
   end
 
   @doc """
-  Returns the canonical artifacts path prefix for an ingestion ID.
-  """
-  @spec artifacts_path_for(integer()) :: String.t()
-  def artifacts_path_for(source_ingestion_id) when is_integer(source_ingestion_id) do
-    SourceArtifacts.private_artifact_prefix(source_ingestion_id)
-  end
-
-  @doc """
-  Returns a specific artifact path under the ingestion's canonical artifacts prefix.
-  """
-  @spec artifact_path(SourceIngestion.t(), String.t() | [String.t()]) :: String.t() | nil
-  def artifact_path(%SourceIngestion{artifacts_path: artifacts_path}, suffix) do
-    SourceArtifacts.private_artifact_path(artifacts_path, suffix)
-  end
-
-  @doc """
   Returns whether an ingestion is currently waiting on duplicate review.
   """
   @spec duplicate_review_required?(SourceIngestion.t()) :: boolean()

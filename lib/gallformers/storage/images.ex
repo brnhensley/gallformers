@@ -9,7 +9,6 @@ defmodule Gallformers.Storage.Images do
   """
   require Logger
 
-  alias Gallformers.Storage
   alias Gallformers.Storage.S3
   alias Image, as: ImageLib
 
@@ -18,7 +17,7 @@ defmodule Gallformers.Storage.Images do
   """
   @spec cdn_url() :: String.t()
   def cdn_url do
-    Storage.cdn_url()
+    Application.get_env(:gallformers, :images)[:cdn_url]
   end
 
   @doc """
@@ -105,13 +104,22 @@ defmodule Gallformers.Storage.Images do
   def presigned_upload_url(path, content_type) do
     expiry = Application.get_env(:gallformers, :images)[:presign_expiry] || 300
 
-    case S3.presigned_url(:put, Storage.bucket(), path,
+    case S3.presigned_url(:put, bucket(), path,
            expires_in: expiry,
            query_params: [{"Content-Type", content_type}]
          ) do
       {:ok, url} -> {:ok, url}
       {:error, reason} -> {:error, reason}
     end
+  end
+
+  @doc """
+  Uploads an image object to the public image bucket.
+  """
+  @spec upload(String.t(), binary(), String.t()) :: {:ok, term()} | {:error, term()}
+  def upload(path, data, content_type) do
+    ExAws.S3.put_object(bucket(), path, data, content_type: content_type)
+    |> S3.request()
   end
 
   @doc """
@@ -169,9 +177,9 @@ defmodule Gallformers.Storage.Images do
   """
   @spec delete_article_image(String.t()) :: :ok | {:error, term()}
   def delete_article_image(path) when is_binary(path) do
-    Logger.info("Attempting to delete article image: #{path} from bucket: #{Storage.bucket()}")
+    Logger.info("Attempting to delete article image: #{path} from bucket: #{bucket()}")
 
-    case ExAws.S3.delete_object(Storage.bucket(), path) |> S3.request() do
+    case ExAws.S3.delete_object(bucket(), path) |> S3.request() do
       {:ok, _} ->
         Logger.info("Successfully deleted article image: #{path}")
         :ok
@@ -211,7 +219,7 @@ defmodule Gallformers.Storage.Images do
   end
 
   defp prefix_path(path) do
-    case Storage.s3_image_prefix() do
+    case image_prefix() do
       nil -> path
       "" -> path
       prefix -> "#{prefix}/#{path}"
@@ -240,7 +248,7 @@ defmodule Gallformers.Storage.Images do
     with {:ok, img} <- ImageLib.open(image_data),
          {:ok, resized} <- ImageLib.thumbnail(img, target_width),
          {:ok, output_data} <- ImageLib.write(resized, :memory, suffix: ".#{format}"),
-         {:ok, _response} <- Storage.upload(new_path, output_data, content_type) do
+         {:ok, _response} <- upload(new_path, output_data, content_type) do
       {:ok, new_path}
     else
       {:error, reason} ->
@@ -266,14 +274,14 @@ defmodule Gallformers.Storage.Images do
   end
 
   defp delete_keys(keys) do
-    case ExAws.S3.delete_multiple_objects(Storage.bucket(), keys) |> S3.request() do
+    case ExAws.S3.delete_multiple_objects(bucket(), keys) |> S3.request() do
       {:ok, _} -> :ok
       {:error, reason} -> {:error, reason}
     end
   end
 
   defp list_article_images_with_prefix(prefix) do
-    case ExAws.S3.list_objects(Storage.bucket(), prefix: prefix) |> S3.request() do
+    case ExAws.S3.list_objects(bucket(), prefix: prefix) |> S3.request() do
       {:ok, %{body: body}} ->
         contents = Map.get(body, :contents) || []
         contents = if is_list(contents), do: contents, else: []
@@ -324,7 +332,7 @@ defmodule Gallformers.Storage.Images do
       [prefix: prefix]
       |> maybe_add_continuation_token(continuation_token)
 
-    case ExAws.S3.list_objects_v2(Storage.bucket(), opts) |> S3.request() do
+    case ExAws.S3.list_objects_v2(bucket(), opts) |> S3.request() do
       {:ok, %{body: body}} ->
         contents = body[:contents] || []
 
@@ -351,6 +359,14 @@ defmodule Gallformers.Storage.Images do
 
   defp maybe_add_continuation_token(opts, token) do
     Keyword.put(opts, :continuation_token, token)
+  end
+
+  defp bucket do
+    Application.get_env(:gallformers, :images)[:bucket]
+  end
+
+  defp image_prefix do
+    Application.get_env(:gallformers, :s3_image_prefix)
   end
 
   defp original_gall_image?(obj) do

@@ -8,7 +8,6 @@ defmodule Gallformers.SourcePublisher do
     exports: :all
 
   alias Gallformers.Ingestions.SourceIngestion
-  alias Gallformers.Sources.Publication, as: SourcePublication
   alias Gallformers.Sources.Source
   alias Gallformers.Storage.SourceArtifacts
 
@@ -24,9 +23,12 @@ defmodule Gallformers.SourcePublisher do
   def publish_markdown(%Source{} = source, %SourceIngestion{} = ingestion) do
     with {:ok, private_path} <- assembled_markdown_path(ingestion) do
       source
-      |> SourcePublication.published_markdown_path()
+      |> SourceArtifacts.published_markdown_path()
       |> then(&SourceArtifacts.copy_private_to_public(private_path, &1))
-      |> normalize_publish_result()
+      |> case do
+        {:error, :private_artifact_not_found} -> {:error, :private_markdown_not_found}
+        result -> result
+      end
     end
   end
 
@@ -39,10 +41,4 @@ defmodule Gallformers.SourcePublisher do
       nil -> {:error, :missing_artifacts_path}
     end
   end
-
-  defp normalize_publish_result({:error, :private_artifact_not_found}) do
-    {:error, :private_markdown_not_found}
-  end
-
-  defp normalize_publish_result(result), do: result
 end
