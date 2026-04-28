@@ -7,8 +7,8 @@ defmodule Gallformers.Keys.PdfGenerator do
 
   require Logger
 
-  alias Gallformers.Storage.PDFKeys
   alias Gallformers.Keys.Key
+  alias Gallformers.Storage.PDFKeys
 
   @template_path "priv/typst/key.typ"
 

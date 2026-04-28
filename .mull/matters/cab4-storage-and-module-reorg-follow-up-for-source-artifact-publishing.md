@@ -142,6 +142,8 @@ After this phase, `Keys` should decide that a PDF must exist, but not how its ob
 
 ## Phase 3: Consolidate source artifact storage under `Gallformers.Storage.SourceArtifacts`
 
+*DONE*
+
 ### Objective
 Move canonical source artifact path ownership into storage so ingestion/source code stops constructing or owning S3 path rules for source artifacts.
 

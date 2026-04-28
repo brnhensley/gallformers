@@ -34,8 +34,8 @@ defmodule Gallformers.Storage.PDFKeys do
   defp path(key, :text_only) do
     "keys/#{key.slug}/#{key.slug}.pdf"
   end
+
   defp path(key, :with_images) do
     "keys/#{key.slug}/#{key.slug}-images.pdf"
   end
-
 end

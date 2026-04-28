@@ -7,7 +7,6 @@ defmodule Gallformers.SourcePublisher do
     deps: [Gallformers.Ingestions, Gallformers.Sources, Gallformers.Storage],
     exports: :all
 
-  alias Gallformers.Ingestions
   alias Gallformers.Ingestions.SourceIngestion
   alias Gallformers.Sources.Publication, as: SourcePublication
   alias Gallformers.Sources.Source
@@ -32,7 +31,10 @@ defmodule Gallformers.SourcePublisher do
   end
 
   defp assembled_markdown_path(%SourceIngestion{} = ingestion) do
-    case Ingestions.artifact_path(ingestion, @assembled_markdown_suffix) do
+    case SourceArtifacts.private_artifact_path(
+           ingestion.artifacts_path,
+           @assembled_markdown_suffix
+         ) do
       path when is_binary(path) -> {:ok, path}
       nil -> {:error, :missing_artifacts_path}
     end

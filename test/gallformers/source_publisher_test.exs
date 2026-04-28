@@ -10,6 +10,19 @@ defmodule Gallformers.SourcePublisherTest do
     @behaviour Gallformers.Storage.SourceArtifacts.Backend
 
     @impl true
+    def upload(_bucket, _path, _content, _content_type), do: {:ok, %{}}
+
+    @impl true
+    def get_object(_bucket, _path), do: {:ok, %{body: ""}}
+
+    @impl true
+    def list_objects(_bucket, _prefix, _continuation_token),
+      do: {:ok, %{keys: [], next_continuation_token: nil}}
+
+    @impl true
+    def delete_objects(_bucket, _keys), do: {:ok, %{}}
+
+    @impl true
     def copy_object(dest_bucket, dest_path, src_bucket, src_path) do
       send(self(), {:copy_object, dest_bucket, dest_path, src_bucket, src_path})
 

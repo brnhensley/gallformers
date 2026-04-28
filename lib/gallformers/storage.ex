@@ -9,9 +9,9 @@ defmodule Gallformers.Storage do
 
   require Logger
 
+  alias Gallformers.Storage.S3
   # Image processing library (vix-based)
   alias Image, as: ImageLib
-  alias Gallformers.Storage.S3
 
   # Image sizes for resizing (width in pixels)
   @sizes %{

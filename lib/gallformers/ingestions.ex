@@ -26,6 +26,7 @@ defmodule Gallformers.Ingestions do
   alias Gallformers.Ingestions.{DuplicateCandidate, SourceIngestion, SourceIngestionSpecies}
   alias Gallformers.Repo
   alias Gallformers.Sources.Source
+  alias Gallformers.Storage.SourceArtifacts
 
   @ordered_duplicate_candidates_query from(duplicate_candidate in DuplicateCandidate,
                                         order_by: [
@@ -128,7 +129,9 @@ defmodule Gallformers.Ingestions do
 
       if blank_artifacts_path?(source_ingestion.artifacts_path) do
         source_ingestion
-        |> SourceIngestion.changeset(%{artifacts_path: artifacts_path_for(source_ingestion.id)})
+        |> SourceIngestion.changeset(%{
+          artifacts_path: SourceArtifacts.private_artifact_prefix(source_ingestion.id)
+        })
         |> update_or_rollback()
       else
         source_ingestion
@@ -236,26 +239,15 @@ defmodule Gallformers.Ingestions do
   """
   @spec artifacts_path_for(integer()) :: String.t()
   def artifacts_path_for(source_ingestion_id) when is_integer(source_ingestion_id) do
-    Path.join("source-ingestions", Integer.to_string(source_ingestion_id))
+    SourceArtifacts.private_artifact_prefix(source_ingestion_id)
   end
 
   @doc """
   Returns a specific artifact path under the ingestion's canonical artifacts prefix.
   """
   @spec artifact_path(SourceIngestion.t(), String.t() | [String.t()]) :: String.t() | nil
-  def artifact_path(%SourceIngestion{artifacts_path: artifacts_path}, _suffix)
-      when artifacts_path in [nil, ""] do
-    nil
-  end
-
-  def artifact_path(%SourceIngestion{artifacts_path: artifacts_path}, suffix)
-      when is_binary(suffix) do
-    Path.join(artifacts_path, suffix)
-  end
-
-  def artifact_path(%SourceIngestion{artifacts_path: artifacts_path}, suffixes)
-      when is_list(suffixes) do
-    Enum.reduce(suffixes, artifacts_path, &Path.join/2)
+  def artifact_path(%SourceIngestion{artifacts_path: artifacts_path}, suffix) do
+    SourceArtifacts.private_artifact_path(artifacts_path, suffix)
   end
 
   @doc """

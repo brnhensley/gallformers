@@ -3,11 +3,11 @@ defmodule Gallformers.IngestionPipeline.Stages.LLMCleanTest do
 
   alias Gallformers.IngestionPipeline.Broadcaster
   alias Gallformers.IngestionPipeline.Stages.LLMClean
-  alias Gallformers.IngestionPipeline.Storage
   alias Gallformers.Ingestions
+  alias Gallformers.Storage.SourceArtifacts
 
   defmodule StorageBackendStub do
-    @behaviour Gallformers.IngestionPipeline.Storage.Backend
+    @behaviour Gallformers.Storage.SourceArtifacts.Backend
 
     @impl true
     def upload(bucket, path, content, content_type) do
@@ -27,6 +27,9 @@ defmodule Gallformers.IngestionPipeline.Stages.LLMCleanTest do
 
     @impl true
     def delete_objects(_bucket, _keys), do: {:ok, %{}}
+
+    @impl true
+    def copy_object(_dest_bucket, _dest_path, _src_bucket, _src_path), do: {:ok, %{}}
 
     defp test_pid, do: Process.get(:llm_clean_test_pid, self())
   end
@@ -55,11 +58,11 @@ defmodule Gallformers.IngestionPipeline.Stages.LLMCleanTest do
   end
 
   setup do
-    previous_storage_config = Application.get_env(:gallformers, Storage)
+    previous_storage_config = Application.get_env(:gallformers, SourceArtifacts)
     previous_llm_clean_config = Application.get_env(:gallformers, LLMClean)
 
     Process.put(:llm_clean_test_pid, self())
-    Application.put_env(:gallformers, Storage, backend: StorageBackendStub)
+    Application.put_env(:gallformers, SourceArtifacts, backend: StorageBackendStub)
     Application.put_env(:gallformers, LLMClean, llm_client: LLMClientStub, test_pid: self())
 
     on_exit(fn ->
@@ -67,9 +70,9 @@ defmodule Gallformers.IngestionPipeline.Stages.LLMCleanTest do
       Process.delete(:llm_clean_text_fixture)
 
       if previous_storage_config == nil do
-        Application.delete_env(:gallformers, Storage)
+        Application.delete_env(:gallformers, SourceArtifacts)
       else
-        Application.put_env(:gallformers, Storage, previous_storage_config)
+        Application.put_env(:gallformers, SourceArtifacts, previous_storage_config)
       end
 
       if previous_llm_clean_config == nil do
