@@ -205,6 +205,8 @@ This phase is not just a file move. It is the point where image code should be r
 
 ## Phase 5: Reposition `Gallformers.IngestionPipeline.Storage` as a pipeline-facing facade
 
+*DONE* - as part of Phase 3
+
 ### Objective
 Clarify what remains pipeline-specific after source-artifact storage owns the underlying storage rules.
 
