@@ -7,6 +7,21 @@ defmodule Gallformers.ImagesTest do
   alias Gallformers.Images
   alias Gallformers.Images.Image
 
+  describe "species variant policy" do
+    test "defines variant sizes in the images context" do
+      assert Images.species_variant_sizes() == [
+               small: 300,
+               medium: 800,
+               large: 1200,
+               xlarge: 2000
+             ]
+    end
+
+    test "includes original plus all generated species variants" do
+      assert Images.species_variant_names() == [:original, :small, :medium, :large, :xlarge]
+    end
+  end
+
   describe "requires_attribution?/1" do
     test "returns false for Public Domain / CC0" do
       refute Images.requires_attribution?("Public Domain / CC0")

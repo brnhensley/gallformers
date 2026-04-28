@@ -2,9 +2,10 @@ defmodule Gallformers.IngestionPipeline.StorageTest do
   use ExUnit.Case, async: false
 
   alias Gallformers.IngestionPipeline.Storage
+  alias Gallformers.Storage.SourceArtifacts
 
   defmodule BackendStub do
-    @behaviour Gallformers.IngestionPipeline.Storage.Backend
+    @behaviour Gallformers.Storage.SourceArtifacts.Backend
 
     @impl true
     def upload(bucket, path, content, content_type) do
@@ -37,17 +38,20 @@ defmodule Gallformers.IngestionPipeline.StorageTest do
       send(self(), {:delete_objects, bucket, keys})
       Process.get(:delete_objects_result, {:ok, %{}})
     end
+
+    @impl true
+    def copy_object(_dest_bucket, _dest_path, _src_bucket, _src_path), do: {:ok, %{}}
   end
 
   setup do
-    previous_config = Application.get_env(:gallformers, Storage)
-    Application.put_env(:gallformers, Storage, backend: BackendStub)
+    previous_config = Application.get_env(:gallformers, SourceArtifacts)
+    Application.put_env(:gallformers, SourceArtifacts, backend: BackendStub)
 
     on_exit(fn ->
       if previous_config == nil do
-        Application.delete_env(:gallformers, Storage)
+        Application.delete_env(:gallformers, SourceArtifacts)
       else
-        Application.put_env(:gallformers, Storage, previous_config)
+        Application.put_env(:gallformers, SourceArtifacts, previous_config)
       end
     end)
 
@@ -63,7 +67,7 @@ defmodule Gallformers.IngestionPipeline.StorageTest do
 
   describe "upload_artifact/5" do
     test "uploads to the private bucket using the artifact path" do
-      bucket = Storage.private_bucket()
+      bucket = SourceArtifacts.private_bucket()
 
       assert {:ok, path} =
                Storage.upload_artifact(42, :preprocess, "text.txt", "cleaned text", "text/plain")
@@ -77,7 +81,7 @@ defmodule Gallformers.IngestionPipeline.StorageTest do
 
   describe "download_artifact/3" do
     test "returns artifact contents" do
-      bucket = Storage.private_bucket()
+      bucket = SourceArtifacts.private_bucket()
       Process.put(:get_object_result, {:ok, %{body: "artifact contents"}})
 
       assert {:ok, "artifact contents"} =
@@ -96,7 +100,7 @@ defmodule Gallformers.IngestionPipeline.StorageTest do
 
   describe "delete_artifacts_for_ingestion/1" do
     test "lists all objects under the ingestion prefix and deletes them in a batch" do
-      bucket = Storage.private_bucket()
+      bucket = SourceArtifacts.private_bucket()
 
       Process.put(:list_objects_results, [
         {:ok,

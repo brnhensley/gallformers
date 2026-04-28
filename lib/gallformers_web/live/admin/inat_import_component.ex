@@ -13,7 +13,7 @@ defmodule GallformersWeb.Admin.InatImportComponent do
   alias Gallformers.Images
   alias Gallformers.INaturalist
   alias Gallformers.Licenses
-  alias Gallformers.Storage
+  alias Gallformers.Storage.Images, as: ImageStorage
 
   # -------------------------------------------------------------------
   # Lifecycle
@@ -359,8 +359,8 @@ defmodule GallformersWeb.Admin.InatImportComponent do
 
   defp import_single_photo(photo, species_id, uploader, observation) do
     with {:ok, binary} <- INaturalist.download_photo(photo.original_url),
-         path = Storage.generate_path(species_id, extension_from_url(photo.original_url)),
-         {:ok, _} <- Storage.upload(path, binary, content_type_from_url(photo.original_url)),
+         path = ImageStorage.generate_path(species_id, extension_from_url(photo.original_url)),
+         {:ok, _} <- ImageStorage.upload(path, binary, content_type_from_url(photo.original_url)),
          creator =
            INaturalist.format_creator(observation.observer_login, observation.observer_name),
          {:ok, _image} <-

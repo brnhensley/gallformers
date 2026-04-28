@@ -7,9 +7,7 @@ defmodule Gallformers.SourcePublisher do
     deps: [Gallformers.Ingestions, Gallformers.Sources, Gallformers.Storage],
     exports: :all
 
-  alias Gallformers.Ingestions
   alias Gallformers.Ingestions.SourceIngestion
-  alias Gallformers.Sources.Publication, as: SourcePublication
   alias Gallformers.Sources.Source
   alias Gallformers.Storage.SourceArtifacts
 
@@ -25,22 +23,22 @@ defmodule Gallformers.SourcePublisher do
   def publish_markdown(%Source{} = source, %SourceIngestion{} = ingestion) do
     with {:ok, private_path} <- assembled_markdown_path(ingestion) do
       source
-      |> SourcePublication.published_markdown_path()
+      |> SourceArtifacts.published_markdown_path()
       |> then(&SourceArtifacts.copy_private_to_public(private_path, &1))
-      |> normalize_publish_result()
+      |> case do
+        {:error, :private_artifact_not_found} -> {:error, :private_markdown_not_found}
+        result -> result
+      end
     end
   end
 
   defp assembled_markdown_path(%SourceIngestion{} = ingestion) do
-    case Ingestions.artifact_path(ingestion, @assembled_markdown_suffix) do
+    case SourceArtifacts.private_artifact_path(
+           ingestion.artifacts_path,
+           @assembled_markdown_suffix
+         ) do
       path when is_binary(path) -> {:ok, path}
       nil -> {:error, :missing_artifacts_path}
     end
   end
-
-  defp normalize_publish_result({:error, :private_artifact_not_found}) do
-    {:error, :private_markdown_not_found}
-  end
-
-  defp normalize_publish_result(result), do: result
 end

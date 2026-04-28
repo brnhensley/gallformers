@@ -6,7 +6,7 @@ defmodule GallformersWeb.KeyComponents do
 
   import GallformersWeb.DataDisplayComponents, only: [taxon_name: 1]
 
-  alias Gallformers.Storage
+  alias Gallformers.Storage.Images, as: ImageStorage
 
   @doc """
   Renders the path tracker showing the user's navigation history through the key.
@@ -314,7 +314,7 @@ defmodule GallformersWeb.KeyComponents do
 
   defp resolve_image_url(%{file: filename}, key_slug, _image_url_map)
        when is_binary(filename) do
-    "#{Storage.cdn_url()}/keys/#{key_slug}/#{filename}"
+    ImageStorage.public_url("keys/#{key_slug}/#{filename}")
   end
 
   defp resolve_image_url(_, _, _), do: ""

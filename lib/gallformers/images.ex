@@ -3,8 +3,8 @@ defmodule Gallformers.Images do
   The Images context.
 
   Provides functions for managing species images including CRUD operations,
-  audit functions, and attribution checking. S3 operations are in
-  `Gallformers.Storage`.
+  audit functions, and attribution checking. Image-object storage operations
+  are in `Gallformers.Storage.Images`.
   """
   use Boundary,
     deps: [
@@ -26,17 +26,31 @@ defmodule Gallformers.Images do
   alias Gallformers.Licenses
   alias Gallformers.Repo
   alias Gallformers.Species.Species
-  alias Gallformers.Storage
+  alias Gallformers.Storage.Images, as: ImageStorage
   alias Gallformers.TextMatch
 
   # Accepted MIME types for upload
   @accepted_types ~w(image/jpeg image/png image/jpg)
+  @species_variant_sizes [small: 300, medium: 800, large: 1200, xlarge: 2000]
+  @species_variant_names [:original | Keyword.keys(@species_variant_sizes)]
 
   @doc """
   Returns the list of accepted MIME types for image upload.
   """
   @spec accepted_types() :: [String.t()]
   def accepted_types, do: @accepted_types
+
+  @doc """
+  Returns the configured species image variant sizes.
+  """
+  @spec species_variant_sizes() :: keyword(pos_integer())
+  def species_variant_sizes, do: @species_variant_sizes
+
+  @doc """
+  Returns the species image path variants that should be deleted together.
+  """
+  @spec species_variant_names() :: [ImageSchema.size()]
+  def species_variant_names, do: @species_variant_names
 
   # =============================================================================
   # Image CRUD Operations
@@ -112,7 +126,7 @@ defmodule Gallformers.Images do
         # Wait for CDN to propagate
         Process.sleep(5000)
 
-        case Storage.generate_size_variants(path) do
+        case ImageStorage.generate_size_variants(path, species_variant_sizes()) do
           :ok ->
             Logger.info("Successfully generated size variants for #{path}")
 
@@ -215,7 +229,7 @@ defmodule Gallformers.Images do
   @spec delete_image(ImageSchema.t()) :: {:ok, ImageSchema.t()} | {:error, term()}
   def delete_image(%ImageSchema{} = image) do
     # Delete from S3 first
-    case Storage.delete_image(image.path) do
+    case ImageStorage.delete_content_image(image.path, species_variant_names()) do
       :ok ->
         Repo.delete(image)
 
@@ -240,7 +254,7 @@ defmodule Gallformers.Images do
       |> Repo.all()
 
     Enum.each(images, fn path ->
-      case Storage.delete_image(path) do
+      case ImageStorage.delete_content_image(path, species_variant_names()) do
         :ok ->
           :ok
 
@@ -266,7 +280,9 @@ defmodule Gallformers.Images do
     # Delete from S3 first
     s3_results =
       images
-      |> Enum.map(fn image -> Storage.delete_image(image.path) end)
+      |> Enum.map(fn image ->
+        ImageStorage.delete_content_image(image.path, species_variant_names())
+      end)
       |> Enum.filter(fn result -> result != :ok end)
 
     if s3_results == [] do

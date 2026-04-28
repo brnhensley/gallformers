@@ -14,9 +14,10 @@ defmodule Gallformers.IngestionPipeline.FullPipelineTest do
   alias Gallformers.IngestionPipeline.Workflow
   alias Gallformers.Ingestions
   alias Gallformers.Repo
+  alias Gallformers.Storage.SourceArtifacts
 
   defmodule StorageBackendStub do
-    @behaviour Gallformers.IngestionPipeline.Storage.Backend
+    @behaviour Gallformers.Storage.SourceArtifacts.Backend
 
     @impl true
     def upload(_bucket, path, content, content_type) do
@@ -54,6 +55,20 @@ defmodule Gallformers.IngestionPipeline.FullPipelineTest do
       update_state(fn state ->
         objects = Map.drop(state.objects, keys)
         {{:ok, %{}}, %{state | objects: objects}}
+      end)
+    end
+
+    @impl true
+    def copy_object(_dest_bucket, dest_path, _src_bucket, src_path) do
+      update_state(fn state ->
+        case Map.fetch(state.objects, src_path) do
+          {:ok, object} ->
+            objects = Map.put(state.objects, dest_path, object)
+            {{:ok, %{}}, %{state | objects: objects}}
+
+          :error ->
+            {{:error, :not_found}, state}
+        end
       end)
     end
 
@@ -106,7 +121,7 @@ defmodule Gallformers.IngestionPipeline.FullPipelineTest do
   end
 
   setup do
-    previous_storage_config = Application.get_env(:gallformers, Storage)
+    previous_storage_config = Application.get_env(:gallformers, SourceArtifacts)
     previous_extract_config = Application.get_env(:gallformers, Extract)
     previous_llm_clean_config = Application.get_env(:gallformers, LLMClean)
     previous_metadata_config = Application.get_env(:gallformers, Metadata)
@@ -123,7 +138,7 @@ defmodule Gallformers.IngestionPipeline.FullPipelineTest do
       end)
 
     Application.put_env(:gallformers, __MODULE__, state_pid: state_pid)
-    Application.put_env(:gallformers, Storage, backend: StorageBackendStub)
+    Application.put_env(:gallformers, SourceArtifacts, backend: StorageBackendStub)
     Application.put_env(:gallformers, Extract, extractor: ExtractorStub)
     Application.put_env(:gallformers, LLMClean, llm_client: LLMClientStub)
     Application.put_env(:gallformers, Metadata, llm_client: LLMClientStub)
@@ -134,7 +149,7 @@ defmodule Gallformers.IngestionPipeline.FullPipelineTest do
         Agent.stop(state_pid)
       end
 
-      restore_env(Storage, previous_storage_config)
+      restore_env(SourceArtifacts, previous_storage_config)
       restore_env(Extract, previous_extract_config)
       restore_env(LLMClean, previous_llm_clean_config)
       restore_env(Metadata, previous_metadata_config)

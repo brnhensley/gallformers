@@ -3,12 +3,12 @@ defmodule Gallformers.IngestionPipeline.Stages.HashAndDedupTest do
 
   alias Gallformers.IngestionPipeline.Broadcaster
   alias Gallformers.IngestionPipeline.Stages.HashAndDedup
-  alias Gallformers.IngestionPipeline.Storage
   alias Gallformers.Ingestions
   alias Gallformers.MinHash
+  alias Gallformers.Storage.SourceArtifacts
 
   defmodule StorageBackendStub do
-    @behaviour Gallformers.IngestionPipeline.Storage.Backend
+    @behaviour Gallformers.Storage.SourceArtifacts.Backend
 
     @impl true
     def upload(_bucket, _path, _content, _content_type), do: {:ok, %{}}
@@ -26,22 +26,25 @@ defmodule Gallformers.IngestionPipeline.Stages.HashAndDedupTest do
     @impl true
     def delete_objects(_bucket, _keys), do: {:ok, %{}}
 
+    @impl true
+    def copy_object(_dest_bucket, _dest_path, _src_bucket, _src_path), do: {:ok, %{}}
+
     defp test_pid, do: Process.get(:hash_and_dedup_test_pid, self())
   end
 
   setup do
-    previous_storage_config = Application.get_env(:gallformers, Storage)
+    previous_storage_config = Application.get_env(:gallformers, SourceArtifacts)
 
     Process.put(:hash_and_dedup_test_pid, self())
-    Application.put_env(:gallformers, Storage, backend: StorageBackendStub)
+    Application.put_env(:gallformers, SourceArtifacts, backend: StorageBackendStub)
 
     on_exit(fn ->
       Process.delete(:hash_and_dedup_test_pid)
 
       if previous_storage_config == nil do
-        Application.delete_env(:gallformers, Storage)
+        Application.delete_env(:gallformers, SourceArtifacts)
       else
-        Application.put_env(:gallformers, Storage, previous_storage_config)
+        Application.put_env(:gallformers, SourceArtifacts, previous_storage_config)
       end
     end)
 

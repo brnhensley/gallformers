@@ -5,6 +5,7 @@ defmodule Gallformers.IngestionsTest do
   alias Gallformers.Ingestions
   alias Gallformers.Sources
   alias Gallformers.Species.Species
+  alias Gallformers.Storage.SourceArtifacts
 
   describe "create_source_ingestion/1" do
     test "creates a submission with a canonical per-ingestion artifacts path" do
@@ -21,10 +22,7 @@ defmodule Gallformers.IngestionsTest do
       assert ingestion.status == "processing"
       assert ingestion.processing_stage == "submitted"
       assert ingestion.uploaded_by_id == user.id
-      assert ingestion.artifacts_path == "source-ingestions/#{ingestion.id}"
-
-      assert Ingestions.artifact_path(ingestion, "preprocessed.txt") ==
-               "#{ingestion.artifacts_path}/preprocessed.txt"
+      assert ingestion.artifacts_path == SourceArtifacts.private_artifact_prefix(ingestion.id)
     end
 
     test "rejects invalid input types" do
@@ -298,32 +296,6 @@ defmodule Gallformers.IngestionsTest do
 
       assert {:ok, cleared} = Ingestions.clear_source_association(associated)
       assert cleared.source_id == nil
-    end
-  end
-
-  describe "artifact_path/2" do
-    test "returns nil when artifacts_path is blank" do
-      # Create with default empty string, then verify behavior
-      ingestion = source_ingestion_fixture(%{input_type: "pdf"})
-      # Manually set to empty string to test edge case
-      blank_ingestion = %{ingestion | artifacts_path: ""}
-      assert Ingestions.artifact_path(blank_ingestion, "file.txt") == nil
-    end
-
-    test "builds path with string suffix" do
-      ingestion = source_ingestion_fixture(%{input_type: "pdf"})
-
-      assert Ingestions.artifact_path(ingestion, "preprocessed.txt") ==
-               "#{ingestion.artifacts_path}/preprocessed.txt"
-    end
-
-    test "builds path with list suffix" do
-      ingestion = source_ingestion_fixture(%{input_type: "pdf"})
-      # Enum.reduce applies suffixes in order, prepending to base path
-      result = Ingestions.artifact_path(ingestion, ["extracts", "page1.json"])
-      assert is_binary(result)
-      assert String.contains?(result, "page1.json") == true
-      assert String.contains?(result, ingestion.artifacts_path) == true
     end
   end
 

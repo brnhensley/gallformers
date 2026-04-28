@@ -3,11 +3,11 @@ defmodule Gallformers.IngestionPipeline.Stages.UploadTest do
 
   alias Gallformers.IngestionPipeline.Broadcaster
   alias Gallformers.IngestionPipeline.Stages.Upload
-  alias Gallformers.IngestionPipeline.Storage
   alias Gallformers.Ingestions
+  alias Gallformers.Storage.SourceArtifacts
 
   defmodule StorageBackendStub do
-    @behaviour Gallformers.IngestionPipeline.Storage.Backend
+    @behaviour Gallformers.Storage.SourceArtifacts.Backend
 
     @impl true
     def upload(_bucket, _path, _content, _content_type), do: {:ok, %{}}
@@ -32,23 +32,26 @@ defmodule Gallformers.IngestionPipeline.Stages.UploadTest do
     @impl true
     def delete_objects(_bucket, _keys), do: {:ok, %{}}
 
+    @impl true
+    def copy_object(_dest_bucket, _dest_path, _src_bucket, _src_path), do: {:ok, %{}}
+
     defp test_pid, do: Process.get(:upload_test_pid, self())
   end
 
   setup do
-    previous_storage_config = Application.get_env(:gallformers, Storage)
+    previous_storage_config = Application.get_env(:gallformers, SourceArtifacts)
 
     Process.put(:upload_test_pid, self())
-    Application.put_env(:gallformers, Storage, backend: StorageBackendStub)
+    Application.put_env(:gallformers, SourceArtifacts, backend: StorageBackendStub)
 
     on_exit(fn ->
       Process.delete(:upload_list_objects_results)
       Process.delete(:upload_test_pid)
 
       if previous_storage_config == nil do
-        Application.delete_env(:gallformers, Storage)
+        Application.delete_env(:gallformers, SourceArtifacts)
       else
-        Application.put_env(:gallformers, Storage, previous_storage_config)
+        Application.put_env(:gallformers, SourceArtifacts, previous_storage_config)
       end
     end)
 
@@ -58,7 +61,7 @@ defmodule Gallformers.IngestionPipeline.Stages.UploadTest do
   test "transitions the ingestion to review and broadcasts review_ready" do
     ingestion = source_ingestion_fixture()
     ingestion_id = ingestion.id
-    bucket = Storage.private_bucket()
+    bucket = SourceArtifacts.private_bucket()
     prefix = "source-ingestions/#{ingestion.id}/"
     Broadcaster.subscribe(ingestion.id)
 

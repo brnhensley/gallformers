@@ -18,7 +18,7 @@ defmodule GallformersWeb.Admin.ImagesLive do
   alias Gallformers.Images.Image
   alias Gallformers.Licenses
   alias Gallformers.Sources
-  alias Gallformers.Storage
+  alias Gallformers.Storage.Images, as: ImageStorage
   alias Gallformers.TextMatch
 
   @impl true
@@ -1095,9 +1095,9 @@ defmodule GallformersWeb.Admin.ImagesLive do
 
     urls =
       Enum.map(files, fn file ->
-        path = Storage.generate_path(species_id, file["extension"])
+        path = ImageStorage.generate_path(species_id, file["extension"])
 
-        case Storage.presigned_upload_url(path, file["type"]) do
+        case ImageStorage.presigned_upload_url(path, file["type"]) do
           {:ok, presigned_url} ->
             %{
               path: path,

@@ -3,11 +3,11 @@ defmodule Gallformers.IngestionPipeline.Stages.DataExtractTest do
 
   alias Gallformers.IngestionPipeline.Broadcaster
   alias Gallformers.IngestionPipeline.Stages.DataExtract
-  alias Gallformers.IngestionPipeline.Storage
   alias Gallformers.Ingestions
+  alias Gallformers.Storage.SourceArtifacts
 
   defmodule StorageBackendStub do
-    @behaviour Gallformers.IngestionPipeline.Storage.Backend
+    @behaviour Gallformers.Storage.SourceArtifacts.Backend
 
     @impl true
     def upload(bucket, path, content, content_type) do
@@ -27,6 +27,9 @@ defmodule Gallformers.IngestionPipeline.Stages.DataExtractTest do
 
     @impl true
     def delete_objects(_bucket, _keys), do: {:ok, %{}}
+
+    @impl true
+    def copy_object(_dest_bucket, _dest_path, _src_bucket, _src_path), do: {:ok, %{}}
 
     defp test_pid, do: Process.get(:data_extract_test_pid, self())
   end
@@ -94,11 +97,11 @@ defmodule Gallformers.IngestionPipeline.Stages.DataExtractTest do
   end
 
   setup do
-    previous_storage_config = Application.get_env(:gallformers, Storage)
+    previous_storage_config = Application.get_env(:gallformers, SourceArtifacts)
     previous_data_extract_config = Application.get_env(:gallformers, DataExtract)
 
     Process.put(:data_extract_test_pid, self())
-    Application.put_env(:gallformers, Storage, backend: StorageBackendStub)
+    Application.put_env(:gallformers, SourceArtifacts, backend: StorageBackendStub)
 
     Application.put_env(
       :gallformers,
@@ -113,9 +116,9 @@ defmodule Gallformers.IngestionPipeline.Stages.DataExtractTest do
       Process.delete(:data_extract_text_fixture)
 
       if previous_storage_config == nil do
-        Application.delete_env(:gallformers, Storage)
+        Application.delete_env(:gallformers, SourceArtifacts)
       else
-        Application.put_env(:gallformers, Storage, previous_storage_config)
+        Application.put_env(:gallformers, SourceArtifacts, previous_storage_config)
       end
 
       if previous_data_extract_config == nil do
