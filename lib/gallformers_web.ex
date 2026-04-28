@@ -33,6 +33,7 @@ defmodule GallformersWeb do
       Gallformers.Images.AuditCache,
       Gallformers.Images.Image,
       Gallformers.Keys.Key,
+      Gallformers.Storage.Images,
       Gallformers.Sources.Source,
       Gallformers.Species.Species,
       Gallformers.Species.SpeciesSource,

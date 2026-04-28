@@ -173,6 +173,8 @@ Move canonical source artifact path ownership into storage so ingestion/source c
 
 ## Phase 4: Extract `Gallformers.Storage.Images` and separate image storage from image policy
 
+*DONE*
+
 ### Objective
 Split the current mixed image-related code into a storage implementation layer plus domain policy, rather than moving the entire current `Storage` module wholesale into a new namespace.
 

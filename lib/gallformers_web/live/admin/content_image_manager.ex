@@ -28,7 +28,7 @@ defmodule GallformersWeb.Admin.ContentImageManager do
   alias Gallformers.ContentImages
   alias Gallformers.Images.Attribution
   alias Gallformers.Licenses
-  alias Gallformers.Storage
+  alias Gallformers.Storage.Images, as: ImageStorage
 
   @impl true
   def mount(socket) do
@@ -82,7 +82,7 @@ defmodule GallformersWeb.Admin.ContentImageManager do
           ]}
         >
           <img
-            src={Storage.cdn_url() <> "/" <> image.path}
+            src={ImageStorage.public_url(image.path)}
             alt={image.caption || "Content image"}
             class="w-full h-24 object-cover"
             loading="lazy"
@@ -177,7 +177,7 @@ defmodule GallformersWeb.Admin.ContentImageManager do
         <:body>
           <div class="flex gap-4">
             <img
-              src={Storage.cdn_url() <> "/" <> @editing_image.path}
+              src={ImageStorage.public_url(@editing_image.path)}
               alt="Editing"
               class="w-32 h-32 object-cover rounded"
             />
@@ -254,7 +254,7 @@ defmodule GallformersWeb.Admin.ContentImageManager do
         <:body>
           <div class="space-y-4">
             <img
-              src={Storage.cdn_url() <> "/" <> @deleting_image.path}
+              src={ImageStorage.public_url(@deleting_image.path)}
               alt="Deleting"
               class="w-32 h-32 object-cover rounded mx-auto"
             />
@@ -300,14 +300,14 @@ defmodule GallformersWeb.Admin.ContentImageManager do
     urls =
       Enum.map(files, fn file ->
         path =
-          Storage.generate_content_image_path(
+          ImageStorage.generate_content_image_path(
             prefix_for(owner_type),
             owner_id,
             file["extension"],
             has_variants: has_variants
           )
 
-        case Storage.presigned_upload_url(path, file["type"]) do
+        case ImageStorage.presigned_upload_url(path, file["type"]) do
           {:ok, presigned_url} ->
             %{path: path, presigned_url: presigned_url, content_type: file["type"]}
 

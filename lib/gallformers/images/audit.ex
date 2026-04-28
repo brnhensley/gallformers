@@ -14,7 +14,7 @@ defmodule Gallformers.Images.Audit do
   alias Gallformers.Images.Image, as: ImageSchema
   alias Gallformers.Repo
   alias Gallformers.Species.Species
-  alias Gallformers.Storage
+  alias Gallformers.Storage.Images, as: ImageStorage
 
   @doc """
   Lists all image paths from S3 under the gall/ prefix.
@@ -24,7 +24,7 @@ defmodule Gallformers.Images.Audit do
   """
   @spec list_all_s3_gall_paths() :: {:ok, [map()]} | {:error, term()}
   def list_all_s3_gall_paths do
-    Storage.list_all_gall_paths()
+    ImageStorage.list_all_gall_paths()
   end
 
   @doc """
@@ -104,7 +104,7 @@ defmodule Gallformers.Images.Audit do
   @spec delete_s3_orphan(String.t()) :: :ok | {:error, term()}
   def delete_s3_orphan(path) when is_binary(path) do
     Logger.info("Deleting S3 orphan image: #{path}")
-    Storage.delete_image(path)
+    ImageStorage.delete_content_image(path, Images.species_variant_names())
   end
 
   @doc """

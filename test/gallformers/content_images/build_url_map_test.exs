@@ -6,7 +6,7 @@ defmodule Gallformers.ContentImages.BuildUrlMapTest do
 
   alias Gallformers.ContentImages
   alias Gallformers.Keys
-  alias Gallformers.Storage
+  alias Gallformers.Storage.Images, as: ImageStorage
 
   setup do
     {:ok, key} =
@@ -43,7 +43,7 @@ defmodule Gallformers.ContentImages.BuildUrlMapTest do
     url = url_map[image.id]
     # Should use medium variant for key images
     assert String.contains?(url, "medium") == true
-    assert String.starts_with?(url, Storage.cdn_url()) == true
+    assert String.starts_with?(url, ImageStorage.cdn_url()) == true
   end
 
   test "handles images without original in path", %{key: key} do

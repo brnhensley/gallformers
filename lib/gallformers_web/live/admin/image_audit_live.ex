@@ -19,7 +19,7 @@ defmodule GallformersWeb.Admin.ImageAuditLive do
   alias Gallformers.Images.Image
   alias Gallformers.Licenses
   alias Gallformers.Sources
-  alias Gallformers.Storage
+  alias Gallformers.Storage.Images, as: ImageStorage
 
   @per_page 50
 
@@ -1077,8 +1077,7 @@ defmodule GallformersWeb.Admin.ImageAuditLive do
   defp orphan_thumbnail_url(path) do
     # Orphans don't have size variants (those are generated on proper upload),
     # so always use the original
-    cdn_url = Storage.cdn_url()
-    "#{cdn_url}/#{path}"
+    ImageStorage.public_url(path)
   end
 
   defp needs_creator?(image) do

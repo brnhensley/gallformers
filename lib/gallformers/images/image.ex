@@ -9,11 +9,9 @@ defmodule Gallformers.Images.Image do
   import Gallformers.ChangesetHelpers, only: [trim_strings: 1]
 
   @behaviour Gallformers.SchemaFields
+  alias Gallformers.Storage.Images, as: ImageStorage
 
   @required_fields [:species_id, :path]
-
-  # CloudFront base URL for images
-  @image_base_url "https://dhz6u1p7t6okk.cloudfront.net"
 
   @type t :: %__MODULE__{
           id: integer() | nil,
@@ -56,7 +54,7 @@ defmodule Gallformers.Images.Image do
   """
   @spec url(t()) :: String.t() | nil
   def url(%__MODULE__{path: path}) when is_binary(path) do
-    @image_base_url <> "/" <> path
+    ImageStorage.public_url(path)
   end
 
   def url(_), do: nil
@@ -69,19 +67,18 @@ defmodule Gallformers.Images.Image do
   """
   @spec sized_url(String.t(), size()) :: String.t()
   def sized_url(path, :original) when is_binary(path) do
-    @image_base_url <> "/" <> path
+    ImageStorage.variant_public_url(path, :original)
   end
 
   def sized_url(path, size) when is_binary(path) and size in [:small, :medium, :large, :xlarge] do
-    sized_path = String.replace(path, "original", Atom.to_string(size))
-    @image_base_url <> "/" <> sized_path
+    ImageStorage.variant_public_url(path, size)
   end
 
   @doc """
   Returns the CloudFront base URL.
   """
   @spec base_url() :: String.t()
-  def base_url, do: @image_base_url
+  def base_url, do: ImageStorage.cdn_url()
 
   @impl Gallformers.SchemaFields
   def required_fields, do: @required_fields

@@ -4,7 +4,7 @@ defmodule Gallformers.ContentImages do
 
   Provides CRUD operations, attribution checking, and S3 lifecycle management.
   Uses shared attribution logic from `Images.Attribution` and storage operations
-  from `Storage`.
+  from `Storage.Images`.
   """
   use Boundary,
     deps: [
@@ -22,7 +22,7 @@ defmodule Gallformers.ContentImages do
   alias Gallformers.ContentImages.ContentImage
   alias Gallformers.Images.Attribution
   alias Gallformers.Repo
-  alias Gallformers.Storage
+  alias Gallformers.Storage.Images, as: ImageStorage
 
   # Size variant configs per owner type
   @key_sizes [medium: 800, large: 1200]
@@ -92,12 +92,7 @@ defmodule Gallformers.ContentImages do
     |> Repo.all()
     |> Map.new(fn {id, path} ->
       # For key images, prefer medium variant if available
-      url =
-        if String.contains?(path, "original") do
-          Storage.cdn_url() <> "/" <> String.replace(path, "original", "medium", global: false)
-        else
-          Storage.cdn_url() <> "/" <> path
-        end
+      url = ImageStorage.variant_public_url(path, :medium)
 
       {id, url}
     end)
@@ -173,7 +168,7 @@ defmodule Gallformers.ContentImages do
         try do
           Process.sleep(5000)
 
-          case Storage.generate_size_variants(path, @key_sizes) do
+          case ImageStorage.generate_size_variants(path, @key_sizes) do
             :ok ->
               Logger.info("Generated key image variants for #{path}")
 
@@ -218,7 +213,7 @@ defmodule Gallformers.ContentImages do
   def delete_image(%ContentImage{} = image) do
     sizes = sizes_for_image(image)
 
-    case Storage.delete_content_image(image.path, sizes) do
+    case ImageStorage.delete_content_image(image.path, sizes) do
       :ok ->
         Repo.delete(image)
 
@@ -247,7 +242,7 @@ defmodule Gallformers.ContentImages do
 
     s3_errors =
       images
-      |> Enum.map(fn image -> Storage.delete_content_image(image.path, sizes) end)
+      |> Enum.map(fn image -> ImageStorage.delete_content_image(image.path, sizes) end)
       |> Enum.reject(&(&1 == :ok))
 
     if s3_errors == [] do
@@ -285,7 +280,7 @@ defmodule Gallformers.ContentImages do
   @spec delete_collected_s3_paths({[String.t()], [atom()]}) :: :ok
   def delete_collected_s3_paths({paths, size_names}) do
     Enum.each(paths, fn path ->
-      case Storage.delete_content_image(path, size_names) do
+      case ImageStorage.delete_content_image(path, size_names) do
         :ok ->
           :ok
 
