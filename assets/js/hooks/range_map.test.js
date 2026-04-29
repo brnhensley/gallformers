@@ -1,11 +1,15 @@
-import { describe, test, expect } from 'vitest'
-import {
+import { describe, test, expect, vi } from 'vitest'
+import RangeMap, {
   computeEffectiveSets,
   buildFillExpression,
   pickSubdivisionCode,
   setsEqual,
   forEachCoord
 } from './range_map.js'
+import {
+  mountHook,
+  pushServerEvent
+} from '../test/hook_test_helper.js'
 
 // ============================================
 // computeEffectiveSets
@@ -263,5 +267,61 @@ describe('forEachCoord', () => {
     const coords = []
     forEachCoord({ type: 'Point' }, (lng, lat) => coords.push([lng, lat]))
     expect(coords).toHaveLength(0)
+  })
+})
+
+// ============================================
+// viewport sync
+// ============================================
+
+describe('RangeMap viewport sync', () => {
+  function buildHook(htmlAttrs = '') {
+    const hook = mountHook(
+      RangeMap,
+      `<div
+        data-in-range='[]'
+        data-excluded-range='[]'
+        data-inherited-range='[]'
+        data-introduced-range='[]'
+        data-editable='true'
+        data-navigable='false'
+        data-place-mode='false'
+        ${htmlAttrs}
+      ></div>`
+    )
+
+    hook.initMap = () => {}
+    hook.updateChoropleth = vi.fn()
+    hook.fitToRange = vi.fn()
+    hook.zoomToCountry = vi.fn()
+    hook.mounted()
+
+    return hook
+  }
+
+  test('range-update preserves drill-down country viewport', () => {
+    const hook = buildHook()
+    hook.drillDownCountry = 'US'
+
+    pushServerEvent(hook, 'range-update', {
+      in_range: ['US-CA'],
+      excluded_range: [],
+      inherited_range: [],
+      introduced_range: []
+    })
+
+    expect(hook.zoomToCountry).toHaveBeenCalledWith('US', true)
+    expect(hook.fitToRange).not.toHaveBeenCalled()
+  })
+
+  test('updated preserves drill-down country viewport when range expands', () => {
+    const hook = buildHook()
+    hook.drillDownCountry = 'CA'
+    hook.el.dataset.inRange = JSON.stringify(['CA-BC'])
+
+    hook.updated()
+
+    expect(hook.zoomToCountry).toHaveBeenCalledWith('CA', true)
+    expect(hook.fitToRange).not.toHaveBeenCalled()
   })
 })
