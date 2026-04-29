@@ -255,6 +255,13 @@ defmodule Gallformers.Wcvp.LookupTest do
       assert result.powo_id == "urn:lsid:ipni.org:names:295763-1"
     end
 
+    test "matches accepted names case-insensitively" do
+      result = Lookup.match_by_name("quercus alba")
+      assert %WcvpName{} = result
+      assert result.plant_name_id == "100"
+      assert result.taxon_name == "Quercus alba"
+    end
+
     test "returns nil for non-existent name" do
       assert Lookup.match_by_name("Nonexistent species") == nil
     end
@@ -265,6 +272,13 @@ defmodule Gallformers.Wcvp.LookupTest do
 
     test "resolves synonym to accepted name when resolve_synonyms is true" do
       result = Lookup.match_by_name("Quercus borealis", resolve_synonyms: true)
+      assert result.plant_name_id == "101"
+      assert result.taxon_name == "Quercus rubra"
+      assert result.taxon_status == "Accepted"
+    end
+
+    test "resolves synonyms case-insensitively when resolve_synonyms is true" do
+      result = Lookup.match_by_name("quercus borealis", resolve_synonyms: true)
       assert result.plant_name_id == "101"
       assert result.taxon_name == "Quercus rubra"
       assert result.taxon_status == "Accepted"

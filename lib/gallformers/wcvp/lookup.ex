@@ -171,9 +171,13 @@ defmodule Gallformers.Wcvp.Lookup do
   end
 
   defp do_match_by_name(name, opts) do
+    normalized_name = String.downcase(name)
+
     case Repo.WCVP.one(
            from(n in name_query(),
-             where: n.taxon_name == ^name and n.taxon_status == "Accepted",
+             where:
+               fragment("lower(?)", n.taxon_name) == ^normalized_name and
+                 n.taxon_status == "Accepted",
              limit: 1,
              select_merge: %{taxon_status: n.taxon_status}
            )
@@ -183,15 +187,17 @@ defmodule Gallformers.Wcvp.Lookup do
 
       nil ->
         if Keyword.get(opts, :resolve_synonyms, false) do
-          resolve_synonym_by_name(name)
+          resolve_synonym_by_name(normalized_name)
         end
     end
   end
 
-  defp resolve_synonym_by_name(name) do
+  defp resolve_synonym_by_name(normalized_name) do
     case Repo.WCVP.one(
            from(n in WcvpName,
-             where: n.taxon_name == ^name and n.taxon_status == "Synonym",
+             where:
+               fragment("lower(?)", n.taxon_name) == ^normalized_name and
+                 n.taxon_status == "Synonym",
              select: %{
                plant_name_id: n.plant_name_id,
                accepted_plant_name_id: n.accepted_plant_name_id

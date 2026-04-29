@@ -160,7 +160,7 @@ const RangeMap = {
       this.inheritedRange = new Set(inherited_range || [])
       this.introducedRange = new Set(introduced_range || [])
       this.updateChoropleth()
-      this.fitToRange(true)
+      this.syncViewportAfterRangeChange(true)
     })
 
     // Drill-down zoom events from CountryDrillDown / ExclusionDrillDown panel
@@ -218,7 +218,7 @@ const RangeMap = {
 
       // Re-zoom when range expands (e.g., after WCVP sync adds new regions)
       if (rangeExpanded) {
-        this.fitToRange(true)
+        this.syncViewportAfterRangeChange(true)
       }
     }
   },
@@ -657,6 +657,15 @@ const RangeMap = {
     }
   },
 
+  syncViewportAfterRangeChange(animate) {
+    if (this.drillDownCountry) {
+      this.zoomToCountry(this.drillDownCountry, animate)
+      return
+    }
+
+    this.fitToRange(animate)
+  },
+
   /**
    * Fit the map viewport to the bounding box of in-range subdivisions.
    * Falls back to the full world view when there's no range data.
@@ -732,7 +741,7 @@ const RangeMap = {
    * Zoom the map to show a specific country and its subdivisions.
    * Used when the drill-down panel opens for a country.
    */
-  zoomToCountry(code) {
+  zoomToCountry(code, animate = true) {
     if (!this.map || !this.map.isStyleLoaded()) return
 
     let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity
@@ -765,7 +774,7 @@ const RangeMap = {
       this.map.fitBounds([[minLng, minLat], [maxLng, maxLat]], {
         padding: 40,
         maxZoom: 5,
-        animate: true
+        animate
       })
     }
   }

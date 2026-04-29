@@ -3,10 +3,11 @@ defmodule GallformersWeb.Admin.HostRangeLive do
   Admin triage page for host range confirmation and WCVP sync.
 
   Shows hosts that need range review and allows bulk confirmation
-  and bulk WCVP sync operations.
+  plus bulk WCVP match/sync operations.
   """
   use GallformersWeb, :live_view
 
+  alias Gallformers.Accounts
   alias Gallformers.Plants
   alias Gallformers.Wcvp
 
@@ -17,11 +18,13 @@ defmodule GallformersWeb.Admin.HostRangeLive do
     socket =
       socket
       |> assign(:current_user, session["current_user"])
+      |> assign(:superadmin?, Accounts.superadmin?(session["current_user"]))
       |> assign(:page_title, "Host Range Review")
       |> assign(:selected_ids, MapSet.new())
-      |> assign(:syncing, nil)
+      |> assign(:processing, nil)
       |> assign(:confirm_action, nil)
       |> assign(:sync_results, nil)
+      |> assign(:match_results, nil)
       |> assign(:page_size, @page_size)
       |> assign(:total_count, 0)
       |> assign(:hosts, [])
@@ -38,7 +41,14 @@ defmodule GallformersWeb.Admin.HostRangeLive do
         :filter,
         parse_atom_param(params["filter"], ~w(all confirmed unconfirmed), :unconfirmed)
       )
-      |> assign(:wcvp_filter, parse_atom_param(params["wcvp"], ~w(yes no all), :all))
+      |> assign(
+        :wcvp_filter,
+        parse_atom_param(
+          params["wcvp"],
+          ~w(active all linked unmatched no_match ignored),
+          :active
+        )
+      )
       |> assign(:range_filter, parse_atom_param(params["range"], ~w(yes no all), :all))
       |> assign(
         :sync_status,
@@ -135,6 +145,20 @@ defmodule GallformersWeb.Admin.HostRangeLive do
   end
 
   @impl true
+  def handle_event("match_selected", _params, socket) do
+    {:noreply, assign(socket, :confirm_action, :match)}
+  end
+
+  @impl true
+  def handle_event("match_all_filtered", _params, socket) do
+    if socket.assigns.superadmin? do
+      {:noreply, assign(socket, :confirm_action, :match_filtered)}
+    else
+      {:noreply, put_flash(socket, :error, "Only superadmins can match all filtered hosts")}
+    end
+  end
+
+  @impl true
   def handle_event("cancel_confirm", _params, socket) do
     {:noreply, assign(socket, :confirm_action, nil)}
   end
@@ -174,13 +198,56 @@ defmodule GallformersWeb.Admin.HostRangeLive do
     {:noreply,
      socket
      |> assign(:confirm_action, nil)
-     |> assign(:syncing, %{total: length(hosts_to_sync), done: 0})}
+     |> assign(:processing, %{kind: :sync, total: length(hosts_to_sync), done: 0})}
+  end
+
+  @impl true
+  def handle_event("do_match_selected", _params, socket) do
+    {:noreply, begin_match(socket, selected_hosts(socket))}
+  end
+
+  @impl true
+  def handle_event("do_match_all_filtered", _params, socket) do
+    if socket.assigns.superadmin? do
+      {:noreply, begin_match(socket, filtered_hosts(socket))}
+    else
+      {:noreply, put_flash(socket, :error, "Only superadmins can match all filtered hosts")}
+    end
+  end
+
+  @impl true
+  def handle_event("ignore_selected", _params, socket) do
+    ids = MapSet.to_list(socket.assigns.selected_ids)
+    {count, _} = Plants.bulk_ignore_hosts_for_wcvp(ids)
+
+    {:noreply,
+     socket
+     |> assign(:selected_ids, MapSet.new())
+     |> load_hosts()
+     |> put_flash(:info, "Ignored #{count} host(s) for default WCVP flows")}
+  end
+
+  @impl true
+  def handle_event("unignore_selected", _params, socket) do
+    ids = MapSet.to_list(socket.assigns.selected_ids)
+    {count, _} = Plants.bulk_clear_wcvp_match_status(ids)
+
+    {:noreply,
+     socket
+     |> assign(:selected_ids, MapSet.new())
+     |> load_hosts()
+     |> put_flash(:info, "Cleared WCVP match status for #{count} host(s)")}
   end
 
   # Dismiss sync results modal
   @impl true
   def handle_event("dismiss_sync_results", _params, socket) do
     {:noreply, assign(socket, :sync_results, nil)}
+  end
+
+  @impl true
+  def handle_event("dismiss_match_results", _params, socket) do
+    {:noreply, assign(socket, :match_results, nil)}
   end
 
   # ============================================
@@ -197,7 +264,7 @@ defmodule GallformersWeb.Admin.HostRangeLive do
 
     socket =
       socket
-      |> assign(:syncing, nil)
+      |> assign(:processing, nil)
       |> assign(:selected_ids, MapSet.new())
       |> assign(:sync_results, results)
       |> load_hosts()
@@ -222,9 +289,54 @@ defmodule GallformersWeb.Admin.HostRangeLive do
     send(self(), {:sync_next, rest, updated_summary, ref_data})
 
     {:noreply,
-     assign(socket, :syncing, %{
-       socket.assigns.syncing
-       | done: socket.assigns.syncing.done + 1
+     assign(socket, :processing, %{
+       socket.assigns.processing
+       | done: socket.assigns.processing.done + 1
+     })}
+  end
+
+  @impl true
+  def handle_info({:match_next, [], summary}, socket) do
+    results = %{
+      linked: summary.linked,
+      already_linked: summary.already_linked,
+      no_match: Enum.reverse(summary.no_match),
+      failed: Enum.reverse(summary.failed)
+    }
+
+    socket =
+      socket
+      |> assign(:processing, nil)
+      |> assign(:selected_ids, MapSet.new())
+      |> assign(:match_results, results)
+      |> load_hosts()
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info({:match_next, [host | rest], summary}, socket) do
+    updated_summary =
+      case Plants.match_host_to_wcvp(host.id) do
+        {:ok, :linked} ->
+          %{summary | linked: summary.linked + 1}
+
+        {:ok, :already_linked} ->
+          %{summary | already_linked: summary.already_linked + 1}
+
+        {:error, "No WCVP match found" <> _} ->
+          %{summary | no_match: [host.name | summary.no_match]}
+
+        {:error, _reason} ->
+          %{summary | failed: [host.name | summary.failed]}
+      end
+
+    send(self(), {:match_next, rest, updated_summary})
+
+    {:noreply,
+     assign(socket, :processing, %{
+       socket.assigns.processing
+       | done: socket.assigns.processing.done + 1
      })}
   end
 
@@ -235,31 +347,81 @@ defmodule GallformersWeb.Admin.HostRangeLive do
   defp load_hosts(socket) do
     %{current_page: page, page_size: page_size} = socket.assigns
 
-    opts = [
-      filter: socket.assigns.filter,
-      wcvp_match: socket.assigns.wcvp_filter,
-      has_range: socket.assigns.range_filter,
-      sync_status: socket.assigns.sync_status,
-      search: socket.assigns.search,
-      limit: page_size,
-      offset: (page - 1) * page_size,
-      wcvp_built_at: socket.assigns.wcvp_built_at
-    ]
+    filter_opts = range_review_filter_opts(socket)
+
+    opts =
+      filter_opts ++
+        [
+          limit: page_size,
+          offset: (page - 1) * page_size
+        ]
 
     hosts = Plants.list_hosts_for_range_review(opts)
-    total_count = Plants.count_hosts_for_range_review(opts)
+    total_count = Plants.count_hosts_for_range_review(filter_opts)
 
     socket
     |> assign(:hosts, hosts)
     |> assign(:total_count, total_count)
   end
 
+  defp range_review_filter_opts(socket) do
+    [
+      filter: socket.assigns.filter,
+      wcvp_match: socket.assigns.wcvp_filter,
+      has_range: socket.assigns.range_filter,
+      sync_status: socket.assigns.sync_status,
+      search: socket.assigns.search,
+      wcvp_built_at: socket.assigns.wcvp_built_at
+    ]
+  end
+
+  defp selected_hosts(socket) do
+    selected_ids = socket.assigns.selected_ids
+    Enum.filter(socket.assigns.hosts, &MapSet.member?(selected_ids, &1.id))
+  end
+
+  defp filtered_hosts(socket) do
+    socket
+    |> range_review_filter_opts()
+    |> Plants.list_host_refs_for_range_review()
+  end
+
+  defp begin_match(socket, hosts) do
+    summary = %{linked: 0, already_linked: 0, no_match: [], failed: []}
+    send(self(), {:match_next, hosts, summary})
+
+    socket
+    |> assign(:confirm_action, nil)
+    |> assign(:processing, %{kind: :match, total: length(hosts), done: 0})
+  end
+
   defp format_synced_at(nil), do: "Never"
   defp format_synced_at(datetime), do: format_date(datetime, :short)
+  defp processing_label(%{kind: :sync}), do: "Syncing from WCVP"
+  defp processing_label(%{kind: :match}), do: "Matching against WCVP"
+
+  defp wcvp_badges(host) do
+    cond do
+      host.wcvp_id not in [nil, ""] and host.wcvp_match_status == "ignored" ->
+        [{"linked", "info"}, {"ignored", "warning"}]
+
+      host.wcvp_id not in [nil, ""] ->
+        [{"linked", "info"}]
+
+      host.wcvp_match_status == "no_match" ->
+        [{"no match", "warning"}]
+
+      host.wcvp_match_status == "ignored" ->
+        [{"ignored", "warning"}]
+
+      true ->
+        []
+    end
+  end
 
   @filter_defaults %{
     filter: "unconfirmed",
-    wcvp: "all",
+    wcvp: "active",
     range: "all",
     sync_status: "all",
     search: "",
@@ -358,12 +520,19 @@ defmodule GallformersWeb.Admin.HostRangeLive do
               </div>
 
               <div class="flex items-center gap-2">
-                <label class="text-sm font-medium text-gray-700">WCVP:</label>
-                <form phx-change="wcvp_filter" id="wcvp_filter" class="w-30">
+                <label class="text-sm font-medium text-gray-700">Match:</label>
+                <form phx-change="wcvp_filter" id="wcvp_filter" class="w-36">
                   <.input
                     type="select"
                     name="value"
-                    options={[{"All", "all"}, {"Has match", "yes"}, {"No match", "no"}]}
+                    options={[
+                      {"Default", "active"},
+                      {"Linked", "linked"},
+                      {"Unmatched", "unmatched"},
+                      {"No match", "no_match"},
+                      {"Ignored", "ignored"},
+                      {"All", "all"}
+                    ]}
                     value={@wcvp_filter}
                   />
                 </form>
@@ -409,16 +578,32 @@ defmodule GallformersWeb.Admin.HostRangeLive do
               />
             </div>
 
+            <div
+              :if={@superadmin? and is_nil(@processing)}
+              class="mb-4 flex items-center gap-3"
+            >
+              <button
+                type="button"
+                phx-click="match_all_filtered"
+                class="gf-btn gf-btn-secondary text-sm"
+              >
+                <.icon name="ph-link" class="h-4 w-4 inline" /> Match All Filtered to WCVP
+              </button>
+              <span class="text-xs text-gray-500">
+                Super Admin only. Uses the current filters across all pages.
+              </span>
+            </div>
+
             <%!-- Sync progress bar --%>
-            <div :if={@syncing} class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded">
+            <div :if={@processing} class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded">
               <div class="flex items-center gap-2 text-sm text-blue-800">
                 <.icon name="ph-arrows-clockwise" class="h-4 w-4 animate-spin" />
-                Syncing from WCVP: {@syncing.done} / {@syncing.total}
+                {processing_label(@processing)}: {@processing.done} / {@processing.total}
               </div>
               <div class="mt-2 w-full bg-blue-200 rounded-full h-2">
                 <div
                   class="bg-blue-600 h-2 rounded-full transition-all"
-                  style={"width: #{if @syncing.total > 0, do: @syncing.done / @syncing.total * 100, else: 0}%"}
+                  style={"width: #{if @processing.total > 0, do: @processing.done / @processing.total * 100, else: 0}%"}
                 >
                 </div>
               </div>
@@ -426,7 +611,7 @@ defmodule GallformersWeb.Admin.HostRangeLive do
 
             <%!-- Bulk actions --%>
             <div
-              :if={MapSet.size(@selected_ids) > 0 and is_nil(@syncing)}
+              :if={MapSet.size(@selected_ids) > 0 and is_nil(@processing)}
               class="mb-4 flex items-center gap-3"
             >
               <button
@@ -439,10 +624,31 @@ defmodule GallformersWeb.Admin.HostRangeLive do
               </button>
               <button
                 type="button"
+                phx-click="match_selected"
+                class="gf-btn gf-btn-secondary text-sm"
+              >
+                <.icon name="ph-link" class="h-4 w-4 inline" /> Match Selected to WCVP
+              </button>
+              <button
+                type="button"
                 phx-click="sync_selected"
                 class="gf-btn gf-btn-secondary text-sm"
               >
                 <.icon name="ph-arrows-clockwise" class="h-4 w-4 inline" /> Sync Selected from WCVP
+              </button>
+              <button
+                type="button"
+                phx-click="ignore_selected"
+                class="text-sm text-gray-600 hover:underline"
+              >
+                Ignore Selected
+              </button>
+              <button
+                type="button"
+                phx-click="unignore_selected"
+                class="text-sm text-gray-600 hover:underline"
+              >
+                Clear Match Status
               </button>
               <button
                 type="button"
@@ -468,7 +674,7 @@ defmodule GallformersWeb.Admin.HostRangeLive do
                             else: "select_all"
                         }
                         class="rounded border-gray-300"
-                        disabled={@syncing != nil}
+                        disabled={@processing != nil}
                       />
                     </th>
                     <th class="pb-2 pr-4">Host</th>
@@ -489,7 +695,7 @@ defmodule GallformersWeb.Admin.HostRangeLive do
                         phx-click="toggle_select"
                         phx-value-id={host.id}
                         class="rounded border-gray-300"
-                        disabled={@syncing != nil}
+                        disabled={@processing != nil}
                       />
                     </td>
                     <td class="py-2 pr-4">
@@ -501,8 +707,12 @@ defmodule GallformersWeb.Admin.HostRangeLive do
                     <td class="py-2 pr-4 text-gray-600">{host.genus_name || "—"}</td>
                     <td class="py-2 pr-4 text-center text-gray-600">{host.range_count}</td>
                     <td class="py-2 pr-4 text-center">
-                      <.badge :if={host.wcvp_id not in [nil, ""]} variant="info">linked</.badge>
-                      <span :if={host.wcvp_id in [nil, ""]} class="text-gray-400">—</span>
+                      <div class="flex items-center justify-center gap-1">
+                        <.badge :for={{label, variant} <- wcvp_badges(host)} variant={variant}>
+                          {label}
+                        </.badge>
+                        <span :if={wcvp_badges(host) == []} class="text-gray-400">—</span>
+                      </div>
                     </td>
                     <td class="py-2 pr-4 text-gray-600">{format_synced_at(host.wcvp_synced_at)}</td>
                     <td class="py-2 pr-4 text-center">
@@ -514,6 +724,7 @@ defmodule GallformersWeb.Admin.HostRangeLive do
                     <td colspan="8" class="py-8 text-center text-gray-500">
                       {cond do
                         @search != "" -> "No hosts match your search"
+                        @wcvp_filter == :ignored -> "No ignored hosts found"
                         @filter == :unconfirmed -> "All host ranges confirmed!"
                         true -> "No hosts found"
                       end}
@@ -584,6 +795,48 @@ defmodule GallformersWeb.Admin.HostRangeLive do
         </:footer>
       </.modal>
 
+      <.modal
+        :if={@confirm_action in [:match, :match_filtered]}
+        id="match-confirm-modal"
+        show
+        on_cancel={JS.push("cancel_confirm")}
+      >
+        <:header>Match to WCVP</:header>
+        <:body>
+          <p class="text-gray-600">
+            Match {if @confirm_action == :match_filtered,
+              do: "all currently filtered",
+              else: "selected"} host(s) to WCVP for
+            <strong>
+              {if @confirm_action == :match_filtered,
+                do: @total_count,
+                else: MapSet.size(@selected_ids)}
+            </strong>
+            host(s)?
+          </p>
+          <p class="text-sm text-gray-500 mt-2">
+            This only stores WCVP and POWO IDs. It does not sync range data.
+          </p>
+          <p :if={@confirm_action == :match_filtered} class="text-sm text-gray-500 mt-2">
+            The current filters apply across all pages, not just the visible rows.
+          </p>
+        </:body>
+        <:footer>
+          <.button type="button" variant="secondary" phx-click="cancel_confirm">Cancel</.button>
+          <.button
+            type="button"
+            variant="primary"
+            phx-click={
+              if @confirm_action == :match_filtered,
+                do: "do_match_all_filtered",
+                else: "do_match_selected"
+            }
+          >
+            Match
+          </.button>
+        </:footer>
+      </.modal>
+
       <%!-- Sync results modal --%>
       <.modal
         :if={@sync_results}
@@ -624,6 +877,54 @@ defmodule GallformersWeb.Admin.HostRangeLive do
         </:body>
         <:footer>
           <.button type="button" variant="primary" phx-click="dismiss_sync_results">
+            Close
+          </.button>
+        </:footer>
+      </.modal>
+
+      <.modal
+        :if={@match_results}
+        id="match-results-modal"
+        show
+        on_cancel={JS.push("dismiss_match_results")}
+      >
+        <:header>WCVP Match Complete</:header>
+        <:body>
+          <div class="space-y-3">
+            <div :if={@match_results.linked > 0} class="flex items-center gap-2 text-green-700">
+              <.icon name="ph-check-circle" class="h-5 w-5" />
+              <span><strong>{@match_results.linked}</strong> host(s) linked</span>
+            </div>
+            <div :if={@match_results.already_linked > 0} class="flex items-center gap-2 text-blue-700">
+              <.icon name="ph-info" class="h-5 w-5" />
+              <span><strong>{@match_results.already_linked}</strong> already linked</span>
+            </div>
+            <div :if={@match_results.no_match != []} class="text-amber-700">
+              <div class="flex items-center gap-2">
+                <.icon name="ph-warning" class="h-5 w-5" />
+                <span><strong>{length(@match_results.no_match)}</strong> not matched:</span>
+              </div>
+              <ul class="ml-7 mt-1 text-sm list-disc">
+                <li :for={name <- @match_results.no_match}>
+                  <.taxon_name name={name} />
+                </li>
+              </ul>
+            </div>
+            <div :if={@match_results.failed != []} class="text-red-700">
+              <div class="flex items-center gap-2">
+                <.icon name="ph-x-circle" class="h-5 w-5" />
+                <span><strong>{length(@match_results.failed)}</strong> failed:</span>
+              </div>
+              <ul class="ml-7 mt-1 text-sm list-disc">
+                <li :for={name <- @match_results.failed}>
+                  <.taxon_name name={name} />
+                </li>
+              </ul>
+            </div>
+          </div>
+        </:body>
+        <:footer>
+          <.button type="button" variant="primary" phx-click="dismiss_match_results">
             Close
           </.button>
         </:footer>

@@ -480,9 +480,23 @@ defmodule GallformersWeb.Admin.PowoDiffReview do
   end
 
   defp has_any_selections?(assigns) do
-    Enum.any?(assigns.buckets, fn bucket ->
-      MapSet.size(Map.get(assigns, selected_field(bucket))) > 0
-    end)
+    # Add buckets: having selections means "add these places"
+    add_buckets_have_selections? =
+      Enum.any?(assigns.buckets -- [:orphaned], fn bucket ->
+        MapSet.size(Map.get(assigns, selected_field(bucket))) > 0
+      end)
+
+    # Orphaned bucket: having FEWER selections than total orphaned means "remove some places"
+    # (deselecting items = marking them for removal)
+    # Only check this for buckets that exist in the diff (orphaned may not be present)
+    orphaned_codes = Map.get(assigns.diff, :orphaned) || Map.get(assigns.diff, :remove) || []
+    orphaned_count = length(orphaned_codes)
+    selected_orphaned = Map.get(assigns, :selected_orphaned, MapSet.new())
+
+    orphaned_has_removals? =
+      orphaned_count > 0 and MapSet.size(selected_orphaned) < orphaned_count
+
+    add_buckets_have_selections? or orphaned_has_removals?
   end
 
   defp review_remove_bucket?(bucket, bucket_config) do

@@ -9,21 +9,24 @@ defmodule GallformersWeb.Admin.HostRangeLiveTest do
   alias Gallformers.Accounts.Auth0User
   alias Gallformers.Plants
 
-  setup %{conn: conn} do
+  defp conn_with_roles(conn, roles) do
     user = %Auth0User{
-      id: "test-user-id",
+      id: "test-user-#{Enum.join(roles, "-")}",
       email: "admin@test.com",
       name: "Test Admin",
       nickname: nil,
       picture: nil,
-      roles: ["admin"]
+      roles: roles
     }
 
-    conn =
-      conn
-      |> init_test_session(%{})
-      |> put_session(:current_user, user)
-      |> put_session(:db_display_name, "Test User")
+    conn
+    |> init_test_session(%{})
+    |> put_session(:current_user, user)
+    |> put_session(:db_display_name, "Test User")
+  end
+
+  setup %{conn: conn} do
+    conn = conn_with_roles(conn, ["admin"])
 
     {:ok, conn: conn}
   end
@@ -176,6 +179,110 @@ defmodule GallformersWeb.Admin.HostRangeLiveTest do
       assert has_element?(view, "#sync-results-modal")
     end
 
+    test "match selected links hosts without syncing range data", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/admin/host-range")
+
+      view |> element("input[phx-click=toggle_select][phx-value-id='6']") |> render_click()
+      view |> element("button", "Match Selected to WCVP") |> render_click()
+
+      view
+      |> element("#match-confirm-modal button[phx-click=do_match_selected]")
+      |> render_click()
+
+      render(view)
+      html = render(view)
+
+      assert html =~ "WCVP Match Complete"
+      assert has_element?(view, "#match-results-modal")
+
+      traits = Plants.get_host_traits(6)
+      assert traits.wcvp_id == "600"
+      assert traits.powo_id == "urn:lsid:ipni.org:names:test"
+      assert traits.wcvp_synced_at == nil
+    end
+
+    test "superadmin sees match-all-filtered button", %{conn: conn} do
+      conn = conn_with_roles(conn, ["superadmin"])
+
+      {:ok, _view, html} = live(conn, ~p"/admin/host-range")
+
+      assert html =~ "Match All Filtered to WCVP"
+      assert html =~ "Super Admin only"
+    end
+
+    test "regular admin does not see match-all-filtered button", %{conn: conn} do
+      {:ok, _view, html} = live(conn, ~p"/admin/host-range")
+
+      refute html =~ "Match All Filtered to WCVP"
+    end
+
+    test "superadmin can match all currently filtered hosts", %{conn: conn} do
+      conn = conn_with_roles(conn, ["superadmin"])
+
+      {:ok, view, _html} = live(conn, ~p"/admin/host-range?search=Thymus")
+
+      view |> element("button", "Match All Filtered to WCVP") |> render_click()
+
+      assert has_element?(view, "#match-confirm-modal")
+      assert render(view) =~ "all currently filtered"
+
+      view
+      |> element("#match-confirm-modal button[phx-click=do_match_all_filtered]")
+      |> render_click()
+
+      render(view)
+      html = render(view)
+
+      assert html =~ "Thymus alpinus"
+      assert html =~ "linked"
+
+      traits = Plants.get_host_traits(6)
+      assert traits.wcvp_id == "600"
+      assert traits.powo_id == "urn:lsid:ipni.org:names:test"
+    end
+
+    test "non-superadmin cannot trigger match-all-filtered event", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/admin/host-range?search=Thymus")
+
+      view |> render_hook("match_all_filtered", %{})
+
+      assert render(view) =~ "Only superadmins can match all filtered hosts"
+      assert Plants.get_host_traits(6) == nil
+    end
+
+    test "ignored hosts are excluded by default and can be filtered in", %{conn: conn} do
+      {:ok, _} = Plants.upsert_host_traits(1, %{wcvp_match_status: "ignored"})
+
+      {:ok, _view, html} = live(conn, ~p"/admin/host-range")
+      refute html =~ "Quercus alba"
+
+      {:ok, _view, html} = live(conn, ~p"/admin/host-range?wcvp=ignored")
+      assert html =~ "Quercus alba"
+      assert html =~ "ignored"
+    end
+
+    test "ignore selected marks host as ignored", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/admin/host-range")
+
+      view |> element("input[phx-click=toggle_select][phx-value-id='1']") |> render_click()
+      view |> element("button", "Ignore Selected") |> render_click()
+
+      assert Plants.get_host_traits(1).wcvp_match_status == "ignored"
+      refute render(view) =~ "Quercus alba"
+    end
+
+    test "clear match status removes ignored status", %{conn: conn} do
+      {:ok, _} = Plants.upsert_host_traits(1, %{wcvp_match_status: "ignored"})
+
+      {:ok, view, _html} = live(conn, ~p"/admin/host-range?wcvp=ignored")
+
+      view |> element("input[phx-click=toggle_select][phx-value-id='1']") |> render_click()
+      view |> element("button", "Clear Match Status") |> render_click()
+
+      assert Plants.get_host_traits(1).wcvp_match_status == nil
+      refute render(view) =~ "Quercus alba"
+    end
+
     test "sync selected shows modal when nothing is selected", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/admin/host-range")
 
@@ -254,6 +361,16 @@ defmodule GallformersWeb.Admin.HostRangeLiveTest do
 
       assert has_element?(view, "#sync-confirm-modal")
       assert render(view) =~ "Sync from WCVP"
+    end
+
+    test "match button shows confirmation modal", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/admin/host-range")
+
+      view |> element("input[phx-click=toggle_select][phx-value-id='6']") |> render_click()
+      view |> element("button[phx-click=match_selected]") |> render_click()
+
+      assert has_element?(view, "#match-confirm-modal")
+      assert render(view) =~ "Match to WCVP"
     end
 
     test "cancel on confirmation modal preserves selection", %{conn: conn} do

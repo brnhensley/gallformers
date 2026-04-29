@@ -229,6 +229,16 @@ defmodule Gallformers.PlantsTest do
       assert traits.wcvp_id == "99999"
     end
 
+    test "upsert_host_traits/2 preserves ignored status when linking a host", %{species: species} do
+      {:ok, _} = Plants.upsert_host_traits(species.id, %{wcvp_match_status: "ignored"})
+
+      {:ok, traits} =
+        Plants.upsert_host_traits(species.id, %{wcvp_id: "12345", powo_id: "powo-12345"})
+
+      assert traits.wcvp_id == "12345"
+      assert traits.wcvp_match_status == "ignored"
+    end
+
     test "get_host_traits/1 returns traits or nil", %{species: species} do
       assert Plants.get_host_traits(species.id) == nil
 
@@ -236,6 +246,39 @@ defmodule Gallformers.PlantsTest do
       traits = Plants.get_host_traits(species.id)
 
       assert traits.wcvp_id == "12345"
+    end
+
+    test "match_host_to_wcvp/1 links a matching host and clears no_match state" do
+      species = create_host("Wcvptestus alpinus")
+      {:ok, _} = Plants.upsert_host_traits(species.id, %{wcvp_match_status: "no_match"})
+
+      assert {:ok, :linked} = Plants.match_host_to_wcvp(species.id)
+
+      traits = Plants.get_host_traits(species.id)
+      assert traits.wcvp_id == "700"
+      assert traits.powo_id == "urn:lsid:ipni.org:names:test700"
+      assert traits.wcvp_match_status == nil
+    end
+
+    test "match_host_to_wcvp/1 marks an unmatched host as no_match" do
+      species = create_host("No matchus plantus")
+
+      assert {:error, "No WCVP match found for No matchus plantus"} =
+               Plants.match_host_to_wcvp(species.id)
+
+      traits = Plants.get_host_traits(species.id)
+      assert traits.wcvp_match_status == "no_match"
+      assert traits.wcvp_id == nil
+    end
+
+    test "bulk ignore and clear status manage hosts without existing traits" do
+      species = create_host("Ignore me plantus")
+
+      assert {1, nil} = Plants.bulk_ignore_hosts_for_wcvp([species.id])
+      assert Plants.get_host_traits(species.id).wcvp_match_status == "ignored"
+
+      assert {1, nil} = Plants.bulk_clear_wcvp_match_status([species.id])
+      assert Plants.get_host_traits(species.id).wcvp_match_status == nil
     end
   end
 
@@ -595,6 +638,36 @@ defmodule Gallformers.PlantsTest do
 
       assert host_result != nil, "host should appear in results"
       assert host_result.family_name == "RangeRevFamily"
+    end
+  end
+
+  describe "list_hosts_for_range_review WCVP status filters" do
+    test "default filter excludes ignored hosts" do
+      {:ok, family} =
+        Taxonomy.create_taxonomy(%{
+          name: "IgnoreFilterFamily",
+          type: "family",
+          description: "Plant"
+        })
+
+      {:ok, genus} =
+        Taxonomy.create_taxonomy(%{
+          name: "Ignorefiltergenus",
+          type: "genus",
+          parent_id: family.id
+        })
+
+      host = create_host("Ignorefiltergenus testplant")
+      Taxonomy.link_species_to_taxonomy(host.id, genus.id)
+      Repo.insert!(%HostTraits{species_id: host.id, wcvp_match_status: "ignored"})
+
+      refute Enum.any?(Plants.list_hosts_for_range_review(filter: :all), &(&1.id == host.id))
+
+      assert true ==
+               Enum.any?(
+                 Plants.list_hosts_for_range_review(filter: :all, wcvp_match: :ignored),
+                 &(&1.id == host.id)
+               )
     end
   end
 end

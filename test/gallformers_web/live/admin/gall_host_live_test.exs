@@ -398,7 +398,7 @@ defmodule GallformersWeb.Admin.GallHostLiveTest do
 
       assert html =~ "Changes saved and range confirmed"
       assert Ranges.get_gall_range_codes(gall.id) == []
-      assert Galls.get_gall_traits(gall.id).range_confirmed
+      assert Galls.get_gall_traits(gall.id).range_confirmed == true
     end
   end
 

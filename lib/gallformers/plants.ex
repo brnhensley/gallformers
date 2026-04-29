@@ -374,13 +374,34 @@ defmodule Gallformers.Plants do
     case Repo.get(HostTraits, species_id) do
       nil ->
         %HostTraits{species_id: species_id}
-        |> HostTraits.changeset(attrs)
+        |> HostTraits.changeset(normalize_host_traits_attrs(nil, attrs))
         |> Repo.insert()
 
       existing ->
         existing
-        |> HostTraits.changeset(attrs)
+        |> HostTraits.changeset(normalize_host_traits_attrs(existing, attrs))
         |> Repo.update()
+    end
+  end
+
+  defp normalize_host_traits_attrs(existing, attrs) do
+    has_wcvp_link? =
+      Map.has_key?(attrs, :wcvp_id) and Map.get(attrs, :wcvp_id) not in [nil, ""]
+
+    explicit_status? = Map.has_key?(attrs, :wcvp_match_status)
+
+    cond do
+      explicit_status? ->
+        attrs
+
+      has_wcvp_link? && existing && existing.wcvp_match_status == "ignored" ->
+        Map.put(attrs, :wcvp_match_status, "ignored")
+
+      has_wcvp_link? ->
+        Map.put(attrs, :wcvp_match_status, nil)
+
+      true ->
+        attrs
     end
   end
 
@@ -726,14 +747,15 @@ defmodule Gallformers.Plants do
   ## Options
 
     * `:filter` - `:all | :confirmed | :unconfirmed` (default `:unconfirmed`)
-    * `:wcvp_match` - `:all | :yes | :no` (default `:all`)
+    * `:wcvp_match` - `:active | :all | :linked | :unmatched | :no_match | :ignored`
+      (default `:active`)
     * `:has_range` - `:all | :yes | :no` (default `:all`)
     * `:search` - string prefix match on species name (default `""`)
     * `:limit` - max results to return (default `50`)
     * `:offset` - number of results to skip (default `0`)
 
   Returns a list of maps with id, name, family_name, genus_name, range_count,
-  wcvp_id, wcvp_synced_at, and range_confirmed.
+  wcvp_id, wcvp_match_status, wcvp_synced_at, and range_confirmed.
   """
   @spec list_hosts_for_range_review(keyword()) :: [map()]
   def list_hosts_for_range_review(opts \\ []) do
@@ -741,7 +763,12 @@ defmodule Gallformers.Plants do
     offset = Keyword.get(opts, :offset, 0)
 
     base_range_review_query(opts)
-    |> group_by([s, ht, _hr, _st, _g, _f], [ht.wcvp_id, ht.wcvp_synced_at, ht.range_confirmed])
+    |> group_by([s, ht, _hr, _st, _g, _f], [
+      ht.wcvp_id,
+      ht.wcvp_match_status,
+      ht.wcvp_synced_at,
+      ht.range_confirmed
+    ])
     |> order_by([s], s.name)
     |> limit(^limit)
     |> offset(^offset)
@@ -752,9 +779,27 @@ defmodule Gallformers.Plants do
       genus_name: max(g.name),
       range_count: count(hr.place_id),
       wcvp_id: ht.wcvp_id,
+      wcvp_match_status: ht.wcvp_match_status,
       wcvp_synced_at: ht.wcvp_synced_at,
       range_confirmed: ht.range_confirmed
     })
+    |> Repo.all()
+  end
+
+  @doc """
+  Returns all hosts matching the current range review filters without pagination.
+
+  Accepts the same filter options as `list_hosts_for_range_review/1`
+  (`:filter`, `:wcvp_match`, `:has_range`, `:search`, `:sync_status`) but ignores
+  `:limit` and `:offset`.
+
+  Used for bulk actions that should apply to the full filtered result set.
+  """
+  @spec list_host_refs_for_range_review(keyword()) :: [map()]
+  def list_host_refs_for_range_review(opts \\ []) do
+    base_range_review_query(opts)
+    |> order_by([s], s.name)
+    |> select([s], %{id: s.id, name: s.name})
     |> Repo.all()
   end
 
@@ -773,7 +818,7 @@ defmodule Gallformers.Plants do
 
   defp base_range_review_query(opts) do
     filter = Keyword.get(opts, :filter, :unconfirmed)
-    wcvp_match = Keyword.get(opts, :wcvp_match, :all)
+    wcvp_match = Keyword.get(opts, :wcvp_match, :active)
     has_range = Keyword.get(opts, :has_range, :all)
     search = Keyword.get(opts, :search, "")
     wcvp_built_at = Keyword.get(opts, :wcvp_built_at)
@@ -839,12 +884,30 @@ defmodule Gallformers.Plants do
 
   defp apply_wcvp_match_filter(query, :all), do: query
 
-  defp apply_wcvp_match_filter(query, :yes) do
-    from([s, ht] in query, where: not is_nil(ht.wcvp_id) and ht.wcvp_id != "")
+  defp apply_wcvp_match_filter(query, :active) do
+    from([_s, ht] in query,
+      where: is_nil(ht.wcvp_match_status) or ht.wcvp_match_status != "ignored"
+    )
   end
 
-  defp apply_wcvp_match_filter(query, :no) do
-    from([s, ht] in query, where: is_nil(ht.wcvp_id) or ht.wcvp_id == "")
+  defp apply_wcvp_match_filter(query, :linked) do
+    from([_s, ht] in query, where: not is_nil(ht.wcvp_id) and ht.wcvp_id != "")
+  end
+
+  defp apply_wcvp_match_filter(query, :unmatched) do
+    from([_s, ht] in query,
+      where:
+        (is_nil(ht.wcvp_id) or ht.wcvp_id == "") and
+          (is_nil(ht.wcvp_match_status) or ht.wcvp_match_status == "")
+    )
+  end
+
+  defp apply_wcvp_match_filter(query, :no_match) do
+    from([_s, ht] in query, where: ht.wcvp_match_status == "no_match")
+  end
+
+  defp apply_wcvp_match_filter(query, :ignored) do
+    from([_s, ht] in query, where: ht.wcvp_match_status == "ignored")
   end
 
   defp apply_has_range_filter(query, :all), do: query
@@ -949,6 +1012,69 @@ defmodule Gallformers.Plants do
   end
 
   @doc """
+  Attempts to link a host to a WCVP record without syncing range data.
+
+  On success, stores `wcvp_id` and `powo_id`. Hosts explicitly marked as
+  ignored keep that status; stale `no_match` status is cleared.
+  """
+  @spec match_host_to_wcvp(integer()) :: {:ok, :linked | :already_linked} | {:error, String.t()}
+  def match_host_to_wcvp(species_id) do
+    host_traits = get_host_traits(species_id)
+    species = Repo.get(Species, species_id)
+
+    case ensure_host_wcvp_link(species_id, host_traits, species) do
+      {:ok, _traits, status} -> {:ok, status}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  @doc """
+  Marks selected hosts as ignored for default WCVP matching and sync queues.
+
+  Existing links remain intact; the ignored status only affects default filtering.
+  """
+  @spec bulk_ignore_hosts_for_wcvp([integer()]) :: {integer(), nil}
+  def bulk_ignore_hosts_for_wcvp([]), do: {0, nil}
+
+  def bulk_ignore_hosts_for_wcvp(species_ids) do
+    existing_ids =
+      from(ht in HostTraits,
+        where: ht.species_id in ^species_ids,
+        select: ht.species_id
+      )
+      |> Repo.all()
+      |> MapSet.new()
+
+    {updated, _} =
+      from(ht in HostTraits, where: ht.species_id in ^species_ids)
+      |> Repo.update_all(set: [wcvp_match_status: "ignored"])
+
+    missing_ids = Enum.reject(species_ids, &MapSet.member?(existing_ids, &1))
+
+    inserted =
+      if missing_ids != [] do
+        entries = Enum.map(missing_ids, &%{species_id: &1, wcvp_match_status: "ignored"})
+        {count, _} = Repo.insert_all(HostTraits, entries)
+        count
+      else
+        0
+      end
+
+    {updated + inserted, nil}
+  end
+
+  @doc """
+  Clears any stored WCVP match status for the selected hosts.
+  """
+  @spec bulk_clear_wcvp_match_status([integer()]) :: {integer(), nil}
+  def bulk_clear_wcvp_match_status([]), do: {0, nil}
+
+  def bulk_clear_wcvp_match_status(species_ids) do
+    from(ht in HostTraits, where: ht.species_id in ^species_ids)
+    |> Repo.update_all(set: [wcvp_match_status: nil])
+  end
+
+  @doc """
   Syncs a single host's range from WCVP data.
 
   Looks up the host's WCVP data by wcvp_id (or name-matches if no wcvp_id),
@@ -965,31 +1091,16 @@ defmodule Gallformers.Plants do
     host_traits = get_host_traits(species_id)
     species = Repo.get(Species, species_id)
 
-    cond do
-      is_nil(species) ->
-        {:error, "Species not found"}
+    if is_nil(species) do
+      {:error, "Species not found"}
+    else
+      case ensure_host_wcvp_link(species_id, host_traits, species) do
+        {:ok, updated_traits, _status} ->
+          do_sync_host_from_wcvp(species_id, updated_traits, ref_data)
 
-      # Has wcvp_id — sync directly
-      host_traits && host_traits.wcvp_id not in [nil, ""] ->
-        do_sync_host_from_wcvp(species_id, host_traits, ref_data)
-
-      # No wcvp_id — try name matching
-      true ->
-        case wcvp_lookup().match_by_name(species.name, resolve_synonyms: true) do
-          nil ->
-            {:error, "No WCVP match found for #{species.name}"}
-
-          wcvp_match ->
-            # Store the link first
-            {:ok, updated_traits} =
-              upsert_host_traits(species_id, %{
-                wcvp_id: wcvp_match.plant_name_id,
-                powo_id: wcvp_match.powo_id
-              })
-
-            # Then sync range
-            do_sync_host_from_wcvp(species_id, updated_traits, ref_data)
-        end
+        {:error, reason} ->
+          {:error, reason}
+      end
     end
   end
 
@@ -1048,6 +1159,37 @@ defmodule Gallformers.Plants do
            introduced_count: length(introduced_entries),
            total_places: length(place_entries)
          }}
+    end
+  end
+
+  defp ensure_host_wcvp_link(_species_id, host_traits, _species)
+       when not is_nil(host_traits) and host_traits.wcvp_id not in [nil, ""] do
+    {:ok, host_traits, :already_linked}
+  end
+
+  defp ensure_host_wcvp_link(_species_id, _host_traits, nil) do
+    {:error, "Species not found"}
+  end
+
+  defp ensure_host_wcvp_link(species_id, host_traits, species) do
+    case wcvp_lookup().match_by_name(species.name, resolve_synonyms: true) do
+      nil ->
+        status =
+          if host_traits && host_traits.wcvp_match_status == "ignored",
+            do: "ignored",
+            else: "no_match"
+
+        {:ok, _} = upsert_host_traits(species_id, %{wcvp_match_status: status})
+        {:error, "No WCVP match found for #{species.name}"}
+
+      wcvp_match ->
+        {:ok, updated_traits} =
+          upsert_host_traits(species_id, %{
+            wcvp_id: wcvp_match.plant_name_id,
+            powo_id: wcvp_match.powo_id
+          })
+
+        {:ok, updated_traits, :linked}
     end
   end
 
