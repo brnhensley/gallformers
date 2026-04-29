@@ -1,7 +1,7 @@
 ---
-status: raw
+status: active
 created: 2026-03-16
-updated: 2026-03-17
+updated: 2026-04-29
 epic: platform
 ---
 
@@ -37,3 +37,20 @@ Waiting on two upstream actions before completing. Deadline: June 2, 2026.
 
 `ci.yml`, `deploy.yml`. `tileserver-deploy.yml` to be deleted (unused).
 
+## Update (2026-04-29)
+
+Completed the ready workflow upgrades:
+- `actions/checkout` upgraded from `@v4` to `@v5` in `ci.yml` and `deploy.yml`
+- `actions/cache` upgraded from `@v4` to `@v5` in `ci.yml` and `deploy.yml`
+- `actions/setup-node` upgraded from `@v4` to `@v5` in `ci.yml`
+- `package-manager-cache: false` added to preserve explicit cache management
+- assets CI job moved to Node 22
+
+Related deploy hardening completed while addressing the deployment warnings:
+- deploy smoke test compile step now uses `mix compile --warnings-as-errors`
+- Docker builder no longer relies on Alpine's older Node package; it now uses a Node 22 toolchain stage
+- Docker asset install now uses `npm ci --omit=dev` so production builds exclude JS devDependencies
+
+Remaining upstream-blocked items are unchanged:
+- `erlef/setup-beam@v1`
+- `superfly/flyctl-actions/setup-flyctl@master`

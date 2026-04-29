@@ -8,8 +8,6 @@ Create a GitHub Release with user-friendly release notes generated from commit m
 
 ## Prerequisites
 
-### 1. Verify deploy pipeline completed
-
 Before creating a release, confirm with the user that:
 
 1. All changes have been **pushed to main**
@@ -20,14 +18,6 @@ Before creating a release, confirm with the user that:
 Ask the user: "Has the deploy pipeline completed and been verified? (push → CI → deploy → verify)"
 
 **Do not proceed until the user confirms.** Creating a release before deploy means the release won't match what's actually running in production.
-
-### 2. Verify `gh` is authenticated
-
-```bash
-gh auth status
-```
-
-If not authenticated, tell the user to run `gh auth login` and stop.
 
 ## Steps
 
