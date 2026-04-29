@@ -361,6 +361,47 @@ defmodule GallformersWeb.Admin.GallHostLiveTest do
     end
   end
 
+  describe "Implicit host-native default range" do
+    setup %{conn: conn} do
+      gall = create_gall("Testicus fallbackus")
+      host = create_host("Quercus fallbacka")
+
+      {:ok, _rel} =
+        Galls.create_gall_host(%{gall_species_id: gall.id, host_species_id: host.id})
+
+      create_host_range(host, "US-CA")
+      create_host_range(host, "MX-JAL", distribution_type: "introduced")
+      create_gall_traits(gall, %{range_confirmed: false})
+
+      {:ok, gall: gall, conn: setup_admin_session(conn)}
+    end
+
+    test "shows native host fallback as current range instead of excluded", %{
+      conn: conn,
+      gall: gall
+    } do
+      {:ok, _view, html} = live(conn, ~p"/admin/gallhost?id=#{gall.id}")
+
+      assert html =~ "Showing the default host-native range"
+      assert html =~ ~s(data-in-range="[&quot;US-CA&quot;]")
+      assert html =~ ~s(data-excluded-range="[&quot;MX-JAL&quot;]")
+      assert html =~ "default from hosts"
+    end
+
+    test "save and confirm keeps the fallback implicit when the range was not edited", %{
+      conn: conn,
+      gall: gall
+    } do
+      {:ok, view, _html} = live(conn, ~p"/admin/gallhost?id=#{gall.id}")
+
+      html = render_click(view, "save_and_confirm", %{})
+
+      assert html =~ "Changes saved and range confirmed"
+      assert Ranges.get_gall_range_codes(gall.id) == []
+      assert Galls.get_gall_traits(gall.id).range_confirmed
+    end
+  end
+
   describe "Refresh from hosts diff review" do
     setup %{conn: conn} do
       gall = create_gall("Testicus difficus")

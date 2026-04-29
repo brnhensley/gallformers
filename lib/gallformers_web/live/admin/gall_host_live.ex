@@ -78,6 +78,7 @@ defmodule GallformersWeb.Admin.GallHostLive do
       |> assign(:host_range_diff, nil)
       |> assign(:host_range_diff_buckets, @host_range_diff_buckets)
       |> assign(:host_range_diff_bucket_config, @host_range_diff_bucket_config)
+      |> assign(:using_default_host_range, false)
       |> reset_range_state()
       # Form state
       |> init_form_state()
@@ -335,10 +336,14 @@ defmodule GallformersWeb.Admin.GallHostLive do
       DeferredChanges.compute_changes(socket, :hosts, id_field: :host_relation_id)
 
     gall_range_entries =
-      Enum.map(socket.assigns.gall_range_place_ids, fn pid ->
-        precision = Map.get(socket.assigns.gall_range_precision_map, pid, "exact")
-        {pid, precision}
-      end)
+      if socket.assigns.using_default_host_range do
+        nil
+      else
+        Enum.map(socket.assigns.gall_range_place_ids, fn pid ->
+          precision = Map.get(socket.assigns.gall_range_precision_map, pid, "exact")
+          {pid, precision}
+        end)
+      end
 
     case Galls.save_gall_host_changes(
            gall.id,
@@ -384,6 +389,7 @@ defmodule GallformersWeb.Admin.GallHostLive do
 
     {:noreply,
      socket
+     |> assign(:using_default_host_range, false)
      |> assign(:gall_range_place_ids, new_ids)
      |> recompute_range_from_assigns()
      |> push_range_update()
@@ -404,6 +410,7 @@ defmodule GallformersWeb.Admin.GallHostLive do
 
     {:noreply,
      socket
+     |> assign(:using_default_host_range, false)
      |> assign(:gall_range_place_ids, new_ids)
      |> recompute_range_from_assigns()
      |> push_range_update()
@@ -444,6 +451,7 @@ defmodule GallformersWeb.Admin.GallHostLive do
 
     {:noreply,
      socket
+     |> assign(:using_default_host_range, false)
      |> assign(:gall_range_place_ids, gall_range_place_ids)
      |> assign(:host_range_diff, nil)
      |> recompute_range_from_assigns()
@@ -474,10 +482,12 @@ defmodule GallformersWeb.Admin.GallHostLive do
           gall_range_place_ids = Enum.map(gall_ranges, & &1.place_id)
           gall_range_precision_map = Map.new(gall_ranges, &{&1.place_id, &1.precision})
           gall_traits = Galls.get_gall_traits(gall_id)
+          using_default_host_range = gall_ranges == []
 
           socket
           |> assign(:selected_gall, gall)
           |> assign(DeferredChanges.init(:hosts, hosts))
+          |> assign(:using_default_host_range, using_default_host_range)
           |> assign(:gall_range_place_ids, gall_range_place_ids)
           |> assign(:original_gall_range_place_ids, gall_range_place_ids)
           |> assign(:gall_range_precision_map, gall_range_precision_map)
@@ -504,6 +514,7 @@ defmodule GallformersWeb.Admin.GallHostLive do
     |> assign(:omitted_from_range_place_ids, [])
     |> assign(:range_confirmed, false)
     |> assign(:introduced_range, [])
+    |> assign(:using_default_host_range, false)
     |> assign(:host_range_diff, nil)
   end
 
@@ -515,6 +526,7 @@ defmodule GallformersWeb.Admin.GallHostLive do
 
     socket
     |> assign(:host_ranges, host_ranges)
+    |> maybe_seed_default_host_range()
     |> assign(:host_range_diff, nil)
     |> recompute_range_from_assigns()
   end
@@ -568,6 +580,23 @@ defmodule GallformersWeb.Admin.GallHostLive do
     |> assign(:introduced_range, host_display.introduced_range)
   end
 
+  defp maybe_seed_default_host_range(%{assigns: %{using_default_host_range: false}} = socket),
+    do: socket
+
+  defp maybe_seed_default_host_range(socket) do
+    native_host_entries =
+      socket.assigns.host_ranges
+      |> Enum.reject(&(Map.get(&1, :distribution_type) == "introduced"))
+      |> Enum.uniq_by(& &1.place_id)
+
+    socket
+    |> assign(:gall_range_place_ids, Enum.map(native_host_entries, & &1.place_id))
+    |> assign(
+      :gall_range_precision_map,
+      Map.new(native_host_entries, &{&1.place_id, &1.precision})
+    )
+  end
+
   # Toggle a place's membership in gall_range
   defp toggle_gall_range(socket, place_id) do
     gall_range_ids = socket.assigns.gall_range_place_ids
@@ -578,6 +607,7 @@ defmodule GallformersWeb.Admin.GallHostLive do
         else: [place_id | gall_range_ids]
 
     socket
+    |> assign(:using_default_host_range, false)
     |> assign(:gall_range_place_ids, new_ids)
     |> assign(:host_range_diff, nil)
     |> recompute_range_from_assigns()
@@ -768,13 +798,14 @@ defmodule GallformersWeb.Admin.GallHostLive do
             </div>
 
             <div
-              :if={@selected_gall && @in_range == [] && @inherited_range == [] && @host_places != []}
+              :if={@selected_gall && @using_default_host_range && @host_places != []}
               class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded flex items-center gap-2"
             >
               <.icon name="ph-info" class="h-5 w-5 text-blue-600 flex-shrink-0" />
               <p class="text-sm text-blue-800">
-                This gall has no range defined. The public page will default to its hosts' native ranges.
-                Use the drill-down panel to add places to the gall's range.
+                Showing the default host-native range because no gall range has been saved yet.
+                This matches what the public page uses now. Edit the map only if the gall should
+                differ from that default.
               </p>
             </div>
 
@@ -874,9 +905,14 @@ defmodule GallformersWeb.Admin.GallHostLive do
             <%!-- Range Info --%>
             <div :if={@selected_gall} class="text-sm text-gray-600 mb-4">
               <span class="font-medium">Range summary:</span>
-              {length(@in_range)} confirmed, {length(@inherited_range)} country-level, {length(
-                @excluded_places
-              )} host-only (not in gall range), {length(@host_places)} total from hosts
+              <%= if @using_default_host_range do %>
+                {length(@in_range)} default from hosts, {length(@inherited_range)} country-level
+                default, {length(@excluded_places)} outside the default range, {length(@host_places)} total from hosts
+              <% else %>
+                {length(@in_range)} confirmed, {length(@inherited_range)} country-level, {length(
+                  @excluded_places
+                )} host-only (not in gall range), {length(@host_places)} total from hosts
+              <% end %>
             </div>
 
             <%!-- Actions --%>
