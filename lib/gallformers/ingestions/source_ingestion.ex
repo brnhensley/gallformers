@@ -9,6 +9,8 @@ defmodule Gallformers.Ingestions.SourceIngestion do
 
   @behaviour Gallformers.SchemaFields
 
+  alias Gallformers.IngestionPipeline.Workflow
+
   @input_types ~w(pdf url text docx)
   @statuses ~w(processing needs_duplicate_review needs_review duplicate_confirmed complete failed)
 
@@ -22,7 +24,6 @@ defmodule Gallformers.Ingestions.SourceIngestion do
     metadata
     data_extract
     assemble
-    upload
     review
     complete
     failed
@@ -174,6 +175,7 @@ defmodule Gallformers.Ingestions.SourceIngestion do
     |> validate_inclusion(:input_type, @input_types)
     |> validate_inclusion(:status, @statuses)
     |> validate_inclusion(:processing_stage, @processing_stages)
+    |> validate_workflow_state_pair()
     |> validate_length(:raw_input_sha256, is: 64)
     |> validate_length(:preprocessed_text_sha256, is: 64)
     |> validate_number(:publication_year,
@@ -188,5 +190,17 @@ defmodule Gallformers.Ingestions.SourceIngestion do
       name: :source_ingestions_no_self_duplicate,
       message: "cannot point to itself as the canonical ingestion"
     )
+  end
+
+  defp validate_workflow_state_pair(changeset) do
+    status = get_field(changeset, :status)
+    processing_stage = get_field(changeset, :processing_stage)
+
+    if status in @statuses and processing_stage in @processing_stages and
+         not Workflow.valid_state?({status, processing_stage}) do
+      add_error(changeset, :processing_stage, "is invalid for status #{status}")
+    else
+      changeset
+    end
   end
 end

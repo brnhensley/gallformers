@@ -10,7 +10,8 @@ defmodule Gallformers.Sources do
       Gallformers.ChangesetHelpers,
       Gallformers.SchemaFields,
       Gallformers.Species,
-      Gallformers.Licenses
+      Gallformers.Licenses,
+      Gallformers.Storage
     ],
     exports: :all
 

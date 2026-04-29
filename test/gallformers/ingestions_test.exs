@@ -5,6 +5,7 @@ defmodule Gallformers.IngestionsTest do
   alias Gallformers.Ingestions
   alias Gallformers.Sources
   alias Gallformers.Species.Species
+  alias Gallformers.Storage.SourceArtifacts
 
   describe "create_source_ingestion/1" do
     test "creates a submission with a canonical per-ingestion artifacts path" do
@@ -21,16 +22,24 @@ defmodule Gallformers.IngestionsTest do
       assert ingestion.status == "processing"
       assert ingestion.processing_stage == "submitted"
       assert ingestion.uploaded_by_id == user.id
-      assert ingestion.artifacts_path == "source-ingestions/#{ingestion.id}"
-
-      assert Ingestions.artifact_path(ingestion, "preprocessed.txt") ==
-               "#{ingestion.artifacts_path}/preprocessed.txt"
+      assert ingestion.artifacts_path == SourceArtifacts.private_artifact_prefix(ingestion.id)
     end
 
     test "rejects invalid input types" do
       assert {:error, changeset} = Ingestions.create_source_ingestion(%{input_type: "epub"})
 
       assert %{input_type: ["is invalid"]} = errors_on(changeset)
+    end
+
+    test "rejects invalid persisted workflow state pairs" do
+      assert {:error, changeset} =
+               Ingestions.create_source_ingestion(%{
+                 input_type: "pdf",
+                 status: "needs_review",
+                 processing_stage: "llm_clean"
+               })
+
+      assert %{processing_stage: ["is invalid for status needs_review"]} = errors_on(changeset)
     end
   end
 
@@ -104,7 +113,7 @@ defmodule Gallformers.IngestionsTest do
   end
 
   describe "reject_duplicate_candidate/2" do
-    test "unlocks normal review when the last duplicate candidate is rejected" do
+    test "resumes pipeline processing when the last duplicate candidate is rejected" do
       reviewer = user_fixture()
 
       subject =
@@ -127,8 +136,8 @@ defmodule Gallformers.IngestionsTest do
       assert updated_candidate.status == "rejected"
       assert updated_candidate.reviewed_by_id == reviewer.id
       refute is_nil(updated_candidate.reviewed_at)
-      assert updated_source_ingestion.status == "needs_review"
-      assert updated_source_ingestion.processing_stage == "review"
+      assert updated_source_ingestion.status == "processing"
+      assert updated_source_ingestion.processing_stage == "duplicate_review"
     end
 
     test "refuses to reject a candidate that is no longer pending" do
@@ -290,32 +299,6 @@ defmodule Gallformers.IngestionsTest do
     end
   end
 
-  describe "artifact_path/2" do
-    test "returns nil when artifacts_path is blank" do
-      # Create with default empty string, then verify behavior
-      ingestion = source_ingestion_fixture(%{input_type: "pdf"})
-      # Manually set to empty string to test edge case
-      blank_ingestion = %{ingestion | artifacts_path: ""}
-      assert Ingestions.artifact_path(blank_ingestion, "file.txt") == nil
-    end
-
-    test "builds path with string suffix" do
-      ingestion = source_ingestion_fixture(%{input_type: "pdf"})
-
-      assert Ingestions.artifact_path(ingestion, "preprocessed.txt") ==
-               "#{ingestion.artifacts_path}/preprocessed.txt"
-    end
-
-    test "builds path with list suffix" do
-      ingestion = source_ingestion_fixture(%{input_type: "pdf"})
-      # Enum.reduce applies suffixes in order, prepending to base path
-      result = Ingestions.artifact_path(ingestion, ["extracts", "page1.json"])
-      assert is_binary(result)
-      assert String.contains?(result, "page1.json") == true
-      assert String.contains?(result, ingestion.artifacts_path) == true
-    end
-  end
-
   describe "record_duplicate_signals/2" do
     test "records various signal fields" do
       ingestion = source_ingestion_fixture(%{input_type: "pdf"})
@@ -430,6 +413,17 @@ defmodule Gallformers.IngestionsTest do
       assert diff_ms >= 0 and diff_ms < 5000
     end
 
+    test "rejects invalid explicit status and processing stage combinations" do
+      ingestion = source_ingestion_fixture(%{input_type: "pdf"})
+
+      assert {:error, changeset} =
+               Ingestions.transition_source_ingestion_status(ingestion, :needs_review, %{
+                 processing_stage: "llm_clean"
+               })
+
+      assert %{processing_stage: ["is invalid for status needs_review"]} = errors_on(changeset)
+    end
+
     test "rejects invalid status values" do
       ingestion = source_ingestion_fixture(%{input_type: "pdf"})
 
@@ -437,6 +431,23 @@ defmodule Gallformers.IngestionsTest do
                Ingestions.transition_source_ingestion_status(ingestion, "invalid_status")
 
       assert changeset.errors[:status] != nil
+    end
+  end
+
+  describe "transition_source_ingestion_workflow/3" do
+    test "persists canonical workflow transitions for resumable ingestions" do
+      ingestion =
+        source_ingestion_fixture(%{
+          input_type: "pdf",
+          status: "processing",
+          processing_stage: "assemble"
+        })
+
+      assert {:ok, updated_ingestion} =
+               Ingestions.transition_source_ingestion_workflow(ingestion, :upload_succeeded)
+
+      assert updated_ingestion.status == "needs_review"
+      assert updated_ingestion.processing_stage == "review"
     end
   end
 

@@ -181,11 +181,20 @@ defmodule GallformersWeb.Admin.SectionLive.Form do
   @impl true
   def handle_info({event, _entry}, socket)
       when event in [:taxonomy_created, :taxonomy_updated, :taxonomy_deleted, :section_updated] do
+    {:noreply, reload_species(socket)}
+  end
+
+  @impl true
+  def handle_info(:genera_moved, socket) do
+    {:noreply, reload_species(socket)}
+  end
+
+  defp reload_species(socket) do
     if socket.assigns.section do
       species = Taxonomy.get_species_for_section(socket.assigns.section.id)
-      {:noreply, assign(socket, :species, species)}
+      assign(socket, :species, species)
     else
-      {:noreply, socket}
+      socket
     end
   end
 

@@ -1,9 +1,9 @@
 ---
 status: raw
 created: 2026-02-27
-updated: 2026-03-08
+updated: 2026-04-25
 epic: platform
-relates: [8900, 9ad7]
+relates: [9ad7]
 ---
 
 # Flash of incorrect state during LiveView static render

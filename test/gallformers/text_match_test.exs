@@ -4,6 +4,10 @@ defmodule Gallformers.TextMatchTest do
   alias Gallformers.Species.Species
   alias Gallformers.TextMatch
 
+  defp create_species(name, taxoncode) do
+    Repo.insert!(%Species{name: name, taxoncode: taxoncode, datacomplete: false})
+  end
+
   describe "parse_terms/1" do
     test "nil returns empty list" do
       assert TextMatch.parse_terms(nil) == []
@@ -35,55 +39,93 @@ defmodule Gallformers.TextMatchTest do
   end
 
   describe "build_filter/2" do
-    test "empty search matches everything" do
+    setup do
+      tag = System.unique_integer([:positive])
+      quercus_name = "Quercusfixture#{tag}"
+      alba_name = "alba#{tag}"
+
+      quercus_alba = create_species("#{quercus_name} #{alba_name}", "plant")
+      quercus_rubra = create_species("#{quercus_name} rubra#{tag}", "plant")
+      quercus_velutina = create_species("#{quercus_name} velutina#{tag}", "plant")
+      andricus = create_species("Andricusfixture#{tag} confluenta#{tag}", "gall")
+
+      {:ok,
+       species: [quercus_alba, quercus_rubra, quercus_velutina, andricus],
+       quercus_name: quercus_name,
+       alba_name: alba_name,
+       quercus_alba: quercus_alba,
+       quercus_rubra: quercus_rubra,
+       quercus_velutina: quercus_velutina}
+    end
+
+    test "empty search matches everything", %{species: species} do
       filter = TextMatch.build_filter("", [:name])
       results = from(s in Species, where: ^filter) |> Repo.all()
 
-      # Should return all species in test seeds
-      assert length(results) > 0
+      result_ids = MapSet.new(Enum.map(results, & &1.id))
+
+      for species_record <- species do
+        assert species_record.id in result_ids
+      end
     end
 
-    test "nil search matches everything" do
+    test "nil search matches everything", %{species: species} do
       filter = TextMatch.build_filter(nil, [:name])
       results = from(s in Species, where: ^filter) |> Repo.all()
 
-      assert length(results) > 0
+      result_ids = MapSet.new(Enum.map(results, & &1.id))
+
+      for species_record <- species do
+        assert species_record.id in result_ids
+      end
     end
 
-    test "single term filters correctly" do
-      filter = TextMatch.build_filter("alba", [:name])
+    test "single term filters correctly", %{alba_name: alba_name, quercus_alba: quercus_alba} do
+      filter = TextMatch.build_filter(alba_name, [:name])
       results = from(s in Species, where: ^filter) |> Repo.all()
 
       assert length(results) == 1
-      assert hd(results).name == "Quercus alba"
+      assert hd(results).id == quercus_alba.id
     end
 
-    test "multi-term requires all terms to match" do
-      filter = TextMatch.build_filter("quercus alba", [:name])
+    test "multi-term requires all terms to match", %{
+      quercus_name: quercus_name,
+      alba_name: alba_name,
+      quercus_alba: quercus_alba
+    } do
+      filter = TextMatch.build_filter("#{quercus_name} #{alba_name}", [:name])
       results = from(s in Species, where: ^filter) |> Repo.all()
 
       assert length(results) == 1
-      assert hd(results).name == "Quercus alba"
+      assert hd(results).id == quercus_alba.id
     end
 
-    test "partial term matches" do
-      # "q" should match all Quercus species
-      filter = TextMatch.build_filter("q", [:name])
+    test "partial term matches", %{
+      quercus_name: quercus_name,
+      quercus_alba: quercus_alba,
+      quercus_rubra: quercus_rubra,
+      quercus_velutina: quercus_velutina
+    } do
+      filter = TextMatch.build_filter(quercus_name, [:name])
       results = from(s in Species, where: ^filter) |> Repo.all()
 
-      quercus_names = Enum.map(results, & &1.name) |> Enum.sort()
+      quercus_ids = MapSet.new(Enum.map(results, & &1.id))
 
-      assert "Quercus alba" in quercus_names
-      assert "Quercus rubra" in quercus_names
-      assert "Quercus velutina" in quercus_names
+      assert quercus_alba.id in quercus_ids
+      assert quercus_rubra.id in quercus_ids
+      assert quercus_velutina.id in quercus_ids
     end
 
-    test "search is case insensitive" do
-      filter = TextMatch.build_filter("QUERCUS ALBA", [:name])
+    test "search is case insensitive", %{
+      quercus_name: quercus_name,
+      alba_name: alba_name,
+      quercus_alba: quercus_alba
+    } do
+      filter = TextMatch.build_filter(String.upcase("#{quercus_name} #{alba_name}"), [:name])
       results = from(s in Species, where: ^filter) |> Repo.all()
 
       assert length(results) == 1
-      assert hd(results).name == "Quercus alba"
+      assert hd(results).id == quercus_alba.id
     end
 
     test "no match returns empty list" do
@@ -94,20 +136,21 @@ defmodule Gallformers.TextMatchTest do
     end
 
     test "multi-field matches in any field" do
-      # "plant" should match via taxoncode field
       filter = TextMatch.build_filter("plant", [:name, :taxoncode])
       results = from(s in Species, where: ^filter) |> Repo.all()
 
       assert Enum.all?(results, &(&1.taxoncode == "plant")) == true
     end
 
-    test "multi-term across multiple fields requires all terms match somewhere" do
-      # "alba plant" - "alba" matches name, "plant" matches taxoncode
-      filter = TextMatch.build_filter("alba plant", [:name, :taxoncode])
+    test "multi-term across multiple fields requires all terms match somewhere", %{
+      alba_name: alba_name,
+      quercus_alba: quercus_alba
+    } do
+      filter = TextMatch.build_filter("#{alba_name} plant", [:name, :taxoncode])
       results = from(s in Species, where: ^filter) |> Repo.all()
 
       assert length(results) == 1
-      assert hd(results).name == "Quercus alba"
+      assert hd(results).id == quercus_alba.id
     end
   end
 

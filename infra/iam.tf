@@ -76,11 +76,13 @@ resource "aws_iam_policy" "gallformers_image_upload" {
         Sid    = "ImageBucketWrite"
         Effect = "Allow"
         Action = [
+          "s3:GetObject",
           "s3:Put*",
           "s3:DeleteObject",
         ]
         Resource = [
           "${aws_s3_bucket.images.arn}/*",
+          "${aws_s3_bucket.private.arn}/*",
         ]
       },
       {
@@ -91,6 +93,7 @@ resource "aws_iam_policy" "gallformers_image_upload" {
         ]
         Resource = [
           aws_s3_bucket.images.arn,
+          aws_s3_bucket.private.arn,
         ]
       }
     ]
@@ -115,4 +118,3 @@ resource "aws_iam_user_policy_attachment" "s3_upload_image_upload" {
   user       = aws_iam_user.s3_upload.name
   policy_arn = aws_iam_policy.gallformers_image_upload.arn
 }
-

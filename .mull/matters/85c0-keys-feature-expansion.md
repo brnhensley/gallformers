@@ -1,11 +1,9 @@
 ---
 status: refined
 created: 2026-02-13
-updated: 2026-03-17
+updated: 2026-04-25
 epic: identification
-relates: [439a, 67c9, 4892, eb47]
-blocks: [0f79]
-needs: [60e6]
+relates: [439a, 67c9, eb47]
 ---
 
 # Keys feature expansion

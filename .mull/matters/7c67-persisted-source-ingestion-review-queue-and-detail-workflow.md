@@ -1,11 +1,10 @@
 ---
 status: planned
 created: 2026-04-21
-updated: 2026-04-21
+updated: 2026-04-25
 epic: ingestion
 relates: [fa48]
 blocks: [7fda]
-needs: [664d, a80e]
 parent: 7fda
 ---
 
@@ -110,4 +109,3 @@ The exact UI shell can adapt during implementation, but the information architec
 ## Deliverable
 
 A production source-ingestion review workflow that matches the direction of `fa48` and `7fda`, updated for `93b8`: persisted queue, explicit duplicate-review state and actions, persisted detail page, source-gated gall review, gall-level prose and trait evidence, and completion based on resolving all ingestion-species items rather than on local artifact files.
-

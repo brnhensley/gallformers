@@ -2,10 +2,10 @@
 status: planned
 tags: [design]
 created: 2026-03-04
-updated: 2026-04-21
+updated: 2026-04-25
 epic: ingestion
-relates: [ef0e, c836, 881c, fa48, dd3a, 93b8]
-needs: [664d, a80e, 7c67]
+relates: [fa48]
+needs: [7c67]
 ---
 
 # Source ingestion system — pipeline, review UI, Oban integration
@@ -254,4 +254,3 @@ Update as implementation lands:
 ## Summary
 
 `7fda` is no longer "wrap the Python PoC and get it onto main." The repo already has the PoC. The remaining work is to build the real, persisted, Elixir-native ingestion system on top of Oban and Postgres, with explicit duplicate signals, explicit duplicate-review workflow, and ingestion-owned artifact/state semantics throughout.
-

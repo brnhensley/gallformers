@@ -128,5 +128,17 @@ defmodule GallformersWeb.Admin.SectionLiveTest do
 
       assert html =~ "Thymus"
     end
+
+    test "ignores genera_moved taxonomy broadcasts without crashing", %{
+      conn: conn,
+      section: section
+    } do
+      {:ok, view, _html} = live(conn, ~p"/admin/section/#{section.id}")
+
+      Phoenix.PubSub.broadcast(Gallformers.PubSub, "taxonomy", :genera_moved)
+      html = render(view)
+
+      assert html =~ "Thymus alpinus"
+    end
   end
 end

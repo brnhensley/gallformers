@@ -17,7 +17,7 @@ defmodule GallformersWeb.Admin.ArticleLive.Form do
   alias Gallformers.Articles
   alias Gallformers.Articles.Article
   alias Gallformers.Markdown
-  alias Gallformers.Storage
+  alias Gallformers.Storage.Images, as: ImageStorage
 
   @impl true
   def mount(_params, session, socket) do
@@ -283,9 +283,9 @@ defmodule GallformersWeb.Admin.ArticleLive.Form do
 
     {images, filter} =
       if article && article.id do
-        {Storage.list_article_images_for_article(article.id), article.id}
+        {ImageStorage.list_article_images_for_article(article.id), article.id}
       else
-        {Storage.list_article_images(), ""}
+        {ImageStorage.list_article_images(), ""}
       end
 
     {:noreply,
@@ -302,7 +302,7 @@ defmodule GallformersWeb.Admin.ArticleLive.Form do
 
   @impl true
   def handle_event("filter_images_by_article", %{"article_id" => ""}, socket) do
-    images = Storage.list_article_images()
+    images = ImageStorage.list_article_images()
 
     {:noreply,
      socket
@@ -313,7 +313,7 @@ defmodule GallformersWeb.Admin.ArticleLive.Form do
   @impl true
   def handle_event("filter_images_by_article", %{"article_id" => article_id}, socket) do
     article_id = String.to_integer(article_id)
-    images = Storage.list_article_images_for_article(article_id)
+    images = ImageStorage.list_article_images_for_article(article_id)
 
     {:noreply,
      socket
@@ -397,13 +397,13 @@ defmodule GallformersWeb.Admin.ArticleLive.Form do
     image = socket.assigns.image_to_delete
     Logger.info("Deleting image: path=#{inspect(image.path)}, url=#{inspect(image.url)}")
 
-    case Storage.delete_article_image(image.path) do
+    case ImageStorage.delete_article_image(image.path) do
       :ok ->
         # Refresh the image list
         images =
           case socket.assigns.image_browser_filter do
-            "" -> Storage.list_article_images()
-            article_id -> Storage.list_article_images_for_article(article_id)
+            "" -> ImageStorage.list_article_images()
+            article_id -> ImageStorage.list_article_images_for_article(article_id)
           end
 
         {:noreply,
@@ -434,11 +434,11 @@ defmodule GallformersWeb.Admin.ArticleLive.Form do
     article = socket.assigns.article
 
     if article && article.id do
-      path = Storage.generate_article_path(article.id, ext)
+      path = ImageStorage.generate_article_path(article.id, ext)
 
-      case Storage.presigned_upload_url(path, type) do
+      case ImageStorage.presigned_upload_url(path, type) do
         {:ok, url} ->
-          image_url = Storage.article_image_url(path)
+          image_url = ImageStorage.article_image_url(path)
 
           {:noreply,
            push_event(socket, "article_presigned_url", %{

@@ -35,6 +35,7 @@
            ]},
           {Credo.Check.Design.TagTODO, [exit_status: 0]},
           {Credo.Check.Design.TagFIXME, []},
+          {Credo.Check.Design.SkipTestWithoutComment, []},
 
           # Architecture checks (custom — only scan lib/, not test/)
           {Gallformers.Credo.Checks.Architecture.NoRepoInWeb,
@@ -61,8 +62,8 @@
           {Gallformers.Credo.Checks.TestQuality.NoHardcodedIds, files: %{included: ["test/"]}},
           {Gallformers.Credo.Checks.TestQuality.NoBareTruthinessAssert,
            files: %{included: ["test/"]}},
-          # {Gallformers.Credo.Checks.TestQuality.TestsOwnTheirData,
-          #  files: %{included: ["test/"], excluded: ["test/prod_data/", "test/e2e/"]}},
+          {Gallformers.Credo.Checks.TestQuality.TestsOwnTheirData,
+           files: %{included: ["test/"], excluded: ["test/prod_data/", "test/e2e/"]}},
 
           # Readability checks
           {Credo.Check.Readability.AliasOrder, []},

@@ -1,11 +1,9 @@
 ---
 status: raw
 created: 2026-02-15
-updated: 2026-03-25
+updated: 2026-04-25
 epic: images
-relates: [dd3a]
 blocks: [e7bb]
-needs: [60e6, dd3a]
 ---
 
 # Image processing pipeline

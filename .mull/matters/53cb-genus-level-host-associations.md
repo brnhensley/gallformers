@@ -1,10 +1,9 @@
 ---
 status: raw
 created: 2026-03-03
-updated: 2026-04-15
+updated: 2026-04-25
 epic: cynipid
-relates: [0f79, 67c9]
-needs: [600a]
+relates: [67c9]
 ---
 
 # Genus-level host associations
@@ -82,4 +81,3 @@ This matter depends on 600a for alignment around the host-union-is-advisory mode
 - Add the targeted ID-result indicator for genus-placeholder exception cases
 - Visually distinguish genus-level placeholder hosts across the site
 - Audit and normalize existing placeholder records
-

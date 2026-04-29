@@ -2,10 +2,20 @@ defmodule GallformersWeb.Admin.DashboardLiveTest do
   @moduledoc """
   LiveView tests for the admin dashboard.
   """
-  use GallformersWeb.ConnCase
+  # async: false because admin access is gated by SiteSettings.read_only?/0,
+  # which reads from persistent_term-backed global state.
+  use GallformersWeb.ConnCase, async: false
   import Phoenix.LiveViewTest
 
   alias Gallformers.Accounts.Auth0User
+
+  setup do
+    cache_key = {Gallformers.SiteSettings, :cache}
+    previous = :persistent_term.get(cache_key, %{})
+    :persistent_term.put(cache_key, %{})
+    on_exit(fn -> :persistent_term.put(cache_key, previous) end)
+    :ok
+  end
 
   describe "Admin dashboard" do
     setup %{conn: conn} do

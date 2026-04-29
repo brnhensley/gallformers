@@ -2,9 +2,9 @@
 status: refined
 effort: 5-7 days
 created: 2026-02-16
-updated: 2026-04-15
+updated: 2026-04-25
 epic: taxonomy
-relates: [5b3d, ede2, cdfd]
+relates: [ede2]
 blocks: [f49a]
 docket: true
 ---
