@@ -37,7 +37,7 @@ resource "aws_lambda_function" "downdetector" {
   function_name    = "gallformers-downdetector"
   role             = aws_iam_role.lambda_downdetector.arn
   handler          = "downdetector.handler"
-  runtime          = "nodejs20.x"
+  runtime          = "nodejs24.x"
   timeout          = 10
   memory_size      = 128
   filename         = data.archive_file.downdetector.output_path
@@ -75,36 +75,42 @@ resource "aws_iam_role" "lambda_downdetector" {
     ]
   })
 
-  inline_policy {
-    name = "downdetector-permissions"
-
-    policy = jsonencode({
-      Version = "2012-10-17"
-      Statement = [
-        {
-          Sid    = "SNSPublish"
-          Effect = "Allow"
-          Action = "sns:Publish"
-          Resource = aws_sns_topic.downdetector.arn
-        },
-        {
-          Sid    = "CloudWatchLogs"
-          Effect = "Allow"
-          Action = [
-            "logs:CreateLogGroup",
-            "logs:CreateLogStream",
-            "logs:PutLogEvents",
-          ]
-          Resource = "arn:aws:logs:${var.aws_region}:${var.aws_account_id}:*"
-        }
-      ]
-    })
-  }
-
   tags = {
     Project   = var.project
     ManagedBy = "opentofu"
   }
+}
+
+resource "aws_iam_role_policy" "lambda_downdetector" {
+  name = "downdetector-permissions"
+  role = aws_iam_role.lambda_downdetector.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "SNSPublish"
+        Effect = "Allow"
+        Action = "sns:Publish"
+        Resource = aws_sns_topic.downdetector.arn
+      },
+      {
+        Sid    = "CloudWatchLogs"
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents",
+        ]
+        Resource = "arn:aws:logs:${var.aws_region}:${var.aws_account_id}:*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policies_exclusive" "lambda_downdetector" {
+  role_name    = aws_iam_role.lambda_downdetector.name
+  policy_names = [aws_iam_role_policy.lambda_downdetector.name]
 }
 
 # -----------------------------------------------------------------------------
