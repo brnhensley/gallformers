@@ -21,6 +21,7 @@ defmodule GallformersWeb.Admin.CountryDrillDown do
        subdivisions: [],
        country_level_on: false,
        country_dist_type: "native",
+       exact_dist_type: "native",
        exact_places: MapSet.new(),
        introduced_places: MapSet.new()
      )}
@@ -51,6 +52,7 @@ defmodule GallformersWeb.Admin.CountryDrillDown do
        subdivisions: subdivisions,
        country_level_on: country_level_on,
        country_dist_type: country_dist_type,
+       exact_dist_type: country_dist_type,
        exact_places: exact_codes,
        introduced_places: introduced_codes
      )}
@@ -93,26 +95,50 @@ defmodule GallformersWeb.Admin.CountryDrillDown do
   @impl true
   def handle_event("set_country_type", %{"type" => type}, socket)
       when type in ["native", "introduced"] do
-    code = socket.assigns.country.code
-    notify_parent({:set_country_level, code, type})
+    if socket.assigns.country_level_on do
+      code = socket.assigns.country.code
+      notify_parent({:set_country_level, code, type})
+    end
+
     {:noreply, assign(socket, country_dist_type: type)}
   end
 
   @impl true
+  def handle_event("set_exact_click_type", %{"type" => type}, socket)
+      when type in ["native", "introduced"] do
+    {:noreply, assign(socket, exact_dist_type: type)}
+  end
+
+  @impl true
+  def handle_event("apply_country_baseline", _params, socket) do
+    code = socket.assigns.country.code
+    type = socket.assigns.country_dist_type
+    notify_parent({:replace_with_country_baseline, code, type})
+    {:noreply, assign(socket, country_level_on: true)}
+  end
+
+  @impl true
   def handle_event("toggle_subdivision", %{"code" => code}, socket) do
-    notify_parent({:cycle_entry, code})
+    notify_parent({:set_exact_type, code, socket.assigns.exact_dist_type})
     {:noreply, socket}
   end
 
   @impl true
-  def handle_event("select_all", _params, socket) do
+  def handle_event("set_all_exact_native", _params, socket) do
     codes = Enum.map(socket.assigns.subdivisions, & &1.code)
-    notify_parent({:select_all_exact, codes})
+    notify_parent({:set_all_exact_type, codes, "native"})
     {:noreply, socket}
   end
 
   @impl true
-  def handle_event("deselect_all", _params, socket) do
+  def handle_event("set_all_exact_introduced", _params, socket) do
+    codes = Enum.map(socket.assigns.subdivisions, & &1.code)
+    notify_parent({:set_all_exact_type, codes, "introduced"})
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event("clear_all_exact", _params, socket) do
     codes = Enum.map(socket.assigns.subdivisions, & &1.code)
     notify_parent({:deselect_all_exact, codes})
     {:noreply, socket}
@@ -149,6 +175,7 @@ defmodule GallformersWeb.Admin.CountryDrillDown do
             <div :if={@country_level_on} class="mt-2 flex items-center gap-2">
               <span class="text-xs text-gray-500">Type:</span>
               <button
+                id={"country-type-native-#{@country.code}"}
                 type="button"
                 phx-click="set_country_type"
                 phx-value-type="native"
@@ -164,6 +191,7 @@ defmodule GallformersWeb.Admin.CountryDrillDown do
                 Native
               </button>
               <button
+                id={"country-type-introduced-#{@country.code}"}
                 type="button"
                 phx-click="set_country_type"
                 phx-value-type="introduced"
@@ -182,25 +210,81 @@ defmodule GallformersWeb.Admin.CountryDrillDown do
             <p :if={@country_level_on} class="mt-2 text-xs text-gray-500">
               All states shown as probable — check individual states to mark as documented.
             </p>
+            <button
+              :if={@country_level_on}
+              type="button"
+              phx-click="apply_country_baseline"
+              phx-target={@myself}
+              class="mt-3 text-xs px-2 py-1 rounded border border-gray-300 hover:bg-gray-50"
+            >
+              Replace subdivisions with {String.capitalize(@country_dist_type)} baseline
+            </button>
+          </div>
+
+          <%!-- Exact subdivision editing --%>
+          <div class="mb-3 p-3 bg-gray-50 rounded-lg">
+            <div class="text-xs text-gray-500 mb-2">Click counties as:</div>
+            <div class="flex items-center gap-2">
+              <button
+                id={"exact-type-native-#{@country.code}"}
+                type="button"
+                phx-click="set_exact_click_type"
+                phx-value-type="native"
+                phx-target={@myself}
+                class={[
+                  "text-xs px-2 py-0.5 rounded-full border",
+                  if(@exact_dist_type == "native",
+                    do: "bg-green-100 border-green-400 text-green-800 font-medium",
+                    else: "border-gray-300 text-gray-500 hover:bg-gray-50"
+                  )
+                ]}
+              >
+                Native
+              </button>
+              <button
+                id={"exact-type-introduced-#{@country.code}"}
+                type="button"
+                phx-click="set_exact_click_type"
+                phx-value-type="introduced"
+                phx-target={@myself}
+                class={[
+                  "text-xs px-2 py-0.5 rounded-full border",
+                  if(@exact_dist_type == "introduced",
+                    do: "bg-amber-100 border-amber-400 text-amber-800 font-medium",
+                    else: "border-gray-300 text-gray-500 hover:bg-gray-50"
+                  )
+                ]}
+              >
+                Introduced
+              </button>
+            </div>
           </div>
 
           <%!-- Bulk buttons --%>
           <div class="flex gap-2 mb-3">
             <button
               type="button"
-              phx-click="select_all"
+              phx-click="set_all_exact_native"
               phx-target={@myself}
               class="text-xs px-2 py-1 rounded border border-gray-300 hover:bg-gray-50"
             >
-              Select all
+              All native
             </button>
             <button
               type="button"
-              phx-click="deselect_all"
+              phx-click="set_all_exact_introduced"
               phx-target={@myself}
               class="text-xs px-2 py-1 rounded border border-gray-300 hover:bg-gray-50"
             >
-              Deselect all
+              All introduced
+            </button>
+            <button
+              type="button"
+              phx-click="clear_all_exact"
+              phx-target={@myself}
+              class="text-xs px-2 py-1 rounded border border-gray-300 hover:bg-gray-50"
+            >
+              Clear all
             </button>
           </div>
         </:header_extra>

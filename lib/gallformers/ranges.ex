@@ -317,6 +317,78 @@ defmodule Gallformers.Ranges do
     |> Repo.all()
   end
 
+  @doc """
+  Expands raw range entries into effective leaf-level coverage.
+
+  Exact entries win over country-level inherited coverage for the same leaf code.
+  Returns a map of leaf code => metadata including the effective distribution type
+  and the source entry that produced it.
+  """
+  @spec expand_range_entries_to_leaf_status(map()) :: %{String.t() => map()}
+  def expand_range_entries_to_leaf_status(range_entries) when is_map(range_entries) do
+    exact_status =
+      range_entries
+      |> Enum.filter(fn {_code, %{precision: precision}} -> precision == "exact" end)
+      |> Map.new(fn {code, %{distribution_type: distribution_type}} ->
+        {code,
+         %{
+           precision: "exact",
+           distribution_type: distribution_type,
+           source_code: code,
+           source_precision: "exact"
+         }}
+      end)
+
+    Enum.reduce(range_entries, exact_status, fn
+      {code, %{precision: "country", distribution_type: distribution_type}}, acc ->
+        case Places.get_place_by_code(code) do
+          nil ->
+            acc
+
+          place ->
+            expand_country_leaf_status(acc, code, distribution_type, place.id)
+        end
+
+      _, acc ->
+        acc
+    end)
+  end
+
+  @doc """
+  Expands place entries into comparable leaf-level codes.
+
+  Country-precision entries are expanded to their leaf descendants so callers can
+  diff them against leaf-expanded current range coverage.
+  """
+  @spec expand_place_entries_to_leaf_codes([map()]) :: MapSet.t(String.t())
+  def expand_place_entries_to_leaf_codes(place_entries) when is_list(place_entries) do
+    place_entries
+    |> Enum.flat_map(fn
+      %{code: code, precision: "country"} ->
+        case Places.get_place_by_code(code) do
+          nil -> []
+          place -> Places.leaf_descendant_codes(place.id)
+        end
+
+      %{code: code} ->
+        [code]
+    end)
+    |> MapSet.new()
+  end
+
+  defp expand_country_leaf_status(acc, code, distribution_type, place_id) do
+    place_id
+    |> Places.leaf_descendant_codes()
+    |> Enum.reduce(acc, fn leaf_code, expanded ->
+      Map.put_new(expanded, leaf_code, %{
+        precision: "exact",
+        distribution_type: distribution_type,
+        source_code: code,
+        source_precision: "country"
+      })
+    end)
+  end
+
   # ============================================
   # Display Range (expanding precision for maps)
   # ============================================
@@ -349,7 +421,22 @@ defmodule Gallformers.Ranges do
         {intro_exact, intro_inherited} = split_by_precision(introduced_entries)
         intro_set = MapSet.new(intro_exact ++ intro_inherited)
         all_range = MapSet.union(exact_set, clean_inherited)
-        MapSet.intersection(intro_set, all_range) |> MapSet.to_list()
+
+        # Exact native entries override inherited introduced country-level entries.
+        # This lets curators mark an introduced country while clearing the
+        # introduced status for specific documented subdivisions.
+        exact_native_set =
+          host_ranges
+          |> Enum.filter(
+            &(&1.precision == "exact" and Map.get(&1, :distribution_type) != "introduced")
+          )
+          |> Enum.map(& &1.code)
+          |> MapSet.new()
+
+        intro_set
+        |> MapSet.intersection(all_range)
+        |> MapSet.difference(exact_native_set)
+        |> MapSet.to_list()
       else
         []
       end

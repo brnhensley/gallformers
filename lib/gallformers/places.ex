@@ -343,6 +343,17 @@ defmodule Gallformers.Places do
   end
 
   @doc """
+  Returns codes for leaf descendants only.
+  For a leaf place, returns just its own code.
+  """
+  @spec leaf_descendant_codes(integer()) :: [String.t()]
+  def leaf_descendant_codes(place_id) do
+    place_id
+    |> leaf_descendant_ids()
+    |> place_codes_for_ids()
+  end
+
+  @doc """
   Returns IDs for leaf descendants of multiple places in a single batched query.
   Equivalent to calling `leaf_descendant_ids/1` for each place_id, but avoids N+1 queries.
   """
@@ -431,8 +442,12 @@ defmodule Gallformers.Places do
   """
   @spec get_descendant_codes(integer()) :: [String.t()]
   def get_descendant_codes(place_id) do
-    ids = descendant_ids(place_id)
+    place_id
+    |> descendant_ids()
+    |> place_codes_for_ids()
+  end
 
+  defp place_codes_for_ids(ids) do
     from(p in Place,
       where: p.id in ^ids,
       select: p.code

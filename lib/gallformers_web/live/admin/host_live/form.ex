@@ -472,6 +472,25 @@ defmodule GallformersWeb.Admin.HostLive.Form do
     end
   end
 
+  defp set_exact_entry_type(range_entries, code, distribution_type) do
+    case Map.get(range_entries, code) do
+      %{precision: "exact", distribution_type: ^distribution_type} ->
+        Map.delete(range_entries, code)
+
+      _ ->
+        Map.put(range_entries, code, %{precision: "exact", distribution_type: distribution_type})
+    end
+  end
+
+  defp replace_country_with_baseline(range_entries, country_code, distribution_type) do
+    range_entries
+    |> Enum.reject(fn {code, %{precision: precision}} ->
+      precision == "exact" and String.starts_with?(code, "#{country_code}-")
+    end)
+    |> Enum.into(%{})
+    |> Map.put(country_code, %{precision: "country", distribution_type: distribution_type})
+  end
+
   defp place_entries_to_range_entries(place_entries) do
     Map.new(place_entries, fn entry ->
       {entry.code,
@@ -483,14 +502,28 @@ defmodule GallformersWeb.Admin.HostLive.Form do
   defp build_powo_diff(wcvp_data, range_entries) do
     tdwg_lookup = Wcvp.Tdwg.load()
     native_places = Wcvp.Tdwg.convert_tdwg_codes(wcvp_data.native_distribution, tdwg_lookup)
-    native_codes = MapSet.new(native_places, & &1.code)
+    native_codes = Ranges.expand_place_entries_to_leaf_codes(native_places)
 
     introduced_places =
       Wcvp.Tdwg.convert_tdwg_codes(wcvp_data.introduced_distribution, tdwg_lookup)
 
-    introduced_codes = MapSet.new(introduced_places, & &1.code)
+    introduced_codes = Ranges.expand_place_entries_to_leaf_codes(introduced_places)
 
-    Plants.compute_powo_diff(range_entries, native_codes, introduced_codes)
+    powo_precision_by_code =
+      native_places
+      |> Kernel.++(introduced_places)
+      |> Map.new(fn %{code: code, precision: precision} -> {code, precision} end)
+
+    current_leaf_sources_by_code = Ranges.expand_range_entries_to_leaf_status(range_entries)
+
+    current_leaf_range_entries =
+      Map.new(current_leaf_sources_by_code, fn {code, %{distribution_type: distribution_type}} ->
+        {code, %{precision: "exact", distribution_type: distribution_type}}
+      end)
+
+    Plants.compute_powo_diff(current_leaf_range_entries, native_codes, introduced_codes)
+    |> Map.put(:powo_precision_by_code, powo_precision_by_code)
+    |> Map.put(:current_leaf_sources_by_code, current_leaf_sources_by_code)
     |> Map.put(:wcvp_data, wcvp_data)
   end
 
@@ -697,19 +730,73 @@ defmodule GallformersWeb.Admin.HostLive.Form do
   # For reclassify: selected codes change distribution_type.
   defp apply_powo_selections(range_entries, diff, selections) do
     remove_as_introduced = Map.get(selections, :remove_as_introduced, MapSet.new())
+    powo_precision_by_code = Map.get(diff, :powo_precision_by_code, %{})
 
     range_entries
-    |> add_codes(selections.add_native, "native")
-    |> add_codes(selections.add_introduced, "introduced")
+    |> materialize_country_level_entries(diff, selections, remove_as_introduced)
+    |> add_codes(selections.add_native, "native", powo_precision_by_code)
+    |> add_codes(selections.add_introduced, "introduced", powo_precision_by_code)
     |> remove_unselected(diff.remove, selections.remove)
     |> reclassify_codes(selections.reclassify_to_introduced, "introduced")
     |> reclassify_codes(selections.reclassify_to_native, "native")
     |> reclassify_codes(remove_as_introduced, "introduced")
   end
 
-  defp add_codes(entries, codes, dist_type) do
+  defp add_codes(entries, codes, dist_type, precision_by_code) do
     Enum.reduce(codes, entries, fn code, acc ->
-      Map.put(acc, code, %{precision: "exact", distribution_type: dist_type})
+      Map.put(acc, code, %{
+        precision: Map.get(precision_by_code, code, "exact"),
+        distribution_type: dist_type
+      })
+    end)
+  end
+
+  defp materialize_country_level_entries(entries, diff, selections, remove_as_introduced) do
+    current_leaf_sources = Map.get(diff, :current_leaf_sources_by_code, %{})
+
+    removed_codes =
+      diff.remove
+      |> MapSet.new()
+      |> MapSet.difference(selections.remove)
+
+    changed_leaf_codes =
+      [
+        removed_codes,
+        selections.reclassify_to_introduced,
+        selections.reclassify_to_native,
+        remove_as_introduced
+      ]
+      |> Enum.reduce(MapSet.new(), &MapSet.union/2)
+
+    countries_to_materialize =
+      Enum.reduce(changed_leaf_codes, MapSet.new(), fn code, acc ->
+        case Map.get(current_leaf_sources, code) do
+          %{source_precision: "country", source_code: source_code} ->
+            MapSet.put(acc, source_code)
+
+          _ ->
+            acc
+        end
+      end)
+
+    Enum.reduce(countries_to_materialize, entries, fn country_code, acc ->
+      inherited_leaf_entries =
+        current_leaf_sources
+        |> Enum.filter(fn
+          {_leaf_code, %{source_precision: "country", source_code: ^country_code}} -> true
+          _ -> false
+        end)
+
+      acc =
+        Enum.reduce(inherited_leaf_entries, Map.delete(acc, country_code), fn
+          {leaf_code, %{distribution_type: distribution_type}}, materialized ->
+            Map.put_new(materialized, leaf_code, %{
+              precision: "exact",
+              distribution_type: distribution_type
+            })
+        end)
+
+      acc
     end)
   end
 
@@ -985,10 +1072,11 @@ defmodule GallformersWeb.Admin.HostLive.Form do
   end
 
   @impl true
-  def handle_info({CountryDrillDown, {:cycle_entry, code}}, socket) do
+  def handle_info({CountryDrillDown, {:set_exact_type, code, type}}, socket)
+      when type in ["native", "introduced"] do
     {:noreply,
      socket
-     |> assign(:range_entries, cycle_range_entry(socket.assigns.range_entries, code))
+     |> assign(:range_entries, set_exact_entry_type(socket.assigns.range_entries, code, type))
      |> compute_map_range()
      |> mark_dirty()}
   end
@@ -1008,12 +1096,40 @@ defmodule GallformersWeb.Admin.HostLive.Form do
   end
 
   @impl true
+  def handle_info({CountryDrillDown, {:set_all_exact_type, codes, type}}, socket)
+      when type in ["native", "introduced"] do
+    new_entries =
+      Enum.reduce(codes, socket.assigns.range_entries, fn code, acc ->
+        Map.put(acc, code, %{precision: "exact", distribution_type: type})
+      end)
+
+    {:noreply,
+     socket
+     |> assign(:range_entries, new_entries)
+     |> compute_map_range()
+     |> mark_dirty()}
+  end
+
+  @impl true
   def handle_info({CountryDrillDown, {:deselect_all_exact, codes}}, socket) do
     new_entries = Map.drop(socket.assigns.range_entries, codes)
 
     {:noreply,
      socket
      |> assign(:range_entries, new_entries)
+     |> compute_map_range()
+     |> mark_dirty()}
+  end
+
+  @impl true
+  def handle_info({CountryDrillDown, {:replace_with_country_baseline, code, type}}, socket)
+      when type in ["native", "introduced"] do
+    {:noreply,
+     socket
+     |> assign(
+       :range_entries,
+       replace_country_with_baseline(socket.assigns.range_entries, code, type)
+     )
      |> compute_map_range()
      |> mark_dirty()}
   end

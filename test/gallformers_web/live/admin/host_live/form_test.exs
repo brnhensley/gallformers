@@ -687,67 +687,103 @@ defmodule GallformersWeb.Admin.HostLive.FormTest do
     end
   end
 
-  describe "CountryDrillDown tri-state cycle" do
+  describe "CountryDrillDown exact editing" do
     setup %{conn: conn} do
       {:ok, conn: setup_admin_session(conn)}
     end
 
-    test "cycle_entry adds subdivision as native, then introduced, then removes", %{conn: conn} do
+    test "set_exact_type adds native and removes on second click", %{conn: conn} do
       # Host 7 (T. serpyllum) has US-CA as native
       {:ok, view, _html} = live(conn, ~p"/admin/hosts/7")
 
-      # Open drill-down for US (has subdivisions)
-      render_click(view, "toggle_country", %{"code" => "US"})
-
-      # Simulate CountryDrillDown sending cycle_entry for US-NY (not in range)
       alias GallformersWeb.Admin.CountryDrillDown
-      send(view.pid, {CountryDrillDown, {:cycle_entry, "US-NY"}})
+      send(view.pid, {CountryDrillDown, {:set_exact_type, "US-NY", "native"}})
 
-      # Should be added as native
       range_entries = get_assign(view, :range_entries)
       assert range_entries["US-NY"].distribution_type == "native"
       assert range_entries["US-NY"].precision == "exact"
 
-      # Cycle again → introduced
-      send(view.pid, {CountryDrillDown, {:cycle_entry, "US-NY"}})
-      range_entries = get_assign(view, :range_entries)
-      assert range_entries["US-NY"].distribution_type == "introduced"
-
-      # Cycle again → removed
-      send(view.pid, {CountryDrillDown, {:cycle_entry, "US-NY"}})
+      send(view.pid, {CountryDrillDown, {:set_exact_type, "US-NY", "native"}})
       range_entries = get_assign(view, :range_entries)
       refute Map.has_key?(range_entries, "US-NY")
     end
 
-    test "cycle_entry on existing native entry cycles to introduced", %{conn: conn} do
-      # Host 7 has US-CA as native
+    test "set_exact_type converts existing native entry to introduced", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/admin/hosts/7")
 
       alias GallformersWeb.Admin.CountryDrillDown
-      send(view.pid, {CountryDrillDown, {:cycle_entry, "US-CA"}})
+      send(view.pid, {CountryDrillDown, {:set_exact_type, "US-CA", "introduced"}})
 
       range_entries = get_assign(view, :range_entries)
       assert range_entries["US-CA"].distribution_type == "introduced"
     end
 
-    test "toggle_exact still works for select_all/deselect_all", %{conn: conn} do
+    test "set_all_exact_type still works for bulk native and clear", %{conn: conn} do
       {:ok, view, _html} = live(conn, ~p"/admin/hosts/7")
 
       alias GallformersWeb.Admin.CountryDrillDown
 
-      # select_all_exact adds entries as native
-      send(view.pid, {CountryDrillDown, {:select_all_exact, ["US-NY", "US-TX"]}})
+      send(view.pid, {CountryDrillDown, {:set_all_exact_type, ["US-NY", "US-TX"], "native"}})
 
       range_entries = get_assign(view, :range_entries)
       assert range_entries["US-NY"].distribution_type == "native"
       assert range_entries["US-TX"].distribution_type == "native"
 
-      # deselect_all_exact removes entries
       send(view.pid, {CountryDrillDown, {:deselect_all_exact, ["US-NY", "US-TX"]}})
 
       range_entries = get_assign(view, :range_entries)
       refute Map.has_key?(range_entries, "US-NY")
       refute Map.has_key?(range_entries, "US-TX")
+    end
+
+    test "set_all_exact_type can bulk mark counties introduced", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/7")
+
+      alias GallformersWeb.Admin.CountryDrillDown
+
+      send(view.pid, {CountryDrillDown, {:set_all_exact_type, ["US-CA"], "introduced"}})
+
+      range_entries = get_assign(view, :range_entries)
+      assert range_entries["US-CA"].distribution_type == "introduced"
+    end
+
+    test "exact native subdivision clears introduced display under introduced country", %{
+      conn: conn
+    } do
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/6")
+
+      alias GallformersWeb.Admin.CountryDrillDown
+
+      send(view.pid, {CountryDrillDown, {:set_country_level, "US", "introduced"}})
+      render(view)
+
+      range_entries = get_assign(view, :range_entries)
+      introduced_range = get_assign(view, :introduced_range)
+      in_range = get_assign(view, :in_range)
+
+      assert range_entries["US"].distribution_type == "introduced"
+      assert range_entries["US-CA"].distribution_type == "native"
+      assert "US-CA" in in_range
+      refute "US-CA" in introduced_range
+    end
+
+    test "replace country baseline removes exact subdivisions and keeps country introduced", %{
+      conn: conn
+    } do
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/7")
+
+      alias GallformersWeb.Admin.CountryDrillDown
+
+      send(view.pid, {CountryDrillDown, {:replace_with_country_baseline, "US", "introduced"}})
+
+      range_entries = get_assign(view, :range_entries)
+      introduced_range = get_assign(view, :introduced_range)
+      inherited_range = get_assign(view, :inherited_range)
+
+      assert range_entries["US"] == %{precision: "country", distribution_type: "introduced"}
+      refute Map.has_key?(range_entries, "US-CA")
+      assert "US-CA" in introduced_range
+      assert "US-CA" in inherited_range
     end
   end
 

@@ -58,14 +58,14 @@ defmodule GallformersWeb.Admin.CountryDrillDownTest do
       {:noreply, socket}
     end
 
-    # Mirror the form's cycle_range_entry so component re-renders with updated state
-    def handle_info({CountryDrillDown, {:cycle_entry, code}}, socket) do
-      new_entries = cycle_range_entry(socket.assigns.range_entries, code)
+    def handle_info({CountryDrillDown, {:set_exact_type, code, type}}, socket)
+        when type in ["native", "introduced"] do
+      new_entries = set_exact_entry_type(socket.assigns.range_entries, code, type)
 
       {:noreply,
        socket
        |> assign(range_entries: new_entries)
-       |> update(:messages, &[{:cycle_entry, code} | &1])}
+       |> update(:messages, &[{:set_exact_type, code, type} | &1])}
     end
 
     def handle_info({CountryDrillDown, {:set_country_level, code, type}}, socket)
@@ -91,16 +91,17 @@ defmodule GallformersWeb.Admin.CountryDrillDownTest do
        |> update(:messages, &[{:set_country_level, code, false} | &1])}
     end
 
-    def handle_info({CountryDrillDown, {:select_all_exact, codes}}, socket) do
+    def handle_info({CountryDrillDown, {:set_all_exact_type, codes, type}}, socket)
+        when type in ["native", "introduced"] do
       new_entries =
         Enum.reduce(codes, socket.assigns.range_entries, fn code, acc ->
-          Map.put_new(acc, code, %{precision: "exact", distribution_type: "native"})
+          Map.put(acc, code, %{precision: "exact", distribution_type: type})
         end)
 
       {:noreply,
        socket
        |> assign(range_entries: new_entries)
-       |> update(:messages, &[{:select_all_exact, codes} | &1])}
+       |> update(:messages, &[{:set_all_exact_type, codes, type} | &1])}
     end
 
     def handle_info({CountryDrillDown, {:deselect_all_exact, codes}}, socket) do
@@ -112,20 +113,33 @@ defmodule GallformersWeb.Admin.CountryDrillDownTest do
        |> update(:messages, &[{:deselect_all_exact, codes} | &1])}
     end
 
+    def handle_info({CountryDrillDown, {:replace_with_country_baseline, code, type}}, socket)
+        when type in ["native", "introduced"] do
+      new_entries =
+        socket.assigns.range_entries
+        |> Enum.reject(fn {entry_code, %{precision: precision}} ->
+          precision == "exact" and String.starts_with?(entry_code, "#{code}-")
+        end)
+        |> Enum.into(%{})
+        |> Map.put(code, %{precision: "country", distribution_type: type})
+
+      {:noreply,
+       socket
+       |> assign(range_entries: new_entries)
+       |> update(:messages, &[{:replace_with_country_baseline, code, type} | &1])}
+    end
+
     def handle_info({CountryDrillDown, :zoom_out}, socket) do
       {:noreply, update(socket, :messages, &[:zoom_out | &1])}
     end
 
-    defp cycle_range_entry(range_entries, code) do
+    defp set_exact_entry_type(range_entries, code, distribution_type) do
       case Map.get(range_entries, code) do
-        nil ->
-          Map.put(range_entries, code, %{precision: "exact", distribution_type: "native"})
-
-        %{distribution_type: "native"} ->
-          Map.put(range_entries, code, %{precision: "exact", distribution_type: "introduced"})
+        %{precision: "exact", distribution_type: ^distribution_type} ->
+          Map.delete(range_entries, code)
 
         _ ->
-          Map.delete(range_entries, code)
+          Map.put(range_entries, code, %{precision: "exact", distribution_type: distribution_type})
       end
     end
   end
@@ -158,7 +172,7 @@ defmodule GallformersWeb.Admin.CountryDrillDownTest do
       {:ok, _view, html} = live_isolated(conn, TestLive)
 
       refute html =~ "Country-level range"
-      refute html =~ "Select all"
+      refute html =~ "All native"
     end
   end
 
@@ -179,8 +193,9 @@ defmodule GallformersWeb.Admin.CountryDrillDownTest do
       html = open_us(view)
 
       assert html =~ "Country-level range"
-      assert html =~ "Select all"
-      assert html =~ "Deselect all"
+      assert html =~ "All native"
+      assert html =~ "All introduced"
+      assert html =~ "Clear all"
     end
 
     test "computes exact_places and introduced_places on open (no race)", %{conn: conn} do
@@ -237,35 +252,41 @@ defmodule GallformersWeb.Admin.CountryDrillDownTest do
     end
   end
 
-  describe "tri-state subdivision cycling" do
-    test "clicking subdivision sends cycle_entry", %{conn: conn} do
+  describe "exact subdivision editing" do
+    test "clicking subdivision sends selected exact type", %{conn: conn} do
       {:ok, view, _html} = live_isolated(conn, TestLive)
       open_us(view)
 
       click_and_sync(view, "button[phx-value-code='US-CA']")
 
-      assert {:cycle_entry, "US-CA"} in get_messages(view)
+      assert {:set_exact_type, "US-CA", "native"} in get_messages(view)
     end
 
-    test "cycling through states: none → native → introduced → none", %{conn: conn} do
+    test "clicking with native selected adds native then removes on second click", %{conn: conn} do
       {:ok, view, _html} = live_isolated(conn, TestLive)
       open_us(view)
 
-      # Click 1: none → native
       html = click_and_sync(view, "button[phx-value-code='US-CA']")
       assert html =~ "bg-green-500"
       refute html =~ "(introduced)"
 
-      # Click 2: native → introduced
-      html = click_and_sync(view, "button[phx-value-code='US-CA']")
-      assert html =~ "bg-amber-500"
-      assert html =~ "(introduced)"
-
-      # Click 3: introduced → removed
       html = click_and_sync(view, "button[phx-value-code='US-CA']")
       assert html =~ "border-gray-300"
-      refute html =~ "bg-green-500"
-      refute html =~ "bg-amber-500"
+    end
+
+    test "switching exact type converts subdivision in one click", %{conn: conn} do
+      entries = %{"US-CA" => %{precision: "exact", distribution_type: "introduced"}}
+
+      {:ok, view, _html} =
+        live_isolated(conn, TestLive, session: %{"range_entries" => entries})
+
+      open_us(view)
+      html = click_and_sync(view, "#exact-type-native-US")
+      assert html =~ "bg-green-100"
+
+      html = click_and_sync(view, "button[phx-value-code='US-CA']")
+      assert html =~ "bg-green-500"
+      refute html =~ "(introduced)"
     end
   end
 
@@ -304,36 +325,28 @@ defmodule GallformersWeb.Admin.CountryDrillDownTest do
   end
 
   describe "country distribution type selector" do
-    test "shows native/introduced pills when country-level is on", %{conn: conn} do
+    test "shows native/introduced pills for exact editing", %{conn: conn} do
       {:ok, view, _html} = live_isolated(conn, TestLive)
       open_us(view)
 
-      # Toggle country-level on to see pills
-      html = click_and_sync(view, "#country-level-US")
+      html = render(view)
 
       assert html =~ "Native"
       assert html =~ "Introduced"
-      assert html =~ "Type:"
+      assert html =~ "Click counties as:"
     end
 
-    test "does not show pills when country-level is off", %{conn: conn} do
-      {:ok, view, _html} = live_isolated(conn, TestLive)
-      html = open_us(view)
-
-      refute html =~ "Type:"
-    end
-
-    test "switching to introduced sends set_country_level with introduced type", %{conn: conn} do
+    test "switching exact click mode does not create a country row", %{conn: conn} do
       {:ok, view, _html} = live_isolated(conn, TestLive)
       open_us(view)
 
-      # Turn on country-level first
-      click_and_sync(view, "#country-level-US")
+      html = click_and_sync(view, "#exact-type-introduced-US")
+      assert html =~ "bg-amber-100"
 
-      # Switch to introduced
-      click_and_sync(view, "button[phx-value-type='introduced']")
+      click_and_sync(view, "button[phx-value-code='US-CA']")
 
-      assert {:set_country_level, "US", "introduced"} in get_messages(view)
+      refute {:set_country_level, "US", "introduced"} in get_messages(view)
+      assert {:set_exact_type, "US-CA", "introduced"} in get_messages(view)
     end
 
     test "native pill is highlighted when country is native", %{conn: conn} do
@@ -350,25 +363,39 @@ defmodule GallformersWeb.Admin.CountryDrillDownTest do
       open_us(view)
 
       click_and_sync(view, "#country-level-US")
-      html = click_and_sync(view, "button[phx-value-type='introduced']")
+      html = click_and_sync(view, "#country-type-introduced-US")
 
       assert html =~ "bg-amber-100"
+    end
+
+    test "replace baseline button sends replace_with_country_baseline", %{conn: conn} do
+      entries = %{"US-CA" => %{precision: "exact", distribution_type: "native"}}
+
+      {:ok, view, _html} =
+        live_isolated(conn, TestLive, session: %{"range_entries" => entries})
+
+      open_us(view)
+      click_and_sync(view, "#country-level-US")
+      click_and_sync(view, "#country-type-introduced-US")
+      click_and_sync(view, "button", "Replace subdivisions with Introduced baseline")
+
+      assert {:replace_with_country_baseline, "US", "introduced"} in get_messages(view)
     end
   end
 
   describe "bulk selection" do
-    test "select all sends select_all_exact with subdivision codes", %{conn: conn} do
+    test "all native sends set_all_exact_type with native", %{conn: conn} do
       {:ok, view, _html} = live_isolated(conn, TestLive)
       open_us(view)
 
-      click_and_sync(view, "button", "Select all")
+      click_and_sync(view, "button", "All native")
 
       messages = get_messages(view)
-      assert {:select_all_exact, codes} = List.first(messages)
+      assert {:set_all_exact_type, codes, "native"} = List.first(messages)
       assert "US-CA" in codes
     end
 
-    test "deselect all sends deselect_all_exact with subdivision codes", %{conn: conn} do
+    test "all introduced sends set_all_exact_type with introduced", %{conn: conn} do
       entries = %{"US-CA" => %{precision: "exact", distribution_type: "native"}}
 
       {:ok, view, _html} =
@@ -376,24 +403,23 @@ defmodule GallformersWeb.Admin.CountryDrillDownTest do
 
       open_us(view)
 
-      click_and_sync(view, "button", "Deselect all")
+      click_and_sync(view, "button", "All introduced")
 
       messages = get_messages(view)
-      assert {:deselect_all_exact, codes} = List.first(messages)
+      assert {:set_all_exact_type, codes, "introduced"} = List.first(messages)
       assert "US-CA" in codes
     end
 
-    test "select all adds native entries for all subdivisions", %{conn: conn} do
+    test "all native adds native entries for all subdivisions", %{conn: conn} do
       {:ok, view, _html} = live_isolated(conn, TestLive)
       open_us(view)
 
-      html = click_and_sync(view, "button", "Select all")
+      html = click_and_sync(view, "button", "All native")
 
-      # California should now show as native
       assert html =~ "bg-green-500"
     end
 
-    test "deselect all removes entries and shows empty indicators", %{conn: conn} do
+    test "clear all removes entries and shows empty indicators", %{conn: conn} do
       entries = %{"US-CA" => %{precision: "exact", distribution_type: "native"}}
 
       {:ok, view, _html} =
@@ -401,9 +427,34 @@ defmodule GallformersWeb.Admin.CountryDrillDownTest do
 
       open_us(view)
 
-      html = click_and_sync(view, "button", "Deselect all")
+      html = click_and_sync(view, "button", "Clear all")
 
       assert html =~ "border-gray-300"
+      refute html =~ "bg-green-500"
+    end
+
+    test "all introduced marks exact entries introduced", %{conn: conn} do
+      {:ok, view, _html} = live_isolated(conn, TestLive)
+      open_us(view)
+
+      html = click_and_sync(view, "button", "All introduced")
+
+      assert html =~ "bg-amber-500"
+      assert html =~ "(introduced)"
+    end
+
+    test "replace baseline removes exact rows and keeps country row", %{conn: conn} do
+      entries = %{"US-CA" => %{precision: "exact", distribution_type: "native"}}
+
+      {:ok, view, _html} =
+        live_isolated(conn, TestLive, session: %{"range_entries" => entries})
+
+      open_us(view)
+      click_and_sync(view, "#country-level-US")
+      click_and_sync(view, "#country-type-introduced-US")
+      html = click_and_sync(view, "button", "Replace subdivisions with Introduced baseline")
+
+      assert html =~ "bg-emerald-50/50"
       refute html =~ "bg-green-500"
     end
   end

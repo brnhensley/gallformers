@@ -189,6 +189,56 @@ defmodule Gallformers.RangesTest do
       refute "US-CA" in result.introduced_range
     end
 
+    test "exact native subdivision overrides introduced country-level inheritance" do
+      us = Places.get_place_by_code("US")
+      california = Places.get_place_by_code("US-CA")
+
+      entries = [
+        %{
+          code: "US",
+          precision: "country",
+          place_id: us.id,
+          distribution_type: "introduced"
+        },
+        %{
+          code: "US-CA",
+          precision: "exact",
+          place_id: california.id,
+          distribution_type: "native"
+        }
+      ]
+
+      result = Ranges.compute_display_range(entries, with_introduced: true)
+
+      assert "US-CA" in result.in_range
+      refute "US-CA" in result.introduced_range
+    end
+
+    test "exact introduced subdivision overrides native country-level inheritance" do
+      us = Places.get_place_by_code("US")
+      california = Places.get_place_by_code("US-CA")
+
+      entries = [
+        %{
+          code: "US",
+          precision: "country",
+          place_id: us.id,
+          distribution_type: "native"
+        },
+        %{
+          code: "US-CA",
+          precision: "exact",
+          place_id: california.id,
+          distribution_type: "introduced"
+        }
+      ]
+
+      result = Ranges.compute_display_range(entries, with_introduced: true)
+
+      assert "US-CA" in result.in_range
+      assert "US-CA" in result.introduced_range
+    end
+
     test "compute_display_range without with_introduced returns empty introduced_range" do
       california = Places.get_place_by_code("US-CA")
       entries = [%{code: "US-CA", precision: "exact", place_id: california.id}]
@@ -215,6 +265,41 @@ defmodule Gallformers.RangesTest do
         assert Map.has_key?(entry, :distribution_type) == true
         assert entry.distribution_type in ["native", "introduced"]
       end
+    end
+
+    test "expand_range_entries_to_leaf_status expands country entries to leaf coverage" do
+      expanded =
+        Ranges.expand_range_entries_to_leaf_status(%{
+          "US" => %{precision: "country", distribution_type: "native"}
+        })
+
+      assert expanded["US-CA"].distribution_type == "native"
+      assert expanded["US-CA"].source_code == "US"
+      assert expanded["US-CA"].source_precision == "country"
+    end
+
+    test "expand_range_entries_to_leaf_status prefers exact entries over country entries" do
+      expanded =
+        Ranges.expand_range_entries_to_leaf_status(%{
+          "US" => %{precision: "country", distribution_type: "introduced"},
+          "US-CA" => %{precision: "exact", distribution_type: "native"}
+        })
+
+      assert expanded["US-CA"].distribution_type == "native"
+      assert expanded["US-CA"].source_code == "US-CA"
+      assert expanded["US-CA"].source_precision == "exact"
+    end
+
+    test "expand_place_entries_to_leaf_codes expands country precision to leaf codes" do
+      codes =
+        Ranges.expand_place_entries_to_leaf_codes([
+          %{code: "MX", precision: "country"},
+          %{code: "US-CA", precision: "exact"}
+        ])
+
+      assert MapSet.member?(codes, "MX-JAL") == true
+      assert MapSet.member?(codes, "US-CA") == true
+      refute MapSet.member?(codes, "MX")
     end
   end
 

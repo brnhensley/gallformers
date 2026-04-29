@@ -109,6 +109,12 @@ defmodule GallformersWeb.Admin.HostLive.WcvpTest do
     :sys.get_state(view.pid).socket.assigns[key]
   end
 
+  defp put_assign(view, key, value) do
+    :sys.replace_state(view.pid, fn state ->
+      put_in(state.socket.assigns[key], value)
+    end)
+  end
+
   setup %{conn: conn} do
     {:ok, conn: setup_admin_session(conn)}
   end
@@ -258,6 +264,108 @@ defmodule GallformersWeb.Admin.HostLive.WcvpTest do
       end
 
       assert get_assign(view, :form_dirty) == true
+    end
+
+    test "apply preserves country precision from POWO entries", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/6")
+
+      diff = %{
+        add_native: ["FR"],
+        add_introduced: ["BE"],
+        remove: [],
+        reclassify_to_introduced: [],
+        reclassify_to_native: [],
+        agree_count: 0,
+        has_changes: true,
+        powo_precision_by_code: %{"FR" => "country", "BE" => "country"},
+        wcvp_data: %{plant_name_id: "manual-test", powo_id: "manual-powo"}
+      }
+
+      put_assign(view, :powo_diff, diff)
+
+      alias GallformersWeb.Admin.PowoDiffReview
+
+      selections = %{
+        add_native: MapSet.new(diff.add_native),
+        add_introduced: MapSet.new(diff.add_introduced),
+        remove: MapSet.new(),
+        reclassify_to_introduced: MapSet.new(),
+        reclassify_to_native: MapSet.new()
+      }
+
+      send(view.pid, {PowoDiffReview, {:apply, selections}})
+      _ = render(view)
+
+      range_entries = get_assign(view, :range_entries)
+
+      assert range_entries["FR"].precision == "country"
+      assert range_entries["FR"].distribution_type == "native"
+      assert range_entries["BE"].precision == "country"
+      assert range_entries["BE"].distribution_type == "introduced"
+    end
+
+    test "apply materializes changed country-level leaves before remove and reclassify", %{
+      conn: conn
+    } do
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/6")
+
+      put_assign(view, :range_entries, %{
+        "FR" => %{precision: "country", distribution_type: "native"}
+      })
+
+      diff = %{
+        add_native: [],
+        add_introduced: [],
+        remove: ["FR-01", "FR-02"],
+        reclassify_to_introduced: ["FR-06"],
+        reclassify_to_native: [],
+        agree_count: 0,
+        has_changes: true,
+        powo_precision_by_code: %{},
+        current_leaf_sources_by_code: %{
+          "FR-01" => %{
+            precision: "exact",
+            distribution_type: "native",
+            source_code: "FR",
+            source_precision: "country"
+          },
+          "FR-02" => %{
+            precision: "exact",
+            distribution_type: "native",
+            source_code: "FR",
+            source_precision: "country"
+          },
+          "FR-06" => %{
+            precision: "exact",
+            distribution_type: "native",
+            source_code: "FR",
+            source_precision: "country"
+          }
+        },
+        wcvp_data: %{plant_name_id: "manual-test", powo_id: "manual-powo"}
+      }
+
+      put_assign(view, :powo_diff, diff)
+
+      alias GallformersWeb.Admin.PowoDiffReview
+
+      selections = %{
+        add_native: MapSet.new(),
+        add_introduced: MapSet.new(),
+        remove: MapSet.new(["FR-02"]),
+        reclassify_to_introduced: MapSet.new(["FR-06"]),
+        reclassify_to_native: MapSet.new()
+      }
+
+      send(view.pid, {PowoDiffReview, {:apply, selections}})
+      _ = render(view)
+
+      range_entries = get_assign(view, :range_entries)
+
+      refute Map.has_key?(range_entries, "FR")
+      refute Map.has_key?(range_entries, "FR-01")
+      assert range_entries["FR-02"] == %{precision: "exact", distribution_type: "native"}
+      assert range_entries["FR-06"] == %{precision: "exact", distribution_type: "introduced"}
     end
 
     test "cancel dismisses the diff", %{conn: conn} do

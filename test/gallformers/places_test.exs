@@ -63,6 +63,19 @@ defmodule Gallformers.PlacesTest do
       assert Places.leaf_descendant_ids(bahamas.id) == [bahamas.id]
     end
 
+    test "leaf_descendant_codes/1 returns only leaf codes" do
+      us = Places.get_place_by_code("US")
+      codes = Places.leaf_descendant_codes(us.id)
+
+      assert "US-CA" in codes
+      refute "US" in codes
+    end
+
+    test "leaf_descendant_codes/1 for a leaf country returns itself" do
+      bahamas = Places.get_place_by_code("BS")
+      assert Places.leaf_descendant_codes(bahamas.id) == ["BS"]
+    end
+
     test "batch_leaf_descendant_ids/1 returns leaf descendants for multiple places" do
       us = Places.get_place_by_code("US")
       ca = Places.get_place_by_code("CA")
