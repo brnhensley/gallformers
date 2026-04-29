@@ -89,9 +89,9 @@ resource "aws_iam_role_policy" "lambda_downdetector" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid    = "SNSPublish"
-        Effect = "Allow"
-        Action = "sns:Publish"
+        Sid      = "SNSPublish"
+        Effect   = "Allow"
+        Action   = "sns:Publish"
         Resource = aws_sns_topic.downdetector.arn
       },
       {

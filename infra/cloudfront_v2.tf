@@ -1,7 +1,7 @@
 # CloudFront distribution for the Gallformers V2 app.
 #
-# Sits in front of Fly.io and serves a static maintenance page from S3
-# when the origin returns 502, 503, or 504. This is a full app proxy —
+# Sits in front of Fly.io and serves static maintenance and outage pages from
+# S3. This is a full app proxy —
 # the default behavior passes all HTTP methods through and does NOT cache.
 # Only /assets/* is cached.
 #
@@ -165,7 +165,7 @@ resource "aws_cloudfront_response_headers_policy" "tiles_cors" {
 # -----------------------------------------------------------------------------
 
 resource "aws_cloudfront_distribution" "v2" {
-  comment         = "Gallformers V2 CDN with maintenance failover"
+  comment         = "Gallformers V2 CDN with maintenance and outage pages"
   enabled         = true
   is_ipv6_enabled = true
   price_class     = "PriceClass_100"
@@ -204,6 +204,13 @@ resource "aws_cloudfront_distribution" "v2" {
     origin_path = "/maintenance"
   }
 
+  # Additional static page for unplanned outages.
+  origin {
+    domain_name = aws_s3_bucket.images.bucket_regional_domain_name
+    origin_id   = "s3-outage"
+    origin_path = "/outage"
+  }
+
   # Tertiary: S3 tiles (PMTiles boundary data served directly from S3)
   # Requests for /tiles/* map to s3://gallformers-images-us-east-1/tiles/*
   # No origin_path — the /tiles/ prefix in the URL maps directly to the
@@ -217,7 +224,7 @@ resource "aws_cloudfront_distribution" "v2" {
   # --- Default behavior (dynamic app — no caching) ---
 
   default_cache_behavior {
-    target_origin_id       = "flyio"
+    target_origin_id       = var.maintenance_mode_enabled ? "s3-maintenance" : "flyio"
     viewer_protocol_policy = "redirect-to-https"
     allowed_methods        = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
     cached_methods         = ["GET", "HEAD"]
@@ -237,7 +244,7 @@ resource "aws_cloudfront_distribution" "v2" {
 
   ordered_cache_behavior {
     path_pattern           = "/assets/*"
-    target_origin_id       = "flyio"
+    target_origin_id       = var.maintenance_mode_enabled ? "s3-maintenance" : "flyio"
     viewer_protocol_policy = "redirect-to-https"
     allowed_methods        = ["GET", "HEAD"]
     cached_methods         = ["GET", "HEAD"]
@@ -282,28 +289,62 @@ resource "aws_cloudfront_distribution" "v2" {
     cache_policy_id = "658327ea-f89d-4fab-a63d-7e88639e58f6"
   }
 
-  # --- Custom error responses (maintenance page fallback) ---
-  # When Fly.io returns 502/503/504, CloudFront serves the maintenance
-  # page from S3 with a 503 status. The 10-second cache TTL balances
-  # quick recovery with avoiding load on a struggling origin.
+  # --- Outage page (served from S3) ---
+  # This behavior exists so custom error responses can resolve /outage.html
+  # from the S3 origin instead of the Fly.io origin.
+
+  ordered_cache_behavior {
+    path_pattern           = "/outage.html"
+    target_origin_id       = "s3-outage"
+    viewer_protocol_policy = "redirect-to-https"
+    allowed_methods        = ["GET", "HEAD"]
+    cached_methods         = ["GET", "HEAD"]
+    compress               = true
+
+    # AWS managed CachingOptimized policy
+    cache_policy_id = "658327ea-f89d-4fab-a63d-7e88639e58f6"
+  }
+
+  # --- Custom error responses (outage page fallback) ---
+  # When Fly.io fails unexpectedly, CloudFront serves the outage page from
+  # S3 with a 503 status. The 10-second cache TTL balances quick recovery
+  # with avoiding load on a struggling origin.
+
+  custom_error_response {
+    error_code            = 500
+    response_page_path    = "/outage.html"
+    response_code         = 503
+    error_caching_min_ttl = 10
+  }
+
+  dynamic "custom_error_response" {
+    for_each = var.maintenance_mode_enabled ? toset([403, 404, 405]) : toset([])
+
+    content {
+      error_code            = custom_error_response.value
+      response_page_path    = "/maintenance.html"
+      response_code         = 503
+      error_caching_min_ttl = 0
+    }
+  }
 
   custom_error_response {
     error_code            = 502
-    response_page_path    = "/maintenance.html"
+    response_page_path    = "/outage.html"
     response_code         = 503
     error_caching_min_ttl = 10
   }
 
   custom_error_response {
     error_code            = 503
-    response_page_path    = "/maintenance.html"
+    response_page_path    = "/outage.html"
     response_code         = 503
     error_caching_min_ttl = 10
   }
 
   custom_error_response {
     error_code            = 504
-    response_page_path    = "/maintenance.html"
+    response_page_path    = "/outage.html"
     response_code         = 503
     error_caching_min_ttl = 10
   }

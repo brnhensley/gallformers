@@ -22,3 +22,8 @@ variable "alert_email" {
   sensitive   = true
 }
 
+variable "maintenance_mode_enabled" {
+  description = "When true, CloudFront serves the static maintenance page for site requests."
+  type        = bool
+  default     = false
+}

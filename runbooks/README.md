@@ -17,7 +17,7 @@ Operational runbooks for Gallformers.
 | [WCVP](./wcvp.md) | WCVP secondary database operations |
 | [Map Tiles](./map-tiles.md) | Range map tile generation and deployment |
 | [OpenTofu Operations](./opentofu-operations.md) | AWS infrastructure management |
-| [CloudFront V2 Cutover](./cloudfront-v2-cutover.md) | Domain cutover to CloudFront |
+| [Planned Maintenance](./planned-maintenance.md) | Put the site into CDN-served maintenance mode for scheduled downtime |
 
 ## Usage
 
