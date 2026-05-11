@@ -775,24 +775,34 @@ defmodule GallformersWeb.IDLive do
         0
       end
 
+    name_filter = socket.assigns.name_filter
+    filtered_results = apply_name_filter(results, name_filter)
+
     if socket.assigns.filters == default_filters() do
       assign(socket,
         results: results,
-        filtered_results: results,
+        filtered_results: filtered_results,
         summaries: summaries,
         total_count: length(results),
-        name_filter: "",
+        name_filter: name_filter,
         unscoped_count: unscoped_count
       )
     else
       assign(socket,
         results: results,
-        filtered_results: results,
+        filtered_results: filtered_results,
         summaries: summaries,
-        name_filter: "",
+        name_filter: name_filter,
         unscoped_count: unscoped_count
       )
     end
+  end
+
+  defp apply_name_filter(results, ""), do: results
+
+  defp apply_name_filter(results, filter) do
+    term = String.downcase(filter)
+    Enum.filter(results, &String.contains?(String.downcase(&1.name), term))
   end
 
   defp generate_summaries_for_imageless(results) do
