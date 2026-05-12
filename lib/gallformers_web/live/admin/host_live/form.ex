@@ -412,7 +412,7 @@ defmodule GallformersWeb.Admin.HostLive.Form do
     end
   end
 
-  defp toggle_country(%{assigns: %{mode: mode}} = socket, _code) when mode != :edit, do: socket
+  defp toggle_country(%{assigns: %{mode: :search}} = socket, _code), do: socket
 
   defp toggle_country(socket, code) do
     case Places.get_place_by_code(code) do
@@ -895,6 +895,7 @@ defmodule GallformersWeb.Admin.HostLive.Form do
       {:ok, host} ->
         # Save WCVP IDs and places if this host was pre-filled from WCVP
         save_wcvp_data(socket, host)
+        persist_new_host_range_entries(socket, host)
         Galls.invalidate_gall_ranges_for_host(host.id)
 
         {:noreply,
@@ -983,6 +984,27 @@ defmodule GallformersWeb.Admin.HostLive.Form do
 
         place_entries = build_place_entries(socket, wcvp)
         if place_entries != [], do: Ranges.update_host_places(host.id, place_entries)
+    end
+  end
+
+  # Persists range entries collected via map interaction during host creation.
+  # WCVP-prefilled hosts skip this path: their range is staged in wcvp_effective_place_ids
+  # and written by save_wcvp_data, while the editable map is hidden in that mode so
+  # range_entries stays empty.
+  defp persist_new_host_range_entries(socket, host) do
+    range_entries = socket.assigns.range_entries
+
+    if range_entries != %{} do
+      place_code_to_id = Map.new(socket.assigns.all_places, &{&1.code, &1.id})
+
+      entries =
+        range_entries
+        |> Enum.map(fn {code, %{precision: precision, distribution_type: dt}} ->
+          {Map.get(place_code_to_id, code), precision, dt}
+        end)
+        |> Enum.reject(fn {id, _, _} -> is_nil(id) end)
+
+      if entries != [], do: Ranges.update_host_places(host.id, entries)
     end
   end
 
@@ -1637,7 +1659,7 @@ defmodule GallformersWeb.Admin.HostLive.Form do
                 <%!-- Map + Drill-down panel --%>
                 <div class="col-span-5">
                   <label class="gf-label">Range:</label>
-                  <%= if @mode == :edit do %>
+                  <%= if @mode == :edit or (@mode == :new and @wcvp_effective_place_ids in [nil, []]) do %>
                     <div class="flex">
                       <div class="flex-1">
                         <.range_map

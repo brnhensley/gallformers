@@ -826,6 +826,35 @@ defmodule GallformersWeb.Admin.HostLive.FormTest do
 
       assert html =~ "at least one range"
     end
+
+    test "new mode renders editable range map (not dead-end message)", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/new")
+
+      render_click(view, "create_host", %{"name" => "GenusAlpha editablemaphost"})
+
+      html = render(view)
+      refute html =~ "Save host first to edit range"
+      assert has_element?(view, "#host-range-map")
+    end
+
+    test "save in new mode succeeds when range added via map click", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/new")
+
+      render_click(view, "create_host", %{"name" => "GenusAlpha mappedrangehost"})
+      render_click(view, "toggle_region", %{"code" => "US-CA"})
+
+      assert get_assign(view, :range_entries)["US-CA"].distribution_type == "native"
+
+      render_click(view, "save", %{"species" => %{}})
+
+      host = Plants.get_host_by_name("GenusAlpha mappedrangehost")
+      assert host != nil
+
+      place_codes =
+        host.id |> Gallformers.Ranges.get_places_for_host_with_precision() |> Enum.map(& &1.code)
+
+      assert "US-CA" in place_codes
+    end
   end
 
   # WCVP SQLite-dependent tests moved to wcvp_test.exs (async: false)
