@@ -1423,7 +1423,7 @@ defmodule GallformersWeb.Admin.HostLive.Form do
               display_fn={fn item -> item.taxon_name end}
             >
               <:result :let={item}>
-                <span class="italic">{item.taxon_name}</span>
+                <span class="italic text-inherit">{item.taxon_name}</span>
                 <span class="text-gray-500 text-sm ml-1">{item.taxon_authors}</span>
                 <span class="text-gray-400 text-xs ml-2">({item.family})</span>
               </:result>
@@ -1764,7 +1764,7 @@ defmodule GallformersWeb.Admin.HostLive.Form do
           <:header>No exact match found</:header>
           <:body>
             <p class="text-gray-600 mb-4">
-              No exact match found in WCVP for <span class="italic font-medium">{@host.name}</span>.
+              No exact match found in WCVP for <span class="italic font-medium text-inherit">{@host.name}</span>.
               Search below to find the correct entry.
             </p>
             <div id="wcvp-nomatch-search">
@@ -1799,7 +1799,7 @@ defmodule GallformersWeb.Admin.HostLive.Form do
                       "bg-blue-100 font-medium"
                   ]}
                 >
-                  <span class="italic">{result.taxon_name}</span>
+                  <span class="italic text-inherit">{result.taxon_name}</span>
                 </li>
               </ul>
               <p

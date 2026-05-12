@@ -766,7 +766,7 @@ defmodule GallformersWeb.FormComponents do
                 <%= if @result != [] do %>
                   {render_slot(@result, item)}
                 <% else %>
-                  <span class="italic">{@display_fn.(item)}</span>
+                  <span class="italic text-inherit">{@display_fn.(item)}</span>
                 <% end %>
               </button>
             <% end %>
@@ -782,7 +782,7 @@ defmodule GallformersWeb.FormComponents do
               role="option"
             >
               <.icon name="ph-plus" class="size-4 inline-block mr-1" />
-              Create "<span class="italic">{@query}</span>"
+              Create "<span class="italic text-inherit">{@query}</span>"
             </button>
           </div>
         </div>
