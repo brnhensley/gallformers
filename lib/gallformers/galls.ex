@@ -68,6 +68,7 @@ defmodule Gallformers.Galls do
   defdelegate get_hosts_for_galls(gall_species_ids), to: HostAssociations
   defdelegate get_host_counts_for_galls(gall_species_ids), to: HostAssociations
   defdelegate get_host_species_ids_for_gall(gall_species_id), to: HostAssociations
+  defdelegate only_placeholder_hosts?(hosts), to: HostAssociations
   defdelegate create_gall_host(attrs), to: HostAssociations
   defdelegate add_host_to_gall(gall_species_id, host_species_id), to: HostAssociations
   defdelegate remove_host_from_gall(host_relation_id), to: HostAssociations

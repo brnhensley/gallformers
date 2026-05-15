@@ -15,6 +15,8 @@ defmodule GallformersWeb.Admin.HostLive.FormTest do
 
   alias Gallformers.Accounts.Auth0User
   alias Gallformers.Plants
+  alias Gallformers.Repo
+  alias Gallformers.Species.Species
 
   # Helper to set up admin session
   defp setup_admin_session(conn) do
@@ -167,6 +169,66 @@ defmodule GallformersWeb.Admin.HostLive.FormTest do
                live(conn, ~p"/admin/hosts/999999999")
 
       assert flash["error"] =~ "not found"
+    end
+  end
+
+  describe "Genus-level placeholder indicator" do
+    setup %{conn: conn} do
+      {:ok, conn: setup_admin_session(conn)}
+    end
+
+    test "edit mode with placeholder=true shows badge, not disabled checkbox", %{conn: conn} do
+      placeholder =
+        Repo.insert!(%Species{
+          name: "Quercus testbadgespp",
+          taxoncode: "plant",
+          genus_placeholder: true
+        })
+
+      {:ok, _view, html} = live(conn, ~p"/admin/hosts/#{placeholder.id}")
+
+      # The disabled checkbox UI lie must be gone.
+      refute html =~ ~r/<input[^>]*type="checkbox"[^>]*disabled/,
+             "edit-mode placeholder UI should not render a disabled checkbox"
+
+      # A recognizable badge must be present.
+      assert html =~ "gf-badge"
+      assert html =~ "Genus-level placeholder"
+    end
+
+    test "edit mode with placeholder=false renders no placeholder badge or checkbox", %{
+      conn: conn
+    } do
+      normal =
+        Repo.insert!(%Species{
+          name: "Quercus testnormalspp",
+          taxoncode: "plant",
+          genus_placeholder: false
+        })
+
+      {:ok, _view, html} = live(conn, ~p"/admin/hosts/#{normal.id}")
+
+      # No disabled placeholder checkbox in the Rename row area.
+      refute html =~ ~r/<input[^>]*type="checkbox"[^>]*disabled/
+
+      # No placeholder badge for non-placeholder hosts.
+      refute html =~ "Genus-level placeholder"
+    end
+
+    test "new mode renders an interactive (non-disabled) placeholder checkbox", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/new")
+
+      # Create a host so the form is enabled (transitions out of search mode).
+      html = render_click(view, "create_host", %{"name" => "Quercus testnewspp"})
+
+      # A placeholder checkbox is present, NOT disabled, and wired to the toggle event.
+      assert html =~ "Genus-level placeholder"
+      assert html =~ "toggle_genus_placeholder"
+
+      assert has_element?(
+               view,
+               ~s|input[type="checkbox"][phx-click="toggle_genus_placeholder"]:not([disabled])|
+             )
     end
   end
 

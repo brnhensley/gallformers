@@ -395,6 +395,11 @@ defmodule GallformersWeb.Admin.HostLive.Form do
   end
 
   @impl true
+  def handle_event("toggle_genus_placeholder", _params, socket) do
+    {:noreply, toggle_genus_placeholder(socket)}
+  end
+
+  @impl true
   def handle_event("delete", _params, socket) do
     case Species.get_species(socket.assigns.host.id) do
       nil ->
@@ -443,6 +448,51 @@ defmodule GallformersWeb.Admin.HostLive.Form do
 
           push_event(socket, "range-zoom-to-country", %{code: code})
         end
+    end
+  end
+
+  # Toggles the genus_placeholder flag on the host being created/edited.
+  #
+  # - Search mode: no-op (no host yet).
+  # - Edit mode: no-op (existing placeholders cannot be unflagged; non-placeholder
+  #   existing records cannot be converted via this form).
+  # - New mode: requires a resolved genus. When set, auto-fills the host name
+  #   to "{Genus} spp" and enforces the one-placeholder-per-genus invariant.
+  defp toggle_genus_placeholder(%{assigns: %{mode: :search}} = socket), do: socket
+
+  defp toggle_genus_placeholder(%{assigns: %{mode: :edit}} = socket), do: socket
+
+  defp toggle_genus_placeholder(%{assigns: %{mode: :new}} = socket) do
+    host = socket.assigns.host
+    already_set = host && host.genus_placeholder == true
+
+    if already_set, do: socket, else: flag_new_host_as_placeholder(socket)
+  end
+
+  defp flag_new_host_as_placeholder(socket) do
+    taxonomy = socket.assigns.taxonomy
+    genus = taxonomy && taxonomy.genus
+
+    if is_nil(genus) || is_nil(genus.id) do
+      put_flash(socket, :error, "Select a genus first")
+    else
+      case Plants.get_genus_placeholder(genus.id) do
+        nil ->
+          placeholder_name = "#{genus.name} spp"
+          host = %{socket.assigns.host | name: placeholder_name, genus_placeholder: true}
+
+          socket
+          |> assign(:host, host)
+          |> assign(:form, to_form(Plants.change_host(host)))
+          |> mark_dirty()
+
+        existing ->
+          put_flash(
+            socket,
+            :error,
+            "A placeholder already exists for #{genus.name}: #{existing.name} (ID: #{existing.id})."
+          )
+      end
     end
   end
 
@@ -849,6 +899,7 @@ defmodule GallformersWeb.Admin.HostLive.Form do
           params
           |> Map.put("taxoncode", "plant")
           |> Map.put("name", socket.assigns.host.name)
+          |> Map.put("genus_placeholder", socket.assigns.host.genus_placeholder == true)
 
         socket =
           if confirm_range do
@@ -870,6 +921,9 @@ defmodule GallformersWeb.Admin.HostLive.Form do
       missing_taxonomy?(socket) ->
         {:error, "Could not resolve genus from species name. Check for typos."}
 
+      genus_placeholder?(socket) ->
+        validate_genus_placeholder_save(socket)
+
       missing_range?(socket) ->
         {:error, "Host must have at least one range entry"}
 
@@ -881,6 +935,32 @@ defmodule GallformersWeb.Admin.HostLive.Form do
   defp missing_taxonomy?(socket) do
     socket.assigns.mode == :new && !socket.assigns.genus_is_new &&
       (is_nil(socket.assigns.taxonomy) || is_nil(socket.assigns.taxonomy.genus.id))
+  end
+
+  defp genus_placeholder?(%{assigns: %{host: %{genus_placeholder: true}}}), do: true
+  defp genus_placeholder?(_), do: false
+
+  # Genus placeholders don't have range data — skip the range requirement, but
+  # enforce the one-placeholder-per-genus invariant at save time.
+  defp validate_genus_placeholder_save(socket) do
+    genus = socket.assigns.taxonomy && socket.assigns.taxonomy.genus
+    current_id = socket.assigns.host && socket.assigns.host.id
+
+    if is_nil(genus) || is_nil(genus.id) do
+      {:error, "Select a genus before flagging as a placeholder"}
+    else
+      case Plants.get_genus_placeholder(genus.id) do
+        nil ->
+          :ok
+
+        %{id: ^current_id} ->
+          :ok
+
+        existing ->
+          {:error,
+           "A placeholder already exists for #{genus.name}: #{existing.name} (ID: #{existing.id})."}
+      end
+    end
   end
 
   defp missing_range?(socket) do
@@ -1484,7 +1564,7 @@ defmodule GallformersWeb.Admin.HostLive.Form do
                 </p>
               </.info_tip>
             </label>
-            <div class="flex gap-2">
+            <div class="flex gap-2 items-center">
               <input
                 type="text"
                 value={@host.name}
@@ -1499,6 +1579,12 @@ defmodule GallformersWeb.Admin.HostLive.Form do
               >
                 Rename/Reclassify
               </button>
+              <span
+                :if={@host && @host.genus_placeholder == true}
+                title="This host is a genus-level placeholder. Status cannot be removed; delete the record to remove it."
+              >
+                <.badge variant="info">Genus-level placeholder</.badge>
+              </span>
             </div>
           <% else %>
             <%!-- Search/New mode: typeahead for search or create --%>
@@ -1542,6 +1628,32 @@ defmodule GallformersWeb.Admin.HostLive.Form do
         <%!-- Rest of form - disabled until host selected/created --%>
         <fieldset disabled={@mode == :search} class={[@mode == :search && "opacity-50"]}>
           <.form :if={@form} for={@form} id="host-form" phx-change="validate" phx-submit="save">
+            <%!-- Genus-level placeholder checkbox — placed at the top of the form so
+                 it's discoverable when creating a new placeholder (edit mode renders
+                 a status badge inline with Rename/Reclassify above) --%>
+            <div :if={@mode != :edit} class="space-y-1 mb-4">
+              <.input
+                type="checkbox"
+                id="genus-placeholder-toggle"
+                name="genus_placeholder_toggle"
+                label="Genus-level placeholder"
+                checked={@host && @host.genus_placeholder == true}
+                phx-click="toggle_genus_placeholder"
+                disabled={@host && @host.genus_placeholder == true}
+              />
+              <p class="text-sm text-gray-600 ml-6">
+                (e.g. <span class="italic">Quercus spp</span>). When checked, the name is auto-filled from
+                the resolved genus and no range data is required.
+              </p>
+              <p
+                :if={@host && @host.genus_placeholder == true}
+                class="text-amber-700 text-xs ml-6"
+              >
+                Genus placeholder status cannot be removed. To delete this placeholder,
+                remove the record entirely.
+              </p>
+            </div>
+
             <%!-- Row: Genus | Family --%>
             <.taxonomy_genus_family_row
               taxonomy={@taxonomy}

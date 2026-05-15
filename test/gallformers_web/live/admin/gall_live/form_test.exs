@@ -637,8 +637,12 @@ defmodule GallformersWeb.Admin.GallLive.FormTest do
                "(no sources can exist until the gall is saved)"
     end
 
+    # credo:disable-for-next-line Gallformers.Credo.Checks.TestQuality.TestsOwnTheirData
     test "saving a new gall with datacomplete=true does not persist datacomplete=true",
          %{conn: conn} do
+      # Data is created via the `create_gall` LiveView event handler — this test
+      # specifically exercises that path, so pre-creating via Repo.insert! would
+      # defeat its purpose.
       {:ok, view, _html} = live(conn, ~p"/admin/galls/new")
 
       render_click(view, "create_gall", %{"name" => "Andricus regressionius"})
