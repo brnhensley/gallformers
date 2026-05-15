@@ -12,6 +12,7 @@ defmodule GallformersWeb.Admin.GallLive.FormTest do
   """
   use GallformersWeb.ConnCase, async: true
   import Phoenix.LiveViewTest
+  import Ecto.Query
 
   alias Gallformers.Accounts.Auth0User
   alias Gallformers.Galls
@@ -612,6 +613,52 @@ defmodule GallformersWeb.Admin.GallLive.FormTest do
       conn_result = get(conn_without_admin, ~p"/admin/galls/new")
 
       assert redirected_to(conn_result) =~ "/" or redirected_to(conn_result) =~ "/auth"
+    end
+  end
+
+  describe "Datacomplete lock on new gall" do
+    setup %{conn: conn} do
+      {:ok, conn: setup_admin_session(conn)}
+    end
+
+    test "datacomplete checkbox is disabled when creating a new gall (no sources possible yet)",
+         %{conn: conn} do
+      # Use Cynipidae (30) / Andricus (33) from test seeds — non-placeholder genus
+      # so we exercise the regular init_new_gall_form path.
+      {:ok, view, _html} = live(conn, ~p"/admin/galls/new")
+
+      render_click(view, "create_gall", %{"name" => "Andricus testius"})
+
+      assert has_element?(
+               view,
+               "input[name='species[datacomplete]'][disabled]"
+             ),
+             "datacomplete checkbox must be disabled for a new gall " <>
+               "(no sources can exist until the gall is saved)"
+    end
+
+    test "saving a new gall with datacomplete=true does not persist datacomplete=true",
+         %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/admin/galls/new")
+
+      render_click(view, "create_gall", %{"name" => "Andricus regressionius"})
+
+      # Simulate the bad request: client somehow submits datacomplete=true
+      # (e.g. crafted POST, stale form state). Server-side enforcement must
+      # force-clear it because no sources can exist on an unsaved gall.
+      render_submit(view, "save", %{"species" => %{"datacomplete" => "true"}})
+
+      saved =
+        Gallformers.Repo.one(
+          from s in "species",
+            where: s.name == "Andricus regressionius",
+            select: %{id: s.id, datacomplete: s.datacomplete}
+        )
+
+      assert saved, "species should have been created"
+
+      refute saved.datacomplete,
+             "newly-created gall must not be datacomplete (it has zero sources)"
     end
   end
 end
