@@ -175,9 +175,11 @@ defmodule GallformersWeb.Admin.HostLive.Form do
   end
 
   @impl true
-  def handle_event("clear_host", _params, socket) do
-    # Clear selection and return to search mode
-    {:noreply, close_form(socket)}
+  def handle_event("clear_host", params, socket) do
+    # Route through request_cancel so the discard-confirm modal shows if there
+    # are unsaved changes — otherwise this silently nukes form state on the
+    # user (issue #547).
+    handle_form_event("request_cancel", params, socket)
   end
 
   # =================================================================
@@ -365,8 +367,12 @@ defmodule GallformersWeb.Admin.HostLive.Form do
   # Alias events
 
   @impl true
-  def handle_event("update_new_alias", params, socket),
-    do: {:noreply, AliasHandlers.handle_update_new_alias(socket, params)}
+  def handle_event("update_new_alias_name", params, socket),
+    do: {:noreply, AliasHandlers.handle_update_new_alias_name(socket, params)}
+
+  @impl true
+  def handle_event("update_new_alias_type", params, socket),
+    do: {:noreply, AliasHandlers.handle_update_new_alias_type(socket, params)}
 
   @impl true
   def handle_event("add_alias", _params, socket),

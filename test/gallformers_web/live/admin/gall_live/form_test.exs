@@ -206,6 +206,21 @@ defmodule GallformersWeb.Admin.GallLive.FormTest do
       assert {:error, {:live_redirect, %{to: "/admin/galls"}}} =
                render_click(view, "clear_gall", %{})
     end
+
+    test "clearing dirty form shows discard-confirm modal instead of redirecting",
+         %{conn: conn} do
+      gall = require_gall()
+      {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
+
+      # Dirty the form by adding a pending alias (issue #547 regression).
+      render_hook(view, "update_new_alias_name", %{"value" => "Dirtying alias"})
+      render_click(view, "add_alias", %{})
+
+      # Clearing must NOT redirect; it must show the discard-confirm modal.
+      html = render_click(view, "clear_gall", %{})
+
+      assert html =~ "Discard"
+    end
   end
 
   describe "Alias management" do
@@ -213,17 +228,25 @@ defmodule GallformersWeb.Admin.GallLive.FormTest do
       {:ok, conn: setup_admin_session(conn)}
     end
 
-    test "update_new_alias handles name field change", %{conn: conn} do
+    test "typing in alias name input updates new_alias_name", %{conn: conn} do
       gall = require_gall()
       {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
 
-      html =
-        render_click(view, "update_new_alias", %{
-          "value" => "Test Alias",
-          "type" => "common name"
-        })
+      html = render_hook(view, "update_new_alias_name", %{"value" => "Test Alias"})
 
-      assert html =~ "Test Alias" or html =~ gall.name
+      assert html =~ ~s(value="Test Alias")
+    end
+
+    test "selecting scientific from type select preserves typed name", %{conn: conn} do
+      gall = require_gall()
+      {:ok, view, _html} = live(conn, ~p"/admin/galls/#{gall.id}")
+
+      render_hook(view, "update_new_alias_name", %{"value" => "Foobar synonym"})
+
+      html = render_change(view, "update_new_alias_type", %{"value" => "scientific"})
+
+      assert html =~ ~s(value="Foobar synonym")
+      assert html =~ ~r/<option[^>]*value="scientific"[^>]*selected/
     end
 
     test "add_alias with empty name shows error", %{conn: conn} do

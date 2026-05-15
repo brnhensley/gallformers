@@ -206,39 +206,35 @@ defmodule GallformersWeb.Admin.HostLive.FormTest do
     end
   end
 
-  describe "Alias management - update_new_alias event" do
+  describe "Alias management - update events" do
     setup %{conn: conn} do
       {:ok, conn: setup_admin_session(conn)}
     end
 
-    test "update_new_alias handles name field change (phx-keyup)", %{conn: conn} do
+    test "typing in alias name input updates new_alias_name", %{conn: conn} do
       host = require_host()
       {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
 
-      # Simulate typing in alias name field - sends value and type from phx-value-type
-      html =
-        render_click(view, "update_new_alias", %{
-          "value" => "White Oak",
-          "type" => "common name"
-        })
+      html = render_hook(view, "update_new_alias_name", %{"value" => "White Oak"})
 
-      # Should update the input field value
-      assert html =~ "White Oak" or html =~ host.name
+      assert html =~ ~s(value="White Oak")
     end
 
-    test "update_new_alias handles type field change (phx-change)", %{conn: conn} do
+    test "selecting scientific from type select preserves typed name", %{conn: conn} do
       host = require_host()
       {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
 
-      # Simulate changing select - sends value and name from phx-value-name
-      html =
-        render_click(view, "update_new_alias", %{
-          "value" => "scientific synonym",
-          "name" => "Some Alias"
-        })
+      # Type a name first
+      render_hook(view, "update_new_alias_name", %{"value" => "Foobar synonym"})
 
-      # Should update both fields
-      assert html =~ "Some Alias" or html =~ "scientific synonym" or html =~ host.name
+      # Then change the type select. The select has name="value" so Phoenix LV
+      # serializes it as %{"value" => "scientific"} from the form payload.
+      html = render_change(view, "update_new_alias_type", %{"value" => "scientific"})
+
+      # Name must be preserved (bug: previously cleared when type changed).
+      assert html =~ ~s(value="Foobar synonym")
+      # Scientific option should now be selected in the dropdown.
+      assert html =~ ~r/<option[^>]*value="scientific"[^>]*selected/
     end
   end
 
@@ -254,6 +250,34 @@ defmodule GallformersWeb.Admin.HostLive.FormTest do
       html = render_click(view, "add_alias", %{})
 
       assert html =~ "cannot be empty"
+    end
+  end
+
+  describe "Clear host - clear_host event" do
+    setup %{conn: conn} do
+      {:ok, conn: setup_admin_session(conn)}
+    end
+
+    test "clearing host redirects to list when form is clean", %{conn: conn} do
+      host = require_host()
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
+
+      assert {:error, {:live_redirect, %{to: "/admin/hosts"}}} =
+               render_click(view, "clear_host", %{})
+    end
+
+    test "clearing dirty form shows discard-confirm modal instead of redirecting",
+         %{conn: conn} do
+      host = require_host()
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
+
+      # Dirty the form by adding a pending alias (issue #547 regression).
+      render_hook(view, "update_new_alias_name", %{"value" => "Dirtying alias"})
+      render_click(view, "add_alias", %{})
+
+      html = render_click(view, "clear_host", %{})
+
+      assert html =~ "Discard"
     end
   end
 
