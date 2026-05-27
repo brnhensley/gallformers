@@ -311,6 +311,41 @@ defmodule GallformersWeb.Admin.HostLive.FormTest do
 
       assert html =~ "cannot be empty"
     end
+
+    test "save is blocked when an alias is typed but not added", %{conn: conn} do
+      host = require_host()
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
+
+      render_hook(view, "update_new_alias_name", %{"value" => "Forgotten alias"})
+
+      html =
+        view
+        |> element("form#host-form")
+        |> render_submit(%{"species" => %{}})
+
+      assert html =~ "unsaved alias"
+      assert html =~ "Forgotten alias"
+    end
+
+    test "draft hint appears when alias is typed", %{conn: conn} do
+      host = require_host()
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
+
+      html = render_hook(view, "update_new_alias_name", %{"value" => "Draft alias"})
+
+      assert html =~ "Unsaved draft"
+    end
+
+    test "successful add_alias pushes clear_input so a focused input gets cleared",
+         %{conn: conn} do
+      host = require_host()
+      {:ok, view, _html} = live(conn, ~p"/admin/hosts/#{host.id}")
+
+      render_hook(view, "update_new_alias_name", %{"value" => "Brand new alias"})
+      render_click(view, "add_alias", %{})
+
+      assert_push_event(view, "clear_input", %{id: "new-alias-input"})
+    end
   end
 
   describe "Clear host - clear_host event" do

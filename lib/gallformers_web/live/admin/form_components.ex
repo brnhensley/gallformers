@@ -187,15 +187,16 @@ defmodule GallformersWeb.Admin.FormComponents do
                 </button>
               </td>
             </tr>
-            <tr>
+            <tr class="bg-yellow-50">
               <td class="px-3 py-1.5">
                 <input
                   id="new-alias-input"
                   type="text"
                   value={@new_alias_name}
-                  placeholder="New alias..."
+                  placeholder="New alias name (press Enter or click Add)"
                   phx-hook="InputEvent"
                   data-event="update_new_alias_name"
+                  data-enter-event="add_alias"
                   class="gf-input text-sm"
                 />
               </td>
@@ -218,10 +219,16 @@ defmodule GallformersWeb.Admin.FormComponents do
                 <button
                   type="button"
                   phx-click="add_alias"
-                  class="text-green-600 hover:text-green-800"
+                  class="inline-flex items-center gap-1 rounded border border-green-600 px-2 py-1 text-sm font-medium text-green-700 hover:bg-green-50"
                 >
-                  <.icon name="ph-plus" class="h-4 w-4" />
+                  <.icon name="ph-plus" class="h-4 w-4" /> Add
                 </button>
+              </td>
+            </tr>
+            <tr :if={String.trim(@new_alias_name) != ""} class="bg-yellow-50">
+              <td colspan="3" class="px-3 py-1 text-xs italic text-yellow-800">
+                Unsaved draft — click <strong>Add</strong>
+                (or press <strong>Enter</strong>) to add this alias before saving the form.
               </td>
             </tr>
           </tbody>

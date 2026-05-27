@@ -418,16 +418,11 @@ defmodule GallformersWeb.Admin.GallLive.Form do
 
   @impl true
   def handle_event("save", %{"species" => params}, socket) do
-    cond do
-      socket.assigns.genus_is_new && is_nil(socket.assigns.selected_family_id) ->
-        {:noreply, put_flash(socket, :error, "Please select a Family for the new genus")}
+    case validate_save(socket) do
+      {:error, message} ->
+        {:noreply, put_flash(socket, :error, message)}
 
-      socket.assigns.mode == :new && !socket.assigns.genus_is_new &&
-          (is_nil(socket.assigns.taxonomy) || is_nil(socket.assigns.taxonomy.genus.id)) ->
-        {:noreply,
-         put_flash(socket, :error, "Could not resolve genus from species name. Check for typos.")}
-
-      true ->
+      :ok ->
         # Name is captured via typeahead (outside the form), so add it from socket assigns
         params =
           params
@@ -724,6 +719,24 @@ defmodule GallformersWeb.Admin.GallLive.Form do
   # =================================================================
   # Private helper functions
   # =================================================================
+
+  defp validate_save(socket) do
+    cond do
+      socket.assigns.genus_is_new && is_nil(socket.assigns.selected_family_id) ->
+        {:error, "Please select a Family for the new genus"}
+
+      socket.assigns.mode == :new && !socket.assigns.genus_is_new &&
+          (is_nil(socket.assigns.taxonomy) || is_nil(socket.assigns.taxonomy.genus.id)) ->
+        {:error, "Could not resolve genus from species name. Check for typos."}
+
+      pending = AliasHandlers.pending_alias_input(socket) ->
+        {:error,
+         ~s(You have an unsaved alias "#{pending}". Click "+ Add" \(or press Enter in the alias field\) to add it, or clear the field before saving.)}
+
+      true ->
+        :ok
+    end
+  end
 
   # Applies the undescribed lock result from Galls.compute_undescribed_lock/2 to the socket.
   defp apply_undescribed_lock(socket, taxonomy, species_id \\ nil) do

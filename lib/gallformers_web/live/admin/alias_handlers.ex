@@ -25,7 +25,7 @@ defmodule GallformersWeb.Admin.AliasHandlers do
   """
 
   import Phoenix.Component, only: [assign: 2, assign: 3]
-  import Phoenix.LiveView, only: [put_flash: 3]
+  import Phoenix.LiveView, only: [put_flash: 3, push_event: 3]
 
   alias GallformersWeb.Admin.DeferredChanges
 
@@ -63,9 +63,14 @@ defmodule GallformersWeb.Admin.AliasHandlers do
         put_flash(socket, :error, "Alias already exists")
 
       true ->
+        # LiveView intentionally won't overwrite the value of a focused input
+        # on diff, so when the user adds via Enter (input keeps focus) the
+        # cleared assign doesn't reach the DOM. Push an explicit clear that the
+        # InputEvent hook listens for.
         socket
         |> DeferredChanges.add_pending(:aliases, %{name: name, type: type})
         |> assign(:new_alias_name, "")
+        |> push_event("clear_input", %{id: "new-alias-input"})
         |> mark_dirty()
     end
   end
@@ -79,6 +84,26 @@ defmodule GallformersWeb.Admin.AliasHandlers do
     socket
     |> DeferredChanges.remove_pending(:aliases, alias_id)
     |> mark_dirty()
+  end
+
+  @doc """
+  Returns the trimmed pending alias-input value, or `nil` if the field is empty.
+
+  Use from a parent LiveView's save handler to detect when the user typed an
+  alias but never clicked Add / pressed Enter, so we can block the save and
+  warn rather than silently dropping their input.
+  """
+  def pending_alias_input(socket) do
+    case socket.assigns[:new_alias_name] do
+      nil ->
+        nil
+
+      name ->
+        case String.trim(name) do
+          "" -> nil
+          trimmed -> trimmed
+        end
+    end
   end
 
   @doc """

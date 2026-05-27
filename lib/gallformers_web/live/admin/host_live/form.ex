@@ -921,6 +921,10 @@ defmodule GallformersWeb.Admin.HostLive.Form do
       missing_taxonomy?(socket) ->
         {:error, "Could not resolve genus from species name. Check for typos."}
 
+      pending = AliasHandlers.pending_alias_input(socket) ->
+        {:error,
+         ~s(You have an unsaved alias "#{pending}". Click "+ Add" \(or press Enter in the alias field\) to add it, or clear the field before saving.)}
+
       genus_placeholder?(socket) ->
         validate_genus_placeholder_save(socket)
 
